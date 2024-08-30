@@ -178,14 +178,14 @@ public:
 			       bool invert,
 			       const char *attr_name,
 			       LibertyStmt *stmt);
-  virtual void makeTimingArcs(LibertyPort *to_port,
+  virtual void makeTimingArcs(PortGroup *to_port,
 			      TimingGroup *timing);
   virtual void makeTimingArcs(const char *from_port_name,
 			      PortNameBitIterator &from_port_iter,
-			      LibertyPort *to_port,
+			      PortGroup *to_port_group,
 			      LibertyPort *related_out_port,
 			      TimingGroup *timing);
-  virtual void makeTimingArcs(LibertyPort *to_port,
+  virtual void makeTimingArcs(PortGroup *to_port_group,
                               LibertyPort *related_out_port,
 			      TimingGroup *timing);
 

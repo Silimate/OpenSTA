@@ -2019,8 +2019,7 @@ LibertyReader::makeTimingArcs(PortGroup *port_group)
   for (TimingGroup *timing : port_group->timingGroups()) {
     timing->makeTimingModels(cell_, this);
 
-    for (LibertyPort *port : *port_group->ports())
-      makeTimingArcs(port, timing);
+    makeTimingArcs(port_group, timing);
   }
 }
 
@@ -2281,7 +2280,7 @@ LibertyReader::checkScaledCell(LibertyGroup *group)
 }
 
 void
-LibertyReader::makeTimingArcs(LibertyPort *to_port,
+LibertyReader::makeTimingArcs(PortGroup *port_group,
 			      TimingGroup *timing)
 {
   LibertyPort *related_out_port = nullptr;
@@ -2289,7 +2288,7 @@ LibertyReader::makeTimingArcs(LibertyPort *to_port,
   if (related_out_port_name)
     related_out_port = findPort(related_out_port_name);
   int line = timing->line();
-  PortDirection *to_port_dir = to_port->direction();
+  PortDirection *to_port_dir = port_group->ports()->front()->direction();
   // Checks should be more comprehensive (timing checks on inputs, etc).
   TimingType type = timing->attrs()->timingType();
   if (type == TimingType::combinational &&
@@ -2300,14 +2299,14 @@ LibertyReader::makeTimingArcs(LibertyPort *to_port,
       PortNameBitIterator from_port_iter(cell_, from_port_name, this, line);
       if (from_port_iter.hasNext()) {
         debugPrint(debug_, "liberty", 2, "  timing %s -> %s",
-                   from_port_name, to_port->name());
-        makeTimingArcs(from_port_name, from_port_iter, to_port,
+                   from_port_name, port_group->ports()->front()->name());
+        makeTimingArcs(from_port_name, from_port_iter, port_group,
                        related_out_port, timing);
       }
     }
   }
   else
-    makeTimingArcs(to_port, related_out_port, timing);
+    makeTimingArcs(port_group, related_out_port, timing);
 }
 
 void
@@ -2403,37 +2402,40 @@ TimingGroup::makeTableModels(LibertyCell *cell,
 void
 LibertyReader::makeTimingArcs(const char *from_port_name,
 			      PortNameBitIterator &from_port_iter,
-			      LibertyPort *to_port,
+			      PortGroup *to_port_group,
 			      LibertyPort *related_out_port,
 			      TimingGroup *timing)
 {
-  if (from_port_iter.size() == 1 && !to_port->hasMembers()) {
+  if (from_port_iter.size() == 1 && to_port_group->ports()->size() == 1) {
     // one -> one
+    printf("one -> one\n");
     if (from_port_iter.hasNext()) {
       LibertyPort *from_port = from_port_iter.next();
       if (from_port->direction()->isOutput())
         libWarn(1212, timing->line(), "timing group from output port.");
-      builder_.makeTimingArcs(cell_, from_port, to_port, related_out_port,
+      builder_.makeTimingArcs(cell_, from_port, to_port_group->ports()->front(), related_out_port,
                               timing->attrs(), timing->line());
     }
   }
-  else if (from_port_iter.size() > 1 && !to_port->hasMembers()) {
+  else if (from_port_iter.size() > 1 && to_port_group->ports()->size() == 1) {
     // bus -> one
+    printf("bus -> one\n");
     while (from_port_iter.hasNext()) {
       LibertyPort *from_port = from_port_iter.next();
       if (from_port->direction()->isOutput())
         libWarn(1213, timing->line(), "timing group from output port.");
-      builder_.makeTimingArcs(cell_, from_port, to_port, related_out_port,
+      builder_.makeTimingArcs(cell_, from_port, to_port_group->ports()->front(), related_out_port,
                               timing->attrs(), timing->line());
     }
   }
-  else if (from_port_iter.size() == 1 && to_port->hasMembers()) {
+  else if (from_port_iter.size() == 1 && to_port_group->ports()->size() > 1) {
     // one -> bus
+    printf("one -> bus\n");
     if (from_port_iter.hasNext()) {
       LibertyPort *from_port = from_port_iter.next();
       if (from_port->direction()->isOutput())
         libWarn(1214, timing->line(), "timing group from output port.");
-      LibertyPortMemberIterator bit_iter(to_port);
+      Vector<LibertyPort*>::Iterator bit_iter(to_port_group->ports());
       while (bit_iter.hasNext()) {
 	LibertyPort *to_port_bit = bit_iter.next();
 	builder_.makeTimingArcs(cell_, from_port, to_port_bit, related_out_port,
@@ -2443,16 +2445,17 @@ LibertyReader::makeTimingArcs(const char *from_port_name,
   }
   else {
     // bus -> bus
+    printf("bus -> bus\n");
     if (timing->isOneToOne()) {
       int from_size = from_port_iter.size();
-      int to_size = to_port->size();
-      LibertyPortMemberIterator to_port_iter(to_port);
+      int to_size = to_port_group->ports()->size();
+      Vector<LibertyPort*>::Iterator to_port_iter(to_port_group->ports());
       // warn about different sizes
       if (from_size != to_size)
 	libWarn(1216, timing->line(),
 		"timing port %s and related port %s are different sizes.",
 		from_port_name,
-		to_port->name());
+		to_port_group->ports()->front()->name());
       // align to/from iterators for one-to-one mapping
       while (from_size > to_size) {
 	from_size--;
@@ -2478,7 +2481,7 @@ LibertyReader::makeTimingArcs(const char *from_port_name,
 	LibertyPort *from_port_bit = from_port_iter.next();
         if (from_port_bit->direction()->isOutput())
           libWarn(1217, timing->line(), "timing group from output port.");
-	LibertyPortMemberIterator to_iter(to_port);
+	Vector<LibertyPort*>::Iterator to_iter(to_port_group->ports());
 	while (to_iter.hasNext()) {
 	  LibertyPort *to_port_bit = to_iter.next();
 	  builder_.makeTimingArcs(cell_, from_port_bit, to_port_bit,
@@ -2491,23 +2494,17 @@ LibertyReader::makeTimingArcs(const char *from_port_name,
 }
 
 void
-LibertyReader::makeTimingArcs(LibertyPort *to_port,
+LibertyReader::makeTimingArcs(PortGroup *to_port_group,
                               LibertyPort *related_out_port,
 			      TimingGroup *timing)
 {
-  if (to_port->hasMembers()) {
-    LibertyPortMemberIterator bit_iter(to_port);
-    while (bit_iter.hasNext()) {
-      LibertyPort *to_port_bit = bit_iter.next();
-      builder_.makeTimingArcs(cell_, nullptr, to_port_bit,
-                              related_out_port, timing->attrs(),
-                              timing->line());
-    }
-  }
-  else
-    builder_.makeTimingArcs(cell_, nullptr, to_port,
+  Vector<LibertyPort*>::Iterator bit_iter(to_port_group->ports());
+  while (bit_iter.hasNext()) {
+    LibertyPort *to_port_bit = bit_iter.next();
+    builder_.makeTimingArcs(cell_, nullptr, to_port_bit,
                             related_out_port, timing->attrs(),
                             timing->line());
+  }
 }
 
 ////////////////////////////////////////////////////////////////
