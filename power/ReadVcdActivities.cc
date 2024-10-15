@@ -225,9 +225,11 @@ ReadVcdActivities::setVarActivity(const char *pin_name,
       checkClkPeriod(pin, transition_count);
     power_->setUserActivity(pin, activity, duty, PwrActivityOrigin::vcd);
     annotated_pins_.insert(pin);
+    // TODO: Remove after dev complete. DO NOT submit upstream:
     //const char *pname = cmd_network_->pathName(pin);
     //std::cout << "VCD Annotated pin: " << pin_name  << " port: " << pname << " tr count: " << transition_count
     //          << " activity: " << activity << " duty: " << duty << std::endl;
+    // END TODO
   }
 
   if (pins.empty()) {

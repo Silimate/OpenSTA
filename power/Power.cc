@@ -1209,9 +1209,11 @@ Power::findActivity(const Pin *pin)
     if (activity.origin() != PwrActivityOrigin::unknown)
       return activity;
   }
+  // TODO: Remove after dev complete. DO NOT submit upstream:
   const char *pname = network_->pathName(pin);
   if (strstr(pname, "/IQ") == nullptr)
-    std::cout << "WARNING: No Activity found for: " << pname << "\n";
+    std::cout << "INTERNAL WARNING: No Activity found for: " << pname << "\n";
+  // END TODO
   return PwrActivity(0.0, 0.0, PwrActivityOrigin::unknown);
 }
 
