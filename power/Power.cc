@@ -15,7 +15,7 @@
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 #include "Power.hh"
-
+#include <iostream>
 #include <algorithm> // max
 #include <cmath>     // abs
 
@@ -1204,7 +1204,14 @@ Power::findActivity(const Pin *pin)
     PwrActivity &activity = activity_map_[pin];
     if (activity.origin() != PwrActivityOrigin::unknown)
       return activity;
+  } else if (user_activity_map_.hasKey(pin)) {
+    PwrActivity &activity = user_activity_map_[pin];
+    if (activity.origin() != PwrActivityOrigin::unknown)
+      return activity;
   }
+  const char *pname = network_->pathName(pin);
+  if (strstr(pname, "/IQ") == nullptr)
+    std::cout << "WARNING: No Activity found for: " << pname << "\n";
   return PwrActivity(0.0, 0.0, PwrActivityOrigin::unknown);
 }
 

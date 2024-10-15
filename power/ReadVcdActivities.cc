@@ -17,6 +17,7 @@
 #include "ReadVcdActivities.hh"
 
 #include <inttypes.h>
+#include <iostream>
 #include <set>
 
 #include "VcdReader.hh"
@@ -175,13 +176,41 @@ ReadVcdActivities::setVarActivity(VcdVar *var,
   }
 }
 
+static std::string replaceAll(std::string_view str, std::string_view from,
+                                    std::string_view to) {
+  size_t start_pos = 0;
+  std::string result(str);
+  while ((start_pos = result.find(from, start_pos)) != std::string::npos) {
+    result.replace(start_pos, from.length(), to);
+    start_pos += to.length();
+  }
+  return result;
+}
+
 void
 ReadVcdActivities::setVarActivity(const char *pin_name,
                                   const VcdValues &var_values,
                                   int value_bit)
 {
-  const Pin *pin = sdc_network_->findPin(pin_name);
-  if (pin) {
+  std::vector<const Pin*> pins;
+  std::string pinname = replaceAll(pin_name, "\\", "");
+  const Net *net = sdc_network_->findNet(pinname.c_str());
+  if (net) {
+    NetPinIterator *pin_iter = sdc_network_->pinIterator(net);
+    while (pin_iter->hasNext()) {
+      const Pin *pin1 = pin_iter->next();
+      pins.push_back(pin1);
+    }
+    delete pin_iter;
+  }
+
+  if (pins.empty()) {
+    const Pin *pin = sdc_network_->findPin(pinname.c_str());
+    if (pin)
+      pins.push_back(pin);
+  }
+
+  for (auto pin : pins) {
     debugPrint(debug_, "read_vcd_activities", 3, "%s values", pin_name);
     double transition_count, activity, duty;
     findVarActivity(var_values, value_bit,
@@ -196,6 +225,13 @@ ReadVcdActivities::setVarActivity(const char *pin_name,
       checkClkPeriod(pin, transition_count);
     power_->setUserActivity(pin, activity, duty, PwrActivityOrigin::vcd);
     annotated_pins_.insert(pin);
+    //const char *pname = cmd_network_->pathName(pin);
+    //std::cout << "VCD Annotated pin: " << pin_name  << " port: " << pname << " tr count: " << transition_count
+    //          << " activity: " << activity << " duty: " << duty << std::endl;
+  }
+
+  if (pins.empty()) {
+    std::cout << "WARNING: Missed annotating pin: " << pin_name << std::endl;
   }
 }
 
