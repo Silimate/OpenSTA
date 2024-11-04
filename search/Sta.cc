@@ -1649,7 +1649,6 @@ Sta::isDisabledConstant(Edge *edge)
     || (!role->isWire()
 	&& (isCondDisabled(edge, inst, from_pin, to_pin, network_, sim_)
 	    || isModeDisabled(edge, inst, network_, sim_)
-	    || isTestDisabled(inst, from_pin, to_pin, network_, sim_)
 	    || hasDisabledArcs(edge, graph_)));
 }
 
@@ -1704,11 +1703,6 @@ Sta::disabledConstantPins(Edge *edge)
 		   is_disabled, disable_cond);
     if (is_disabled)
       exprConstantPins(disable_cond, inst, pins);
-    Pin *scan_enable;
-    isTestDisabled(inst, from_pin, to_pin, network_, sim_,
-		   is_disabled, scan_enable);
-    if (is_disabled)
-      pins.insert(scan_enable);
     if (hasDisabledArcs(edge, graph_)) {
       LibertyPort *to_port = network_->libertyPort(to_pin);
       if (to_port) {
@@ -2512,10 +2506,11 @@ Sta::setReportPathFields(bool report_input_pin,
 			 bool report_net,
 			 bool report_cap,
 			 bool report_slew,
-                         bool report_fanout)
+			 bool report_fanout,
+			 bool report_src_attr)
 {
   report_path_->setReportFields(report_input_pin, report_net, report_cap,
-				report_slew, report_fanout);
+				report_slew, report_fanout, report_src_attr);
 }
 
 ReportField *
