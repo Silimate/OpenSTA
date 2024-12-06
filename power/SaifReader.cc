@@ -27,6 +27,7 @@
 #include "Power.hh"
 #include "power/SaifReaderPvt.hh"
 #include "Sta.hh"
+#include <iostream>
 
 extern int
 SaifParse_parse();
@@ -191,6 +192,10 @@ SaifReader::setNetDurations(const char *net_name,
                    tc,
                    activity);
         power_->setUserActivity(pin, activity, duty, PwrActivityOrigin::saif);
+        // TODO: Remove after dev complete. DO NOT submit upstream:
+        std::cout << "SAIF Annotated pin: " << net_name << " tr. count: " << tc <<  " activity: "
+                  << activity << " duty: " <<  duty << std::endl;
+        // END TODO
         annotated_pins_.insert(pin);
       }
     }
