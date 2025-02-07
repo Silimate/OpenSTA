@@ -34,6 +34,19 @@
 
 namespace eval sta {
 
+######
+# Temporary implementation of get_all_path_groups
+######
+
+set ::all_path_groups {}
+
+proc get_all_path_groups {} {
+  global all_path_groups
+  return $all_path_groups
+}
+
+######
+
 define_cmd_args "read_sdc" {[-echo] filename}
 
 proc_redirect read_sdc {
@@ -1309,6 +1322,7 @@ define_cmd_args "group_path" \
 
 # The -weight and -critical_range arguments are ignored.
 proc group_path { args } {
+  global all_path_groups
   parse_key_args "group_path" args \
     keys {-name -weight -critical_range \
 	    -from -rise_from -fall_from \
@@ -1350,7 +1364,7 @@ proc group_path { args } {
   }
   
   set comment [parse_comment_key keys]
-  
+  lappend all_path_groups $name
   make_group_path $name $default $from $thrus $to $comment
 }
 
