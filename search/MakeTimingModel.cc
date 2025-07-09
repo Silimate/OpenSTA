@@ -285,6 +285,7 @@ MakeEndTimingArcs::visit(PathEnd *path_end)
   const ClockEdge *tgt_clk_edge = path_end->targetClkEdge(sta_);
   if (src_clk == sta_->sdc()->defaultArrivalClock()
       && tgt_clk_edge) {
+    sta_->reportPathEnd(path_end);
     Network *network = sta_->network();
     Debug *debug = sta_->debug();
     const MinMax *min_max = path_end->minMax(sta_);
@@ -495,7 +496,7 @@ MakeTimingModel::findClkedOutputPaths()
 {
   InstancePinIterator *output_iter = network_->pinIterator(network_->topInstance());
   while (output_iter->hasNext()) {
-    Pin *output_pin = output_iter->next();    
+    Pin *output_pin = output_iter->next(); 
     if (network_->direction(output_pin)->isOutput()) {
       ClockEdgeDelays clk_delays;
       LibertyPort *output_port = modelPort(output_pin);
@@ -532,7 +533,33 @@ MakeTimingModel::findClkedOutputPaths()
               if (attrs == nullptr)
                 attrs = std::make_shared<TimingArcAttrs>();
               attrs->setModel(output_rf, gate_model);
+              attrs->setWorstSlackPath({"a", "b", "c"}, 0.123f);
             }
+
+            printf("------------\n");
+            if (attrs) {
+              Path *worst_path = nullptr;
+              Slack min_slack = MinMax::min()->initValue();
+              VertexPathIterator path_iter(output_vertex, this);
+              while (path_iter.hasNext()) {
+                Path *path = path_iter.next();
+                Slack slack = path->slack(this);
+                sta_->reportPath(path);
+                float min_period;
+                bool min_period_exists;
+                clk_port->minPeriod(min_period, min_period_exists);
+                printf("Slack %f\n", min_period);
+                if (delayLess(slack, min_slack, this)) {
+                  min_slack = slack;
+                  worst_path = path;
+                }
+              }
+
+              printf("Worst path: %s\n", worst_path->to_string(this).c_str());
+              printf("Slack: %f\n", min_slack);
+            }
+            printf("------------\n");
+
             if (attrs) {
               lib_builder_->makeFromTransitionArcs(cell_, clk_port,
                                                    output_port, nullptr,
