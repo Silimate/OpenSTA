@@ -252,10 +252,12 @@ public:
   virtual void visit(PathEnd *path_end);
   void setInputRf(const RiseFall *input_rf);
   const ClockEdgeDelays &margins() const { return margins_; }
+  const std::vector<PathEnd*>& pathEnds() const { return path_ends_; }
 
 private:
   const RiseFall *input_rf_;
   ClockEdgeDelays margins_;
+  std::vector<PathEnd*> path_ends_;
   Sta *sta_;
 };
 
@@ -280,12 +282,13 @@ MakeEndTimingArcs::setInputRf(const RiseFall *input_rf)
 void
 MakeEndTimingArcs::visit(PathEnd *path_end)
 {
+  // Uses new(), only for testing purposes
+  path_ends_.emplace_back(path_end->copy());
   Path *src_path = path_end->path();
   const Clock *src_clk = src_path->clock(sta_);
   const ClockEdge *tgt_clk_edge = path_end->targetClkEdge(sta_);
   if (src_clk == sta_->sdc()->defaultArrivalClock()
       && tgt_clk_edge) {
-    sta_->reportPathEnd(path_end);
     Network *network = sta_->network();
     Debug *debug = sta_->debug();
     const MinMax *min_max = path_end->minMax(sta_);
@@ -372,6 +375,10 @@ MakeTimingModel::findTimingFromInput(Port *input_port)
     }
     makeSetupHoldTimingArcs(input_pin, end_visitor.margins());
     makeInputOutputTimingArcs(input_pin, output_delays);
+
+    for (auto& path_end : end_visitor.pathEnds()) {
+      sta_->reportPathEnd(path_end);
+    }
   }
 }
 
@@ -533,32 +540,17 @@ MakeTimingModel::findClkedOutputPaths()
               if (attrs == nullptr)
                 attrs = std::make_shared<TimingArcAttrs>();
               attrs->setModel(output_rf, gate_model);
-              attrs->setWorstSlackPath({"a", "b", "c"}, 0.123f);
+              // attrs->setWorstSlackPath({"a", "b", "c"}, 0.123f);
             }
 
-            printf("------------\n");
-            if (attrs) {
-              Path *worst_path = nullptr;
-              Slack min_slack = MinMax::min()->initValue();
-              VertexPathIterator path_iter(output_vertex, this);
-              while (path_iter.hasNext()) {
-                Path *path = path_iter.next();
-                Slack slack = path->slack(this);
-                sta_->reportPath(path);
-                float min_period;
-                bool min_period_exists;
-                clk_port->minPeriod(min_period, min_period_exists);
-                printf("Slack %f\n", min_period);
-                if (delayLess(slack, min_slack, this)) {
-                  min_slack = slack;
-                  worst_path = path;
-                }
-              }
-
-              printf("Worst path: %s\n", worst_path->to_string(this).c_str());
-              printf("Slack: %f\n", min_slack);
-            }
-            printf("------------\n");
+            // printf("%s - %s ------------\n", clk_port->name(), output_vertex->name(network_));
+            // if (attrs) {
+            //   VertexPathIterator path_iter(output_vertex, this);
+            //   while (path_iter.hasNext()) {
+            //     Path *path = path_iter.next();
+            //     sta_->reportPath(path);
+            //   }
+            // }
 
             if (attrs) {
               lib_builder_->makeFromTransitionArcs(cell_, clk_port,
