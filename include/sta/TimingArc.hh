@@ -120,6 +120,9 @@ public:
 		TimingModel *model);
   float ocvArcDepth() const { return ocv_arc_depth_; }
   void setOcvArcDepth(float depth);
+  void setWorstSlackPath(std::vector<std::string> path, float slack_value) { worst_slack_path = std::move(path), worst_slack_path_value = slack_value; }
+  const std::vector<std::string>& getWorstSlackPath() const { return worst_slack_path; }
+  float getWorstSlackPathValue() const { return worst_slack_path_value; }
 
 protected:
   TimingType timing_type_;
@@ -132,6 +135,8 @@ protected:
   const char *mode_value_;
   float ocv_arc_depth_;
   TimingModel *models_[RiseFall::index_count];
+  std::vector<std::string> worst_slack_path;
+  float worst_slack_path_value;
 };
 
 // A timing arc set is a group of related timing arcs between from/to
@@ -184,6 +189,8 @@ public:
   const char *sdfCondEnd() const { return attrs_->sdfCondEnd(); }
   const char *modeName() const { return attrs_->modeName(); }
   const char *modeValue() const { return attrs_->modeValue(); }
+  const std::vector<std::string>& getWorstSlackPath() const { return attrs_->getWorstSlackPath(); }
+  float getWorstSlackPathValue() const { return attrs_->getWorstSlackPathValue(); }
   // Timing arc set index in cell.
   TimingArcIndex index() const { return index_; }
   bool isDisabledConstraint() const { return is_disabled_constraint_; }

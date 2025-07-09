@@ -435,6 +435,18 @@ LibertyWriter::writeTimingArcSet(const TimingArcSet *arc_set)
     }
   }
 
+  if (!arc_set->getWorstSlackPath().empty()) {
+    fprintf(stream_, "        worst_slack_path() {\n");
+    fprintf(stream_, "          value : %f;\n", arc_set->getWorstSlackPathValue());
+    fprintf(stream_, "          path {\n", arc_set->getWorstSlackPathValue());
+    for (auto& path_item : arc_set->getWorstSlackPath()) {
+      fprintf(stream_, "            \"%s\",\n", path_item.c_str());
+    }
+    fprintf(stream_, "          }\n", arc_set->getWorstSlackPathValue());
+    fprintf(stream_, "        }\n");
+  }
+
+
   fprintf(stream_, "      }\n");
 }
 
