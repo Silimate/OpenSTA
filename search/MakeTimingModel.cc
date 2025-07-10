@@ -253,12 +253,12 @@ public:
   virtual void visit(PathEnd *path_end);
   void setInputRf(const RiseFall *input_rf);
   const ClockEdgeDelays &margins() const { return margins_; }
-  const std::vector<PathEnd*>& pathEnds() const { return path_ends_; }
+  const std::unordered_map<const ClockEdge*, TimingPath>& extractedTimingPaths() const { return timing_paths_; }
 
 private:
   const RiseFall *input_rf_;
   ClockEdgeDelays margins_;
-  std::vector<PathEnd*> path_ends_;
+  std::unordered_map<const ClockEdge*, TimingPath> timing_paths_;
   Sta *sta_;
 };
 
@@ -280,17 +280,23 @@ MakeEndTimingArcs::setInputRf(const RiseFall *input_rf)
   input_rf_ = input_rf;
 }
 
-void
-exportPathVertices(PathEnd *path_end)
+std::pair<const ClockEdge*, TimingPath>
+extractTimingPath(PathEnd *path_end)
 {
+  TimingPath timing_path{};
+
   StaState* sta_state = Sta::sta();
 
-	PathExpanded expanded(path_end->path(), sta_state);
+  const Path *path = path_end->path();
 
-  printf("-----Printing path-----\n");
+  const Clock *src_clk = path->clock(sta_state);
+  const ClockEdge *tgt_clk_edge = path_end->targetClkEdge(sta_state);
 
+	PathExpanded expanded(path, sta_state);
   std::size_t path_first_index = 0;
   std::size_t path_last_index = expanded.size() - 1;
+
+  timing_path.vertices.resize(path_last_index - path_first_index + 1);
   for (std::size_t i = path_first_index; i <= path_last_index; i++) {
     const Path *path1 = expanded.path(i);
     const TimingArc *prev_arc = path1->prevArc(sta_state);
@@ -317,15 +323,21 @@ exportPathVertices(PathEnd *path_end)
       Instance *inst = sta_state->network()->instance(pin);
       name2 = sta_state->network()->cellName(inst);
     }
-    printf("%s (%s)\n", pin_name, name2);
+
+    std::string vertex_description{};
+    const std::size_t NUM_OF_INTER_CHARACTERS = 3;
+    vertex_description.resize(strlen(pin_name) + strlen(name2) + NUM_OF_INTER_CHARACTERS);
+    sprintf(&vertex_description[0], "%s (%s)", pin_name, name2);
+    timing_path.vertices[i - path_first_index] = std::move(vertex_description);
   }
-  printf("-----Path end-----\n");
+
+  return {tgt_clk_edge, timing_path};
 }
 
 void
 MakeEndTimingArcs::visit(PathEnd *path_end)
 {
-  exportPathVertices(path_end);
+  timing_paths_.emplace(extractTimingPath(path_end));
 
   Path *src_path = path_end->path();
   const Clock *src_clk = src_path->clock(sta_);
@@ -416,12 +428,8 @@ MakeTimingModel::findTimingFromInput(Port *input_port)
                              sdc_->defaultArrivalClockEdge()->transition(),
                              MinMaxAll::all());
     }
-    makeSetupHoldTimingArcs(input_pin, end_visitor.margins());
+    makeSetupHoldTimingArcs(input_pin, end_visitor.margins(), end_visitor.extractedTimingPaths());
     makeInputOutputTimingArcs(input_pin, output_delays);
-
-    // for (auto& path_end : end_visitor.pathEnds()) {
-    //   sta_->reportPathEnd(path_end);
-    // }
   }
 }
 
@@ -454,7 +462,8 @@ MakeTimingModel::findOutputDelays(const RiseFall *input_rf,
 
 void
 MakeTimingModel::makeSetupHoldTimingArcs(const Pin *input_pin,
-                                         const ClockEdgeDelays &clk_margins)
+                                         const ClockEdgeDelays &clk_margins,
+                                         const TimingPaths& timing_paths)
 {
   for (const auto& [clk_edge, margins] : clk_margins) {
     for (const MinMax *min_max : MinMax::range()) {
@@ -478,6 +487,8 @@ MakeTimingModel::makeSetupHoldTimingArcs(const Pin *input_pin,
           if (attrs == nullptr)
             attrs = std::make_shared<TimingArcAttrs>();
           attrs->setModel(input_rf, check_model);
+
+          attrs->setWorstSlackPath(timing_paths.at(clk_edge).vertices, 0.0f);
         }
       }
       if (attrs) {

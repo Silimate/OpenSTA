@@ -48,8 +48,14 @@ public:
   bool rf_path_exists[RiseFall::index_count][RiseFall::index_count];
 };
 
+struct TimingPath
+{
+  std::vector<std::string> vertices{};
+};
+
 typedef std::map<const ClockEdge*, RiseFallMinMax> ClockEdgeDelays;
 typedef std::map<const Pin *, OutputDelays> OutputPinDelays;
+typedef std::unordered_map<const ClockEdge*, TimingPath> TimingPaths;
 
 class MakeTimingModel : public StaState
 {
@@ -80,7 +86,8 @@ private:
   void findOutputDelays(const RiseFall *input_rf,
                         OutputPinDelays &output_pin_delays);
   void makeSetupHoldTimingArcs(const Pin *input_pin,
-                               const ClockEdgeDelays &clk_margins);
+                               const ClockEdgeDelays &clk_margins,
+                               const TimingPaths& timing_paths);
   void makeInputOutputTimingArcs(const Pin *input_pin,
                                  OutputPinDelays &output_pin_delays);
   TimingModel *makeScalarCheckModel(float value,
