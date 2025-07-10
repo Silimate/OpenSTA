@@ -49,6 +49,7 @@
 #include "VisitPathEnds.hh"
 #include "ArcDelayCalc.hh"
 #include "ClkLatency.hh"
+#include "PathExpanded.hh"
 
 namespace sta {
 
@@ -280,10 +281,52 @@ MakeEndTimingArcs::setInputRf(const RiseFall *input_rf)
 }
 
 void
+exportPathVertices(PathEnd *path_end)
+{
+  StaState* sta_state = Sta::sta();
+
+	PathExpanded expanded(path_end->path(), sta_state);
+
+  printf("-----Printing path-----\n");
+
+  std::size_t path_first_index = 0;
+  std::size_t path_last_index = expanded.size() - 1;
+  for (std::size_t i = path_first_index; i <= path_last_index; i++) {
+    const Path *path1 = expanded.path(i);
+    const TimingArc *prev_arc = path1->prevArc(sta_state);
+    Vertex *vertex = path1->vertex(sta_state);
+    Pin *pin = vertex->pin();
+
+    const char *pin_name = sta_state->cmdNetwork()->pathName(pin);
+    const char *name2;
+    if (sta_state->network()->isTopLevelPort(pin)) {
+      PortDirection *dir = sta_state->network()->direction(pin);
+      // Translate port direction.  Note that this is intentionally
+      // inconsistent with the direction reported for top level ports as
+      // startpoints.
+      if (dir->isInput())
+        name2 = "in";
+      else if (dir->isOutput() || dir->isTristate())
+        name2 = "out";
+      else if (dir->isBidirect())
+        name2 = "inout";
+      else
+        name2 = "?";
+    }
+    else {
+      Instance *inst = sta_state->network()->instance(pin);
+      name2 = sta_state->network()->cellName(inst);
+    }
+    printf("%s (%s)\n", pin_name, name2);
+  }
+  printf("-----Path end-----\n");
+}
+
+void
 MakeEndTimingArcs::visit(PathEnd *path_end)
 {
-  // Uses new(), only for testing purposes
-  path_ends_.emplace_back(path_end->copy());
+  exportPathVertices(path_end);
+
   Path *src_path = path_end->path();
   const Clock *src_clk = src_path->clock(sta_);
   const ClockEdge *tgt_clk_edge = path_end->targetClkEdge(sta_);
@@ -306,7 +349,7 @@ MakeEndTimingArcs::visit(PathEnd *path_end)
                path_end->typeName(),
                min_max->to_string().c_str(),
                delayAsString(margin, sta_));
-    if (debug->check("make_timing_model", 3))
+    // if (debug->check("make_timing_model", 3))
       sta_->reportPathEnd(path_end);
 
     RiseFallMinMax &margins = margins_[tgt_clk_edge];
@@ -376,9 +419,9 @@ MakeTimingModel::findTimingFromInput(Port *input_port)
     makeSetupHoldTimingArcs(input_pin, end_visitor.margins());
     makeInputOutputTimingArcs(input_pin, output_delays);
 
-    for (auto& path_end : end_visitor.pathEnds()) {
-      sta_->reportPathEnd(path_end);
-    }
+    // for (auto& path_end : end_visitor.pathEnds()) {
+    //   sta_->reportPathEnd(path_end);
+    // }
   }
 }
 
@@ -462,6 +505,7 @@ MakeTimingModel::makeInputOutputTimingArcs(const Pin *input_pin,
 {
   for (const auto& [output_pin, output_delays] : output_pin_delays) {
     TimingArcAttrsPtr attrs = nullptr;
+    printf("aaaaaa\n");
     for (const RiseFall *output_rf : RiseFall::range()) {
       const MinMax *min_max = MinMax::max();
       float delay;
