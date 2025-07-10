@@ -51,6 +51,8 @@ public:
 struct TimingPath
 {
   std::vector<std::string> vertices{};
+  float slack{0.0f};
+  float data_arrival_time{0.0f};
 };
 
 typedef std::map<const ClockEdge*, RiseFallMinMax> ClockEdgeDelays;
