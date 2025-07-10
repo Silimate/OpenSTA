@@ -283,9 +283,9 @@ MakeEndTimingArcs::setInputRf(const RiseFall *input_rf)
 std::pair<const ClockEdge*, TimingPath>
 extractTimingPath(PathEnd *path_end)
 {
-  TimingPath timing_path{};
-
   StaState* sta_state = Sta::sta();
+
+  TimingPath timing_path{};
 
   const Path *path = path_end->path();
 
@@ -295,6 +295,10 @@ extractTimingPath(PathEnd *path_end)
 	PathExpanded expanded(path, sta_state);
   std::size_t path_first_index = 0;
   std::size_t path_last_index = expanded.size() - 1;
+
+  const EarlyLate *early_late = EarlyLate::early();
+  timing_path.slack = delayAsFloat(path_end->slack(sta_state), early_late, sta_state);
+  timing_path.data_arrival_time = path_end->dataArrivalTimeOffset(sta_state);
 
   timing_path.vertices.resize(path_last_index - path_first_index + 1);
   for (std::size_t i = path_first_index; i <= path_last_index; i++) {
@@ -488,7 +492,7 @@ MakeTimingModel::makeSetupHoldTimingArcs(const Pin *input_pin,
             attrs = std::make_shared<TimingArcAttrs>();
           attrs->setModel(input_rf, check_model);
 
-          attrs->setWorstSlackPath(timing_paths.at(clk_edge).vertices, 0.0f);
+          attrs->setWorstSlackPath(timing_paths.at(clk_edge).vertices, timing_paths.at(clk_edge).slack);
         }
       }
       if (attrs) {
