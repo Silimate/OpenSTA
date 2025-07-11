@@ -165,9 +165,9 @@ TimingArcAttrs::setOcvArcDepth(float depth)
 void
 TimingArcAttrs::setTimingPath(
     float slack,
-    std::vector<std::pair<std::string, float>> data_arrival_path,
+    std::vector<std::string> data_arrival_path,
     float data_arrival_time,
-    std::vector<std::pair<std::string, float>> data_required_path,
+    std::vector<std::string> data_required_path,
     float data_required_time)
 {
   slack_ = slack;

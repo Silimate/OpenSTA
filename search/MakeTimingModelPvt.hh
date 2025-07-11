@@ -51,9 +51,9 @@ public:
 struct TimingPath
 {
   float slack{0.0f};
-  std::vector<std::pair<std::string, float>> data_arrival_path_vertices{};
+  std::vector<std::string> data_arrival_path_vertices{};
   float data_arrival_time{0.0f};
-  std::vector<std::pair<std::string, float>> data_required_path_vertices{};
+  std::vector<std::string> data_required_path_vertices{};
   float data_required_time{0.0f};
 };
 

@@ -122,14 +122,14 @@ public:
   void setOcvArcDepth(float depth);
   void setTimingPath(
     float slack,
-    std::vector<std::pair<std::string, float>> data_arrival_path,
+    std::vector<std::string> data_arrival_path,
     float data_arrival_time,
-    std::vector<std::pair<std::string, float>> data_required_path,
+    std::vector<std::string> data_required_path,
     float data_required_time);
   float slack() const { return slack_; }
-  const std::vector<std::pair<std::string, float>>& dataArrivalPath() const { return data_arrival_path_; }
+  const std::vector<std::string>& dataArrivalPath() const { return data_arrival_path_; }
   float dataArrivalTime() const { return data_arrival_time_; }
-  const std::vector<std::pair<std::string, float>>& dataRequiredPath() const { return data_required_path_; }
+  const std::vector<std::string>& dataRequiredPath() const { return data_required_path_; }
   float dataRequiredTime() const { return data_required_time_; }
 
 protected:
@@ -144,9 +144,9 @@ protected:
   float ocv_arc_depth_;
   TimingModel *models_[RiseFall::index_count];
   float slack_;
-  std::vector<std::pair<std::string, float>> data_arrival_path_;
+  std::vector<std::string> data_arrival_path_;
   float data_arrival_time_;
-  std::vector<std::pair<std::string, float>> data_required_path_;
+  std::vector<std::string> data_required_path_;
   float data_required_time_;
 };
 
@@ -202,9 +202,9 @@ public:
   const char *modeValue() const { return attrs_->modeValue(); }
   float slack() const { return attrs_->slack(); }
   float dataArrivalTime() const { return attrs_->dataArrivalTime(); }
-  const std::vector<std::pair<std::string, float>>& dataArrivalPath() const { return attrs_->dataArrivalPath(); }
+  const std::vector<std::string>& dataArrivalPath() const { return attrs_->dataArrivalPath(); }
   float dataRequiredTime() const { return attrs_->dataRequiredTime(); }
-  const std::vector<std::pair<std::string, float>>& dataRequiredPath() const { return attrs_->dataRequiredPath(); }
+  const std::vector<std::string>& dataRequiredPath() const { return attrs_->dataRequiredPath(); }
   // Timing arc set index in cell.
   TimingArcIndex index() const { return index_; }
   bool isDisabledConstraint() const { return is_disabled_constraint_; }

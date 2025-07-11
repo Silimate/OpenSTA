@@ -280,35 +280,22 @@ MakeEndTimingArcs::setInputRf(const RiseFall *input_rf)
   input_rf_ = input_rf;
 }
 
-TimingPath
-extractTimingPath(PathEnd *path_end)
+std::vector<std::string>
+extractPathVertices(const Path *path, bool skip_clk)
 {
   StaState* sta_state = Sta::sta();
 
-  TimingPath timing_path{};
-
-  const Path *path = path_end->path();
-
-  const Clock *src_clk = path->clock(sta_state);
-  const ClockEdge *tgt_clk_edge = path_end->targetClkEdge(sta_state);
-
 	PathExpanded expanded(path, sta_state);
-  std::size_t path_first_index = 0;
+  std::size_t path_first_index = skip_clk ? 1 : 0;
   std::size_t path_last_index = expanded.size() - 1;
 
-  const EarlyLate *early_late = EarlyLate::early();
-  timing_path.slack = delayAsFloat(path_end->slack(sta_state), early_late, sta_state);
-  timing_path.data_arrival_time = path_end->dataArrivalTimeOffset(sta_state);
-  timing_path.data_required_time = path_end->requiredTimeOffset(sta_state);
-
-  timing_path.data_arrival_path_vertices.resize(path_last_index - path_first_index + 1);
+  std::vector<std::string> vertices;
+  vertices.resize(path_last_index - path_first_index + 1);
   for (std::size_t i = path_first_index; i <= path_last_index; i++) {
     const Path *path1 = expanded.path(i);
     const TimingArc *prev_arc = path1->prevArc(sta_state);
     Vertex *vertex = path1->vertex(sta_state);
     Pin *pin = vertex->pin();
-
-    Arrival arrival = path1->arrival();
 
     const char *pin_name = sta_state->cmdNetwork()->pathName(pin);
     const char *name2;
@@ -335,8 +322,26 @@ extractTimingPath(PathEnd *path_end)
     const std::size_t NUM_OF_INTER_CHARACTERS = 3;
     vertex_description.resize(strlen(pin_name) + strlen(name2) + NUM_OF_INTER_CHARACTERS);
     sprintf(&vertex_description[0], "%s (%s)", pin_name, name2);
-    timing_path.data_arrival_path_vertices[i - path_first_index] = {std::move(vertex_description), arrival};
+    vertices[i - path_first_index] = std::move(vertex_description);
   }
+
+  return vertices;
+}
+
+TimingPath
+extractTimingPath(PathEnd *path_end)
+{
+  StaState* sta_state = Sta::sta();
+
+  TimingPath timing_path{};
+
+  const EarlyLate *early_late = EarlyLate::early();
+  timing_path.slack = delayAsFloat(path_end->slack(sta_state), early_late, sta_state);
+  timing_path.data_arrival_time = path_end->dataArrivalTimeOffset(sta_state);
+  timing_path.data_required_time = path_end->requiredTimeOffset(sta_state);
+
+  timing_path.data_arrival_path_vertices = extractPathVertices(path_end->path(), false);
+  timing_path.data_required_path_vertices = extractPathVertices(path_end->targetClkPath(), true);
 
   return timing_path;
 }
@@ -528,7 +533,6 @@ MakeTimingModel::makeInputOutputTimingArcs(const Pin *input_pin,
 {
   for (const auto& [output_pin, output_delays] : output_pin_delays) {
     TimingArcAttrsPtr attrs = nullptr;
-    printf("aaaaaa\n");
     for (const RiseFall *output_rf : RiseFall::range()) {
       const MinMax *min_max = MinMax::max();
       float delay;
