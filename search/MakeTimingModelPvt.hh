@@ -59,7 +59,7 @@ struct TimingPath
 
 typedef std::map<const ClockEdge*, RiseFallMinMax> ClockEdgeDelays;
 typedef std::map<const Pin *, OutputDelays> OutputPinDelays;
-typedef std::unordered_map<const ClockEdge*, TimingPath> TimingPaths;
+typedef std::unordered_map<const MinMax*, TimingPath> TimingPaths;
 
 class MakeTimingModel : public StaState
 {

@@ -253,12 +253,12 @@ public:
   virtual void visit(PathEnd *path_end);
   void setInputRf(const RiseFall *input_rf);
   const ClockEdgeDelays &margins() const { return margins_; }
-  const std::unordered_map<const ClockEdge*, TimingPath>& extractedTimingPaths() const { return timing_paths_; }
+  const std::unordered_map<const MinMax*, TimingPath>& extractedTimingPaths() const { return timing_paths_; }
 
 private:
   const RiseFall *input_rf_;
   ClockEdgeDelays margins_;
-  std::unordered_map<const ClockEdge*, TimingPath> timing_paths_;
+  std::unordered_map<const MinMax*, TimingPath> timing_paths_;
   Sta *sta_;
 };
 
@@ -375,9 +375,9 @@ MakeEndTimingArcs::visit(PathEnd *path_end)
       sta_->reportPathEnd(path_end);
 
     TimingPath timing_path = extractTimingPath(path_end);
-    if (min_max == MinMax::max() && (timing_paths_.count(tgt_clk_edge) == 0 || timing_paths_.at(tgt_clk_edge).slack > timing_path.slack)) {
-      timing_paths_.erase(tgt_clk_edge);
-      timing_paths_.emplace(tgt_clk_edge, std::move(timing_path));
+    if ((timing_paths_.count(min_max) == 0 || timing_paths_.at(min_max).slack > timing_path.slack)) {
+      timing_paths_.erase(min_max);
+      timing_paths_.emplace(min_max, std::move(timing_path));
     }
 
     RiseFallMinMax &margins = margins_[tgt_clk_edge];
@@ -504,7 +504,7 @@ MakeTimingModel::makeSetupHoldTimingArcs(const Pin *input_pin,
             attrs = std::make_shared<TimingArcAttrs>();
           attrs->setModel(input_rf, check_model);
 
-          const TimingPath& timing_path = timing_paths.at(clk_edge);
+          const TimingPath& timing_path = timing_paths.at(min_max);
           attrs->setTimingPath(timing_path.slack, timing_path.data_arrival_path_vertices, timing_path.data_arrival_time, timing_path.data_required_path_vertices, timing_path.data_required_time);
         }
       }
