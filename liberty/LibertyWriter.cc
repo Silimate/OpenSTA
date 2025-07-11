@@ -439,14 +439,13 @@ LibertyWriter::writeTimingArcSet(const TimingArcSet *arc_set)
   StaState* sta_state = Sta::sta();
   const Unit* unit = sta_state->units()->timeUnit();
 
-  if (!arc_set->path().empty()) {
+  if (!arc_set->dataArrivalPath().empty()) {
     fprintf(stream_, "        worst_slack_path() {\n");
-    fprintf(stream_, "          slack : %s;\n", unit->asString(arc_set->slack(), 2));
-    fprintf(stream_, "          data_required_time : %s;\n", unit->asString(arc_set->dataRequiredTime(), 2));
-    fprintf(stream_, "          data_arrival_time : %s;\n", unit->asString(arc_set->dataArrivalTime(), 2));
-    fprintf(stream_, "          path {\n");
-    for (auto& path_item : arc_set->path()) {
-      fprintf(stream_, "            \"%s\",\n", path_item.c_str());
+    fprintf(stream_, "          slack : %s;\n", unit->asString(arc_set->slack(), 5));
+    fprintf(stream_, "          data_arrival_time : %s;\n", unit->asString(arc_set->dataArrivalTime(), 5));
+    fprintf(stream_, "          data_arrival_path {\n");
+    for (auto& [vertex, arrival] : arc_set->dataArrivalPath()) {
+      fprintf(stream_, "            \"%s\",\n", vertex.c_str());
     }
     fprintf(stream_, "          }\n");
     fprintf(stream_, "        }\n");
