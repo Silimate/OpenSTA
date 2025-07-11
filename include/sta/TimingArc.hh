@@ -120,15 +120,17 @@ public:
 		TimingModel *model);
   float ocvArcDepth() const { return ocv_arc_depth_; }
   void setOcvArcDepth(float depth);
-  void setPath(
-    std::vector<std::string> path,
+  void setTimingPath(
     float slack,
-    float data_required_time,
-    float data_arrival_time);
-  const std::vector<std::string>& path() const { return path_; }
+    std::vector<std::pair<std::string, float>> data_arrival_path,
+    float data_arrival_time,
+    std::vector<std::pair<std::string, float>> data_required_path,
+    float data_required_time);
   float slack() const { return slack_; }
-  float dataRequiredTime() const { return data_required_time_; }
+  const std::vector<std::pair<std::string, float>>& dataArrivalPath() const { return data_arrival_path_; }
   float dataArrivalTime() const { return data_arrival_time_; }
+  const std::vector<std::pair<std::string, float>>& dataRequiredPath() const { return data_required_path_; }
+  float dataRequiredTime() const { return data_required_time_; }
 
 protected:
   TimingType timing_type_;
@@ -141,10 +143,11 @@ protected:
   const char *mode_value_;
   float ocv_arc_depth_;
   TimingModel *models_[RiseFall::index_count];
-  std::vector<std::string> path_;
   float slack_;
-  float data_required_time_;
+  std::vector<std::pair<std::string, float>> data_arrival_path_;
   float data_arrival_time_;
+  std::vector<std::pair<std::string, float>> data_required_path_;
+  float data_required_time_;
 };
 
 // A timing arc set is a group of related timing arcs between from/to
@@ -197,10 +200,11 @@ public:
   const char *sdfCondEnd() const { return attrs_->sdfCondEnd(); }
   const char *modeName() const { return attrs_->modeName(); }
   const char *modeValue() const { return attrs_->modeValue(); }
-  const std::vector<std::string>& path() const { return attrs_->path(); }
   float slack() const { return attrs_->slack(); }
-  float dataRequiredTime() const { return attrs_->dataRequiredTime(); }
   float dataArrivalTime() const { return attrs_->dataArrivalTime(); }
+  const std::vector<std::pair<std::string, float>>& dataArrivalPath() const { return attrs_->dataArrivalPath(); }
+  float dataRequiredTime() const { return attrs_->dataRequiredTime(); }
+  const std::vector<std::pair<std::string, float>>& dataRequiredPath() const { return attrs_->dataRequiredPath(); }
   // Timing arc set index in cell.
   TimingArcIndex index() const { return index_; }
   bool isDisabledConstraint() const { return is_disabled_constraint_; }

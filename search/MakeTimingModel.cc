@@ -280,7 +280,7 @@ MakeEndTimingArcs::setInputRf(const RiseFall *input_rf)
   input_rf_ = input_rf;
 }
 
-std::pair<const ClockEdge*, TimingPath>
+TimingPath
 extractTimingPath(PathEnd *path_end)
 {
   StaState* sta_state = Sta::sta();
@@ -301,12 +301,14 @@ extractTimingPath(PathEnd *path_end)
   timing_path.data_arrival_time = path_end->dataArrivalTimeOffset(sta_state);
   timing_path.data_required_time = path_end->requiredTimeOffset(sta_state);
 
-  timing_path.vertices.resize(path_last_index - path_first_index + 1);
+  timing_path.data_arrival_path_vertices.resize(path_last_index - path_first_index + 1);
   for (std::size_t i = path_first_index; i <= path_last_index; i++) {
     const Path *path1 = expanded.path(i);
     const TimingArc *prev_arc = path1->prevArc(sta_state);
     Vertex *vertex = path1->vertex(sta_state);
     Pin *pin = vertex->pin();
+
+    Arrival arrival = path1->arrival();
 
     const char *pin_name = sta_state->cmdNetwork()->pathName(pin);
     const char *name2;
@@ -333,21 +335,15 @@ extractTimingPath(PathEnd *path_end)
     const std::size_t NUM_OF_INTER_CHARACTERS = 3;
     vertex_description.resize(strlen(pin_name) + strlen(name2) + NUM_OF_INTER_CHARACTERS);
     sprintf(&vertex_description[0], "%s (%s)", pin_name, name2);
-    timing_path.vertices[i - path_first_index] = std::move(vertex_description);
+    timing_path.data_arrival_path_vertices[i - path_first_index] = {std::move(vertex_description), arrival};
   }
 
-  return {tgt_clk_edge, timing_path};
+  return timing_path;
 }
 
 void
 MakeEndTimingArcs::visit(PathEnd *path_end)
 {
-  auto [clk_edge, timing_path] = extractTimingPath(path_end);
-  if (path_end->minMax(sta_)->to_string() == "max" && (timing_paths_.count(clk_edge) == 0 || timing_paths_.at(clk_edge).slack < timing_path.slack)) {
-    timing_paths_.erase(clk_edge);
-    timing_paths_.emplace(clk_edge, std::move(timing_path));
-  }
-
   Path *src_path = path_end->path();
   const Clock *src_clk = src_path->clock(sta_);
   const ClockEdge *tgt_clk_edge = path_end->targetClkEdge(sta_);
@@ -372,6 +368,12 @@ MakeEndTimingArcs::visit(PathEnd *path_end)
                delayAsString(margin, sta_));
     // if (debug->check("make_timing_model", 3))
       sta_->reportPathEnd(path_end);
+
+    TimingPath timing_path = extractTimingPath(path_end);
+    if (min_max == MinMax::max() && (timing_paths_.count(tgt_clk_edge) == 0 || timing_paths_.at(tgt_clk_edge).slack > timing_path.slack)) {
+      timing_paths_.erase(tgt_clk_edge);
+      timing_paths_.emplace(tgt_clk_edge, std::move(timing_path));
+    }
 
     RiseFallMinMax &margins = margins_[tgt_clk_edge];
     float max_margin;
@@ -498,7 +500,7 @@ MakeTimingModel::makeSetupHoldTimingArcs(const Pin *input_pin,
           attrs->setModel(input_rf, check_model);
 
           const TimingPath& timing_path = timing_paths.at(clk_edge);
-          attrs->setPath(timing_path.vertices, timing_path.slack, timing_path.data_required_time, timing_path.data_arrival_time);
+          attrs->setTimingPath(timing_path.slack, timing_path.data_arrival_path_vertices, timing_path.data_arrival_time, timing_path.data_required_path_vertices, timing_path.data_required_time);
         }
       }
       if (attrs) {

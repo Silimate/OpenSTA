@@ -163,16 +163,18 @@ TimingArcAttrs::setOcvArcDepth(float depth)
 }
 
 void
-TimingArcAttrs::setPath(
-    std::vector<std::string> path,
+TimingArcAttrs::setTimingPath(
     float slack,
-    float data_required_time,
-    float data_arrival_time)
+    std::vector<std::pair<std::string, float>> data_arrival_path,
+    float data_arrival_time,
+    std::vector<std::pair<std::string, float>> data_required_path,
+    float data_required_time)
 {
-  path_ = std::move(path);
   slack_ = slack;
-  data_required_time_ = data_required_time;
+  data_arrival_path_ = std::move(data_arrival_path);
   data_arrival_time_ = data_arrival_time;
+  data_required_path_ = std::move(data_required_path);
+  data_required_time_ = data_required_time;
 }
 
 float
