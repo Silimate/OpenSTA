@@ -162,6 +162,19 @@ TimingArcAttrs::setOcvArcDepth(float depth)
   ocv_arc_depth_ = depth;
 }
 
+void
+TimingArcAttrs::setPath(
+    std::vector<std::string> path,
+    float slack,
+    float data_required_time,
+    float data_arrival_time)
+{
+  path_ = std::move(path);
+  slack_ = slack;
+  data_required_time_ = data_required_time;
+  data_arrival_time_ = data_arrival_time;
+}
+
 float
 TimingArc::driveResistance() const
 {

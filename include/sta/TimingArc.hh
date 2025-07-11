@@ -120,9 +120,15 @@ public:
 		TimingModel *model);
   float ocvArcDepth() const { return ocv_arc_depth_; }
   void setOcvArcDepth(float depth);
-  void setWorstSlackPath(std::vector<std::string> path, float slack_value) { worst_slack_path = std::move(path), worst_slack_path_value = slack_value; }
-  const std::vector<std::string>& getWorstSlackPath() const { return worst_slack_path; }
-  float getWorstSlackPathValue() const { return worst_slack_path_value; }
+  void setPath(
+    std::vector<std::string> path,
+    float slack,
+    float data_required_time,
+    float data_arrival_time);
+  const std::vector<std::string>& path() const { return path_; }
+  float slack() const { return slack_; }
+  float dataRequiredTime() const { return data_required_time_; }
+  float dataArrivalTime() const { return data_arrival_time_; }
 
 protected:
   TimingType timing_type_;
@@ -135,8 +141,10 @@ protected:
   const char *mode_value_;
   float ocv_arc_depth_;
   TimingModel *models_[RiseFall::index_count];
-  std::vector<std::string> worst_slack_path;
-  float worst_slack_path_value;
+  std::vector<std::string> path_;
+  float slack_;
+  float data_required_time_;
+  float data_arrival_time_;
 };
 
 // A timing arc set is a group of related timing arcs between from/to
@@ -189,8 +197,10 @@ public:
   const char *sdfCondEnd() const { return attrs_->sdfCondEnd(); }
   const char *modeName() const { return attrs_->modeName(); }
   const char *modeValue() const { return attrs_->modeValue(); }
-  const std::vector<std::string>& getWorstSlackPath() const { return attrs_->getWorstSlackPath(); }
-  float getWorstSlackPathValue() const { return attrs_->getWorstSlackPathValue(); }
+  const std::vector<std::string>& path() const { return attrs_->path(); }
+  float slack() const { return attrs_->slack(); }
+  float dataRequiredTime() const { return attrs_->dataRequiredTime(); }
+  float dataArrivalTime() const { return attrs_->dataArrivalTime(); }
   // Timing arc set index in cell.
   TimingArcIndex index() const { return index_; }
   bool isDisabledConstraint() const { return is_disabled_constraint_; }

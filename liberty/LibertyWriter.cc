@@ -35,6 +35,7 @@
 #include "TimingArc.hh"
 #include "TimingModel.hh"
 #include "TableModel.hh"
+#include "Sta.hh"
 #include "StaState.hh"
 
 namespace sta {
@@ -435,14 +436,19 @@ LibertyWriter::writeTimingArcSet(const TimingArcSet *arc_set)
     }
   }
 
-  if (!arc_set->getWorstSlackPath().empty()) {
+  StaState* sta_state = Sta::sta();
+  const Unit* unit = sta_state->units()->timeUnit();
+
+  if (!arc_set->path().empty()) {
     fprintf(stream_, "        worst_slack_path() {\n");
-    fprintf(stream_, "          value : %f;\n", arc_set->getWorstSlackPathValue());
-    fprintf(stream_, "          path {\n", arc_set->getWorstSlackPathValue());
-    for (auto& path_item : arc_set->getWorstSlackPath()) {
+    fprintf(stream_, "          slack : %s;\n", unit->asString(arc_set->slack(), 2));
+    fprintf(stream_, "          data_required_time : %s;\n", unit->asString(arc_set->dataRequiredTime(), 2));
+    fprintf(stream_, "          data_arrival_time : %s;\n", unit->asString(arc_set->dataArrivalTime(), 2));
+    fprintf(stream_, "          path {\n");
+    for (auto& path_item : arc_set->path()) {
       fprintf(stream_, "            \"%s\",\n", path_item.c_str());
     }
-    fprintf(stream_, "          }\n", arc_set->getWorstSlackPathValue());
+    fprintf(stream_, "          }\n");
     fprintf(stream_, "        }\n");
   }
 
