@@ -576,6 +576,9 @@ MakeTimingModel::findClkedOutputPaths()
   while (output_iter->hasNext()) {
     Pin *output_pin = output_iter->next(); 
     if (network_->direction(output_pin)->isOutput()) {
+      TimingPath worst_slack_timing_path{};
+      worst_slack_timing_path.slack = std::numeric_limits<float>::max();
+
       ClockEdgeDelays clk_delays;
       LibertyPort *output_port = modelPort(output_pin);
       Vertex *output_vertex = graph_->pinLoadVertex(output_pin);
@@ -590,6 +593,18 @@ MakeTimingModel::findClkedOutputPaths()
           RiseFallMinMax &delays = clk_delays[clk_edge];
           delays.mergeValue(output_rf, min_max,
                             delayAsFloat(delay, min_max, sta_));
+        
+          TimingPath timing_path{};
+
+          const EarlyLate *early_late = EarlyLate::early();
+          timing_path.slack = delayAsFloat(path->slack(this), early_late, this);
+          if (timing_path.slack < worst_slack_timing_path.slack) {
+            timing_path.data_arrival_time = path->arrival();
+            timing_path.data_required_time = path->required();
+            timing_path.data_arrival_path_vertices = extractPathVertices(path, false);
+
+            worst_slack_timing_path = timing_path;
+          }
         }
       }
       for (const auto& [clk_edge, delays] : clk_delays) {
@@ -611,17 +626,13 @@ MakeTimingModel::findClkedOutputPaths()
               if (attrs == nullptr)
                 attrs = std::make_shared<TimingArcAttrs>();
               attrs->setModel(output_rf, gate_model);
-              // attrs->setWorstSlackPath({"a", "b", "c"}, 0.123f);
+              attrs->setTimingPath(
+                worst_slack_timing_path.slack,
+                worst_slack_timing_path.data_arrival_path_vertices,
+                worst_slack_timing_path.data_arrival_time,
+                worst_slack_timing_path.data_required_path_vertices,
+                worst_slack_timing_path.data_required_time);
             }
-
-            // printf("%s - %s ------------\n", clk_port->name(), output_vertex->name(network_));
-            // if (attrs) {
-            //   VertexPathIterator path_iter(output_vertex, this);
-            //   while (path_iter.hasNext()) {
-            //     Path *path = path_iter.next();
-            //     sta_->reportPath(path);
-            //   }
-            // }
 
             if (attrs) {
               lib_builder_->makeFromTransitionArcs(cell_, clk_port,
