@@ -420,6 +420,9 @@ LibertyReader::defineVisitors()
 		     &LibertyReader::endRiseFallConstraint);
   defineAttrVisitor("value", &LibertyReader::visitValue);
   defineAttrVisitor("values", &LibertyReader::visitValues);
+  defineGroupVisitor("worst_slack_path", &LibertyReader::beginWorstSlackTimingPath,
+		     &LibertyReader::endWorstSlackTimingPath);
+  defineAttrVisitor("slack", &LibertyReader::visitSlack);
 
   defineGroupVisitor("lut", &LibertyReader::beginLut,&LibertyReader::endLut);
 
@@ -4528,6 +4531,24 @@ LibertyReader::beginFallConstraint(LibertyGroup *group)
 {
   // Scale factor depends on timing_type, which may follow this stmt.
   beginTimingTableModel(group, RiseFall::fall(), ScaleFactorType::unknown);
+}
+
+void
+LibertyReader::beginWorstSlackTimingPath(LibertyGroup *group)
+{
+  printf("-----Worst slack path-----\n");
+}
+
+void
+LibertyReader::endWorstSlackTimingPath(LibertyGroup *group)
+{
+  printf("--------------------------\n");
+}
+
+void
+LibertyReader::visitSlack(LibertyAttr *attr)
+{
+  printf("Slack: %f\n", attr->firstValue()->floatValue());
 }
 
 void
