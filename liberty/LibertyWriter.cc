@@ -443,17 +443,27 @@ LibertyWriter::writeTimingArcSet(const TimingArcSet *arc_set)
     fprintf(stream_, "        worst_slack_path() {\n");
     fprintf(stream_, "          slack : %s;\n", unit->asString(arc_set->slack(), 5));
     fprintf(stream_, "          data_arrival_time : %s;\n", unit->asString(arc_set->dataArrivalTime(), 5));
-    fprintf(stream_, "          data_arrival_path {\n");
-    for (auto& vertex : arc_set->dataArrivalPath()) {
-      fprintf(stream_, "            \"%s\",\n", vertex.c_str());
+    fprintf(stream_, "          data_arrival_path : (\"");
+    for (int index = 0; index < arc_set->dataArrivalPath().size(); ++index) {
+      const char* vertex = arc_set->dataArrivalPath().at(index).c_str();
+      fprintf(stream_, "%s", vertex);
+      
+      if (index < arc_set->dataArrivalPath().size() - 1) {
+        fprintf(stream_, ", ", vertex);
+      }
     }
-    fprintf(stream_, "          }\n");
+    fprintf(stream_, "\");\n");
     fprintf(stream_, "          data_required_time : %s;\n", unit->asString(arc_set->dataRequiredTime(), 5));
-    fprintf(stream_, "          data_required_path {\n");
-    for (auto& vertex : arc_set->dataRequiredPath()) {
-      fprintf(stream_, "            \"%s\",\n", vertex.c_str());
+    fprintf(stream_, "          data_required_path : (\"");
+    for (int index = 0; index < arc_set->dataRequiredPath().size(); ++index) {
+      const char* vertex = arc_set->dataRequiredPath().at(index).c_str();
+      fprintf(stream_, "%s", vertex);
+      
+      if (index < arc_set->dataRequiredPath().size() - 1) {
+        fprintf(stream_, ", ", vertex);
+      }
     }
-    fprintf(stream_, "          }\n");
+    fprintf(stream_, "\");\n");
     fprintf(stream_, "        }\n");
   }
 
