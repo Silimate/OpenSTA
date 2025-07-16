@@ -280,7 +280,7 @@ MakeEndTimingArcs::setInputRf(const RiseFall *input_rf)
   input_rf_ = input_rf;
 }
 
-std::vector<std::string>
+std::vector<TimingPathVertex>
 extractPathVertices(const Path *path, bool skip_clk)
 {
   StaState* sta_state = Sta::sta();
@@ -289,7 +289,7 @@ extractPathVertices(const Path *path, bool skip_clk)
   std::size_t path_first_index = skip_clk ? 1 : 0;
   std::size_t path_last_index = expanded.size() - 1;
 
-  std::vector<std::string> vertices;
+  std::vector<TimingPathVertex> vertices;
   vertices.resize(path_last_index - path_first_index + 1);
   for (std::size_t i = path_first_index; i <= path_last_index; i++) {
     const Path *path1 = expanded.path(i);
@@ -322,7 +322,7 @@ extractPathVertices(const Path *path, bool skip_clk)
     const std::size_t NUM_OF_INTER_CHARACTERS = 3;
     vertex_description.resize(strlen(pin_name) + strlen(name2) + NUM_OF_INTER_CHARACTERS);
     sprintf(&vertex_description[0], "%s (%s)", pin_name, name2);
-    vertices[i - path_first_index] = std::move(vertex_description);
+    vertices[i - path_first_index] = {std::move(vertex_description), path1->arrival()};
   }
 
   return vertices;
@@ -508,8 +508,8 @@ MakeTimingModel::makeSetupHoldTimingArcs(const Pin *input_pin,
 
           const InputRegisterTimingPath& timing_path = timing_paths.at(min_max);
           attrs->setSlack(timing_path.slack);
-          attrs->addTimingPath(timing_path.data_arrival_path.name, timing_path.data_arrival_path.vertices, timing_path.data_arrival_path.time);
-          attrs->addTimingPath(timing_path.data_required_path.name, timing_path.data_required_path.vertices, timing_path.data_required_path.time);
+          attrs->addTimingPath(timing_path.data_arrival_path);
+          attrs->addTimingPath(timing_path.data_required_path);
         }
       }
       if (attrs) {
@@ -587,6 +587,7 @@ MakeTimingModel::findClkedOutputPaths()
       VertexPathIterator path_iter(output_vertex, this);
       while (path_iter.hasNext()) {
         Path *path = path_iter.next();
+        sta_->reportPath(path);
         const ClockEdge *clk_edge = path->clkEdge(sta_);
         if (clk_edge) {
           const RiseFall *output_rf = path->transition(sta_);

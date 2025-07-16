@@ -168,12 +168,6 @@ TimingArcAttrs::setSlack(float slack)
   slack_ = slack;
 }
 
-void
-TimingArcAttrs::addTimingPath(std::string name, std::vector<std::string> vertices, float time)
-{
-  timing_paths_[name] = TimingPath{name, std::move(vertices), time};
-}
-
 void TimingArcAttrs::addTimingPath(TimingPath timing_path)
 {
   std::string name = timing_path.name;
