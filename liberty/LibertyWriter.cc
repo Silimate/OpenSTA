@@ -443,15 +443,15 @@ LibertyWriter::writeTimingArcSet(const TimingArcSet *arc_set)
     fprintf(stream_, "        worst_slack_path() {\n");
     fprintf(stream_, "          slack : %s;\n", unit->asString(arc_set->slack(), 5));
     fprintf(stream_, "          data_arrival_time : %s;\n", unit->asString(arc_set->dataArrivalTime(), 5));
-    fprintf(stream_, "          data_arrival_path {\n");
+    fprintf(stream_, "          data_arrival_path() {\n");
     for (auto& vertex : arc_set->dataArrivalPath()) {
-      fprintf(stream_, "            \"%s\",\n", vertex.c_str());
+      fprintf(stream_, "            vertex: \"%s\";\n", vertex.c_str());
     }
     fprintf(stream_, "          }\n");
     fprintf(stream_, "          data_required_time : %s;\n", unit->asString(arc_set->dataRequiredTime(), 5));
-    fprintf(stream_, "          data_required_path {\n");
+    fprintf(stream_, "          data_required_path() {\n");
     for (auto& vertex : arc_set->dataRequiredPath()) {
-      fprintf(stream_, "            \"%s\",\n", vertex.c_str());
+      fprintf(stream_, "            vertex: \"%s\";\n", vertex.c_str());
     }
     fprintf(stream_, "          }\n");
     fprintf(stream_, "        }\n");
