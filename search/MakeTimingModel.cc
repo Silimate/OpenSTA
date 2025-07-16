@@ -375,9 +375,8 @@ MakeEndTimingArcs::visit(PathEnd *path_end)
       sta_->reportPathEnd(path_end);
 
     TimingPath timing_path = extractTimingPath(path_end);
-    if ((timing_paths_.count(min_max) == 0 || timing_paths_.at(min_max).slack > timing_path.slack)) {
-      timing_paths_.erase(min_max);
-      timing_paths_.emplace(min_max, std::move(timing_path));
+    if ((timing_paths_.count(min_max) == 0 || timing_path.slack < timing_paths_.at(min_max).slack)) {
+      timing_paths_[min_max] = std::move(timing_path);
     }
 
     RiseFallMinMax &margins = margins_[tgt_clk_edge];
