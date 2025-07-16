@@ -445,7 +445,7 @@ LibertyWriter::writeTimingArcSet(const TimingArcSet *arc_set)
 
     for (auto& [_, timing_path] : arc_set->timingPaths()) {
       fprintf(stream_, "          %s() {\n", timing_path.name.c_str());
-      fprintf(stream_, "            time: \"%s\";\n", unit->asString(timing_path.time, 5));
+      fprintf(stream_, "            time: %s;\n", unit->asString(timing_path.time, 5));
       for (auto& vertex : timing_path.vertices) {
         fprintf(stream_, "            vertex: \"%s\";\n", vertex.c_str());
       }
