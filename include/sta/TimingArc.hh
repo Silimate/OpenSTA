@@ -132,6 +132,7 @@ public:
   void setOcvArcDepth(float depth);
   void setSlack(float slack);
   void addTimingPath(std::string name, std::vector<std::string> vertices, float time);
+  void addTimingPath(TimingPath timing_path);
   float slack() const { return slack_; }
   const std::unordered_map<std::string, TimingPath>& timingPaths() const { return timing_paths_; }
 

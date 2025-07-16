@@ -174,6 +174,12 @@ TimingArcAttrs::addTimingPath(std::string name, std::vector<std::string> vertice
   timing_paths_[name] = TimingPath{name, std::move(vertices), time};
 }
 
+void TimingArcAttrs::addTimingPath(TimingPath timing_path)
+{
+  std::string name = timing_path.name;
+  timing_paths_[std::move(name)] = std::move(timing_path);
+}
+
 float
 TimingArc::driveResistance() const
 {
