@@ -374,7 +374,7 @@ MakeEndTimingArcs::visit(PathEnd *path_end)
                path_end->typeName(),
                min_max->to_string().c_str(),
                delayAsString(margin, sta_));
-    // if (debug->check("make_timing_model", 3))
+    if (debug->check("make_timing_model", 3))
       sta_->reportPathEnd(path_end);
 
     InputRegisterTimingPath timing_path = extractTimingPath(path_end);
@@ -420,6 +420,7 @@ MakeTimingModel::findTimingFromInput(Port *input_port)
   if (!sta_->isClockSrc(input_pin)) {
     MakeEndTimingArcs end_visitor(sta_);
     OutputPinDelays output_delays;
+    CombinationalTimingPaths timing_paths;
     for (const RiseFall *input_rf : RiseFall::range()) {
       const RiseFallBoth *input_rf1 = input_rf->asRiseFallBoth();
       sta_->setInputDelay(input_pin, input_rf1,
@@ -438,7 +439,7 @@ MakeTimingModel::findTimingFromInput(Port *input_port)
       VisitPathEnds visit_ends(sta_);
       for (Vertex *end : endpoints)
         visit_ends.visitPathEnds(end, corner_, MinMaxAll::all(), true, &end_visitor);
-      findOutputDelays(input_rf, output_delays);
+      findOutputDelays(input_rf, output_delays, timing_paths);
       search_->deleteFilteredArrivals();
 
       sta_->removeInputDelay(input_pin, input_rf1,
@@ -447,13 +448,14 @@ MakeTimingModel::findTimingFromInput(Port *input_port)
                              MinMaxAll::all());
     }
     makeSetupHoldTimingArcs(input_pin, end_visitor.margins(), end_visitor.extractedTimingPaths());
-    makeInputOutputTimingArcs(input_pin, output_delays);
+    makeInputOutputTimingArcs(input_pin, output_delays, timing_paths);
   }
 }
 
 void
 MakeTimingModel::findOutputDelays(const RiseFall *input_rf,
-                                  OutputPinDelays &output_pin_delays)
+                                  OutputPinDelays &output_pin_delays,
+                                  CombinationalTimingPaths &combinational_timing_paths)
 {
   InstancePinIterator *output_iter = network_->pinIterator(network_->topInstance());
   while (output_iter->hasNext()) {
@@ -469,8 +471,25 @@ MakeTimingModel::findOutputDelays(const RiseFall *input_rf,
           Arrival delay = path->arrival();
           OutputDelays &delays = output_pin_delays[output_pin];
           delays.delays.mergeValue(output_rf, min_max,
-                                   delayAsFloat(delay, min_max, sta_));
+          delayAsFloat(delay, min_max, sta_));
           delays.rf_path_exists[input_rf->index()][output_rf->index()] = true;
+          
+          CombinationalTimingPath &timing_path = combinational_timing_paths[output_pin];
+          if (timing_path.combinational_delay_path.vertices.empty()) {
+            // TODO: temporary solution, find a better way
+            timing_path.slack = 100000.0f;
+          }
+
+          sta_->reportPath(path);
+
+          float slack = path->clock(sta_)->period() - delay;
+          if (timing_path.slack > slack) {
+            timing_path.slack = slack;
+            timing_path.combinational_delay_path.name = "combinational_path";
+
+            timing_path.combinational_delay_path.vertices = extractPathVertices(path, false);
+            timing_path.combinational_delay_path.time = path->arrival();
+          }
         }
       }
     }
@@ -533,7 +552,8 @@ MakeTimingModel::makeSetupHoldTimingArcs(const Pin *input_pin,
 
 void
 MakeTimingModel::makeInputOutputTimingArcs(const Pin *input_pin,
-                                           OutputPinDelays &output_pin_delays)
+                                           OutputPinDelays &output_pin_delays,
+                                           CombinationalTimingPaths &combinational_timing_paths)
 {
   for (const auto& [output_pin, output_delays] : output_pin_delays) {
     TimingArcAttrsPtr attrs = nullptr;
@@ -559,6 +579,9 @@ MakeTimingModel::makeInputOutputTimingArcs(const Pin *input_pin,
       }
     }
     if (attrs) {
+      attrs->setSlack(combinational_timing_paths.at(output_pin).slack);
+      attrs->addTimingPath(combinational_timing_paths.at(output_pin).combinational_delay_path);
+
       LibertyPort *output_port = modelPort(output_pin);
       LibertyPort *input_port = modelPort(input_pin);
       if (output_port && input_port) {
@@ -587,7 +610,6 @@ MakeTimingModel::findClkedOutputPaths()
       VertexPathIterator path_iter(output_vertex, this);
       while (path_iter.hasNext()) {
         Path *path = path_iter.next();
-        sta_->reportPath(path);
         const ClockEdge *clk_edge = path->clkEdge(sta_);
         if (clk_edge) {
           const RiseFall *output_rf = path->transition(sta_);

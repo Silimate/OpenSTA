@@ -64,8 +64,15 @@ struct RegisterOutputTimingPath
   TimingPath sequential_delay_path{};
 };
 
+struct CombinationalTimingPath
+{
+  float slack{0};
+  TimingPath combinational_delay_path{};
+};
+
 typedef std::map<const ClockEdge*, RiseFallMinMax> ClockEdgeDelays;
 typedef std::map<const Pin *, OutputDelays> OutputPinDelays;
+typedef std::unordered_map<const Pin *, CombinationalTimingPath> CombinationalTimingPaths;
 typedef std::unordered_map<const MinMax*, InputRegisterTimingPath> InputRegisterTimingPaths;
 
 class MakeTimingModel : public StaState
@@ -95,12 +102,14 @@ private:
                         TimingSense sense,
                         const ClkDelays &delays);
   void findOutputDelays(const RiseFall *input_rf,
-                        OutputPinDelays &output_pin_delays);
+                        OutputPinDelays &output_pin_delays,
+                        CombinationalTimingPaths &combinational_timing_paths);
   void makeSetupHoldTimingArcs(const Pin *input_pin,
                                const ClockEdgeDelays &clk_margins,
                                const InputRegisterTimingPaths& timing_paths);
   void makeInputOutputTimingArcs(const Pin *input_pin,
-                                 OutputPinDelays &output_pin_delays);
+                                 OutputPinDelays &output_pin_delays,
+                                 CombinationalTimingPaths &combinational_timing_paths);
   TimingModel *makeScalarCheckModel(float value,
                                     ScaleFactorType scale_factor_type,
                                     const RiseFall *rf);
