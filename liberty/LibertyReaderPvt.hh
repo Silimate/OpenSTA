@@ -368,6 +368,10 @@ public:
   virtual void beginWorstSlackTimingPath(LibertyGroup *group);
   virtual void endWorstSlackTimingPath(LibertyGroup *group);
   virtual void visitSlack(LibertyAttr *attr);
+  virtual void beginTimingPath(LibertyGroup *group);
+  virtual void endTimingPath(LibertyGroup *group);
+  virtual void visitTimingPathTime(LibertyAttr *attr);
+  virtual void visitTimingPathVertex(LibertyAttr *attr);
 
   virtual void beginRiseTransitionDegredation(LibertyGroup *group);
   virtual void beginFallTransitionDegredation(LibertyGroup *group);
@@ -644,6 +648,7 @@ protected:
   SequentialGroupSeq cell_sequentials_;
   StatetableGroup *statetable_;
   TimingGroup *timing_;
+  TimingPath timing_path_;
   InternalPowerGroup *internal_power_;
   LeakagePowerGroup *leakage_power_;
   LeakagePowerGroupSeq leakage_powers_;
