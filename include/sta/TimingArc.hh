@@ -94,10 +94,16 @@ timingTypeScaleFactorType(TimingType type);
 
 ////////////////////////////////////////////////////////////////
 
+struct TimingPathVertex
+{
+  std::string name;
+  float arrival;
+};
+
 struct TimingPath
 {
   std::string name{};
-  std::vector<std::string> vertices{};
+  std::vector<TimingPathVertex> vertices{};
   float time{0.0f};
 };
 
@@ -131,7 +137,6 @@ public:
   float ocvArcDepth() const { return ocv_arc_depth_; }
   void setOcvArcDepth(float depth);
   void setSlack(float slack);
-  void addTimingPath(std::string name, std::vector<std::string> vertices, float time);
   void addTimingPath(TimingPath timing_path);
   float slack() const { return slack_; }
   const std::unordered_map<std::string, TimingPath>& timingPaths() const { return timing_paths_; }

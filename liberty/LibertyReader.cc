@@ -4577,14 +4577,19 @@ LibertyReader::visitTimingPathTime(LibertyAttr *attr)
 void
 LibertyReader::visitTimingPathVertex(LibertyAttr *attr)
 {
-  printf("Vertex: %s\n", attr->firstValue()->stringValue());
-  timing_path_.vertices.emplace_back(attr->firstValue()->stringValue());
+  TimingPathVertex vertex{};
+  LibertyAttrValueSeq* values = attr->values();
+  vertex.name = values->at(0)->stringValue();
+  vertex.arrival = values->at(1)->floatValue();
+  printf("Vertex: %s\n", vertex.name.c_str());
+  printf("Arrival: %f\n", vertex.arrival);
+  timing_path_.vertices.emplace_back(vertex);
 }
 
 void
 LibertyReader::endTimingPath(LibertyGroup *group)
 {
-  timing_->attrs()->addTimingPath(std::move(timing_path_.name), std::move(timing_path_.vertices), timing_path_.time);
+  timing_->attrs()->addTimingPath(std::move(timing_path_));
   timing_path_.time = 0.0f;
   printf("--------------------------\n");
 }
