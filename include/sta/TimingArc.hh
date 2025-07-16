@@ -25,6 +25,7 @@
 #pragma once
 
 #include <memory>
+#include <unordered_map>
 
 #include "Vector.hh"
 #include "Transition.hh"
@@ -93,6 +94,15 @@ timingTypeScaleFactorType(TimingType type);
 
 ////////////////////////////////////////////////////////////////
 
+struct TimingPath
+{
+  std::string name{};
+  std::vector<std::string> vertices{};
+  float time{0.0f};
+};
+
+////////////////////////////////////////////////////////////////
+
 class TimingArcAttrs
 {
 public:
@@ -120,17 +130,10 @@ public:
 		TimingModel *model);
   float ocvArcDepth() const { return ocv_arc_depth_; }
   void setOcvArcDepth(float depth);
-  void setTimingPath(
-    float slack,
-    std::vector<std::string> data_arrival_path,
-    float data_arrival_time,
-    std::vector<std::string> data_required_path,
-    float data_required_time);
+  void setSlack(float slack);
+  void addTimingPath(std::string name, std::vector<std::string> vertices, float time);
   float slack() const { return slack_; }
-  const std::vector<std::string>& dataArrivalPath() const { return data_arrival_path_; }
-  float dataArrivalTime() const { return data_arrival_time_; }
-  const std::vector<std::string>& dataRequiredPath() const { return data_required_path_; }
-  float dataRequiredTime() const { return data_required_time_; }
+  const std::unordered_map<std::string, TimingPath>& timingPaths() const { return timing_paths_; }
 
 protected:
   TimingType timing_type_;
@@ -144,10 +147,7 @@ protected:
   float ocv_arc_depth_;
   TimingModel *models_[RiseFall::index_count];
   float slack_;
-  std::vector<std::string> data_arrival_path_;
-  float data_arrival_time_;
-  std::vector<std::string> data_required_path_;
-  float data_required_time_;
+  std::unordered_map<std::string, TimingPath> timing_paths_;
 };
 
 // A timing arc set is a group of related timing arcs between from/to
@@ -201,10 +201,8 @@ public:
   const char *modeName() const { return attrs_->modeName(); }
   const char *modeValue() const { return attrs_->modeValue(); }
   float slack() const { return attrs_->slack(); }
-  float dataArrivalTime() const { return attrs_->dataArrivalTime(); }
-  const std::vector<std::string>& dataArrivalPath() const { return attrs_->dataArrivalPath(); }
-  float dataRequiredTime() const { return attrs_->dataRequiredTime(); }
-  const std::vector<std::string>& dataRequiredPath() const { return attrs_->dataRequiredPath(); }
+  const std::unordered_map<std::string, TimingPath>& timingPaths() const { return attrs_->timingPaths(); }
+
   // Timing arc set index in cell.
   TimingArcIndex index() const { return index_; }
   bool isDisabledConstraint() const { return is_disabled_constraint_; }

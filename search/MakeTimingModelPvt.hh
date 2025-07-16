@@ -31,11 +31,14 @@
 #include "SearchClass.hh"
 #include "StaState.hh"
 #include "RiseFallMinMax.hh"
+#include "TimingArc.hh"
 
 namespace sta {
 
 class Sta;
 class LibertyBuilder;
+
+////////////////////////////////////////////////////////////////
 
 class OutputDelays
 {
@@ -48,18 +51,16 @@ public:
   bool rf_path_exists[RiseFall::index_count][RiseFall::index_count];
 };
 
-struct TimingPath
+struct InputRegisterTimingPath
 {
-  float slack{0.0f};
-  std::vector<std::string> data_arrival_path_vertices{};
-  float data_arrival_time{0.0f};
-  std::vector<std::string> data_required_path_vertices{};
-  float data_required_time{0.0f};
+  float slack{0};
+  TimingPath data_arrival_path{};
+  TimingPath data_required_path{};
 };
 
 typedef std::map<const ClockEdge*, RiseFallMinMax> ClockEdgeDelays;
 typedef std::map<const Pin *, OutputDelays> OutputPinDelays;
-typedef std::unordered_map<const MinMax*, TimingPath> TimingPaths;
+typedef std::unordered_map<const MinMax*, InputRegisterTimingPath> InputRegisterTimingPaths;
 
 class MakeTimingModel : public StaState
 {
@@ -91,7 +92,7 @@ private:
                         OutputPinDelays &output_pin_delays);
   void makeSetupHoldTimingArcs(const Pin *input_pin,
                                const ClockEdgeDelays &clk_margins,
-                               const TimingPaths& timing_paths);
+                               const InputRegisterTimingPaths& timing_paths);
   void makeInputOutputTimingArcs(const Pin *input_pin,
                                  OutputPinDelays &output_pin_delays);
   TimingModel *makeScalarCheckModel(float value,
