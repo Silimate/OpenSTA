@@ -58,6 +58,12 @@ struct InputRegisterTimingPath
   TimingPath data_required_path{};
 };
 
+struct RegisterOutputTimingPath
+{
+  float slack{0};
+  TimingPath sequential_delay_path{};
+};
+
 typedef std::map<const ClockEdge*, RiseFallMinMax> ClockEdgeDelays;
 typedef std::map<const Pin *, OutputDelays> OutputPinDelays;
 typedef std::unordered_map<const MinMax*, InputRegisterTimingPath> InputRegisterTimingPaths;

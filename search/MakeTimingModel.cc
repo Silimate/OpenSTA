@@ -581,6 +581,7 @@ MakeTimingModel::findClkedOutputPaths()
     Pin *output_pin = output_iter->next(); 
     if (network_->direction(output_pin)->isOutput()) {
       ClockEdgeDelays clk_delays;
+      std::unordered_map<const ClockEdge*, RegisterOutputTimingPath> timing_paths;
       LibertyPort *output_port = modelPort(output_pin);
       Vertex *output_vertex = graph_->pinLoadVertex(output_pin);
       VertexPathIterator path_iter(output_vertex, this);
@@ -594,7 +595,17 @@ MakeTimingModel::findClkedOutputPaths()
           RiseFallMinMax &delays = clk_delays[clk_edge];
           delays.mergeValue(output_rf, min_max,
                             delayAsFloat(delay, min_max, sta_));
-        
+
+          RegisterOutputTimingPath timing_path{};
+          timing_path.slack = path->clock(sta_)->period() - delay;
+          if ((timing_paths.count(clk_edge) == 0 || timing_path.slack < timing_paths.at(clk_edge).slack)) {
+            timing_path.sequential_delay_path.name = "delay_path";
+
+            static constexpr bool SKIP_CLOCK = true;
+            timing_path.sequential_delay_path.vertices = extractPathVertices(path, SKIP_CLOCK);
+            timing_path.sequential_delay_path.time = delay;
+            timing_paths[clk_edge] = std::move(timing_path);
+          }
         }
       }
       for (const auto& [clk_edge, delays] : clk_delays) {
@@ -619,6 +630,9 @@ MakeTimingModel::findClkedOutputPaths()
             }
 
             if (attrs) {
+              attrs->setSlack(timing_paths.at(clk_edge).slack);
+              attrs->addTimingPath(timing_paths.at(clk_edge).sequential_delay_path);
+
               lib_builder_->makeFromTransitionArcs(cell_, clk_port,
                                                    output_port, nullptr,
                                                    clk_rf, TimingRole::regClkToQ(),
