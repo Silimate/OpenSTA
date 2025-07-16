@@ -26,6 +26,7 @@
 
 #include <cctype>
 #include <cstdlib>
+#include <cassert>
 
 #include "EnumNameMap.hh"
 #include "Report.hh"
@@ -423,6 +424,12 @@ LibertyReader::defineVisitors()
   defineGroupVisitor("worst_slack_path", &LibertyReader::beginWorstSlackTimingPath,
 		     &LibertyReader::endWorstSlackTimingPath);
   defineAttrVisitor("slack", &LibertyReader::visitSlack);
+  defineGroupVisitor("data_arrival_path", &LibertyReader::beginTimingPath,
+         &LibertyReader::endTimingPath);
+  defineGroupVisitor("data_required_path", &LibertyReader::beginTimingPath,
+         &LibertyReader::endTimingPath);
+  defineAttrVisitor("time", &LibertyReader::visitTimingPathTime);
+  defineAttrVisitor("vertex", &LibertyReader::visitTimingPathVertex);
 
   defineGroupVisitor("lut", &LibertyReader::beginLut,&LibertyReader::endLut);
 
@@ -4243,6 +4250,7 @@ LibertyReader::endTiming(LibertyGroup *group)
              || timing_type == TimingType::max_clock_tree_path))
       libWarn(1243, group, "timing group missing related_pin/related_bus_pin.");
   }
+  // timing_ value here is not deleted or am I missing something (look at the beginTiming function above)
   timing_ = nullptr;
   receiver_model_ = nullptr;
 }
@@ -4550,6 +4558,36 @@ void
 LibertyReader::visitSlack(LibertyAttr *attr)
 {
   printf("Slack: %f\n", attr->firstValue()->floatValue());
+  timing_->attrs()->setSlack(attr->firstValue()->floatValue());
+}
+
+void
+LibertyReader::beginTimingPath(LibertyGroup *group)
+{
+  printf("-----%s-----\n", group->type());
+  timing_path_.name = group->type();
+}
+
+void
+LibertyReader::visitTimingPathTime(LibertyAttr *attr)
+{
+  printf("Time: %f\n", attr->firstValue()->floatValue());
+  timing_path_.time = attr->firstValue()->floatValue();
+}
+
+void
+LibertyReader::visitTimingPathVertex(LibertyAttr *attr)
+{
+  printf("Vertex: %s\n", attr->firstValue()->stringValue());
+  timing_path_.vertices.emplace_back(attr->firstValue()->stringValue());
+}
+
+void
+LibertyReader::endTimingPath(LibertyGroup *group)
+{
+  timing_->attrs()->addTimingPath(std::move(timing_path_.name), std::move(timing_path_.vertices), timing_path_.time);
+  timing_path_.time = 0.0f;
+  printf("--------------------------\n");
 }
 
 void
