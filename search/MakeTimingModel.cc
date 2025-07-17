@@ -475,15 +475,12 @@ MakeTimingModel::findOutputDelays(const RiseFall *input_rf,
           delays.rf_path_exists[input_rf->index()][output_rf->index()] = true;
           
           CombinationalTimingPath &timing_path = combinational_timing_paths[output_pin];
-          if (timing_path.combinational_delay_path.vertices.empty()) {
-            // TODO: temporary solution, find a better way
-            timing_path.slack = 100000.0f;
-          }
 
           sta_->reportPath(path);
 
-          float slack = path->clock(sta_)->period() - delay;
-          if (timing_path.slack > slack) {
+          Clock* clock = sdc_->clocks()->front();
+          float slack = clock->period() - delay;
+          if (slack < timing_path.slack) {
             timing_path.slack = slack;
             timing_path.combinational_delay_path.name = "combinational_path";
 
