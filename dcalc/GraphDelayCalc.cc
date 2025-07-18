@@ -1469,8 +1469,11 @@ GraphDelayCalc::findCheckEdgeDelays(Edge *edge,
                                     ArcDelayCalc *arc_delay_calc)
 {
   Vertex *from_vertex = edge->from(graph_);
+  auto from_vertex_name = from_vertex->name(network_);
   Vertex *to_vertex = edge->to(graph_);
+  auto to_vertex_name = to_vertex->name(network_);
   TimingArcSet *arc_set = edge->timingArcSet();
+  const auto& timing_paths = arc_set->timingPaths();
   const Pin *to_pin = to_vertex->pin();
   Instance *inst = network_->instance(to_pin);
   debugPrint(debug_, "delay_calc", 2, "find check %s %s -> %s",
@@ -1509,13 +1512,24 @@ GraphDelayCalc::findCheckEdgeDelays(Edge *edge,
 	  float related_out_cap = 0.0;
 	  if (related_out_pin)
 	    related_out_cap = loadCap(related_out_pin, to_rf,dcalc_ap,arc_delay_calc);
-          ArcDelay check_delay = arc_delay_calc->checkDelay(to_pin, arc, from_slew,
-                                                            to_slew, related_out_cap,
-                                                            dcalc_ap);
-	  debugPrint(debug_, "delay_calc", 3,
-                     "    check_delay = %s",
-                     delayAsString(check_delay, this));
-	  graph_->setArcDelay(edge, arc, ap_index, check_delay);
+    float timing_path_delay = 0.0f;
+    const TimingRole* timing_role = arc->set()->role();
+    if (!arc_set->timingPaths().empty()) {
+      if (timing_role == TimingRole::hold() || timing_role == TimingRole::setup()) {
+        timing_path_delay = arc_set->timingPaths().at("data_required_path").time;
+      } else if (timing_role == TimingRole::combinational()) {
+      } else if (timing_role == TimingRole::latchDtoQ()) {
+      }
+    } else {
+      timing_path_delay = arc_delay_calc->checkDelay(to_pin, arc, from_slew,
+                                                      to_slew, related_out_cap,
+                                                      dcalc_ap);
+      debugPrint(debug_, "delay_calc", 3,
+                      "    check_delay = %s",
+                      delayAsString(timing_path_delay, this));
+    }
+
+    graph_->setArcDelay(edge, arc, ap_index, timing_path_delay);
 	  delay_changed = true;
           arc_delay_calc_->finishDrvrPin();
 	}
