@@ -428,6 +428,10 @@ LibertyReader::defineVisitors()
          &LibertyReader::endTimingPath);
   defineGroupVisitor("data_required_path", &LibertyReader::beginTimingPath,
          &LibertyReader::endTimingPath);
+  defineGroupVisitor("delay_path", &LibertyReader::beginTimingPath,
+         &LibertyReader::endTimingPath);
+  defineGroupVisitor("combinational_path", &LibertyReader::beginTimingPath,
+         &LibertyReader::endTimingPath);
   defineAttrVisitor("time", &LibertyReader::visitTimingPathTime);
   defineAttrVisitor("vertex", &LibertyReader::visitTimingPathVertex);
 
@@ -4250,7 +4254,6 @@ LibertyReader::endTiming(LibertyGroup *group)
              || timing_type == TimingType::max_clock_tree_path))
       libWarn(1243, group, "timing group missing related_pin/related_bus_pin.");
   }
-  // timing_ value here is not deleted or am I missing something (look at the beginTiming function above)
   timing_ = nullptr;
   receiver_model_ = nullptr;
 }
@@ -4545,33 +4548,33 @@ LibertyReader::beginFallConstraint(LibertyGroup *group)
 void
 LibertyReader::beginWorstSlackTimingPath(LibertyGroup *group)
 {
-  printf("-----Worst slack path-----\n");
+  // printf("-----Worst slack path-----\n");
 }
 
 void
 LibertyReader::endWorstSlackTimingPath(LibertyGroup *group)
 {
-  printf("--------------------------\n");
+  // printf("--------------------------\n");
 }
 
 void
 LibertyReader::visitSlack(LibertyAttr *attr)
 {
-  printf("Slack: %f\n", attr->firstValue()->floatValue());
+  // printf("Slack: %f\n", attr->firstValue()->floatValue());
   timing_->attrs()->setSlack(attr->firstValue()->floatValue());
 }
 
 void
 LibertyReader::beginTimingPath(LibertyGroup *group)
 {
-  printf("-----%s-----\n", group->type());
+  // printf("-----%s-----\n", group->type());
   timing_path_.name = group->type();
 }
 
 void
 LibertyReader::visitTimingPathTime(LibertyAttr *attr)
 {
-  printf("Time: %f\n", attr->firstValue()->floatValue());
+  // printf("Time: %f\n", attr->firstValue()->floatValue());
   timing_path_.time = attr->firstValue()->floatValue();
 }
 
@@ -4582,8 +4585,8 @@ LibertyReader::visitTimingPathVertex(LibertyAttr *attr)
   LibertyAttrValueSeq* values = attr->values();
   vertex.name = values->at(0)->stringValue();
   vertex.arrival = values->at(1)->floatValue();
-  printf("Vertex: %s\n", vertex.name.c_str());
-  printf("Arrival: %f\n", vertex.arrival);
+  // printf("Vertex: %s\n", vertex.name.c_str());
+  // printf("Arrival: %f\n", vertex.arrival);
   timing_path_.vertices.emplace_back(vertex);
 }
 
@@ -4592,7 +4595,7 @@ LibertyReader::endTimingPath(LibertyGroup *group)
 {
   timing_->attrs()->addTimingPath(std::move(timing_path_));
   timing_path_.time = 0.0f;
-  printf("--------------------------\n");
+  // printf("--------------------------\n");
 }
 
 void
