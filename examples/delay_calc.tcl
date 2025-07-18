@@ -1,9 +1,9 @@
 # delay calc example
 read_liberty nangate45_slow.lib.gz
-read_verilog example1.v
-link_design top
+read_verilog timing_test.v
+link_design timing_test
 create_clock -name clk -period 10 {clk1 clk2 clk3}
-set_input_delay -clock clk 0 {in1 in2}
+set_input_delay -clock clk 0 {in1 in2 in3}
 report_checks
 
-write_timing_model example.lib
+write_timing_model timing_test.lib
