@@ -4560,7 +4560,7 @@ void
 LibertyReader::visitSlack(LibertyAttr *attr)
 {
   // printf("Slack: %f\n", attr->firstValue()->floatValue());
-  timing_->attrs()->setSlack(attr->firstValue()->floatValue());
+  timing_->attrs()->setSlack(library_->units()->timeUnit()->userToSta(attr->firstValue()->floatValue()));
 }
 
 void
@@ -4574,7 +4574,7 @@ void
 LibertyReader::visitTimingPathTime(LibertyAttr *attr)
 {
   // printf("Time: %f\n", attr->firstValue()->floatValue());
-  timing_path_.time = attr->firstValue()->floatValue();
+  timing_path_.time = library_->units()->timeUnit()->userToSta(attr->firstValue()->floatValue());
 }
 
 void
@@ -4583,7 +4583,7 @@ LibertyReader::visitTimingPathVertex(LibertyAttr *attr)
   TimingPathVertex vertex{};
   LibertyAttrValueSeq* values = attr->values();
   vertex.name = values->at(0)->stringValue();
-  vertex.arrival = values->at(1)->floatValue();
+  vertex.arrival = library_->units()->timeUnit()->userToSta(values->at(1)->floatValue());
   // printf("Vertex: %s\n", vertex.name.c_str());
   // printf("Arrival: %f\n", vertex.arrival);
   timing_path_.vertices.emplace_back(vertex);
