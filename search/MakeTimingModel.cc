@@ -344,7 +344,7 @@ extractTimingPath(PathEnd *path_end)
   
   input_register_timing_path.data_required_path.name = "data_required_path";
   input_register_timing_path.data_required_path.vertices = extractPathVertices(path_end->targetClkPath(), true);
-  input_register_timing_path.data_required_path.time = path_end->requiredTimeOffset(sta_state);
+  input_register_timing_path.data_required_path.time = path_end->margin(sta_state);
 
   return input_register_timing_path;
 }
