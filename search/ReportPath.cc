@@ -475,38 +475,85 @@ ReportPath::reportFull(const PathEndCheck *end) const
   reportSrcPathArrival(end, expanded);
   reportTgtClk(end);
   reportRequired(end, checkRoleString(end));
+  reportInputOutputTimingPaths(end, expanded);
+  reportDashLine();
+  reportSlack(end);
+}
 
-  const TimingArc* check_arc = end->checkArc();
-  if (check_arc && !check_arc->set()->timingPaths().empty()) {
-    Instance *inst = network_->instance(end->vertex(this)->pin());
-    const char* cell_name = network_->cellName(inst);
-    printf("                  %s\n", cell_name);
+void ReportPath::reportInputOutputTimingPaths(const PathEnd* end, const PathExpanded& expanded) const
+{
+  Instance *from_instance = network_->instance(expanded.startPath()->pin(this));
+  const char* from_cell_name = network_->cellName(from_instance);
+  const TimingArc* source_arc = expanded.startPrevArc();
+  reportCellTimingPath(from_cell_name, source_arc);
+  
+  Instance *to_instance = network_->instance(end->path()->pin(this));
+  const char* to_cell_name = network_->cellName(to_instance);
+  const TimingArc* target_arc = end->checkArc();
+  reportCellTimingPath(to_cell_name, target_arc);
+}
 
-    const auto& timing_paths = check_arc->set()->timingPaths();
-    const auto& data_arrival_path = timing_paths.at("data_arrival_path");
-    reportBlankLine();
-    printf("                  data arrival path\n");
-    for (std::size_t index = 0; index < data_arrival_path.vertices.size(); ++index) {
-      const auto& [vertex, arrival] = data_arrival_path.vertices[index];
-      reportLine(vertex.c_str(), arrival, nullptr, nullptr);
-    }
-    reportLine("data arrival time", data_arrival_path.time, nullptr);
+void ReportPath::reportCellTimingPath(const char* cell_name, const TimingArc* timing_arc) const
+{
+  if (!timing_arc) {
+    return;
+  }
 
-    reportBlankLine();
+  const TimingArcSet* timing_arc_set = timing_arc->set();
+  if (!timing_arc_set) {
+    return;
+  }
 
-    const auto& data_required_path = timing_paths.at("data_required_path");
-    printf("                  data required path\n");
-    for (std::size_t index = 0; index < data_required_path.vertices.size(); ++index) {
-      const auto& [vertex, arrival] = data_required_path.vertices[index];
-      reportLine(vertex.c_str(), arrival, nullptr, nullptr);
-    }
-    reportLine("data required time", data_required_path.time, nullptr);
+  const auto& timing_paths = timing_arc_set->timingPaths();
+  if (timing_paths.empty()) {
+    return;
+  }
+
+  printf("                  %s\n", cell_name);
+
+  if (timing_arc->role() == TimingRole::setup() || timing_arc->role() == TimingRole::hold()) {
+    reportSetupholdTimingPaths(timing_arc);
+  } else if (timing_arc->role() == TimingRole::regClkToQ()) {
+    reportOutputDelayTimingPath(timing_arc);
   }
 
   reportBlankLine();
-  reportDashLine();
+}
 
-  reportSlack(end);
+void ReportPath::reportSetupholdTimingPaths(const TimingArc* timing_arc) const
+{
+  const auto& timing_paths = timing_arc->set()->timingPaths();
+  const auto& data_arrival_path = timing_paths.at("data_arrival_path");
+  reportBlankLine();
+  printf("                  data arrival path\n");
+  for (std::size_t index = 0; index < data_arrival_path.vertices.size(); ++index) {
+    const auto& [vertex, arrival] = data_arrival_path.vertices[index];
+    reportLine(vertex.c_str(), arrival, nullptr, nullptr);
+  }
+  reportLine("data arrival time", data_arrival_path.time, nullptr);
+
+  reportBlankLine();
+
+  const auto& data_required_path = timing_paths.at("data_required_path");
+  printf("                  data required path\n");
+  for (std::size_t index = 0; index < data_required_path.vertices.size(); ++index) {
+    const auto& [vertex, arrival] = data_required_path.vertices[index];
+    reportLine(vertex.c_str(), arrival, nullptr, nullptr);
+  }
+  reportLine("data required time", data_required_path.time, nullptr);
+}
+
+void ReportPath::reportOutputDelayTimingPath(const TimingArc* timing_arc) const
+{
+  const auto& timing_paths = timing_arc->set()->timingPaths();
+  const auto& delay_path = timing_paths.at("delay_path");
+  reportBlankLine();
+  printf("                  output delay path\n");
+  for (std::size_t index = 0; index < delay_path.vertices.size(); ++index) {
+    const auto& [vertex, arrival] = delay_path.vertices[index];
+    reportLine(vertex.c_str(), arrival, nullptr, nullptr);
+  }
+  reportLine("output delay time", delay_path.time, nullptr);
 }
 
 string
