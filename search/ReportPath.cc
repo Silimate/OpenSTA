@@ -475,6 +475,37 @@ ReportPath::reportFull(const PathEndCheck *end) const
   reportSrcPathArrival(end, expanded);
   reportTgtClk(end);
   reportRequired(end, checkRoleString(end));
+
+  const TimingArc* check_arc = end->checkArc();
+  if (check_arc && !check_arc->set()->timingPaths().empty()) {
+    Instance *inst = network_->instance(end->vertex(this)->pin());
+    const char* cell_name = network_->cellName(inst);
+    printf("                  %s\n", cell_name);
+
+    const auto& timing_paths = check_arc->set()->timingPaths();
+    const auto& data_arrival_path = timing_paths.at("data_arrival_path");
+    reportBlankLine();
+    printf("                  data arrival path\n");
+    for (std::size_t index = 0; index < data_arrival_path.vertices.size(); ++index) {
+      const auto& [vertex, arrival] = data_arrival_path.vertices[index];
+      reportLine(vertex.c_str(), arrival, nullptr, nullptr);
+    }
+    reportLine("data arrival time", data_arrival_path.time, nullptr);
+
+    reportBlankLine();
+
+    const auto& data_required_path = timing_paths.at("data_required_path");
+    printf("                  data required path\n");
+    for (std::size_t index = 0; index < data_required_path.vertices.size(); ++index) {
+      const auto& [vertex, arrival] = data_required_path.vertices[index];
+      reportLine(vertex.c_str(), arrival, nullptr, nullptr);
+    }
+    reportLine("data required time", data_required_path.time, nullptr);
+  }
+
+  reportBlankLine();
+  reportDashLine();
+
   reportSlack(end);
 }
 
