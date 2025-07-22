@@ -522,47 +522,30 @@ void ReportPath::reportCellTimingPath(const char* instance_name, const char* cel
 
 void ReportPath::reportSetupholdTimingPaths(const char* instance_name, const TimingArc* timing_arc) const
 {
-  const auto& timing_paths = timing_arc->set()->timingPaths();
-  const auto& data_arrival_path = timing_paths.at("data_arrival_path");
+  reportTimingPath(instance_name, "data_arrival_path", timing_arc);
   reportBlankLine();
-  float previous_arrival = 0.0f;
-  printf("                  data arrival path\n");
-  for (std::size_t index = 0; index < data_arrival_path.vertices.size(); ++index) {
-    const auto& [vertex, arrival] = data_arrival_path.vertices[index];
-    std::string description = std::string{instance_name} + '/' + vertex;
-    reportLine(description.c_str(), arrival - previous_arrival, arrival, nullptr);
-    previous_arrival = arrival;
-  }
-  reportLine("data arrival time", data_arrival_path.time, nullptr);
-
-  reportBlankLine();
-
-  const auto& data_required_path = timing_paths.at("data_required_path");
-  printf("                  data required path\n");
-  previous_arrival = 0.0f;
-  for (std::size_t index = 0; index < data_required_path.vertices.size(); ++index) {
-    const auto& [vertex, arrival] = data_required_path.vertices[index];
-    std::string description = std::string{instance_name} + '/' + vertex;
-    reportLine(description.c_str(), arrival - previous_arrival, arrival, nullptr);
-    previous_arrival = arrival;
-  }
-  reportLine("data required time", data_required_path.time, nullptr);
+  reportTimingPath(instance_name, "data_required_path", timing_arc);
 }
 
 void ReportPath::reportOutputDelayTimingPath(const char* instance_name, const TimingArc* timing_arc) const
 {
+  reportTimingPath(instance_name, "delay_path", timing_arc);
+}
+
+void ReportPath::reportTimingPath(const char* instance_name, const char* timing_path_name, const TimingArc* timing_arc) const
+{
   const auto& timing_paths = timing_arc->set()->timingPaths();
-  const auto& delay_path = timing_paths.at("delay_path");
+  const auto& timing_path = timing_paths.at(timing_path_name);
   reportBlankLine();
-  printf("                  output delay path\n");
+  printf("                  %s\n", timing_path_name);
   float previous_arrival = 0.0f;
-  for (std::size_t index = 0; index < delay_path.vertices.size(); ++index) {
-    const auto& [vertex, arrival] = delay_path.vertices[index];
+  for (std::size_t index = 0; index < timing_path.vertices.size(); ++index) {
+    const auto& [vertex, arrival] = timing_path.vertices[index];
     std::string description = std::string{instance_name} + '/' + vertex;
     reportLine(description.c_str(), arrival - previous_arrival, arrival, nullptr);
     previous_arrival = arrival;
   }
-  reportLine("output delay time", delay_path.time, nullptr);
+  reportLine("time", timing_path.time, nullptr);
 }
 
 string

@@ -465,6 +465,7 @@ protected:
   void reportCellTimingPath(const char* instance_name, const char* cell_name, const char* cell_type, const TimingArc* timing_arc) const;
   void reportSetupholdTimingPaths(const char* instance_name, const TimingArc* timing_arc) const;
   void reportOutputDelayTimingPath(const char* instance_name, const TimingArc* timing_arc) const;
+  void reportTimingPath(const char* instance_name, const char* timing_path_name, const TimingArc* timing_arc) const;
 
   // Path options.
   ReportPathFormat format_;
