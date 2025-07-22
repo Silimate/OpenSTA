@@ -617,7 +617,10 @@ MakeTimingModel::findClkedOutputPaths()
                             delayAsFloat(delay, min_max, sta_));
 
           RegisterOutputTimingPath timing_path{};
-          timing_path.slack = path->clock(sta_)->period() - delay;
+
+          Arrival arrival = path->arrival();
+          Required required = path->required();
+          timing_path.slack = arrival - required;
           if ((timing_paths.count(clk_edge) == 0 || timing_path.slack < timing_paths.at(clk_edge).slack)) {
             timing_path.sequential_delay_path.name = "delay_path";
 
