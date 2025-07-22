@@ -485,15 +485,15 @@ void ReportPath::reportInputOutputTimingPaths(const PathEnd* end, const PathExpa
   Instance *from_instance = network_->instance(expanded.startPath()->pin(this));
   const char* from_cell_name = network_->cellName(from_instance);
   const TimingArc* source_arc = expanded.startPrevArc();
-  reportCellTimingPath(from_cell_name, source_arc);
+  reportCellTimingPath(network_->pathName(from_instance), from_cell_name, "source cell", source_arc);
   
   Instance *to_instance = network_->instance(end->path()->pin(this));
   const char* to_cell_name = network_->cellName(to_instance);
   const TimingArc* target_arc = end->checkArc();
-  reportCellTimingPath(to_cell_name, target_arc);
+  reportCellTimingPath(network_->pathName(to_instance), to_cell_name, "target cell", target_arc);
 }
 
-void ReportPath::reportCellTimingPath(const char* cell_name, const TimingArc* timing_arc) const
+void ReportPath::reportCellTimingPath(const char* instance_name, const char* cell_name, const char* cell_type, const TimingArc* timing_arc) const
 {
   if (!timing_arc) {
     return;
@@ -509,26 +509,29 @@ void ReportPath::reportCellTimingPath(const char* cell_name, const TimingArc* ti
     return;
   }
 
-  printf("                  %s\n", cell_name);
+  printf("                  %s (%s)\n", instance_name, cell_name);
 
   if (timing_arc->role() == TimingRole::setup() || timing_arc->role() == TimingRole::hold()) {
-    reportSetupholdTimingPaths(timing_arc);
+    reportSetupholdTimingPaths(instance_name, timing_arc);
   } else if (timing_arc->role() == TimingRole::regClkToQ()) {
-    reportOutputDelayTimingPath(timing_arc);
+    reportOutputDelayTimingPath(instance_name, timing_arc);
   }
 
   reportBlankLine();
 }
 
-void ReportPath::reportSetupholdTimingPaths(const TimingArc* timing_arc) const
+void ReportPath::reportSetupholdTimingPaths(const char* instance_name, const TimingArc* timing_arc) const
 {
   const auto& timing_paths = timing_arc->set()->timingPaths();
   const auto& data_arrival_path = timing_paths.at("data_arrival_path");
   reportBlankLine();
+  float previous_arrival = 0.0f;
   printf("                  data arrival path\n");
   for (std::size_t index = 0; index < data_arrival_path.vertices.size(); ++index) {
     const auto& [vertex, arrival] = data_arrival_path.vertices[index];
-    reportLine(vertex.c_str(), arrival, nullptr, nullptr);
+    std::string description = std::string{instance_name} + '/' + vertex;
+    reportLine(description.c_str(), arrival - previous_arrival, arrival, nullptr);
+    previous_arrival = arrival;
   }
   reportLine("data arrival time", data_arrival_path.time, nullptr);
 
@@ -536,22 +539,28 @@ void ReportPath::reportSetupholdTimingPaths(const TimingArc* timing_arc) const
 
   const auto& data_required_path = timing_paths.at("data_required_path");
   printf("                  data required path\n");
+  previous_arrival = 0.0f;
   for (std::size_t index = 0; index < data_required_path.vertices.size(); ++index) {
     const auto& [vertex, arrival] = data_required_path.vertices[index];
-    reportLine(vertex.c_str(), arrival, nullptr, nullptr);
+    std::string description = std::string{instance_name} + '/' + vertex;
+    reportLine(description.c_str(), arrival - previous_arrival, arrival, nullptr);
+    previous_arrival = arrival;
   }
   reportLine("data required time", data_required_path.time, nullptr);
 }
 
-void ReportPath::reportOutputDelayTimingPath(const TimingArc* timing_arc) const
+void ReportPath::reportOutputDelayTimingPath(const char* instance_name, const TimingArc* timing_arc) const
 {
   const auto& timing_paths = timing_arc->set()->timingPaths();
   const auto& delay_path = timing_paths.at("delay_path");
   reportBlankLine();
   printf("                  output delay path\n");
+  float previous_arrival = 0.0f;
   for (std::size_t index = 0; index < delay_path.vertices.size(); ++index) {
     const auto& [vertex, arrival] = delay_path.vertices[index];
-    reportLine(vertex.c_str(), arrival, nullptr, nullptr);
+    std::string description = std::string{instance_name} + '/' + vertex;
+    reportLine(description.c_str(), arrival - previous_arrival, arrival, nullptr);
+    previous_arrival = arrival;
   }
   reportLine("output delay time", delay_path.time, nullptr);
 }
