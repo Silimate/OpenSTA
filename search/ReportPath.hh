@@ -462,9 +462,9 @@ protected:
 		  Delay prev,
 		  const MinMax *min_max) const;
   void reportInputOutputTimingPaths(const PathEnd* end, const PathExpanded& expanded) const;
-  void reportCellTimingPath(const char* cell_name, const TimingArc* timing_arc) const;
-  void reportSetupholdTimingPaths(const TimingArc* timing_arc) const;
-  void reportOutputDelayTimingPath(const TimingArc* timing_arc) const;
+  void reportCellTimingPath(const char* instance_name, const char* cell_name, const char* cell_type, const TimingArc* timing_arc) const;
+  void reportSetupholdTimingPaths(const char* instance_name, const TimingArc* timing_arc) const;
+  void reportOutputDelayTimingPath(const char* instance_name, const TimingArc* timing_arc) const;
 
   // Path options.
   ReportPathFormat format_;
