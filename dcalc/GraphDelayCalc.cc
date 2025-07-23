@@ -913,26 +913,10 @@ GraphDelayCalc::findDriverEdgeDelays(Vertex *drvr_vertex,
                                      array<bool, RiseFall::index_count> &delay_exists)
 {
   Vertex *from_vertex = edge->from(graph_);
-  auto from_vertex_name = from_vertex->name(network_);
-  Vertex *to_vertex = edge->to(graph_);
-  auto to_vertex_name = to_vertex->name(network_);
   const TimingArcSet *arc_set = edge->timingArcSet();
-  const auto& timing_paths = arc_set->timingPaths();
   bool delay_changed = false;
   for (const DcalcAnalysisPt *dcalc_ap : corners_->dcalcAnalysisPts()) {
     for (const TimingArc *arc : arc_set->arcs()) {
-      float timing_path_delay = 0.0f;
-      const TimingRole* timing_role = arc->set()->role();
-      printf("---------------\n");
-      if (!arc_set->timingPaths().empty()) {
-        if (timing_role == TimingRole::regClkToQ()) {
-          timing_path_delay = arc_set->timingPaths().at("delay_path").time;
-          printf("clk to q %s -> %s\ntiming path delay: %s\n", from_vertex_name, to_vertex_name, delayAsString(timing_path_delay, this));
-        } else if (timing_role == TimingRole::combinational()) {
-          timing_path_delay = arc_set->timingPaths().at("combinational_path").time;
-          printf("combinational %s -> %s\nTiming path delay: %s\n", from_vertex_name, to_vertex_name, delayAsString(timing_path_delay, this));
-        }
-      }
       delay_changed |= findDriverArcDelays(drvr_vertex, multi_drvr, edge, arc,
                                            dcalc_ap, arc_delay_calc,
                                            load_pin_index_map);
@@ -1148,7 +1132,6 @@ GraphDelayCalc::annotateDelaySlew(Edge *edge,
         || (abs(gate_delay1 - prev_gate_delay1) / prev_gate_delay1
             > incremental_delay_tolerance_))
       delay_changed = true;
-    printf("Original delay: %s\n", delayAsString(gate_delay, this));
     graph_->setArcDelay(edge, arc, ap_index, gate_delay);
   }
   return delay_changed;
@@ -1534,6 +1517,8 @@ GraphDelayCalc::findCheckEdgeDelays(Edge *edge,
     if (!arc_set->timingPaths().empty()) {
       if (timing_role == TimingRole::hold() || timing_role == TimingRole::setup()) {
         timing_path_delay = arc_set->timingPaths().at("data_required_path").time;
+      } else if (timing_role == TimingRole::combinational()) {
+      } else if (timing_role == TimingRole::latchDtoQ()) {
       }
     } else {
       timing_path_delay = arc_delay_calc->checkDelay(to_pin, arc, from_slew,
