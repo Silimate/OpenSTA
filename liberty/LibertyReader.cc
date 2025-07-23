@@ -4584,6 +4584,7 @@ LibertyReader::visitTimingPathVertex(LibertyAttr *attr)
   LibertyAttrValueSeq* values = attr->values();
   vertex.name = values->at(0)->stringValue();
   vertex.arrival = library_->units()->timeUnit()->userToSta(values->at(1)->floatValue());
+  vertex.transition = values->at(2)->stringValue();
   // printf("Vertex: %s\n", vertex.name.c_str());
   // printf("Arrival: %f\n", vertex.arrival);
   timing_path_.vertices.emplace_back(vertex);
