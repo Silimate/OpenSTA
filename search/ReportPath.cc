@@ -470,82 +470,16 @@ ReportPath::reportShort(const PathEndCheck *end,
 void
 ReportPath::reportFull(const PathEndCheck *end) const
 {
+  // temp
+  end_timing_arc = end->checkArc();
+
   PathExpanded expanded(end->path(), this);
   reportShort(end, expanded);
   reportSrcPathArrival(end, expanded);
   reportTgtClk(end);
   reportRequired(end, checkRoleString(end));
-  reportInputOutputTimingPaths(end, expanded);
   reportDashLine();
   reportSlack(end);
-}
-
-void ReportPath::reportInputOutputTimingPaths(const PathEnd* end, const PathExpanded& expanded) const
-{
-  Instance *from_instance = network_->instance(expanded.startPath()->pin(this));
-  const char* from_cell_name = network_->cellName(from_instance);
-  const TimingArc* source_arc = expanded.startPrevArc();
-  reportCellTimingPath(network_->pathName(from_instance), from_cell_name, "source cell", source_arc);
-  
-  Instance *to_instance = network_->instance(end->path()->pin(this));
-  const char* to_cell_name = network_->cellName(to_instance);
-  const TimingArc* target_arc = end->checkArc();
-  reportCellTimingPath(network_->pathName(to_instance), to_cell_name, "target cell", target_arc);
-}
-
-void ReportPath::reportCellTimingPath(const char* instance_name, const char* cell_name, const char* cell_type, const TimingArc* timing_arc) const
-{
-  if (!timing_arc) {
-    return;
-  }
-
-  const TimingArcSet* timing_arc_set = timing_arc->set();
-  if (!timing_arc_set) {
-    return;
-  }
-
-  const auto& timing_paths = timing_arc_set->timingPaths();
-  if (timing_paths.empty()) {
-    return;
-  }
-
-  printf("                  %s (%s)\n", instance_name, cell_name);
-
-  if (timing_arc->role() == TimingRole::setup() || timing_arc->role() == TimingRole::hold()) {
-    reportSetupholdTimingPaths(instance_name, timing_arc);
-  } else if (timing_arc->role() == TimingRole::regClkToQ()) {
-    reportOutputDelayTimingPath(instance_name, timing_arc);
-  }
-
-  reportBlankLine();
-}
-
-void ReportPath::reportSetupholdTimingPaths(const char* instance_name, const TimingArc* timing_arc) const
-{
-  reportTimingPath(instance_name, "data_arrival_path", timing_arc);
-  reportBlankLine();
-  reportTimingPath(instance_name, "data_required_path", timing_arc);
-}
-
-void ReportPath::reportOutputDelayTimingPath(const char* instance_name, const TimingArc* timing_arc) const
-{
-  reportTimingPath(instance_name, "delay_path", timing_arc);
-}
-
-void ReportPath::reportTimingPath(const char* instance_name, const char* timing_path_name, const TimingArc* timing_arc) const
-{
-  const auto& timing_paths = timing_arc->set()->timingPaths();
-  const auto& timing_path = timing_paths.at(timing_path_name);
-  reportBlankLine();
-  printf("                  %s\n", timing_path_name);
-  float previous_arrival = 0.0f;
-  for (std::size_t index = 0; index < timing_path.vertices.size(); ++index) {
-    const auto& [vertex, arrival, transition] = timing_path.vertices[index];
-    std::string description = std::string{instance_name} + '/' + vertex;
-    reportLine(description.c_str(), arrival - previous_arrival, arrival, nullptr, RiseFall::find(transition.c_str()));
-    previous_arrival = arrival;
-  }
-  reportLine("time", timing_path.time, nullptr);
 }
 
 string
@@ -2786,17 +2720,47 @@ ReportPath::reportPath5(const Path *path,
   DcalcAPIndex ap_index = dcalc_ap->index();
   const Path *clk_path = expanded.clkPath();
   Vertex *clk_start = clk_path ? clk_path->vertex(this) : nullptr;
+
+  const TimingArc *from_timing_arc = expanded.startPrevArc();
+  Instance *from_instance = network_->instance(expanded.startPath()->pin(this));
+  Instance *to_instance = network_->instance(path->pin(this));
+
   for (size_t i = path_first_index; i <= path_last_index; i++) {
     const Path *path1 = expanded.path(i);
-    const TimingArc *prev_arc = path1->prevArc(this);
     Vertex *vertex = path1->vertex(this);
     Pin *pin = vertex->pin();
+    Instance *inst = network_->instance(pin);
     Arrival time = path1->arrival() + time_offset;
+
+    // Some code duplicates as it is currently in testing stage
+    if (inst == from_instance) {
+      const char* from_instance_name = network_->pathName(from_instance);
+      reportTimingPath(from_instance_name, from_timing_arc, time);
+
+      while (inst == from_instance && i < path_last_index) {
+        ++i;
+
+        path1 = expanded.path(i);
+        vertex = path1->vertex(this);
+        pin = vertex->pin();
+        inst = network_->instance(pin);
+        time = path1->arrival() + time_offset;
+        prev_time = time;
+      }
+    }
+
+    if (inst == to_instance) {
+      const char* target_instance_name = network_->pathName(to_instance);
+      reportTimingPath(target_instance_name, end_timing_arc, time);
+      break;
+    }
+
+    const TimingArc *prev_arc = path1->prevArc(this);
     Delay incr = 0.0;
     const char *line_case = nullptr;
     bool is_clk_start = path1->vertex(this) == clk_start;
     bool is_clk = path1->isClock(search_);
-    Instance *inst = network_->instance(pin);
+
     string src_attr = "";
     if (inst)
       src_attr = network_->getAttribute(inst, "src");
@@ -2912,6 +2876,28 @@ ReportPath::reportPath5(const Path *path,
     }
     else
       prev_time = time;
+  }
+}
+
+void ReportPath::reportTimingPath(const char* instance_name, const TimingArc* timing_arc, float base_arrival) const
+{
+  const auto& timing_paths = timing_arc->set()->timingPaths();
+
+  // temp mappings, will find a better way to make it clean and robust
+  const std::unordered_map<const TimingRole*, const char*> role_mappings
+  {
+    {TimingRole::regClkToQ(), "delay_path"},
+    {TimingRole::setup(), "data_arrival_path"},
+    {TimingRole::hold(), "data_arrival_path"}
+  };
+
+  const auto& timing_path = timing_paths.at(role_mappings.at(timing_arc->role()));
+  float previous_arrival = 0.0f;
+  for (std::size_t index = 0; index < timing_path.vertices.size(); ++index) {
+    const auto& [vertex, arrival, transition] = timing_path.vertices[index];
+    std::string description = std::string{instance_name} + '/' + vertex;
+    reportLine(description.c_str(), arrival - previous_arrival, base_arrival + arrival, nullptr, RiseFall::find(transition.c_str()));
+    previous_arrival = arrival;
   }
 }
 

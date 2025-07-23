@@ -461,11 +461,10 @@ protected:
   Delay delayIncr(Delay time,
 		  Delay prev,
 		  const MinMax *min_max) const;
-  void reportInputOutputTimingPaths(const PathEnd* end, const PathExpanded& expanded) const;
-  void reportCellTimingPath(const char* instance_name, const char* cell_name, const char* cell_type, const TimingArc* timing_arc) const;
-  void reportSetupholdTimingPaths(const char* instance_name, const TimingArc* timing_arc) const;
-  void reportOutputDelayTimingPath(const char* instance_name, const TimingArc* timing_arc) const;
-  void reportTimingPath(const char* instance_name, const char* timing_path_name, const TimingArc* timing_arc) const;
+  void reportTimingPath(const char* instance_name, const TimingArc* timing_arc, float prev_arrival) const;
+
+  // temp
+  mutable TimingArc* end_timing_arc;
 
   // Path options.
   ReportPathFormat format_;
