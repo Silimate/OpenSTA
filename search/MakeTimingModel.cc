@@ -253,12 +253,12 @@ public:
   virtual void visit(PathEnd *path_end);
   void setInputRf(const RiseFall *input_rf);
   const ClockEdgeDelays &margins() const { return margins_; }
-  const std::unordered_map<const MinMax*, InputRegisterTimingPath>& extractedTimingPaths() const { return timing_paths_; }
+  const InputRegisterTimingPaths& extractedTimingPaths() const { return timing_paths_; }
 
 private:
   const RiseFall *input_rf_;
   ClockEdgeDelays margins_;
-  std::unordered_map<const MinMax*, InputRegisterTimingPath> timing_paths_;
+  InputRegisterTimingPaths timing_paths_;
   Sta *sta_;
 };
 
@@ -329,7 +329,7 @@ extractPathVertices(const Path *path, bool skip_clk)
 }
 
 InputRegisterTimingPath
-extractTimingPath(PathEnd *path_end)
+extractTimingPath(PathEnd *path_end, const RiseFall* input_rf)
 {
   StaState* sta_state = Sta::sta();
 
@@ -338,13 +338,15 @@ extractTimingPath(PathEnd *path_end)
   const EarlyLate *early_late = EarlyLate::early();
   input_register_timing_path.slack = delayAsFloat(path_end->slack(sta_state), early_late, sta_state);
 
-  input_register_timing_path.data_arrival_path.name = "data_arrival_path";
+  input_register_timing_path.data_arrival_path.name = std::string{input_rf->name()} + std::string{"_data_arrival"};
   input_register_timing_path.data_arrival_path.vertices = extractPathVertices(path_end->path(), false);
   input_register_timing_path.data_arrival_path.time = path_end->dataArrivalTimeOffset(sta_state);
+  input_register_timing_path.data_arrival_path.rise_fall = input_rf;
   
-  input_register_timing_path.data_required_path.name = "data_required_path";
+  input_register_timing_path.data_required_path.name = std::string{input_rf->name()} + std::string{"_data_required"};
   input_register_timing_path.data_required_path.vertices = extractPathVertices(path_end->targetClkPath(), true);
   input_register_timing_path.data_required_path.time = path_end->margin(sta_state);
+  input_register_timing_path.data_required_path.rise_fall = input_rf;
 
   return input_register_timing_path;
 }
@@ -377,9 +379,9 @@ MakeEndTimingArcs::visit(PathEnd *path_end)
     if (debug->check("make_timing_model", 3))
       sta_->reportPathEnd(path_end);
 
-    InputRegisterTimingPath timing_path = extractTimingPath(path_end);
-    if ((timing_paths_.count(min_max) == 0 || timing_path.slack < timing_paths_.at(min_max).slack)) {
-      timing_paths_[min_max] = std::move(timing_path);
+    InputRegisterTimingPath timing_path = extractTimingPath(path_end, input_rf_);
+    if (timing_path.slack < timing_paths_[min_max->index()][input_rf_->index()].slack) {
+      timing_paths_[min_max->index()][input_rf_->index()] = std::move(timing_path);
     }
 
     RiseFallMinMax &margins = margins_[tgt_clk_edge];
@@ -474,16 +476,14 @@ MakeTimingModel::findOutputDelays(const RiseFall *input_rf,
           delayAsFloat(delay, min_max, sta_));
           delays.rf_path_exists[input_rf->index()][output_rf->index()] = true;
           
-          CombinationalTimingPath &timing_path = combinational_timing_paths[output_pin];
-
-          sta_->reportPath(path);
+          CombinationalTimingPath &timing_path = combinational_timing_paths[output_pin][input_rf->index()];
 
           Clock* clock = sdc_->clocks()->front();
           float slack = clock->period() - delay;
           if (slack < timing_path.slack) {
             timing_path.slack = slack;
-            timing_path.combinational_delay_path.name = "combinational_path";
-
+            timing_path.combinational_delay_path.name = std::string{output_rf->name()} + std::string{"_combinational"};
+            timing_path.combinational_delay_path.rise_fall = input_rf;
             timing_path.combinational_delay_path.vertices = extractPathVertices(path, false);
             timing_path.combinational_delay_path.time = path->arrival();
           }
@@ -522,7 +522,7 @@ MakeTimingModel::makeSetupHoldTimingArcs(const Pin *input_pin,
             attrs = std::make_shared<TimingArcAttrs>();
           attrs->setModel(input_rf, check_model);
 
-          const InputRegisterTimingPath& timing_path = timing_paths.at(min_max);
+          const InputRegisterTimingPath& timing_path = timing_paths[min_max->index()][input_rf->index()];
           attrs->setSlack(timing_path.slack);
           attrs->addTimingPath(timing_path.data_arrival_path);
           attrs->addTimingPath(timing_path.data_required_path);
@@ -573,11 +573,11 @@ MakeTimingModel::makeInputOutputTimingArcs(const Pin *input_pin,
         if (attrs == nullptr)
           attrs = std::make_shared<TimingArcAttrs>();
         attrs->setModel(output_rf, gate_model);
+        attrs->setSlack(combinational_timing_paths.at(output_pin)[output_rf->index()].slack);
+        attrs->addTimingPath(combinational_timing_paths.at(output_pin)[output_rf->index()].combinational_delay_path);
       }
     }
     if (attrs) {
-      attrs->setSlack(combinational_timing_paths.at(output_pin).slack);
-      attrs->addTimingPath(combinational_timing_paths.at(output_pin).combinational_delay_path);
 
       LibertyPort *output_port = modelPort(output_pin);
       LibertyPort *input_port = modelPort(input_pin);
@@ -601,7 +601,7 @@ MakeTimingModel::findClkedOutputPaths()
     Pin *output_pin = output_iter->next(); 
     if (network_->direction(output_pin)->isOutput()) {
       ClockEdgeDelays clk_delays;
-      std::unordered_map<const ClockEdge*, RegisterOutputTimingPath> timing_paths;
+      std::unordered_map<const RiseFall*, RegisterOutputTimingPath> timing_paths;
       LibertyPort *output_port = modelPort(output_pin);
       Vertex *output_vertex = graph_->pinLoadVertex(output_pin);
       VertexPathIterator path_iter(output_vertex, this);
@@ -621,13 +621,14 @@ MakeTimingModel::findClkedOutputPaths()
           Arrival arrival = path->arrival();
           Required required = path->required();
           timing_path.slack = arrival - required;
-          if ((timing_paths.count(clk_edge) == 0 || timing_path.slack < timing_paths.at(clk_edge).slack)) {
-            timing_path.sequential_delay_path.name = "delay_path";
+          if ((timing_paths.count(output_rf) == 0 || timing_path.slack < timing_paths.at(output_rf).slack)) {
+            timing_path.sequential_delay_path.name = std::string{output_rf->name()} + std::string{"_clocked_output"};
 
             static constexpr bool SKIP_CLOCK = true;
             timing_path.sequential_delay_path.vertices = extractPathVertices(path, SKIP_CLOCK);
             timing_path.sequential_delay_path.time = delay;
-            timing_paths[clk_edge] = std::move(timing_path);
+            timing_path.sequential_delay_path.rise_fall = output_rf;
+            timing_paths[output_rf] = std::move(timing_path);
           }
         }
       }
@@ -650,12 +651,11 @@ MakeTimingModel::findClkedOutputPaths()
               if (attrs == nullptr)
                 attrs = std::make_shared<TimingArcAttrs>();
               attrs->setModel(output_rf, gate_model);
+              attrs->setSlack(timing_paths.at(output_rf).slack);
+              attrs->addTimingPath(timing_paths.at(output_rf).sequential_delay_path);
             }
 
             if (attrs) {
-              attrs->setSlack(timing_paths.at(clk_edge).slack);
-              attrs->addTimingPath(timing_paths.at(clk_edge).sequential_delay_path);
-
               lib_builder_->makeFromTransitionArcs(cell_, clk_port,
                                                    output_port, nullptr,
                                                    clk_rf, TimingRole::regClkToQ(),
