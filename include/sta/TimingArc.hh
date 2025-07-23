@@ -106,6 +106,7 @@ struct TimingPath
   std::string name{};
   std::vector<TimingPathVertex> vertices{};
   float time{0.0f};
+  const RiseFall* rise_fall;
 };
 
 ////////////////////////////////////////////////////////////////

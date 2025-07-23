@@ -72,8 +72,8 @@ struct CombinationalTimingPath
 
 typedef std::map<const ClockEdge*, RiseFallMinMax> ClockEdgeDelays;
 typedef std::map<const Pin *, OutputDelays> OutputPinDelays;
-typedef std::unordered_map<const Pin *, CombinationalTimingPath> CombinationalTimingPaths;
-typedef std::unordered_map<const MinMax*, InputRegisterTimingPath> InputRegisterTimingPaths;
+typedef std::unordered_map<const Pin *, std::array<CombinationalTimingPath, 2>> CombinationalTimingPaths;
+typedef std::array<std::array<InputRegisterTimingPath, 2>, 2> InputRegisterTimingPaths;
 
 class MakeTimingModel : public StaState
 {
