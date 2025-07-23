@@ -98,6 +98,7 @@ struct TimingPathVertex
 {
   std::string name;
   float arrival;
+  std::string transition;
 };
 
 struct TimingPath

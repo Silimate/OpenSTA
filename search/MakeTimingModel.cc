@@ -322,7 +322,7 @@ extractPathVertices(const Path *path, bool skip_clk)
     const std::size_t NUM_OF_INTER_CHARACTERS = 3;
     vertex_description.resize(strlen(pin_name) + strlen(name2) + NUM_OF_INTER_CHARACTERS);
     sprintf(&vertex_description[0], "%s (%s)", pin_name, name2);
-    vertices[i - path_first_index] = {std::move(vertex_description), path1->arrival()};
+    vertices[i - path_first_index] = {std::move(vertex_description), path1->arrival(), path1->transition(sta_state)->shortName()};
   }
 
   return vertices;
