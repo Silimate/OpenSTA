@@ -540,9 +540,9 @@ void ReportPath::reportTimingPath(const char* instance_name, const char* timing_
   printf("                  %s\n", timing_path_name);
   float previous_arrival = 0.0f;
   for (std::size_t index = 0; index < timing_path.vertices.size(); ++index) {
-    const auto& [vertex, arrival] = timing_path.vertices[index];
+    const auto& [vertex, arrival, transition] = timing_path.vertices[index];
     std::string description = std::string{instance_name} + '/' + vertex;
-    reportLine(description.c_str(), arrival - previous_arrival, arrival, nullptr);
+    reportLine(description.c_str(), arrival - previous_arrival, arrival, nullptr, RiseFall::find(transition.c_str()));
     previous_arrival = arrival;
   }
   reportLine("time", timing_path.time, nullptr);
