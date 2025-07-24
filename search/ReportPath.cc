@@ -2884,14 +2884,15 @@ void ReportPath::reportTimingPath(const char* instance_name, const TimingArc* ti
   const auto& timing_paths = timing_arc->set()->timingPaths();
 
   // temp mappings, will find a better way to make it clean and robust
-  const std::unordered_map<const TimingRole*, const char*> role_mappings
+  const std::unordered_map<const TimingRole*, std::array<const char*, 2>> role_mappings
   {
-    {TimingRole::regClkToQ(), "delay_path"},
-    {TimingRole::setup(), "data_arrival_path"},
-    {TimingRole::hold(), "data_arrival_path"}
+    {TimingRole::regClkToQ(), {"rise_clocked_output", "fall_clocked_output"}},
+    {TimingRole::combinational(), {"rise_combinational", "fall_combinational"}},
+    {TimingRole::setup(), {"rise_data_arrival", "fall_data_arrival"}},
+    {TimingRole::hold(), {"rise_data_arrival", "fall_data_arrival"}}
   };
 
-  const auto& timing_path = timing_paths.at(role_mappings.at(timing_arc->role()));
+  const auto& timing_path = timing_paths.at(role_mappings.at(timing_arc->role()).at(timing_arc->toEdge()->asRiseFall()->index()));
   float previous_arrival = 0.0f;
   for (std::size_t index = 0; index < timing_path.vertices.size(); ++index) {
     const auto& [vertex, arrival, transition] = timing_path.vertices[index];
