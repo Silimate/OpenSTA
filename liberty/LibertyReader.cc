@@ -421,8 +421,6 @@ LibertyReader::defineVisitors()
 		     &LibertyReader::endRiseFallConstraint);
   defineAttrVisitor("value", &LibertyReader::visitValue);
   defineAttrVisitor("values", &LibertyReader::visitValues);
-  defineGroupVisitor("paths", &LibertyReader::beginTimingPaths,
-		     &LibertyReader::endTimingPaths);
   defineAttrVisitor("slack", &LibertyReader::visitSlack);
   defineGroupVisitor("rise_data_arrival", &LibertyReader::beginRiseTimingPath,
          &LibertyReader::endTimingPath);
@@ -4554,28 +4552,14 @@ LibertyReader::beginFallConstraint(LibertyGroup *group)
 }
 
 void
-LibertyReader::beginTimingPaths(LibertyGroup *group)
-{
-  // printf("-----Worst slack path-----\n");
-}
-
-void
-LibertyReader::endTimingPaths(LibertyGroup *group)
-{
-  // printf("--------------------------\n");
-}
-
-void
 LibertyReader::visitSlack(LibertyAttr *attr)
 {
-  // printf("Slack: %f\n", attr->firstValue()->floatValue());
   timing_->attrs()->setSlack(library_->units()->timeUnit()->userToSta(attr->firstValue()->floatValue()));
 }
 
 void
 LibertyReader::beginRiseTimingPath(LibertyGroup *group)
 {
-  // printf("-----%s-----\n", group->type());
   timing_path_.name = group->type();
   timing_path_.rise_fall = RiseFall::rise();
 }
@@ -4583,7 +4567,6 @@ LibertyReader::beginRiseTimingPath(LibertyGroup *group)
 void
 LibertyReader::beginFallTimingPath(LibertyGroup *group)
 {
-  // printf("-----%s-----\n", group->type());
   timing_path_.name = group->type();
   timing_path_.rise_fall = RiseFall::fall();
 }
@@ -4591,7 +4574,6 @@ LibertyReader::beginFallTimingPath(LibertyGroup *group)
 void
 LibertyReader::visitTimingPathTime(LibertyAttr *attr)
 {
-  // printf("Time: %f\n", attr->firstValue()->floatValue());
   timing_path_.time = library_->units()->timeUnit()->userToSta(attr->firstValue()->floatValue());
 }
 
@@ -4603,8 +4585,6 @@ LibertyReader::visitTimingPathVertex(LibertyAttr *attr)
   vertex.name = values->at(0)->stringValue();
   vertex.arrival = library_->units()->timeUnit()->userToSta(values->at(1)->floatValue());
   vertex.transition = values->at(2)->stringValue();
-  // printf("Vertex: %s\n", vertex.name.c_str());
-  // printf("Arrival: %f\n", vertex.arrival);
   timing_path_.vertices.emplace_back(vertex);
 }
 
@@ -4614,7 +4594,6 @@ LibertyReader::endTimingPath(LibertyGroup *group)
   timing_->attrs()->addTimingPath(std::move(timing_path_));
   timing_path_.time = 0.0f;
   timing_path_.rise_fall = nullptr;
-  // printf("--------------------------\n");
 }
 
 void

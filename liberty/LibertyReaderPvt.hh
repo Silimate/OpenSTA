@@ -365,8 +365,6 @@ public:
   virtual void beginRiseConstraint(LibertyGroup *group);
   virtual void endRiseFallConstraint(LibertyGroup *group);
   virtual void beginFallConstraint(LibertyGroup *group);
-  virtual void beginTimingPaths(LibertyGroup *group);
-  virtual void endTimingPaths(LibertyGroup *group);
   virtual void visitSlack(LibertyAttr *attr);
   virtual void beginRiseTimingPath(LibertyGroup *group);
   virtual void beginFallTimingPath(LibertyGroup *group);
