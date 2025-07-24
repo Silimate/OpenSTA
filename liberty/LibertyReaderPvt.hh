@@ -365,10 +365,11 @@ public:
   virtual void beginRiseConstraint(LibertyGroup *group);
   virtual void endRiseFallConstraint(LibertyGroup *group);
   virtual void beginFallConstraint(LibertyGroup *group);
-  virtual void beginWorstSlackTimingPath(LibertyGroup *group);
-  virtual void endWorstSlackTimingPath(LibertyGroup *group);
+  virtual void beginTimingPaths(LibertyGroup *group);
+  virtual void endTimingPaths(LibertyGroup *group);
   virtual void visitSlack(LibertyAttr *attr);
-  virtual void beginTimingPath(LibertyGroup *group);
+  virtual void beginRiseTimingPath(LibertyGroup *group);
+  virtual void beginFallTimingPath(LibertyGroup *group);
   virtual void endTimingPath(LibertyGroup *group);
   virtual void visitTimingPathTime(LibertyAttr *attr);
   virtual void visitTimingPathVertex(LibertyAttr *attr);

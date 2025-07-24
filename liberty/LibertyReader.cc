@@ -421,16 +421,24 @@ LibertyReader::defineVisitors()
 		     &LibertyReader::endRiseFallConstraint);
   defineAttrVisitor("value", &LibertyReader::visitValue);
   defineAttrVisitor("values", &LibertyReader::visitValues);
-  defineGroupVisitor("worst_slack_path", &LibertyReader::beginWorstSlackTimingPath,
-		     &LibertyReader::endWorstSlackTimingPath);
+  defineGroupVisitor("paths", &LibertyReader::beginTimingPaths,
+		     &LibertyReader::endTimingPaths);
   defineAttrVisitor("slack", &LibertyReader::visitSlack);
-  defineGroupVisitor("data_arrival_path", &LibertyReader::beginTimingPath,
+  defineGroupVisitor("rise_data_arrival", &LibertyReader::beginRiseTimingPath,
          &LibertyReader::endTimingPath);
-  defineGroupVisitor("data_required_path", &LibertyReader::beginTimingPath,
+  defineGroupVisitor("fall_data_arrival", &LibertyReader::beginFallTimingPath,
          &LibertyReader::endTimingPath);
-  defineGroupVisitor("delay_path", &LibertyReader::beginTimingPath,
+  defineGroupVisitor("rise_data_required", &LibertyReader::beginRiseTimingPath,
          &LibertyReader::endTimingPath);
-  defineGroupVisitor("combinational_path", &LibertyReader::beginTimingPath,
+  defineGroupVisitor("fall_data_required", &LibertyReader::beginFallTimingPath,
+         &LibertyReader::endTimingPath);
+  defineGroupVisitor("rise_clocked_output", &LibertyReader::beginRiseTimingPath,
+         &LibertyReader::endTimingPath);
+  defineGroupVisitor("fall_clocked_output", &LibertyReader::beginFallTimingPath,
+         &LibertyReader::endTimingPath);
+  defineGroupVisitor("rise_combinational", &LibertyReader::beginRiseTimingPath,
+         &LibertyReader::endTimingPath);
+  defineGroupVisitor("fall_combinational", &LibertyReader::beginFallTimingPath,
          &LibertyReader::endTimingPath);
   defineAttrVisitor("time", &LibertyReader::visitTimingPathTime);
   defineAttrVisitor("vertex", &LibertyReader::visitTimingPathVertex);
@@ -4546,13 +4554,13 @@ LibertyReader::beginFallConstraint(LibertyGroup *group)
 }
 
 void
-LibertyReader::beginWorstSlackTimingPath(LibertyGroup *group)
+LibertyReader::beginTimingPaths(LibertyGroup *group)
 {
   // printf("-----Worst slack path-----\n");
 }
 
 void
-LibertyReader::endWorstSlackTimingPath(LibertyGroup *group)
+LibertyReader::endTimingPaths(LibertyGroup *group)
 {
   // printf("--------------------------\n");
 }
@@ -4565,10 +4573,19 @@ LibertyReader::visitSlack(LibertyAttr *attr)
 }
 
 void
-LibertyReader::beginTimingPath(LibertyGroup *group)
+LibertyReader::beginRiseTimingPath(LibertyGroup *group)
 {
   // printf("-----%s-----\n", group->type());
   timing_path_.name = group->type();
+  timing_path_.rise_fall = RiseFall::rise();
+}
+
+void
+LibertyReader::beginFallTimingPath(LibertyGroup *group)
+{
+  // printf("-----%s-----\n", group->type());
+  timing_path_.name = group->type();
+  timing_path_.rise_fall = RiseFall::fall();
 }
 
 void
@@ -4596,6 +4613,7 @@ LibertyReader::endTimingPath(LibertyGroup *group)
 {
   timing_->attrs()->addTimingPath(std::move(timing_path_));
   timing_path_.time = 0.0f;
+  timing_path_.rise_fall = nullptr;
   // printf("--------------------------\n");
 }
 
