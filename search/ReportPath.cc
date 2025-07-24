@@ -644,7 +644,8 @@ ReportPath::reportBorrowing(const PathEndLatchCheck *end,
       auto width_msg = stdstrPrint("%s pulse width", tgt_clk_name.c_str());
       reportLineTotal(width_msg.c_str(), tgt_clk_width, early_late);
     }
-    ArcDelay margin = end->margin(this);
+    float required_diff = calculateRequired(end) - end->requiredTime(this);
+    ArcDelay margin = end->margin(this) - required_diff;
     reportLineTotalMinus("library setup time", margin, early_late);
     reportDashLineTotal();
     if (!delayZero(crpr_diff))
@@ -2022,9 +2023,32 @@ ReportPath::reportSrcPathArrival(const PathEnd *end,
 {
   reportBlankLine();
   reportSrcPath(end, expanded);
-  reportLine("data arrival time", end->dataArrivalTimeOffset(this),
-	     end->pathEarlyLate(this));
+  float data_arrival_time = calculateSrcPathArrival(end);
+  reportLine("data arrival time", data_arrival_time, end->pathEarlyLate(this));
   reportBlankLine();
+}
+
+float ReportPath::calculateSrcPathArrival(const PathEnd *end) const
+{
+  float data_arrival_time = end->dataArrivalTimeOffset(this);
+  const TimingArc *end_check_arc = end->checkArc();
+  if (!end_check_arc) {
+    return data_arrival_time;
+  }
+
+  const auto& timing_paths = end_check_arc->set()->timingPaths();
+  if (timing_paths.empty()) {
+    return data_arrival_time;
+  }
+
+  const RiseFall* path_rf = end->path()->transition(this);
+
+  if (end_check_arc->role() == TimingRole::setup()) {
+    std::string timing_path_name = std::string{path_rf->name()} + std::string{"_data_arrival"};
+    return data_arrival_time + timing_paths.at(timing_path_name).time;
+  }
+
+  return data_arrival_time;
 }
 
 void
@@ -2475,10 +2499,11 @@ void
 ReportPath::reportRequired(const PathEnd *end,
 			   string margin_msg) const
 {
-  Required req_time = end->requiredTimeOffset(this);
+  Required req_time = calculateRequired(end);
   const EarlyLate *early_late = end->clkEarlyLate(this);
   float macro_clk_tree_delay = end->macroClkTreeDelay(this);
-  ArcDelay margin = end->margin(this);
+  float required_diff = req_time - end->requiredTime(this);
+  ArcDelay margin = end->margin(this) - required_diff;
   if (end->minMax(this) == MinMax::min()) {
     margin = -margin;
     macro_clk_tree_delay = -macro_clk_tree_delay;
@@ -2491,13 +2516,36 @@ ReportPath::reportRequired(const PathEnd *end,
   reportDashLine();
 }
 
+Required ReportPath::calculateRequired(const PathEnd *end) const
+{
+  Required req_time = end->requiredTimeOffset(this);
+
+  const TimingArc *end_check_arc = end->checkArc();
+  if (!end_check_arc) {
+    return req_time;
+  }
+
+  const auto& timing_paths = end_check_arc->set()->timingPaths();
+  if (timing_paths.empty()) {
+    return req_time;
+  }
+
+  const RiseFall* path_rf = end->path()->transition(this);
+  if (end_check_arc->role() == TimingRole::setup()) {
+    std::string timing_path_name = std::string{path_rf->name()} + std::string{"_data_required"};
+    return timing_paths.at(timing_path_name).time;
+  }
+
+  return req_time;
+}
+
 void
 ReportPath::reportSlack(const PathEnd *end) const
 {
   const EarlyLate *early_late = end->pathEarlyLate(this);
-  reportLine("data required time", end->requiredTimeOffset(this),
+  reportLine("data required time", calculateRequired(end),
 	     early_late->opposite());
-  reportLineNegative("data arrival time", end->dataArrivalTimeOffset(this), early_late);
+  reportLineNegative("data arrival time", calculateSrcPathArrival(end), early_late);
   reportDashLine();
   reportSlack(end->slack(this));
 }

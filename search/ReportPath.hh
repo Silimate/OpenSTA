@@ -285,6 +285,7 @@ protected:
 		     const MinMax *min_max) const ;
   void reportRequired(const PathEnd *end,
 		      std::string margin_msg) const ;
+  Required calculateRequired(const PathEnd *end) const;
   void reportSlack(const PathEnd *end) const ;
   void reportSlack(Slack slack) const ;
   void reportSpaceSlack(const PathEnd *end,
@@ -293,6 +294,7 @@ protected:
                         std::string &line) const ;
   void reportSrcPathArrival(const PathEnd *end,
 			    const PathExpanded &expanded) const ;
+  float calculateSrcPathArrival(const PathEnd *end) const;
   void reportPath(const PathEnd *end,
 		  const PathExpanded &expanded) const;
   void reportPathFull(const Path *path) const;
