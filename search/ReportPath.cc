@@ -2212,6 +2212,7 @@ ReportPath::reportTgtClk(const PathEnd *end,
   const Path *clk_path = end->targetClkPath();
   reportClkLine(clk, clk_name.c_str(), clk_end_rf, prev_time, clk_time, min_max);
   const TimingRole *check_role = end->checkRole(this);
+  const TimingArc *timing_arc = end->checkArc();
   if (is_prop && reportClkPath()) {
     float time_offset = prev_time
       + end->targetClkOffset(this)
@@ -2733,7 +2734,7 @@ ReportPath::reportPath5(const Path *path,
     Arrival time = path1->arrival() + time_offset;
 
     // Some code duplicates as it is currently in testing stage
-    if (inst == from_instance) {
+    if (inst == from_instance && from_timing_arc) {
       const char* from_instance_name = network_->pathName(from_instance);
       reportTimingPath(from_instance_name, from_timing_arc, time);
 
@@ -2749,7 +2750,7 @@ ReportPath::reportPath5(const Path *path,
       }
     }
 
-    if (inst == to_instance) {
+    if (inst == to_instance && end_timing_arc) {
       const char* target_instance_name = network_->pathName(to_instance);
       reportTimingPath(target_instance_name, end_timing_arc, time);
       break;
