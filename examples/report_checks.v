@@ -2,12 +2,12 @@ module top (in, clk, out);
   
   input in, clk;
   output out;
-  wire w1, w2, w3;
+  wire w1, w2;
 
   timing_paths tt1(.in(in), .clk(clk), .out(w1));
 
-  BUF_X1 b1 (.A(w1), .Z(w2));
+  timing_paths_comb tt2(.in(w1), .out(w2));
 
-  timing_paths tt2(.in(w2), .clk(clk), .out(out));
+  timing_paths tt3(.in(w2), .clk(clk), .out(out));
 
 endmodule // top

@@ -1,6 +1,7 @@
 puts "Reading liberty"
 read_liberty nangate45_slow.lib.gz
 read_liberty timing_paths.lib
+read_liberty timing_paths_comb.lib
 puts "Reading verilog"
 read_verilog report_checks.v
 puts "Linking design"
