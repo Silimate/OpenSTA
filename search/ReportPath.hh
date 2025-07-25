@@ -100,12 +100,14 @@ public:
                   const char *path_name,
                   int indent,
                   bool trailing_comma,
-                  std::string &result) const;
+                  std::string &result,
+                  const TimingArc *end_check_arc) const;
   void reportJson(const PathExpanded &expanded,
                   const char *path_name,
                   int indent,
                   bool trailing_comma,
-                  std::string &result) const;
+                  std::string &result,
+                  const TimingArc *end_check_arc) const;
 
   void reportEndHeader() const;
   void reportEndLine(const PathEnd *end) const;
@@ -295,6 +297,7 @@ protected:
   void reportSrcPathArrival(const PathEnd *end,
 			    const PathExpanded &expanded) const ;
   float calculateSrcPathArrival(const PathEnd *end) const;
+  float calculateMargin(const PathEnd *end) const;
   void reportPath(const PathEnd *end,
 		  const PathExpanded &expanded) const;
   void reportPathFull(const Path *path) const;
@@ -473,6 +476,7 @@ protected:
   std::unordered_map<const Instance*, const TimingArc*> extractInstancesTimingArcs(const PathExpanded &path_expanded, const TimingArc *end_check_arc) const;
   bool hasTimingPaths(const TimingArc *timing_arc) const;
   void reportTimingPath(const char* instance_name, const TimingArc* timing_arc, float prev_arrival) const;
+  void reportTimingPathJson(const char* instance_name, const TimingArc* timing_arc, int indent, bool last_path, std::string &result) const;
 
   // Path options.
   ReportPathFormat format_;
