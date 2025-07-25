@@ -162,6 +162,8 @@ record_sta_tests {
   suppress_msg
   verilog_attribute
   write_timing_model_scalar
+  timing_cell_dff
+  timing_cell_comb
 }
 
 define_test_group fast [group_tests all]
