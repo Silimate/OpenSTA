@@ -2766,17 +2766,13 @@ ReportPath::reportPath5(const Path *path,
 			float time_offset,
       const TimingArc *end_check_arc) const
 {
-  assert(end_check_arc);
-
   const MinMax *min_max = path->minMax(this);
   DcalcAnalysisPt *dcalc_ap = path->pathAnalysisPt(this)->dcalcAnalysisPt();
   DcalcAPIndex ap_index = dcalc_ap->index();
   const Path *clk_path = expanded.clkPath();
   Vertex *clk_start = clk_path ? clk_path->vertex(this) : nullptr;
 
-  const TimingArc *from_timing_arc = expanded.startPrevArc();
-  Instance *from_instance = network_->instance(expanded.startPath()->pin(this));
-  Instance *to_instance = network_->instance(path->pin(this));
+  auto instances_timing_arcs = extractInstancesTimingArcs(expanded, end_check_arc);
 
   for (size_t i = path_first_index; i <= path_last_index; i++) {
     const Path *path1 = expanded.path(i);
@@ -2785,12 +2781,16 @@ ReportPath::reportPath5(const Path *path,
     Instance *inst = network_->instance(pin);
     Arrival time = path1->arrival() + time_offset;
 
-    // Some code duplicates as it is currently in testing stage
-    if (inst == from_instance && from_timing_arc) {
-      const char* from_instance_name = network_->pathName(from_instance);
-      reportTimingPath(from_instance_name, from_timing_arc, time);
+    if (instances_timing_arcs.count(inst)) {
+      const char* from_instance_name = network_->pathName(inst);
+      reportTimingPath(from_instance_name, instances_timing_arcs.at(inst), time);
 
-      while (inst == from_instance && i < path_last_index) {
+      if (i == path_last_index) {
+        break;
+      }
+
+      Instance *unwrapped_instance = inst;
+      while (inst == unwrapped_instance && i < path_last_index) {
         ++i;
 
         path1 = expanded.path(i);
@@ -2800,12 +2800,6 @@ ReportPath::reportPath5(const Path *path,
         time = path1->arrival() + time_offset;
         prev_time = time;
       }
-    }
-
-    if (inst == to_instance && end_check_arc) {
-      const char* target_instance_name = network_->pathName(to_instance);
-      reportTimingPath(target_instance_name, end_check_arc, time);
-      break;
     }
 
     const TimingArc *prev_arc = path1->prevArc(this);
@@ -2930,6 +2924,27 @@ ReportPath::reportPath5(const Path *path,
     else
       prev_time = time;
   }
+}
+
+std::unordered_map<const Instance*, const TimingArc*> ReportPath::extractInstancesTimingArcs(const PathExpanded &path_expanded, const TimingArc *end_check_arc) const
+{
+  std::unordered_map<const Instance*, const TimingArc*> instances_timing_arcs{};
+
+  std::size_t starting_path_index = path_expanded.startIndex();
+  std::size_t ending_path_index = path_expanded.size();
+  Instance *inst = nullptr;
+  for (std::size_t index = starting_path_index; index < ending_path_index; ++index) {
+    const Path *path = path_expanded.path(index);
+    Vertex *vertex = path->vertex(this);
+    Pin *pin = vertex->pin();
+    inst = network_->instance(pin);
+    if (const TimingArc *timing_arc = path->prevArc(this)) {
+      instances_timing_arcs[inst] = timing_arc;
+    }
+  }
+  instances_timing_arcs[inst] = end_check_arc;
+
+  return instances_timing_arcs;
 }
 
 void ReportPath::reportTimingPath(const char* instance_name, const TimingArc* timing_arc, float base_arrival) const
