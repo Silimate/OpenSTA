@@ -164,6 +164,7 @@ record_sta_tests {
   write_timing_model_scalar
   timing_cell_dff
   timing_cell_comb
+  timing_cell_complex
 }
 
 define_test_group fast [group_tests all]

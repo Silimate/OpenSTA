@@ -1,0 +1,37 @@
+Startpoint: tt1 (rising edge-triggered flip-flop clocked by clk)
+Endpoint: tt3 (rising edge-triggered flip-flop clocked by clk)
+Path Group: clk
+Path Type: max
+
+  Delay    Time   Description
+---------------------------------------------------------
+   0.00    0.00   clock clk (rise edge)
+   0.00    0.00   clock network delay (ideal)
+   0.00    0.00 ^ tt1/r1/CK (DFF_X1)
+   0.23    0.23 v tt1/r1/Q (DFF_X1)
+   0.00    0.23 v tt1/u2/A (BUF_X1)
+   0.08    0.31 v tt1/u2/Z (BUF_X1)
+   0.00    0.31 v tt1/out (out)
+   0.00    0.39 v tt2/in (in)
+   0.00    0.39 v tt2/u2/A (BUF_X1)
+   0.07    0.46 v tt2/u2/Z (BUF_X1)
+   0.00    0.46 v tt2/out (out)
+   0.00    0.39 v tt3/in (in)
+   0.00    0.39 v tt3/u1/A (BUF_X1)
+   0.07    0.46 v tt3/u1/Z (BUF_X1)
+   0.00    0.46 v tt3/r1/D (DFF_X1)
+           0.46   data arrival time
+
+  10.00   10.00   clock clk (rise edge)
+   0.00   10.00   clock network delay (ideal)
+   0.00   10.00   clock reconvergence pessimism
+          10.00 ^ tt3/clk (timing_cell_dff)
+  -0.16    9.84   library setup time
+           9.84   data required time
+---------------------------------------------------------
+           9.84   data required time
+          -0.46   data arrival time
+---------------------------------------------------------
+           9.38   slack (MET)
+
+
