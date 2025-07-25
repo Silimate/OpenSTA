@@ -2938,13 +2938,27 @@ std::unordered_map<const Instance*, const TimingArc*> ReportPath::extractInstanc
     Vertex *vertex = path->vertex(this);
     Pin *pin = vertex->pin();
     inst = network_->instance(pin);
-    if (const TimingArc *timing_arc = path->prevArc(this)) {
+    const TimingArc *timing_arc = path->prevArc(this);
+    if (hasTimingPaths(timing_arc)) {
       instances_timing_arcs[inst] = timing_arc;
     }
   }
-  instances_timing_arcs[inst] = end_check_arc;
+
+  if (hasTimingPaths(end_check_arc)) {
+    instances_timing_arcs[inst] = end_check_arc;
+  }
 
   return instances_timing_arcs;
+}
+
+bool ReportPath::hasTimingPaths(const TimingArc *timing_arc) const
+{
+  if (!timing_arc) {
+    return false;
+  }
+
+  const TimingArcSet *timing_arc_set = timing_arc->set();
+  return timing_arc_set && !timing_arc_set->timingPaths().empty();
 }
 
 void ReportPath::reportTimingPath(const char* instance_name, const TimingArc* timing_arc, float base_arrival) const

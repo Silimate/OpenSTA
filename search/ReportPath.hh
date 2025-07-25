@@ -471,6 +471,7 @@ protected:
 		  Delay prev,
 		  const MinMax *min_max) const;
   std::unordered_map<const Instance*, const TimingArc*> extractInstancesTimingArcs(const PathExpanded &path_expanded, const TimingArc *end_check_arc) const;
+  bool hasTimingPaths(const TimingArc *timing_arc) const;
   void reportTimingPath(const char* instance_name, const TimingArc* timing_arc, float prev_arrival) const;
 
   // Path options.
