@@ -2781,25 +2781,24 @@ ReportPath::reportPath5(const Path *path,
     Instance *inst = network_->instance(pin);
     Arrival time = path1->arrival() + time_offset;
 
-    if (instances_timing_arcs.count(inst)) {
+    if (instances_timing_arcs.find(inst) != instances_timing_arcs.end()) {
       const char* from_instance_name = network_->pathName(inst);
       reportTimingPath(from_instance_name, instances_timing_arcs.at(inst), time);
 
-      if (i == path_last_index) {
-        break;
-      }
-
+      std::size_t current_index = i + 1;
       Instance *unwrapped_instance = inst;
-      while (inst == unwrapped_instance && i < path_last_index) {
-        ++i;
-
-        path1 = expanded.path(i);
+      while (inst == unwrapped_instance && current_index < path_last_index) {
+        path1 = expanded.path(current_index);
         vertex = path1->vertex(this);
         pin = vertex->pin();
         inst = network_->instance(pin);
-        time = path1->arrival() + time_offset;
-        prev_time = time;
+        prev_time = path1->arrival() + time_offset;
+        ++current_index;
       }
+
+      i = current_index - 1;
+
+      continue;
     }
 
     const TimingArc *prev_arc = path1->prevArc(this);
