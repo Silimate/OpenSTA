@@ -63,6 +63,18 @@ library (counter) {
 	rise_constraint(scalar) {
           values("0.29559");
 	}
+        paths() {
+          slack : -0.29559;
+          rise_data_required() {
+            time: 0.29559;
+            vertex("_1415_/CLK (sky130_fd_sc_hd__dfrtp_1)", 0.00000, "^");
+          }
+          rise_data_arrival() {
+            time: 0.00000;
+            vertex("reset (in)", 0.00000, "^");
+            vertex("_1415_/RESET_B (sky130_fd_sc_hd__dfrtp_1)", 0.00000, "^");
+          }
+        }
       }
       timing() {
         related_pin : "clk";
@@ -70,6 +82,18 @@ library (counter) {
 	rise_constraint(scalar) {
           values("-0.22827");
 	}
+        paths() {
+          slack : 0.22827;
+          rise_data_required() {
+            time: 0.22827;
+            vertex("_1415_/CLK (sky130_fd_sc_hd__dfrtp_1)", 0.00000, "^");
+          }
+          rise_data_arrival() {
+            time: 0.00000;
+            vertex("reset (in)", 0.00000, "^");
+            vertex("_1415_/RESET_B (sky130_fd_sc_hd__dfrtp_1)", 0.00000, "^");
+          }
+        }
       }
     }
     pin("in") {
@@ -84,6 +108,27 @@ library (counter) {
 	fall_constraint(scalar) {
           values("-0.03771");
 	}
+        paths() {
+          slack : 0.03771;
+          fall_data_required() {
+            time: -0.03771;
+            vertex("_1415_/CLK (sky130_fd_sc_hd__dfrtp_1)", 0.00000, "^");
+          }
+          fall_data_arrival() {
+            time: 0.00000;
+            vertex("in (in)", 0.00000, "v");
+            vertex("_1415_/D (sky130_fd_sc_hd__dfrtp_1)", 0.00000, "v");
+          }
+          rise_data_required() {
+            time: -0.03143;
+            vertex("_1415_/CLK (sky130_fd_sc_hd__dfrtp_1)", 0.00000, "^");
+          }
+          rise_data_arrival() {
+            time: 0.00000;
+            vertex("in (in)", 0.00000, "^");
+            vertex("_1415_/D (sky130_fd_sc_hd__dfrtp_1)", 0.00000, "^");
+          }
+        }
       }
       timing() {
         related_pin : "clk";
@@ -94,6 +139,27 @@ library (counter) {
 	fall_constraint(scalar) {
           values("0.10489");
 	}
+        paths() {
+          slack : -0.10489;
+          fall_data_required() {
+            time: -0.10489;
+            vertex("_1415_/CLK (sky130_fd_sc_hd__dfrtp_1)", 0.00000, "^");
+          }
+          fall_data_arrival() {
+            time: 0.00000;
+            vertex("in (in)", 0.00000, "v");
+            vertex("_1415_/D (sky130_fd_sc_hd__dfrtp_1)", 0.00000, "v");
+          }
+          rise_data_required() {
+            time: -0.05608;
+            vertex("_1415_/CLK (sky130_fd_sc_hd__dfrtp_1)", 0.00000, "^");
+          }
+          rise_data_arrival() {
+            time: 0.00000;
+            vertex("in (in)", 0.00000, "^");
+            vertex("_1415_/D (sky130_fd_sc_hd__dfrtp_1)", 0.00000, "^");
+          }
+        }
       }
     }
     pin("out") {
@@ -114,6 +180,21 @@ library (counter) {
 	fall_transition(scalar) {
           values("4.53677");
 	}
+        paths() {
+          slack : 3.79896;
+          fall_clocked_output() {
+            time: 3.79896;
+            vertex("_1416_[0]/CLK (sky130_fd_sc_hd__dfrtp_1)", 0.00000, "^");
+            vertex("_1416_[0]/Q (sky130_fd_sc_hd__dfrtp_1)", 3.79896, "v");
+            vertex("out (out)", 3.79896, "v");
+          }
+          rise_clocked_output() {
+            time: 6.24237;
+            vertex("_1416_[0]/CLK (sky130_fd_sc_hd__dfrtp_1)", 0.00000, "^");
+            vertex("_1416_[0]/Q (sky130_fd_sc_hd__dfrtp_1)", 6.24237, "^");
+            vertex("out (out)", 6.24237, "^");
+          }
+        }
       }
     }
   }
