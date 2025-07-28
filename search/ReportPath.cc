@@ -2120,11 +2120,9 @@ float ReportPath::calculateSrcPathArrival(const PathEnd *end) const
     return data_arrival_time;
   }
 
-  const RiseFall* path_rf = end->path()->transition(this);
-
   if (end_check_arc->role() == TimingRole::setup()) {
-    std::string timing_path_name = std::string{path_rf->name()} + std::string{"_data_arrival"};
-    return data_arrival_time + timing_paths.at(timing_path_name).time;
+    const RiseFall* path_rf = end->path()->transition(this);
+    return data_arrival_time + timing_paths.at(TimingPath::Names::DATA_ARRIVAL.at(path_rf->index())).time;
   }
 
   return data_arrival_time;
@@ -2614,10 +2612,9 @@ Required ReportPath::calculateRequired(const PathEnd *end) const
     return req_time;
   }
 
-  const RiseFall* path_rf = end->path()->transition(this);
   if (end_check_arc->role() == TimingRole::setup()) {
-    std::string timing_path_name = std::string{path_rf->name()} + std::string{"_data_required"};
-    return timing_paths.at(timing_path_name).time;
+    const RiseFall* path_rf = end->path()->transition(this);
+    return timing_paths.at(TimingPath::Names::DATA_REQUIRED.at(path_rf->index())).time;
   }
 
   return req_time;
@@ -3047,17 +3044,7 @@ bool ReportPath::hasTimingPaths(const TimingArc *timing_arc) const
 void ReportPath::reportTimingPath(const char* instance_name, const TimingArc* timing_arc, const MinMax *min_max, const RiseFall *rise_fall, float base_arrival) const
 {
   const auto& timing_paths = timing_arc->set()->timingPaths();
-
-  // temp mappings, will find a better way to make it clean and robust
-  const std::unordered_map<const TimingRole*, std::array<const char*, 2>> role_mappings
-  {
-    {TimingRole::regClkToQ(), {"rise_clocked_output", "fall_clocked_output"}},
-    {TimingRole::combinational(), {"rise_combinational", "fall_combinational"}},
-    {TimingRole::setup(), {"rise_data_arrival", "fall_data_arrival"}},
-    {TimingRole::hold(), {"rise_data_arrival", "fall_data_arrival"}}
-  };
-
-  const auto& timing_path = timing_paths.at(role_mappings.at(timing_arc->role()).at(timing_arc->toEdge()->asRiseFall()->index()));
+  const auto& timing_path = timing_paths.at(TimingPath::ROLE_PATH_MAPPINGS.at(timing_arc->role()).at(timing_arc->toEdge()->asRiseFall()->index()));
   float previous_arrival = 0.0f;
   for (std::size_t index = 0; index < timing_path.vertices.size(); ++index) {
     const auto& vertex = timing_path.vertices[index];
