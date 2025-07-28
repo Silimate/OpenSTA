@@ -2867,7 +2867,7 @@ ReportPath::reportPath5(const Path *path,
 
     if (instances_timing_arcs.find(inst) != instances_timing_arcs.end()) {
       const char* from_instance_name = network_->pathName(inst);
-      reportTimingPath(from_instance_name, instances_timing_arcs.at(inst), time);
+      reportTimingPath(from_instance_name, instances_timing_arcs.at(inst), min_max, path1->transition(this), time);
 
       std::size_t current_index = i + 1;
       Instance *unwrapped_instance = inst;
@@ -3044,7 +3044,7 @@ bool ReportPath::hasTimingPaths(const TimingArc *timing_arc) const
   return timing_arc_set && !timing_arc_set->timingPaths().empty();
 }
 
-void ReportPath::reportTimingPath(const char* instance_name, const TimingArc* timing_arc, float base_arrival) const
+void ReportPath::reportTimingPath(const char* instance_name, const TimingArc* timing_arc, const MinMax *min_max, const RiseFall *rise_fall, float base_arrival) const
 {
   const auto& timing_paths = timing_arc->set()->timingPaths();
 
@@ -3061,8 +3061,23 @@ void ReportPath::reportTimingPath(const char* instance_name, const TimingArc* ti
   float previous_arrival = 0.0f;
   for (std::size_t index = 0; index < timing_path.vertices.size(); ++index) {
     const auto& vertex = timing_path.vertices[index];
-    std::string description = std::string{instance_name} + '/' + vertex.pin;
-    reportLine(description.c_str(), vertex.arrival - previous_arrival, base_arrival + vertex.arrival, nullptr, RiseFall::find(vertex.transition.c_str()));
+    std::string description = stdstrPrint("%s/%s (%s)", instance_name, vertex.pin.c_str(), vertex.cell.c_str());
+    
+    float increase = vertex.arrival - previous_arrival;
+    float time = base_arrival + vertex.arrival;
+
+    if (vertex.is_driver) {
+      reportLine(description.c_str(), vertex.capacitance, vertex.slew, field_blank_, increase, time, false, min_max, rise_fall, "", "normal");
+    }
+    else {
+      reportLine(description.c_str(), field_blank_, vertex.slew, field_blank_, increase, time, false, min_max, rise_fall, "", "normal");
+    }
+
+    if (report_net_) {
+      const std::string net_description = stdstrPrint("%s (net)", vertex.net.c_str());
+      reportLine(net_description.c_str(), field_blank_, field_blank_, field_blank_, field_blank_, field_blank_, false, min_max, nullptr, "", "");
+    }
+
     previous_arrival = vertex.arrival;
   }
 }
