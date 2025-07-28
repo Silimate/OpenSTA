@@ -2838,7 +2838,7 @@ ReportPath::reportPath5(const Path *path,
 
     if (instances_timing_arcs.find(inst) != instances_timing_arcs.end()) {
       const char* from_instance_name = network_->pathName(inst);
-      reportTimingPath(from_instance_name, instances_timing_arcs.at(inst), min_max, path1->transition(this), time);
+      reportTimingPath(from_instance_name, instances_timing_arcs.at(inst), min_max, time);
 
       std::size_t current_index = i + 1;
       Instance *unwrapped_instance = inst;
@@ -3015,7 +3015,7 @@ bool ReportPath::hasTimingPaths(const TimingArc *timing_arc) const
   return timing_arc_set && !timing_arc_set->timingPaths().empty();
 }
 
-void ReportPath::reportTimingPath(const char* instance_name, const TimingArc* timing_arc, const MinMax *min_max, const RiseFall *rise_fall, float base_arrival) const
+void ReportPath::reportTimingPath(const char* instance_name, const TimingArc* timing_arc, const MinMax *min_max, float base_arrival) const
 {
   const auto& timing_paths = timing_arc->set()->timingPaths();
   const auto& timing_path = timing_paths.at(TimingPath::ROLE_PATH_MAPPINGS.at(timing_arc->role()).at(timing_arc->toEdge()->asRiseFall()->index()));
@@ -3026,6 +3026,8 @@ void ReportPath::reportTimingPath(const char* instance_name, const TimingArc* ti
     
     float increase = vertex.arrival - previous_arrival;
     float time = base_arrival + vertex.arrival;
+
+    const RiseFall *rise_fall = RiseFall::find(vertex.transition.c_str());
 
     if (vertex.is_driver) {
       reportLine(description.c_str(), vertex.capacitance, vertex.slew, field_blank_, increase, time, false, min_max, rise_fall, "", "normal");
