@@ -105,6 +105,7 @@ struct TimingPathVertex
   float arrival;
   float slew;
   float capacitance;
+  bool is_driver;
 };
 
 struct TimingPath

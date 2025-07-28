@@ -279,6 +279,8 @@ std::vector<TimingPathVertex> extractTimingPathVertices(const Path *path, const 
 
     const RiseFall* rise_fall = path_element->transition(sta_state);
     timing_path_vertex.transition = rise_fall->shortName();
+
+    timing_path_vertex.is_driver = sta_state->network()->isDriver(pin);
   }
 
   return vertices;

@@ -4589,6 +4589,7 @@ LibertyReader::visitTimingPathVertex(LibertyAttr *attr)
   vertex.arrival = library_->units()->timeUnit()->userToSta(values->at(5)->floatValue());
   vertex.slew = library_->units()->timeUnit()->userToSta(values->at(6)->floatValue());
   vertex.capacitance = library_->units()->capacitanceUnit()->userToSta(values->at(7)->floatValue());
+  vertex.is_driver = values->at(8)->floatValue() > 0.5f;
   timing_path_.vertices.emplace_back(vertex);
 }
 
