@@ -32,6 +32,7 @@
 #include "Transition.hh"
 #include "Delay.hh"
 #include "LibertyClass.hh"
+#include "TimingRole.hh"
 
 namespace sta {
 
@@ -114,6 +115,22 @@ struct TimingPath
   std::vector<TimingPathVertex> vertices{};
   float time{0.0f};
   const RiseFall* rise_fall;
+
+  struct Names
+  {
+    static constexpr std::array<const char*, 2> DATA_ARRIVAL{"rise_data_arrival", "fall_data_arrival"};
+    static constexpr std::array<const char*, 2> DATA_REQUIRED{"rise_data_required", "fall_data_required"};
+    static constexpr std::array<const char*, 2> CLOCKED_OUTPUT{"rise_clocked_output", "fall_clocked_output"};
+    static constexpr std::array<const char*, 2> COMBINATIONAL{"rise_combinational", "fall_combinational"};
+  };
+
+  inline static const std::unordered_map<const TimingRole*, std::array<const char*, 2>> ROLE_PATH_MAPPINGS =
+  {
+    {TimingRole::regClkToQ(), Names::CLOCKED_OUTPUT},
+    {TimingRole::combinational(), Names::COMBINATIONAL},
+    {TimingRole::setup(), Names::DATA_ARRIVAL},
+    {TimingRole::hold(), Names::DATA_ARRIVAL}
+  };
 };
 
 ////////////////////////////////////////////////////////////////

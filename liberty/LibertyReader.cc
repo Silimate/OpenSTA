@@ -422,21 +422,38 @@ LibertyReader::defineVisitors()
   defineAttrVisitor("value", &LibertyReader::visitValue);
   defineAttrVisitor("values", &LibertyReader::visitValues);
   defineAttrVisitor("slack", &LibertyReader::visitSlack);
-  defineGroupVisitor("rise_data_arrival", &LibertyReader::beginRiseTimingPath,
+
+  defineGroupVisitor(
+         TimingPath::Names::DATA_ARRIVAL.at(RiseFall::riseIndex()),
+         &LibertyReader::beginRiseTimingPath,
          &LibertyReader::endTimingPath);
-  defineGroupVisitor("fall_data_arrival", &LibertyReader::beginFallTimingPath,
+  defineGroupVisitor(
+         TimingPath::Names::DATA_ARRIVAL.at(RiseFall::fallIndex()),
+         &LibertyReader::beginFallTimingPath,
          &LibertyReader::endTimingPath);
-  defineGroupVisitor("rise_data_required", &LibertyReader::beginRiseTimingPath,
+  defineGroupVisitor(
+         TimingPath::Names::DATA_REQUIRED.at(RiseFall::riseIndex()),
+         &LibertyReader::beginRiseTimingPath,
          &LibertyReader::endTimingPath);
-  defineGroupVisitor("fall_data_required", &LibertyReader::beginFallTimingPath,
+  defineGroupVisitor(
+         TimingPath::Names::DATA_REQUIRED.at(RiseFall::fallIndex()),
+         &LibertyReader::beginFallTimingPath,
          &LibertyReader::endTimingPath);
-  defineGroupVisitor("rise_clocked_output", &LibertyReader::beginRiseTimingPath,
+  defineGroupVisitor(
+         TimingPath::Names::CLOCKED_OUTPUT.at(RiseFall::riseIndex()),
+         &LibertyReader::beginRiseTimingPath,
          &LibertyReader::endTimingPath);
-  defineGroupVisitor("fall_clocked_output", &LibertyReader::beginFallTimingPath,
+  defineGroupVisitor(
+         TimingPath::Names::CLOCKED_OUTPUT.at(RiseFall::fallIndex()),
+         &LibertyReader::beginFallTimingPath,
          &LibertyReader::endTimingPath);
-  defineGroupVisitor("rise_combinational", &LibertyReader::beginRiseTimingPath,
+  defineGroupVisitor(
+         TimingPath::Names::COMBINATIONAL.at(RiseFall::riseIndex()),
+         &LibertyReader::beginRiseTimingPath,
          &LibertyReader::endTimingPath);
-  defineGroupVisitor("fall_combinational", &LibertyReader::beginFallTimingPath,
+  defineGroupVisitor(
+         TimingPath::Names::COMBINATIONAL.at(RiseFall::fallIndex()),
+         &LibertyReader::beginFallTimingPath,
          &LibertyReader::endTimingPath);
   defineAttrVisitor("time", &LibertyReader::visitTimingPathTime);
   defineAttrVisitor("vertex", &LibertyReader::visitTimingPathVertex);

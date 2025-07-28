@@ -334,13 +334,13 @@ extractInputRegisterTimingPath(PathEnd *path_end, const RiseFall* input_rf)
   input_register_timing_path.data_arrival_path.vertices = extractTimingPathVertices(path_end->path(), input_rf, INCLUDE_CLOCK_VERTEX);
   input_register_timing_path.data_arrival_path.time = path_end->dataArrivalTime(sta_state);
   input_register_timing_path.data_arrival_path.rise_fall = input_rf;
-  input_register_timing_path.data_arrival_path.name = std::string{input_rf->name()} + std::string{"_data_arrival"};
+  input_register_timing_path.data_arrival_path.name = TimingPath::Names::DATA_ARRIVAL.at(input_rf->index());
   
   static constexpr bool SKIP_CLOCK_VERTEX = true;
   input_register_timing_path.data_required_path.vertices = extractTimingPathVertices(path_end->targetClkPath(), input_rf, SKIP_CLOCK_VERTEX);
   input_register_timing_path.data_required_path.time = path_end->requiredTime(sta_state);
   input_register_timing_path.data_required_path.rise_fall = input_rf;
-  input_register_timing_path.data_required_path.name = std::string{input_rf->name()} + std::string{"_data_required"};
+  input_register_timing_path.data_required_path.name = TimingPath::Names::DATA_REQUIRED.at(input_rf->index());
 
   input_register_timing_path.slack = delayAsFloat(path_end->slack(sta_state), nullptr, sta_state);
 
@@ -478,7 +478,7 @@ MakeTimingModel::findOutputDelays(const RiseFall *input_rf,
           float slack = clock->period() - delay;
           if (slack < timing_path.slack) {
             timing_path.slack = slack;
-            timing_path.combinational_delay_path.name = std::string{output_rf->name()} + std::string{"_combinational"};
+            timing_path.combinational_delay_path.name = TimingPath::Names::COMBINATIONAL.at(output_rf->index());
             timing_path.combinational_delay_path.rise_fall = input_rf;
 
             static constexpr bool INCLUDE_CLOCK_VERTEX = false;
@@ -620,7 +620,7 @@ MakeTimingModel::findClkedOutputPaths()
           Required required = path->required();
           timing_path.slack = arrival - required;
           if ((timing_paths.count(output_rf) == 0 || timing_path.slack < timing_paths.at(output_rf).slack)) {
-            timing_path.sequential_delay_path.name = std::string{output_rf->name()} + std::string{"_clocked_output"};
+            timing_path.sequential_delay_path.name = TimingPath::Names::CLOCKED_OUTPUT.at(output_rf->index());
 
             static constexpr bool SKIP_CLOCK_VERTEX = true;
             timing_path.sequential_delay_path.vertices = extractTimingPathVertices(path, output_rf, SKIP_CLOCK_VERTEX);
