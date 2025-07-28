@@ -4582,9 +4582,14 @@ LibertyReader::visitTimingPathVertex(LibertyAttr *attr)
 {
   TimingPathVertex vertex{};
   LibertyAttrValueSeq* values = attr->values();
-  vertex.name = values->at(0)->stringValue();
-  vertex.arrival = library_->units()->timeUnit()->userToSta(values->at(1)->floatValue());
-  vertex.transition = values->at(2)->stringValue();
+  vertex.instance = values->at(0)->stringValue();
+  vertex.cell = values->at(1)->stringValue();
+  vertex.pin = values->at(2)->stringValue();
+  vertex.net = values->at(3)->stringValue();
+  vertex.transition = values->at(4)->stringValue();
+  vertex.arrival = library_->units()->timeUnit()->userToSta(values->at(5)->floatValue());
+  vertex.slew = library_->units()->timeUnit()->userToSta(values->at(6)->floatValue());
+  vertex.capacitance = library_->units()->capacitanceUnit()->userToSta(values->at(7)->floatValue());
   timing_path_.vertices.emplace_back(vertex);
 }
 

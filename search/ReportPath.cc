@@ -1297,8 +1297,8 @@ void ReportPath::reportTimingPathJson(const char* instance_name, const TimingArc
 
   const auto& timing_path = timing_paths.at(role_mappings.at(timing_arc->role()).at(timing_arc->toEdge()->asRiseFall()->index()));
   for (std::size_t index = 0; index < timing_path.vertices.size(); ++index) {
-    const auto& [vertex, arrival, transition] = timing_path.vertices[index];
-    std::string description = std::string{instance_name} + '/' + vertex;
+    const auto& vertex = timing_path.vertices[index];
+    std::string description = std::string{instance_name} + '/' + vertex.pin;
 
     stringAppend(result, "%*s  {\n", indent, "");
 
@@ -1322,11 +1322,11 @@ void ReportPath::reportTimingPathJson(const char* instance_name, const TimingArc
 
     stringAppend(result, "%*s    \"net\": \"%s\",\n",
                   indent, "",
-                  vertex.c_str());
+                  vertex.net.c_str());
 
     stringAppend(result, "%*s    \"arrival\": %.3e,\n",
                  indent, "",
-                 delayAsFloat(arrival));
+                 delayAsFloat(vertex.arrival));
     stringAppend(result, "%*s    \"slew\": %.3e\n",
                  indent, "",
                  delayAsFloat(0));
@@ -3060,10 +3060,10 @@ void ReportPath::reportTimingPath(const char* instance_name, const TimingArc* ti
   const auto& timing_path = timing_paths.at(role_mappings.at(timing_arc->role()).at(timing_arc->toEdge()->asRiseFall()->index()));
   float previous_arrival = 0.0f;
   for (std::size_t index = 0; index < timing_path.vertices.size(); ++index) {
-    const auto& [vertex, arrival, transition] = timing_path.vertices[index];
-    std::string description = std::string{instance_name} + '/' + vertex;
-    reportLine(description.c_str(), arrival - previous_arrival, base_arrival + arrival, nullptr, RiseFall::find(transition.c_str()));
-    previous_arrival = arrival;
+    const auto& vertex = timing_path.vertices[index];
+    std::string description = std::string{instance_name} + '/' + vertex.pin;
+    reportLine(description.c_str(), vertex.arrival - previous_arrival, base_arrival + vertex.arrival, nullptr, RiseFall::find(vertex.transition.c_str()));
+    previous_arrival = vertex.arrival;
   }
 }
 

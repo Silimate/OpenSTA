@@ -50,6 +50,7 @@
 #include "ArcDelayCalc.hh"
 #include "ClkLatency.hh"
 #include "PathExpanded.hh"
+#include "PathAnalysisPt.hh"
 
 namespace sta {
 
@@ -243,7 +244,7 @@ MakeTimingModel::checkClock(Clock *clk)
 
 ////////////////////////////////////////////////////////////////
 
-std::vector<TimingPathVertex> extractTimingPathVertices(const Path *path, bool skip_clk_vertex)
+std::vector<TimingPathVertex> extractTimingPathVertices(const Path *path, const RiseFall *rise_fall, bool skip_clk_vertex)
 {
   StaState* sta_state = Sta::sta();
 
@@ -259,27 +260,22 @@ std::vector<TimingPathVertex> extractTimingPathVertices(const Path *path, bool s
     Vertex *vertex = path_element->vertex(sta_state);
     Pin *pin = vertex->pin();
 
-    std::string pin_name = sta_state->cmdNetwork()->pathName(pin);
-    std::string pin_function;
-    if (sta_state->network()->isTopLevelPort(pin)) {
-      PortDirection *dir = sta_state->network()->direction(pin);
-      if (dir->isInput())
-        pin_function = "in";
-      else if (dir->isOutput() || dir->isTristate())
-        pin_function = "out";
-      else if (dir->isBidirect())
-        pin_function = "inout";
-      else
-        pin_function = "?";
-    }
-    else {
-      Instance *inst = sta_state->network()->instance(pin);
-      pin_function = sta_state->network()->cellName(inst);
-    }
+    Instance *inst = sta_state->network()->instance(pin);
 
     TimingPathVertex& timing_path_vertex = vertices[i - path_first_index];
-    timing_path_vertex.name = pin_name + std::string{" ("} + pin_function + std::string{")"};
+    
+    std::string pin_name = sta_state->cmdNetwork()->pathName(pin);
+    std::size_t slash_index = pin_name.find_first_of('/');
+    timing_path_vertex.instance = pin_name.substr(0, slash_index);
+    timing_path_vertex.net = pin_name.substr(slash_index + 1);
+    timing_path_vertex.pin = std::move(pin_name);
+    timing_path_vertex.cell = sta_state->network()->cellName(inst);
+    
     timing_path_vertex.arrival = path_element->arrival();
+    timing_path_vertex.slew = path_element->slew(sta_state);
+
+    DcalcAnalysisPt *dcalc_ap = path->pathAnalysisPt(sta_state)->dcalcAnalysisPt();
+    timing_path_vertex.capacitance = sta_state->graphDelayCalc()->loadCap(pin, rise_fall, dcalc_ap);
 
     const RiseFall* rise_fall = path_element->transition(sta_state);
     timing_path_vertex.transition = rise_fall->shortName();
@@ -333,13 +329,13 @@ extractInputRegisterTimingPath(PathEnd *path_end, const RiseFall* input_rf)
   InputRegisterTimingPath input_register_timing_path{};
 
   static constexpr bool INCLUDE_CLOCK_VERTEX = false;
-  input_register_timing_path.data_arrival_path.vertices = extractTimingPathVertices(path_end->path(), INCLUDE_CLOCK_VERTEX);
+  input_register_timing_path.data_arrival_path.vertices = extractTimingPathVertices(path_end->path(), input_rf, INCLUDE_CLOCK_VERTEX);
   input_register_timing_path.data_arrival_path.time = path_end->dataArrivalTime(sta_state);
   input_register_timing_path.data_arrival_path.rise_fall = input_rf;
   input_register_timing_path.data_arrival_path.name = std::string{input_rf->name()} + std::string{"_data_arrival"};
   
   static constexpr bool SKIP_CLOCK_VERTEX = true;
-  input_register_timing_path.data_required_path.vertices = extractTimingPathVertices(path_end->targetClkPath(), SKIP_CLOCK_VERTEX);
+  input_register_timing_path.data_required_path.vertices = extractTimingPathVertices(path_end->targetClkPath(), input_rf, SKIP_CLOCK_VERTEX);
   input_register_timing_path.data_required_path.time = path_end->requiredTime(sta_state);
   input_register_timing_path.data_required_path.rise_fall = input_rf;
   input_register_timing_path.data_required_path.name = std::string{input_rf->name()} + std::string{"_data_required"};
@@ -484,7 +480,7 @@ MakeTimingModel::findOutputDelays(const RiseFall *input_rf,
             timing_path.combinational_delay_path.rise_fall = input_rf;
 
             static constexpr bool INCLUDE_CLOCK_VERTEX = false;
-            timing_path.combinational_delay_path.vertices = extractTimingPathVertices(path, INCLUDE_CLOCK_VERTEX);
+            timing_path.combinational_delay_path.vertices = extractTimingPathVertices(path, input_rf, INCLUDE_CLOCK_VERTEX);
             timing_path.combinational_delay_path.time = path->arrival();
           }
         }
@@ -625,7 +621,7 @@ MakeTimingModel::findClkedOutputPaths()
             timing_path.sequential_delay_path.name = std::string{output_rf->name()} + std::string{"_clocked_output"};
 
             static constexpr bool SKIP_CLOCK_VERTEX = true;
-            timing_path.sequential_delay_path.vertices = extractTimingPathVertices(path, SKIP_CLOCK_VERTEX);
+            timing_path.sequential_delay_path.vertices = extractTimingPathVertices(path, output_rf, SKIP_CLOCK_VERTEX);
             timing_path.sequential_delay_path.time = delay;
             timing_path.sequential_delay_path.rise_fall = output_rf;
             timing_paths[output_rf] = std::move(timing_path);
