@@ -26,6 +26,7 @@
 
 #include <memory>
 #include <unordered_map>
+#include <limits>
 
 #include "Vector.hh"
 #include "Transition.hh"
@@ -96,9 +97,14 @@ timingTypeScaleFactorType(TimingType type);
 
 struct TimingPathVertex
 {
-  std::string name;
-  float arrival;
+  std::string instance;
+  std::string cell;
+  std::string pin;
+  std::string net;
   std::string transition;
+  float arrival;
+  float slew;
+  float capacitance;
 };
 
 struct TimingPath
@@ -154,7 +160,7 @@ protected:
   const char *mode_value_;
   float ocv_arc_depth_;
   TimingModel *models_[RiseFall::index_count];
-  float slack_;
+  float slack_{std::numeric_limits<float>::max()};
   std::unordered_map<std::string, TimingPath> timing_paths_;
 };
 
