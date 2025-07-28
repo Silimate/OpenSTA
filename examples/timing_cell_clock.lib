@@ -1,0 +1,188 @@
+library (timing_cell_clock) {
+  comment                        : "";
+  delay_model                    : table_lookup;
+  simulation                     : false;
+  capacitive_load_unit (1,fF);
+  leakage_power_unit             : 1pW;
+  current_unit                   : "1mA";
+  pulling_resistance_unit        : "1kohm";
+  time_unit                      : "1ns";
+  voltage_unit                   : "1v";
+  library_features(report_delay_calculation);
+
+  input_threshold_pct_rise : 50;
+  input_threshold_pct_fall : 50;
+  output_threshold_pct_rise : 50;
+  output_threshold_pct_fall : 50;
+  slew_lower_threshold_pct_rise : 30;
+  slew_lower_threshold_pct_fall : 30;
+  slew_upper_threshold_pct_rise : 70;
+  slew_upper_threshold_pct_fall : 70;
+  slew_derate_from_library : 1.0;
+
+
+  nom_process                    : 1.0;
+  nom_temperature                : 125.0;
+  nom_voltage                    : 0.95;
+
+  lu_table_template(template_1) {
+    variable_1 : total_output_net_capacitance;
+    index_1("0.36562,  1.89543,  3.79086,  7.58171,  15.16340,  30.32690,  60.65371");
+  }
+
+  cell ("timing_cell_clock") {
+    area : 13.034 
+    is_macro_cell : true;
+    pin("in") {
+      direction : input;
+      capacitance : 1.1091;
+      timing() {
+        related_pin : "clk";
+        timing_type : hold_rising;
+	rise_constraint(scalar) {
+          values("0.00600");
+	}
+	fall_constraint(scalar) {
+          values("-0.00035");
+	}
+        paths() {
+          slack : 0.00035;
+          fall_data_required() {
+            time: -0.00035;
+            vertex("u1", "BUF_X1", "u1/A", "clk", "^", 0.00000, 0.00000, 0.83524, 0.000000);
+            vertex("u1", "BUF_X1", "u1/Z", "w1", "^", 0.05130, 0.02456, 1.64207, 1.000000);
+            vertex("r1", "DFF_X1", "r1/CK", "w1", "^", 0.05130, 0.02456, 1.64207, 0.000000);
+          }
+          fall_data_arrival() {
+            time: 0.00000;
+            vertex("", "timing_cell_clock", "in", "", "v", 0.00000, 0.00000, 1.03013, 1.000000);
+            vertex("r1", "DFF_X1", "r1/D", "in", "v", 0.00000, 0.00000, 1.03013, 0.000000);
+          }
+          rise_data_required() {
+            time: 0.00600;
+            vertex("u1", "BUF_X1", "u1/A", "clk", "^", 0.00000, 0.00000, 0.93456, 0.000000);
+            vertex("u1", "BUF_X1", "u1/Z", "w1", "^", 0.05130, 0.02456, 1.81915, 1.000000);
+            vertex("r1", "DFF_X1", "r1/CK", "w1", "^", 0.05130, 0.02456, 1.81915, 0.000000);
+          }
+          rise_data_arrival() {
+            time: 0.00000;
+            vertex("", "timing_cell_clock", "in", "", "^", 0.00000, 0.00000, 1.10913, 1.000000);
+            vertex("r1", "DFF_X1", "r1/D", "in", "^", 0.00000, 0.00000, 1.10913, 0.000000);
+          }
+        }
+      }
+      timing() {
+        related_pin : "clk";
+        timing_type : setup_rising;
+	rise_constraint(scalar) {
+          values("0.06358");
+	}
+	fall_constraint(scalar) {
+          values("0.14895");
+	}
+        paths() {
+          slack : 9.85105;
+          fall_data_required() {
+            time: 9.85105;
+            vertex("u1", "BUF_X1", "u1/A", "clk", "^", 0.00000, 0.00000, 0.83524, 0.000000);
+            vertex("u1", "BUF_X1", "u1/Z", "w1", "^", 0.05130, 0.02456, 1.64207, 1.000000);
+            vertex("r1", "DFF_X1", "r1/CK", "w1", "^", 0.05130, 0.02456, 1.64207, 0.000000);
+          }
+          fall_data_arrival() {
+            time: 0.00000;
+            vertex("", "timing_cell_clock", "in", "", "v", 0.00000, 0.00000, 1.03013, 1.000000);
+            vertex("r1", "DFF_X1", "r1/D", "in", "v", 0.00000, 0.00000, 1.03013, 0.000000);
+          }
+          rise_data_required() {
+            time: 9.93642;
+            vertex("u1", "BUF_X1", "u1/A", "clk", "^", 0.00000, 0.00000, 0.93456, 0.000000);
+            vertex("u1", "BUF_X1", "u1/Z", "w1", "^", 0.05130, 0.02456, 1.81915, 1.000000);
+            vertex("r1", "DFF_X1", "r1/CK", "w1", "^", 0.05130, 0.02456, 1.81915, 0.000000);
+          }
+          rise_data_arrival() {
+            time: 0.00000;
+            vertex("", "timing_cell_clock", "in", "", "^", 0.00000, 0.00000, 1.10913, 1.000000);
+            vertex("r1", "DFF_X1", "r1/D", "in", "^", 0.00000, 0.00000, 1.10913, 0.000000);
+          }
+        }
+      }
+    }
+    pin("clk") {
+      direction : input;
+      clock : true;
+      capacitance : 0.9346;
+      timing() {
+        timing_sense : positive_unate;
+        timing_type : min_clock_tree_path;
+	cell_rise(scalar) {
+          values("0.05130");
+	}
+	cell_fall(scalar) {
+          values("0.07737");
+	}
+      }
+      timing() {
+        timing_sense : positive_unate;
+        timing_type : max_clock_tree_path;
+	cell_rise(scalar) {
+          values("0.05130");
+	}
+	cell_fall(scalar) {
+          values("0.07737");
+	}
+      }
+    }
+    pin("out") {
+      direction : output;
+      capacitance : 0.0000;
+      timing() {
+        related_pin : "clk";
+        timing_type : rising_edge;
+	cell_rise(template_1) {
+          index_1("0.36562,  1.89543,  3.79086,  7.58171,  15.16340,  30.32690,  60.65371");
+          values("0.39934,0.41344,0.43006,0.46265,0.52706,0.65525,0.91104");
+	}
+	rise_transition(template_1) {
+          index_1("0.36562,  1.89543,  3.79086,  7.58171,  15.16340,  30.32690,  60.65371");
+          values("0.01342,0.02517,0.04029,0.07088,0.13218,0.25490,0.50009");
+	}
+	cell_fall(template_1) {
+          index_1("0.36562,  1.89543,  3.79086,  7.58171,  15.16340,  30.32690,  60.65371");
+          values("0.39119,0.40028,0.40866,0.42200,0.44387,0.48203,0.55355");
+	}
+	fall_transition(template_1) {
+          index_1("0.36562,  1.89543,  3.79086,  7.58171,  15.16340,  30.32690,  60.65371");
+          values("0.01348,0.01708,0.02105,0.02845,0.04280,0.07199,0.13291");
+	}
+        paths() {
+          slack : 0.38902;
+          fall_clocked_output() {
+            time: 0.38902;
+            vertex("u1", "BUF_X1", "u1/A", "clk", "^", 0.00000, 0.00000, 0.83524, 0.000000);
+            vertex("u1", "BUF_X1", "u1/Z", "w1", "^", 0.05130, 0.02456, 1.64207, 1.000000);
+            vertex("r2", "DFF_X1", "r2/CK", "w1", "^", 0.05130, 0.02456, 1.64207, 0.000000);
+            vertex("r2", "DFF_X1", "r2/Q", "w5", "v", 0.23319, 0.01635, 0.83524, 1.000000);
+            vertex("u2_1", "BUF_X1", "u2_1/A", "w5", "v", 0.23319, 0.01635, 0.83524, 0.000000);
+            vertex("u2_1", "BUF_X1", "u2_1/Z", "w6", "v", 0.31410, 0.01459, 0.83524, 1.000000);
+            vertex("u3_1", "BUF_X1", "u3_1/A", "w6", "v", 0.31410, 0.01459, 0.83524, 0.000000);
+            vertex("u3_1", "BUF_X1", "u3_1/Z", "out", "v", 0.38902, 0.01262, 0.00000, 1.000000);
+            vertex("", "timing_cell_clock", "out", "", "v", 0.38902, 0.01262, 0.00000, 0.000000);
+          }
+          rise_clocked_output() {
+            time: 0.39597;
+            vertex("u1", "BUF_X1", "u1/A", "clk", "^", 0.00000, 0.00000, 0.93456, 0.000000);
+            vertex("u1", "BUF_X1", "u1/Z", "w1", "^", 0.05130, 0.02456, 1.81915, 1.000000);
+            vertex("r2", "DFF_X1", "r2/CK", "w1", "^", 0.05130, 0.02456, 1.81915, 0.000000);
+            vertex("r2", "DFF_X1", "r2/Q", "w5", "^", 0.29483, 0.02325, 0.93456, 1.000000);
+            vertex("u2_1", "BUF_X1", "u2_1/A", "w5", "^", 0.29483, 0.02325, 0.93456, 0.000000);
+            vertex("u2_1", "BUF_X1", "u2_1/Z", "w6", "^", 0.35122, 0.01783, 0.93456, 1.000000);
+            vertex("u3_1", "BUF_X1", "u3_1/A", "w6", "^", 0.35122, 0.01783, 0.93456, 0.000000);
+            vertex("u3_1", "BUF_X1", "u3_1/Z", "out", "^", 0.39597, 0.01061, 0.00000, 1.000000);
+            vertex("", "timing_cell_clock", "out", "", "^", 0.39597, 0.01061, 0.00000, 0.000000);
+          }
+        }
+      }
+    }
+  }
+
+}
