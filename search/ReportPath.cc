@@ -1112,7 +1112,7 @@ ReportPath::reportJson(const PathEnd *end,
     stringAppend(result, "  \"source_clock_edge\": \"%s\",\n",
                  src_clk_edge->transition()->name());
   }
-  reportJson(expanded, "source_path", 2, !end->isUnconstrained(), result, end->checkArc());
+  reportJson(expanded, "source_path", 2, !end->isUnconstrained(), result, end->checkArc(), false);
 
   const ClockEdge *tgt_clk_edge = end->targetClkEdge(this);
   if (tgt_clk_edge) {
@@ -1122,7 +1122,7 @@ ReportPath::reportJson(const PathEnd *end,
                  tgt_clk_edge->transition()->name());
   }
   if (tgt_clk_path)
-    reportJson(end->targetClkPath(), "target_clock_path", 2, true, result, end->checkArc());
+    reportJson(end->targetClkPath(), "target_clock_path", 2, true, result, end->checkArc(), true);
 
   if (end->checkRole(this)) {
     stringAppend(result, "  \"data_arrival_time\": %.3e,\n",
@@ -1158,7 +1158,7 @@ ReportPath::reportJson(const Path *path) const
 {
   string result;
   result += "{\n";
-  reportJson(path, "path", 0, false, result, nullptr);
+  reportJson(path, "path", 0, false, result, nullptr, false);
   result += "}\n";
   report_->reportLineString(result);
 }
@@ -1169,10 +1169,11 @@ ReportPath::reportJson(const Path *path,
                        int indent,
                        bool trailing_comma,
                        string &result,
-                       const TimingArc *end_check_arc) const
+                       const TimingArc *end_check_arc,
+                       bool is_clk_path) const
 {
   PathExpanded expanded(path, this);
-  reportJson(expanded, path_name, indent, trailing_comma, result, end_check_arc);
+  reportJson(expanded, path_name, indent, trailing_comma, result, end_check_arc, is_clk_path);
 }
 
 void
@@ -1181,7 +1182,8 @@ ReportPath::reportJson(const PathExpanded &expanded,
                        int indent,
                        bool trailing_comma,
                        string &result,
-                       const TimingArc *end_check_arc) const
+                       const TimingArc *end_check_arc,
+                       bool is_clk_path) const
 {
   auto instances_timing_arcs = extractInstancesTimingArcs(expanded, end_check_arc);
 
@@ -1199,7 +1201,7 @@ ReportPath::reportJson(const PathExpanded &expanded,
 
     if (instances_timing_arcs.find(inst) != instances_timing_arcs.end()) {
       const char* from_instance_name = network_->pathName(inst);
-      reportTimingPathJson(from_instance_name, instances_timing_arcs.at(inst), indent, i == path_last_index - 1, result);
+      reportTimingPathJson(from_instance_name, instances_timing_arcs.at(inst), indent, i == path_last_index - 1, result, is_clk_path);
 
       std::size_t current_index = i + 1;
       const Instance *unwrapped_instance = inst;
@@ -1282,57 +1284,29 @@ ReportPath::reportJson(const PathExpanded &expanded,
                trailing_comma ? "," : "");
 }
 
-void ReportPath::reportTimingPathJson(const char* instance_name, const TimingArc* timing_arc, int indent, bool last_path, std::string &result) const
+void ReportPath::reportTimingPathJson(const char* instance_name, const TimingArc* timing_arc, int indent, bool last_path, std::string &result, bool is_clk_path) const
 {
   const auto& timing_paths = timing_arc->set()->timingPaths();
-
-  // temp mappings, will find a better way to make it clean and robust
-  const std::unordered_map<const TimingRole*, std::array<const char*, 2>> role_mappings
-  {
-    {TimingRole::regClkToQ(), {"rise_clocked_output", "fall_clocked_output"}},
-    {TimingRole::combinational(), {"rise_combinational", "fall_combinational"}},
-    {TimingRole::setup(), {"rise_data_arrival", "fall_data_arrival"}},
-    {TimingRole::hold(), {"rise_data_arrival", "fall_data_arrival"}}
-  };
-
-  const auto& timing_path = timing_paths.at(role_mappings.at(timing_arc->role()).at(timing_arc->toEdge()->asRiseFall()->index()));
+  const auto& timing_path = timing_paths.at(TimingPath::ROLE_PATH_MAPPINGS.at(timing_arc->role()).at(timing_arc->toEdge()->asRiseFall()->index()));
   for (std::size_t index = 0; index < timing_path.vertices.size(); ++index) {
     const auto& vertex = timing_path.vertices[index];
     std::string description = std::string{instance_name} + '/' + vertex.pin;
 
     stringAppend(result, "%*s  {\n", indent, "");
 
-    // if (inst) {
-    //   stringAppend(result, "%*s    \"instance\": \"%s\",\n",
-    //                indent, "",
-    //                sdc_network_->pathName(inst));
-    //   Cell *cell = network_->cell(inst);
-    //   if (cell)
-    //     stringAppend(result, "%*s    \"cell\": \"%s\",\n",
-    //                  indent, "",
-    //                  sdc_network_->name(cell));
-    //   stringAppend(result, "%*s    \"verilog_src\": \"%s\",\n",
-    //                indent, "",
-		//    sdc_network_->getAttribute(inst, "src").c_str());
-    // }
+    if (!vertex.instance.empty()) {
+      stringAppend(result, "%*s    \"instance\": \"%s\",\n", indent, "", vertex.instance.c_str());
+    }
 
-    stringAppend(result, "%*s    \"pin\": \"%s\",\n",
-                 indent, "",
-                 description.c_str());
+    if (!vertex.cell.empty()) {
+      stringAppend(result, "%*s    \"cell\": \"%s\",\n", indent, "", vertex.cell.c_str());
+    }
 
-    stringAppend(result, "%*s    \"net\": \"%s\",\n",
-                  indent, "",
-                  vertex.net.c_str());
-
-    stringAppend(result, "%*s    \"arrival\": %.3e,\n",
-                 indent, "",
-                 delayAsFloat(vertex.arrival));
-    stringAppend(result, "%*s    \"slew\": %.3e\n",
-                 indent, "",
-                 delayAsFloat(0));
-    stringAppend(result, "%*s  }%s\n",
-                 indent, "",
-                 (!last_path || index < timing_path.vertices.size() - 1) ? "," : "");
+    stringAppend(result, "%*s    \"pin\": \"%s\",\n", indent, "", description.c_str());
+    stringAppend(result, "%*s    \"net\": \"%s\",\n", indent, "", vertex.net.c_str());
+    stringAppend(result, "%*s    \"arrival\": %.3e,\n", indent, "", delayAsFloat(vertex.arrival));
+    stringAppend(result, "%*s    \"slew\": %.3e\n", indent, "", delayAsFloat(vertex.slew));
+    stringAppend(result, "%*s  }%s\n", indent, "", (!last_path || index < timing_path.vertices.size() - 1) ? "," : "");
   }
 }
 
