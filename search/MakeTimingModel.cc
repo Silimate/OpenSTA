@@ -264,11 +264,12 @@ std::vector<TimingPathVertex> extractTimingPathVertices(const Path *path, const 
 
     TimingPathVertex& timing_path_vertex = vertices[i - path_first_index];
     
-    std::string pin_name = sta_state->cmdNetwork()->pathName(pin);
-    std::size_t slash_index = pin_name.find_first_of('/');
-    timing_path_vertex.instance = pin_name.substr(0, slash_index);
-    timing_path_vertex.net = pin_name.substr(slash_index + 1);
-    timing_path_vertex.pin = std::move(pin_name);
+    timing_path_vertex.instance = sta_state->network()->pathName(inst);
+
+    if (auto net = sta_state->network()->net(pin)) {
+      timing_path_vertex.net = sta_state->sdcNetwork()->pathName(net);
+    }
+    timing_path_vertex.pin = sta_state->cmdNetwork()->pathName(pin);
     timing_path_vertex.cell = sta_state->network()->cellName(inst);
     
     timing_path_vertex.arrival = path_element->arrival();
