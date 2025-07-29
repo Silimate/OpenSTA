@@ -67,12 +67,12 @@ library (counter) {
           slack : -0.29559;
           rise_data_required() {
             time: 0.29559;
-            vertex("_1415_/CLK (sky130_fd_sc_hd__dfrtp_1)", 0.00000, "^");
+            vertex("_1415_", "sky130_fd_sc_hd__dfrtp_1", "_1415_/CLK", "clk", "^", 0.00000, 0.00000, 0.00374, 0.000000);
           }
           rise_data_arrival() {
             time: 0.00000;
-            vertex("reset (in)", 0.00000, "^");
-            vertex("_1415_/RESET_B (sky130_fd_sc_hd__dfrtp_1)", 0.00000, "^");
+            vertex("", "counter", "reset", "", "^", 0.00000, 0.00000, 0.00726, 1.000000);
+            vertex("_1415_", "sky130_fd_sc_hd__dfrtp_1", "_1415_/RESET_B", "reset", "^", 0.00000, 0.00000, 0.00726, 0.000000);
           }
         }
       }
@@ -86,12 +86,12 @@ library (counter) {
           slack : 0.22827;
           rise_data_required() {
             time: 0.22827;
-            vertex("_1415_/CLK (sky130_fd_sc_hd__dfrtp_1)", 0.00000, "^");
+            vertex("_1415_", "sky130_fd_sc_hd__dfrtp_1", "_1415_/CLK", "clk", "^", 0.00000, 0.00000, 0.00374, 0.000000);
           }
           rise_data_arrival() {
             time: 0.00000;
-            vertex("reset (in)", 0.00000, "^");
-            vertex("_1415_/RESET_B (sky130_fd_sc_hd__dfrtp_1)", 0.00000, "^");
+            vertex("", "counter", "reset", "", "^", 0.00000, 0.00000, 0.00726, 1.000000);
+            vertex("_1415_", "sky130_fd_sc_hd__dfrtp_1", "_1415_/RESET_B", "reset", "^", 0.00000, 0.00000, 0.00726, 0.000000);
           }
         }
       }
@@ -112,21 +112,21 @@ library (counter) {
           slack : 0.03771;
           fall_data_required() {
             time: -0.03771;
-            vertex("_1415_/CLK (sky130_fd_sc_hd__dfrtp_1)", 0.00000, "^");
+            vertex("_1415_", "sky130_fd_sc_hd__dfrtp_1", "_1415_/CLK", "clk", "^", 0.00000, 0.00000, 0.00341, 0.000000);
           }
           fall_data_arrival() {
             time: 0.00000;
-            vertex("in (in)", 0.00000, "v");
-            vertex("_1415_/D (sky130_fd_sc_hd__dfrtp_1)", 0.00000, "v");
+            vertex("", "counter", "in", "", "v", 0.00000, 0.00000, 0.00195, 1.000000);
+            vertex("_1415_", "sky130_fd_sc_hd__dfrtp_1", "_1415_/D", "in", "v", 0.00000, 0.00000, 0.00195, 0.000000);
           }
           rise_data_required() {
             time: -0.03143;
-            vertex("_1415_/CLK (sky130_fd_sc_hd__dfrtp_1)", 0.00000, "^");
+            vertex("_1415_", "sky130_fd_sc_hd__dfrtp_1", "_1415_/CLK", "clk", "^", 0.00000, 0.00000, 0.00374, 0.000000);
           }
           rise_data_arrival() {
             time: 0.00000;
-            vertex("in (in)", 0.00000, "^");
-            vertex("_1415_/D (sky130_fd_sc_hd__dfrtp_1)", 0.00000, "^");
+            vertex("", "counter", "in", "", "^", 0.00000, 0.00000, 0.00201, 1.000000);
+            vertex("_1415_", "sky130_fd_sc_hd__dfrtp_1", "_1415_/D", "in", "^", 0.00000, 0.00000, 0.00201, 0.000000);
           }
         }
       }
@@ -143,21 +143,21 @@ library (counter) {
           slack : -0.10489;
           fall_data_required() {
             time: -0.10489;
-            vertex("_1415_/CLK (sky130_fd_sc_hd__dfrtp_1)", 0.00000, "^");
+            vertex("_1415_", "sky130_fd_sc_hd__dfrtp_1", "_1415_/CLK", "clk", "^", 0.00000, 0.00000, 0.00341, 0.000000);
           }
           fall_data_arrival() {
             time: 0.00000;
-            vertex("in (in)", 0.00000, "v");
-            vertex("_1415_/D (sky130_fd_sc_hd__dfrtp_1)", 0.00000, "v");
+            vertex("", "counter", "in", "", "v", 0.00000, 0.00000, 0.00195, 1.000000);
+            vertex("_1415_", "sky130_fd_sc_hd__dfrtp_1", "_1415_/D", "in", "v", 0.00000, 0.00000, 0.00195, 0.000000);
           }
           rise_data_required() {
             time: -0.05608;
-            vertex("_1415_/CLK (sky130_fd_sc_hd__dfrtp_1)", 0.00000, "^");
+            vertex("_1415_", "sky130_fd_sc_hd__dfrtp_1", "_1415_/CLK", "clk", "^", 0.00000, 0.00000, 0.00374, 0.000000);
           }
           rise_data_arrival() {
             time: 0.00000;
-            vertex("in (in)", 0.00000, "^");
-            vertex("_1415_/D (sky130_fd_sc_hd__dfrtp_1)", 0.00000, "^");
+            vertex("", "counter", "in", "", "^", 0.00000, 0.00000, 0.00201, 1.000000);
+            vertex("_1415_", "sky130_fd_sc_hd__dfrtp_1", "_1415_/D", "in", "^", 0.00000, 0.00000, 0.00201, 0.000000);
           }
         }
       }
@@ -184,15 +184,15 @@ library (counter) {
           slack : 3.79896;
           fall_clocked_output() {
             time: 3.79896;
-            vertex("_1416_[0]/CLK (sky130_fd_sc_hd__dfrtp_1)", 0.00000, "^");
-            vertex("_1416_[0]/Q (sky130_fd_sc_hd__dfrtp_1)", 3.79896, "v");
-            vertex("out (out)", 3.79896, "v");
+            vertex("_1416_\[0\]", "sky130_fd_sc_hd__dfrtp_1", "_1416_[0]/CLK", "clk", "^", 0.00000, 0.00000, 0.00341, 0.000000);
+            vertex("_1416_\[0\]", "sky130_fd_sc_hd__dfrtp_1", "_1416_[0]/Q", "out", "v", 3.79896, 4.53677, 1.00000, 1.000000);
+            vertex("", "counter", "out", "", "v", 3.79896, 4.53677, 1.00000, 0.000000);
           }
           rise_clocked_output() {
             time: 6.24237;
-            vertex("_1416_[0]/CLK (sky130_fd_sc_hd__dfrtp_1)", 0.00000, "^");
-            vertex("_1416_[0]/Q (sky130_fd_sc_hd__dfrtp_1)", 6.24237, "^");
-            vertex("out (out)", 6.24237, "^");
+            vertex("_1416_\[0\]", "sky130_fd_sc_hd__dfrtp_1", "_1416_[0]/CLK", "clk", "^", 0.00000, 0.00000, 0.00374, 0.000000);
+            vertex("_1416_\[0\]", "sky130_fd_sc_hd__dfrtp_1", "_1416_[0]/Q", "out", "^", 6.24237, 8.46194, 1.00000, 1.000000);
+            vertex("", "counter", "out", "", "^", 6.24237, 8.46194, 1.00000, 0.000000);
           }
         }
       }
