@@ -1286,9 +1286,16 @@ ReportPath::reportJson(const PathExpanded &expanded,
 void ReportPath::reportTimingPathJson(const char* instance_name, const TimingArc* timing_arc, int indent, bool last_path, std::string &result, bool is_clk_path) const
 {
   const auto& timing_paths = timing_arc->set()->timingPaths();
-  const auto& timing_path = timing_paths.at(TimingPath::ROLE_PATH_MAPPINGS.at(timing_arc->role()).at(timing_arc->toEdge()->asRiseFall()->index()));
-  for (std::size_t index = 0; index < timing_path.vertices.size(); ++index) {
-    const auto& vertex = timing_path.vertices[index];
+  const TimingPath* timing_path = nullptr;
+  if (is_clk_path) {
+    timing_path = &timing_paths.at(TimingPath::Names::DATA_REQUIRED.at(timing_arc->toEdge()->asRiseFall()->index()));
+  }
+  else {
+    timing_path = &timing_paths.at(TimingPath::ROLE_PATH_MAPPINGS.at(timing_arc->role()).at(timing_arc->toEdge()->asRiseFall()->index()));
+  }
+
+  for (std::size_t index = 0; index < timing_path->vertices.size(); ++index) {
+    const auto& vertex = timing_path->vertices[index];
     std::string description = std::string{instance_name} + '/' + vertex.pin;
 
     stringAppend(result, "%*s  {\n", indent, "");
@@ -1305,7 +1312,7 @@ void ReportPath::reportTimingPathJson(const char* instance_name, const TimingArc
     stringAppend(result, "%*s    \"net\": \"%s\",\n", indent, "", vertex.net.c_str());
     stringAppend(result, "%*s    \"arrival\": %.3e,\n", indent, "", delayAsFloat(vertex.arrival));
     stringAppend(result, "%*s    \"slew\": %.3e\n", indent, "", delayAsFloat(vertex.slew));
-    stringAppend(result, "%*s  }%s\n", indent, "", (!last_path || index < timing_path.vertices.size() - 1) ? "," : "");
+    stringAppend(result, "%*s  }%s\n", indent, "", (!last_path || index < timing_path->vertices.size() - 1) ? "," : "");
   }
 }
 
