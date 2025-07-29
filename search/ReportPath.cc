@@ -1197,7 +1197,6 @@ ReportPath::reportJson(const PathExpanded &expanded,
     const RiseFall *rf = path->transition(this);
     DcalcAnalysisPt *dcalc_ap = path->pathAnalysisPt(this)->dcalcAnalysisPt();
     bool is_driver = network_->isDriver(pin);
-    Arrival time = path->arrival();
 
     if (instances_timing_arcs.find(inst) != instances_timing_arcs.end()) {
       const char* from_instance_name = network_->pathName(inst);

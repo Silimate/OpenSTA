@@ -4612,7 +4612,7 @@ LibertyReader::visitTimingPathVertex(LibertyAttr *attr)
 }
 
 void
-LibertyReader::endTimingPath(LibertyGroup *group)
+LibertyReader::endTimingPath(LibertyGroup *)
 {
   timing_->attrs()->addTimingPath(std::move(timing_path_));
   timing_path_.time = 0.0f;
