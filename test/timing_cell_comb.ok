@@ -69,17 +69,17 @@ library (timing_cell_comb) {
           slack : 9.93240;
           fall_combinational() {
             time: 0.06760;
-            vertex("in (in)", 0.00000, "v");
-            vertex("u2/A (BUF_X1)", 0.00000, "v");
-            vertex("u2/Z (BUF_X1)", 0.06760, "v");
-            vertex("out (out)", 0.06760, "v");
+            vertex("", "timing_cell_comb", "in", "", "v", 0.00000, 0.00000, 0.83524, 1.000000);
+            vertex("u2", "BUF_X1", "u2/A", "in", "v", 0.00000, 0.00000, 0.83524, 0.000000);
+            vertex("u2", "BUF_X1", "u2/Z", "out", "v", 0.06760, 0.01261, 0.00000, 1.000000);
+            vertex("", "timing_cell_comb", "out", "", "v", 0.06760, 0.01261, 0.00000, 0.000000);
           }
           rise_combinational() {
             time: 0.03438;
-            vertex("in (in)", 0.00000, "^");
-            vertex("u2/A (BUF_X1)", 0.00000, "^");
-            vertex("u2/Z (BUF_X1)", 0.03438, "^");
-            vertex("out (out)", 0.03438, "^");
+            vertex("", "timing_cell_comb", "in", "", "^", 0.00000, 0.00000, 0.93456, 1.000000);
+            vertex("u2", "BUF_X1", "u2/A", "in", "^", 0.00000, 0.00000, 0.93456, 0.000000);
+            vertex("u2", "BUF_X1", "u2/Z", "out", "^", 0.03438, 0.01053, 0.00000, 1.000000);
+            vertex("", "timing_cell_comb", "out", "", "^", 0.03438, 0.01053, 0.00000, 0.000000);
           }
         }
       }
