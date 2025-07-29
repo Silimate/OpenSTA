@@ -475,6 +475,8 @@ protected:
   Delay delayIncr(Delay time,
 		  Delay prev,
 		  const MinMax *min_max) const;
+  std::string findStartpoint(const PathExpanded &expanded) const;
+  std::string findEndpoint(const PathEnd *end, const PathExpanded &expanded) const;
   std::unordered_map<const Instance*, const TimingArc*> extractInstancesTimingArcs(const PathExpanded &path_expanded, const TimingArc *end_check_arc) const;
   bool hasTimingPaths(const TimingArc *timing_arc) const;
   void reportTimingPath(const char* instance_name, const TimingArc* timing_arc, const MinMax *min_max, float prev_arrival) const;
