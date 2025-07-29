@@ -256,7 +256,6 @@ std::vector<TimingPathVertex> extractTimingPathVertices(const Path *path, const 
   vertices.resize(path_last_index - path_first_index + 1);
   for (std::size_t i = path_first_index; i <= path_last_index; ++i) {
     const Path *path_element = expanded.path(i);
-    const TimingArc *prev_arc = path_element->prevArc(sta_state);
     Vertex *vertex = path_element->vertex(sta_state);
     Pin *pin = vertex->pin();
 
