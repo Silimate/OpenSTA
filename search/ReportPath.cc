@@ -1097,12 +1097,10 @@ ReportPath::reportJson(const PathEnd *end,
                end->minMax(this)->to_string().c_str());
 
   PathExpanded expanded(end->path(), this);
-  const Pin *startpoint = expanded.startPath()->vertex(this)->pin();
-  const Pin *endpoint = expanded.endPath()->vertex(this)->pin();
-  stringAppend(result, "  \"startpoint\": \"%s\",\n",
-               sdc_network_->pathName(startpoint));
-  stringAppend(result, "  \"endpoint\": \"%s\",\n",
-               sdc_network_->pathName(endpoint));
+  const std::string startpoint_name = findStartpoint(expanded);
+  stringAppend(result, "  \"startpoint\": \"%s\",\n", startpoint_name.c_str());
+  const std::string endpoint_name = findEndpoint(end, expanded);
+  stringAppend(result, "  \"endpoint\": \"%s\",\n", endpoint_name.c_str());
 
   const ClockEdge *src_clk_edge = end->sourceClkEdge(this);
   const Path *tgt_clk_path = end->targetClkPath();
@@ -1151,6 +1149,34 @@ ReportPath::reportJson(const PathEnd *end,
   if (!last)
     result += ",";
   report_->reportLineString(result);
+}
+
+std::string ReportPath::findStartpoint(const PathExpanded &expanded) const
+{
+  const Pin *startpoint = expanded.startPath()->vertex(this)->pin();
+
+  const TimingArc *starting_arc = expanded.startPrevArc();
+  if (hasTimingPaths(starting_arc)) {
+    const auto& timing_paths = starting_arc->set()->timingPaths();
+    const TimingPath &timing_path = timing_paths.at(TimingPath::ROLE_PATH_MAPPINGS.at(starting_arc->role()).at(starting_arc->toEdge()->asRiseFall()->index()));
+    return std::string{sdc_network_->pathName(network_->instance(startpoint))} + '/' + timing_path.vertices.front().pin.c_str();
+  }
+
+  return sdc_network_->pathName(startpoint);
+}
+
+std::string ReportPath::findEndpoint(const PathEnd *end, const PathExpanded &expanded) const
+{
+  const Pin *endpoint = expanded.endPath()->vertex(this)->pin();
+
+  const TimingArc *ending_arc = end->checkArc();
+  if (hasTimingPaths(ending_arc)) {
+    const auto& timing_paths = ending_arc->set()->timingPaths();
+    const TimingPath &timing_path = timing_paths.at(TimingPath::ROLE_PATH_MAPPINGS.at(ending_arc->role()).at(ending_arc->toEdge()->asRiseFall()->index()));
+    return std::string{sdc_network_->pathName(network_->instance(endpoint))} + '/' + timing_path.vertices.back().pin.c_str();
+  }
+
+  return sdc_network_->pathName(endpoint);
 }
 
 void
