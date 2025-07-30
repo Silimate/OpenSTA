@@ -26,7 +26,6 @@
 
 #include <cctype>
 #include <cstdlib>
-#include <cassert>
 
 #include "EnumNameMap.hh"
 #include "Report.hh"
@@ -422,7 +421,6 @@ LibertyReader::defineVisitors()
   defineAttrVisitor("value", &LibertyReader::visitValue);
   defineAttrVisitor("values", &LibertyReader::visitValues);
   defineAttrVisitor("slack", &LibertyReader::visitSlack);
-
   defineGroupVisitor(
          TimingPath::Names::DATA_ARRIVAL.at(RiseFall::riseIndex()),
          &LibertyReader::beginRiseTimingPath,
@@ -4615,8 +4613,7 @@ void
 LibertyReader::endTimingPath(LibertyGroup *)
 {
   timing_->attrs()->addTimingPath(std::move(timing_path_));
-  timing_path_.time = 0.0f;
-  timing_path_.rise_fall = nullptr;
+  timing_path_ = TimingPath{};
 }
 
 void
