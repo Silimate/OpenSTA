@@ -3190,7 +3190,7 @@ ReportPath::hasExtInputDriver(const Pin *pin,
 void
 ReportPath::reportInputExternalDelay(const Path *first_path,
 				     float time_offset,
-       			const TimingArc *end_check_arc) const
+				     const TimingArc *end_check_arc) const
 {
   const Pin *first_pin = first_path->pin(graph_);
   if (!pathFromClkPin(first_path, first_pin)) {
