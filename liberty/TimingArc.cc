@@ -168,6 +168,12 @@ TimingArcAttrs::setSlack(float slack)
   slack_ = slack;
 }
 
+void
+TimingArcAttrs::mergeSlack(float slack)
+{
+  slack_ = std::min(slack, slack_);
+}
+
 void TimingArcAttrs::addTimingPath(TimingPath timing_path)
 {
   std::string name = timing_path.name;

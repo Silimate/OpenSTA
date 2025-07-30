@@ -163,6 +163,7 @@ public:
   float ocvArcDepth() const { return ocv_arc_depth_; }
   void setOcvArcDepth(float depth);
   void setSlack(float slack);
+  void mergeSlack(float slack);
   void addTimingPath(TimingPath timing_path);
   float slack() const { return slack_; }
   const std::unordered_map<std::string, TimingPath>& timingPaths() const { return timing_paths_; }
