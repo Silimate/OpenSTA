@@ -165,6 +165,7 @@ record_sta_tests {
   timing_cell_dff
   timing_cell_comb
   timing_cell_complex
+  timing_cell_complex_json
 }
 
 define_test_group fast [group_tests all]
