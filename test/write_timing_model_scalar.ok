@@ -109,7 +109,7 @@ library (counter) {
           values("-0.03771");
 	}
         paths() {
-          slack : 0.03771;
+          slack : 0.03143;
           fall_data_required() {
             time: -0.03771;
             vertex("_1415_", "sky130_fd_sc_hd__dfrtp_1", "_1415_/CLK", "clk", "^", 0.00000, 0.00000, 0.00341, 0.000000);

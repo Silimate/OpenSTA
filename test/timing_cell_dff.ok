@@ -46,7 +46,7 @@ library (timing_cell_dff) {
           values("-0.07072");
 	}
         paths() {
-          slack : 0.07072;
+          slack : 0.02757;
           fall_data_required() {
             time: 0.00300;
             vertex("r1", "DFF_X1", "r1/CK", "clk", "^", 0.00000, 0.00000, 0.82104, 0.000000);

@@ -521,7 +521,7 @@ MakeTimingModel::makeSetupHoldTimingArcs(const Pin *input_pin,
           attrs->setModel(input_rf, check_model);
 
           const InputRegisterTimingPath& timing_path = timing_paths[min_max->index()][input_rf->index()];
-          attrs->setSlack(timing_path.slack);
+          attrs->mergeSlack(timing_path.slack);
           attrs->addTimingPath(timing_path.data_arrival_path);
           attrs->addTimingPath(timing_path.data_required_path);
         }
@@ -571,7 +571,7 @@ MakeTimingModel::makeInputOutputTimingArcs(const Pin *input_pin,
         if (attrs == nullptr)
           attrs = std::make_shared<TimingArcAttrs>();
         attrs->setModel(output_rf, gate_model);
-        attrs->setSlack(combinational_timing_paths.at(output_pin)[output_rf->index()].slack);
+        attrs->mergeSlack(combinational_timing_paths.at(output_pin)[output_rf->index()].slack);
         attrs->addTimingPath(combinational_timing_paths.at(output_pin)[output_rf->index()].combinational_delay_path);
       }
     }
@@ -649,7 +649,7 @@ MakeTimingModel::findClkedOutputPaths()
               if (attrs == nullptr)
                 attrs = std::make_shared<TimingArcAttrs>();
               attrs->setModel(output_rf, gate_model);
-              attrs->setSlack(timing_paths.at(output_rf).slack);
+              attrs->mergeSlack(timing_paths.at(output_rf).slack);
               attrs->addTimingPath(timing_paths.at(output_rf).sequential_delay_path);
             }
 
