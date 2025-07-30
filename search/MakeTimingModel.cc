@@ -248,7 +248,7 @@ std::vector<TimingPathVertex> extractTimingPathVertices(const Path *path, const 
 {
   StaState* sta_state = Sta::sta();
 
-	PathExpanded expanded(path, sta_state);
+  PathExpanded expanded(path, sta_state);
   std::size_t path_first_index = skip_clk_vertex ? 1 : 0;
   std::size_t path_last_index = expanded.size() - 1;
 
@@ -264,7 +264,6 @@ std::vector<TimingPathVertex> extractTimingPathVertices(const Path *path, const 
     TimingPathVertex& timing_path_vertex = vertices[i - path_first_index];
     
     timing_path_vertex.instance = sta_state->network()->pathName(inst);
-
     if (auto net = sta_state->network()->net(pin)) {
       timing_path_vertex.net = sta_state->sdcNetwork()->pathName(net);
     }
@@ -324,7 +323,7 @@ MakeEndTimingArcs::setInputRf(const RiseFall *input_rf)
 }
 
 InputRegisterTimingPath
-extractInputRegisterTimingPath(PathEnd *path_end, const RiseFall* input_rf)
+extractInputRegisterTimingPath(PathEnd *path_end, const RiseFall *input_rf)
 {
   StaState* sta_state = Sta::sta();
 
@@ -342,7 +341,8 @@ extractInputRegisterTimingPath(PathEnd *path_end, const RiseFall* input_rf)
   input_register_timing_path.data_required_path.rise_fall = input_rf;
   input_register_timing_path.data_required_path.name = TimingPath::Names::DATA_REQUIRED.at(input_rf->index());
 
-  input_register_timing_path.slack = delayAsFloat(path_end->slack(sta_state), nullptr, sta_state);
+  const EarlyLate *early_late = nullptr;
+  input_register_timing_path.slack = delayAsFloat(path_end->slack(sta_state), early_late, sta_state);
 
   return input_register_timing_path;
 }
@@ -469,7 +469,7 @@ MakeTimingModel::findOutputDelays(const RiseFall *input_rf,
           Arrival delay = path->arrival();
           OutputDelays &delays = output_pin_delays[output_pin];
           delays.delays.mergeValue(output_rf, min_max,
-          delayAsFloat(delay, min_max, sta_));
+                                   delayAsFloat(delay, min_max, sta_));
           delays.rf_path_exists[input_rf->index()][output_rf->index()] = true;
           
           CombinationalTimingPath &timing_path = combinational_timing_paths[output_pin][input_rf->index()];
@@ -596,7 +596,7 @@ MakeTimingModel::findClkedOutputPaths()
 {
   InstancePinIterator *output_iter = network_->pinIterator(network_->topInstance());
   while (output_iter->hasNext()) {
-    Pin *output_pin = output_iter->next(); 
+    Pin *output_pin = output_iter->next();
     if (network_->direction(output_pin)->isOutput()) {
       ClockEdgeDelays clk_delays;
       std::unordered_map<const RiseFall*, RegisterOutputTimingPath> timing_paths;

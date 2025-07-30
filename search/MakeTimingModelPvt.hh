@@ -38,8 +38,6 @@ namespace sta {
 class Sta;
 class LibertyBuilder;
 
-////////////////////////////////////////////////////////////////
-
 class OutputDelays
 {
 public:
