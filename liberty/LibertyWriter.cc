@@ -448,7 +448,7 @@ LibertyWriter::writeTimingArcSet(const TimingArcSet *arc_set)
       fprintf(stream_, "          %s() {\n", timing_path.name.c_str());
       fprintf(stream_, "            time: %s;\n", time_unit->asString(timing_path.time, 5));
       for (auto& vertex : timing_path.vertices) {
-        fprintf(stream_, "            vertex(\"%s\", \"%s\", \"%s\", \"%s\", \"%s\", %s, %s, %s, %f);\n",
+        fprintf(stream_, "            vertex(\"%s\", \"%s\", \"%s\", \"%s\", \"%s\", %s, %s, %s, %d);\n",
           vertex.instance.c_str(),
           vertex.cell.c_str(),
           vertex.pin.c_str(),
@@ -457,7 +457,7 @@ LibertyWriter::writeTimingArcSet(const TimingArcSet *arc_set)
           time_unit->asString(vertex.arrival, 5),
           time_unit->asString(vertex.slew, 5),
           cap_unit->asString(vertex.capacitance, 5),
-          static_cast<float>(vertex.is_driver));
+          vertex.is_driver);
       }
       fprintf(stream_, "          }\n");
     }

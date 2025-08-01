@@ -2,7 +2,7 @@ module timing_cell_complex (in, clk, out);
   
   input in, clk;
   output out;
-  wire w1, w2, w3, w4;
+  wire w1, w2, w3;
 
   timing_cell_dff tt1(.in(in), .clk(clk), .out(w1));
 
