@@ -25,6 +25,8 @@
 #pragma once
 
 #include <map>
+#include <unordered_map>
+#include <limits>
 
 #include "LibertyClass.hh"
 #include "SdcClass.hh"

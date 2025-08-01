@@ -1,4 +1,4 @@
-# timing cel comb example
+# timing cell comb example
 read_liberty nangate45_slow.lib.gz
 read_verilog timing_cell_comb.v
 link_design timing_cell_comb

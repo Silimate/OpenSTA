@@ -276,8 +276,8 @@ std::vector<TimingPathVertex> extractTimingPathVertices(const Path *path, const 
     DcalcAnalysisPt *dcalc_ap = path->pathAnalysisPt(sta_state)->dcalcAnalysisPt();
     timing_path_vertex.capacitance = sta_state->graphDelayCalc()->loadCap(pin, rise_fall, dcalc_ap);
 
-    const RiseFall* rise_fall = path_element->transition(sta_state);
-    timing_path_vertex.transition = rise_fall->shortName();
+    const RiseFall* vertex_rise_fall = path_element->transition(sta_state);
+    timing_path_vertex.transition = vertex_rise_fall->shortName();
 
     timing_path_vertex.is_driver = sta_state->network()->isDriver(pin);
   }
