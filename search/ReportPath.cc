@@ -550,7 +550,7 @@ ReportPath::reportFull(const PathEndLatchCheck *end) const
     // Based on reportSrcPath.
     reportPathHeader();
     reportPath3(end->path(), expanded, false, false, 0.0,
-		end->sourceClkOffset(this));
+		end->sourceClkOffset(this), end->checkArc());
   }
   else
     reportSrcPath(end, expanded);
@@ -643,7 +643,8 @@ ReportPath::reportBorrowing(const PathEndLatchCheck *end,
       auto width_msg = stdstrPrint("%s pulse width", tgt_clk_name.c_str());
       reportLineTotal(width_msg.c_str(), tgt_clk_width, early_late);
     }
-    ArcDelay margin = end->margin(this);
+    float required_diff = calculateRequired(end) - end->requiredTime(this);
+    ArcDelay margin = end->margin(this) - required_diff;
     reportLineTotalMinus("library setup time", margin, early_late);
     reportDashLineTotal();
     if (!delayZero(crpr_diff))
@@ -717,7 +718,7 @@ ReportPath::reportFull(const PathEndPathDelay *end) const
     // Based on reportSrcPath.
     reportPathHeader();
     reportPath3(end->path(), expanded, false, false, 0.0,
-                end->sourceClkOffset(this));
+                end->sourceClkOffset(this), end->checkArc());
   }
   else
     reportSrcPath(end, expanded);
@@ -939,7 +940,7 @@ ReportPath::reportFull(const PathEndDataCheck *end) const
 		clk_expanded.size() - 1,
 		data_clk_path->clkInfo(search_)->isPropagated(), false,
 		// Delay to startpoint is already included.
-		prev, offset);
+		prev, offset, end->checkArc());
   }
   reportRequired(end, checkRoleReason(end));
   reportSlack(end);
@@ -1039,15 +1040,23 @@ ReportPath::pathStartpoint(const PathEnd *end,
 {
   const Path *start = expanded.startPath();
   Pin *pin = start->pin(graph_);
-  const char *pin_name = cmd_network_->pathName(pin);
+  std::string pin_name = cmd_network_->pathName(pin);
+
+  const TimingArc *starting_arc = expanded.startPrevArc();
+  if (hasTimingPaths(starting_arc)) {
+    const auto& timing_paths = starting_arc->set()->timingPaths();
+    const TimingPath &timing_path = timing_paths.at(TimingPath::ROLE_PATH_MAPPINGS.at(starting_arc->role()).at(starting_arc->toEdge()->asRiseFall()->index()));
+    pin_name = std::string{sdc_network_->pathName(network_->instance(pin))} + '/' + timing_path.vertices.front().pin.c_str();
+  }
+
   if (network_->isTopLevelPort(pin)) {
     PortDirection *dir = network_->direction(pin);
-    return stdstrPrint("%s (%s)", pin_name, dir->name());
+    return stdstrPrint("%s (%s)", pin_name.c_str(), dir->name());
   }
   else {
     Instance *inst = network_->instance(end->vertex(this)->pin());
     const char *cell_name = cmd_network_->name(network_->cell(inst));
-    return stdstrPrint("%s (%s)", pin_name, cell_name);
+    return stdstrPrint("%s (%s)", pin_name.c_str(), cell_name);
   }
 }
 
@@ -1055,15 +1064,23 @@ string
 ReportPath::pathEndpoint(const PathEnd *end) const
 {
   Pin *pin = end->vertex(this)->pin();
-  const char *pin_name = cmd_network_->pathName(pin);
+  std::string pin_name = cmd_network_->pathName(pin);
+
+  const TimingArc *ending_arc = end->checkArc();
+  if (hasTimingPaths(ending_arc)) {
+    const auto& timing_paths = ending_arc->set()->timingPaths();
+    const TimingPath &timing_path = timing_paths.at(TimingPath::ROLE_PATH_MAPPINGS.at(ending_arc->role()).at(ending_arc->toEdge()->asRiseFall()->index()));
+    pin_name = std::string{sdc_network_->pathName(network_->instance(pin))} + '/' + timing_path.vertices.back().pin.c_str();
+  }
+
   if (network_->isTopLevelPort(pin)) {
     PortDirection *dir = network_->direction(pin);
-    return stdstrPrint("%s (%s)", pin_name, dir->name());
+    return stdstrPrint("%s (%s)", pin_name.c_str(), dir->name());
   }
   else {
     Instance *inst = network_->instance(end->vertex(this)->pin());
     const char *cell_name = cmd_network_->name(network_->cell(inst));
-    return stdstrPrint("%s (%s)", pin_name, cell_name);
+    return stdstrPrint("%s (%s)", pin_name.c_str(), cell_name);
   }
 }
 
@@ -1095,12 +1112,10 @@ ReportPath::reportJson(const PathEnd *end,
                end->minMax(this)->to_string().c_str());
 
   PathExpanded expanded(end->path(), this);
-  const Pin *startpoint = expanded.startPath()->vertex(this)->pin();
-  const Pin *endpoint = expanded.endPath()->vertex(this)->pin();
-  stringAppend(result, "  \"startpoint\": \"%s\",\n",
-               sdc_network_->pathName(startpoint));
-  stringAppend(result, "  \"endpoint\": \"%s\",\n",
-               sdc_network_->pathName(endpoint));
+  const std::string startpoint_name = pathStartpoint(end, expanded);
+  stringAppend(result, "  \"startpoint\": \"%s\",\n", startpoint_name.c_str());
+  const std::string endpoint_name = pathEndpoint(end);
+  stringAppend(result, "  \"endpoint\": \"%s\",\n", endpoint_name.c_str());
 
   const ClockEdge *src_clk_edge = end->sourceClkEdge(this);
   const Path *tgt_clk_path = end->targetClkPath();
@@ -1110,7 +1125,7 @@ ReportPath::reportJson(const PathEnd *end,
     stringAppend(result, "  \"source_clock_edge\": \"%s\",\n",
                  src_clk_edge->transition()->name());
   }
-  reportJson(expanded, "source_path", 2, !end->isUnconstrained(), result);
+  reportJson(expanded, "source_path", 2, !end->isUnconstrained(), result, end->checkArc(), false);
 
   const ClockEdge *tgt_clk_edge = end->targetClkEdge(this);
   if (tgt_clk_edge) {
@@ -1120,11 +1135,11 @@ ReportPath::reportJson(const PathEnd *end,
                  tgt_clk_edge->transition()->name());
   }
   if (tgt_clk_path)
-    reportJson(end->targetClkPath(), "target_clock_path", 2, true, result);
+    reportJson(end->targetClkPath(), "target_clock_path", 2, true, result, end->checkArc(), true);
 
   if (end->checkRole(this)) {
     stringAppend(result, "  \"data_arrival_time\": %.3e,\n",
-                 delayAsFloat(end->dataArrivalTimeOffset(this)));
+                 delayAsFloat(calculateSrcPathArrival(end)));
 
     const MultiCyclePath *mcp = end->multiCyclePath();
     if (mcp)
@@ -1139,9 +1154,9 @@ ReportPath::reportJson(const PathEnd *end,
     stringAppend(result, "  \"crpr\": %.3e,\n",
                  delayAsFloat(end->checkCrpr(this)));
     stringAppend(result, "  \"margin\": %.3e,\n",
-                 delayAsFloat(end->margin(this)));
+                 delayAsFloat(calculateMargin(end)));
     stringAppend(result, "  \"required_time\": %.3e,\n",
-                 delayAsFloat(end->requiredTimeOffset(this)));
+                 delayAsFloat(calculateRequired(end)));
     stringAppend(result, "  \"slack\": %.3e\n",
                  delayAsFloat(end->slack(this)));
   }
@@ -1156,7 +1171,7 @@ ReportPath::reportJson(const Path *path) const
 {
   string result;
   result += "{\n";
-  reportJson(path, "path", 0, false, result);
+  reportJson(path, "path", 0, false, result, nullptr, false);
   result += "}\n";
   report_->reportLineString(result);
 }
@@ -1166,10 +1181,12 @@ ReportPath::reportJson(const Path *path,
                        const char *path_name,
                        int indent,
                        bool trailing_comma,
-                       string &result) const
+                       string &result,
+                       const TimingArc *end_check_arc,
+                       bool is_clk_path) const
 {
   PathExpanded expanded(path, this);
-  reportJson(expanded, path_name, indent, trailing_comma, result);
+  reportJson(expanded, path_name, indent, trailing_comma, result, end_check_arc, is_clk_path);
 }
 
 void
@@ -1177,10 +1194,16 @@ ReportPath::reportJson(const PathExpanded &expanded,
                        const char *path_name,
                        int indent,
                        bool trailing_comma,
-                       string &result) const
+                       string &result,
+                       const TimingArc *end_check_arc,
+                       bool is_clk_path) const
 {
+  auto instances_timing_arcs = extractInstancesTimingArcs(expanded, end_check_arc);
+
   stringAppend(result, "%*s\"%s\": [\n", indent, "", path_name);
-  for (size_t i = 0; i < expanded.size(); i++) {
+  std::size_t path_last_index = expanded.size();
+  float prev_time = 0.0f;
+  for (size_t i = 0; i < path_last_index; i++) {
     const Path *path = expanded.path(i);
     const Pin *pin = path->vertex(this)->pin();
     const Net *net = network_->net(pin);
@@ -1188,6 +1211,25 @@ ReportPath::reportJson(const PathExpanded &expanded,
     const RiseFall *rf = path->transition(this);
     DcalcAnalysisPt *dcalc_ap = path->pathAnalysisPt(this)->dcalcAnalysisPt();
     bool is_driver = network_->isDriver(pin);
+
+    if (instances_timing_arcs.find(inst) != instances_timing_arcs.end()) {
+      const char* from_instance_name = network_->pathName(inst);
+      reportTimingPathJson(from_instance_name, instances_timing_arcs.at(inst), indent, i == path_last_index - 1, result, is_clk_path, prev_time);
+
+      const Instance *unwrapped_instance = inst;
+      while (inst == unwrapped_instance && i < path_last_index - 1) {
+        prev_time = path->arrival();
+
+        ++i;
+        path = expanded.path(i);
+        pin = path->vertex(this)->pin();
+        inst = network_->instance(pin);
+      }
+
+      continue;
+    }
+
+    prev_time = path->arrival();
 
     stringAppend(result, "%*s  {\n", indent, "");
 
@@ -1253,6 +1295,39 @@ ReportPath::reportJson(const PathExpanded &expanded,
   stringAppend(result, "%*s]%s\n",
                indent, "",
                trailing_comma ? "," : "");
+}
+
+void ReportPath::reportTimingPathJson(const char* instance_name, const TimingArc* timing_arc, int indent, bool last_path, std::string &result, bool is_clk_path, float prev_time) const
+{
+  const auto& timing_paths = timing_arc->set()->timingPaths();
+  const TimingPath* timing_path = nullptr;
+  if (is_clk_path) {
+    timing_path = &timing_paths.at(TimingPath::Names::DATA_REQUIRED.at(timing_arc->toEdge()->asRiseFall()->index()));
+  }
+  else {
+    timing_path = &timing_paths.at(TimingPath::ROLE_PATH_MAPPINGS.at(timing_arc->role()).at(timing_arc->toEdge()->asRiseFall()->index()));
+  }
+
+  for (std::size_t index = 0; index < timing_path->vertices.size(); ++index) {
+    const auto& vertex = timing_path->vertices[index];
+    std::string description = std::string{instance_name} + '/' + vertex.pin;
+
+    stringAppend(result, "%*s  {\n", indent, "");
+
+    if (!vertex.instance.empty()) {
+      stringAppend(result, "%*s    \"instance\": \"%s\",\n", indent, "", vertex.instance.c_str());
+    }
+
+    if (!vertex.cell.empty()) {
+      stringAppend(result, "%*s    \"cell\": \"%s\",\n", indent, "", vertex.cell.c_str());
+    }
+
+    stringAppend(result, "%*s    \"pin\": \"%s\",\n", indent, "", description.c_str());
+    stringAppend(result, "%*s    \"net\": \"%s\",\n", indent, "", vertex.net.c_str());
+    stringAppend(result, "%*s    \"arrival\": %.3e,\n", indent, "", delayAsFloat(prev_time + vertex.arrival));
+    stringAppend(result, "%*s    \"slew\": %.3e\n", indent, "", delayAsFloat(vertex.slew));
+    stringAppend(result, "%*s  }%s\n", indent, "", (!last_path || index < timing_path->vertices.size() - 1) ? "," : "");
+  }
 }
 
 ////////////////////////////////////////////////////////////////
@@ -1657,7 +1732,7 @@ ReportPath::reportSkewClkPath(const char *arrival_msg,
 				insertion, latency);
       reportClkSrcLatency(insertion, clk_time, early_late);
       PathExpanded clk_expanded(clk_path, this);
-      reportPath2(clk_path, clk_expanded, false, 0.0);
+      reportPath2(clk_path, clk_expanded, false, 0.0, nullptr);
     }
   }
   else {
@@ -2021,9 +2096,35 @@ ReportPath::reportSrcPathArrival(const PathEnd *end,
 {
   reportBlankLine();
   reportSrcPath(end, expanded);
-  reportLine("data arrival time", end->dataArrivalTimeOffset(this),
-	     end->pathEarlyLate(this));
+  float data_arrival_time = calculateSrcPathArrival(end);
+  reportLine("data arrival time", data_arrival_time, end->pathEarlyLate(this));
   reportBlankLine();
+}
+
+float ReportPath::calculateSrcPathArrival(const PathEnd *end) const
+{
+  float data_arrival_time = end->dataArrivalTimeOffset(this);
+  const TimingArc *end_check_arc = end->checkArc();
+  if (!end_check_arc) {
+    return data_arrival_time;
+  }
+
+  const auto& timing_paths = end_check_arc->set()->timingPaths();
+  if (timing_paths.empty()) {
+    return data_arrival_time;
+  }
+
+  if (end_check_arc->role() == TimingRole::setup()) {
+    const RiseFall* path_rf = end->path()->transition(this);
+    return data_arrival_time + timing_paths.at(TimingPath::Names::DATA_ARRIVAL.at(path_rf->index())).time;
+  }
+
+  return data_arrival_time;
+}
+
+float ReportPath::calculateMargin(const PathEnd *end) const
+{
+  return end->margin(this) - calculateRequired(end) + end->requiredTime(this);
 }
 
 void
@@ -2036,7 +2137,7 @@ ReportPath::reportSrcPath(const PathEnd *end,
   Arrival src_clk_latency = end->sourceClkLatency(this);
   const Path *path = end->path();
   reportSrcClkAndPath(path, expanded, src_clk_offset, src_clk_insertion,
-		      src_clk_latency, end->isPathDelay());
+		      src_clk_latency, end->isPathDelay(), end->checkArc());
 }
 
 void
@@ -2045,7 +2146,8 @@ ReportPath::reportSrcClkAndPath(const Path *path,
 				float time_offset,
 				Arrival clk_insertion,
 				Arrival clk_latency,
-				bool is_path_delay) const
+				bool is_path_delay,
+				const TimingArc *end_check_arc) const
 {
   const ClockEdge *clk_edge = path->clkEdge(this);
   const MinMax *min_max = path->minMax(this);
@@ -2061,7 +2163,7 @@ ReportPath::reportSrcClkAndPath(const Path *path,
 		   clk_end_time, clk_end_time, early_late);
 	reportLine(clkNetworkDelayIdealProp(false), 0.0, clk_end_time, early_late);
       }
-      reportPath1(path, expanded, false, time_offset);
+      reportPath1(path, expanded, false, time_offset, end_check_arc);
     }
     else {
       bool path_from_input = false;
@@ -2116,21 +2218,21 @@ ReportPath::reportSrcClkAndPath(const Path *path,
  	ClkInfo *clk_info = path->tag(search_)->clkInfo();
  	if (clk_info->isPropagated())
  	  reportClkSrcLatency(clk_insertion, clk_time, early_late);
-	reportPath1(path, expanded, true, time_offset);
+	reportPath1(path, expanded, true, time_offset, end_check_arc);
       }
       else if (is_prop
 	       && reportClkPath()
 	       && !(path_from_input && !input_has_ref_path)) {
  	reportClkLine(clk, clk_name.c_str(), clk_end_rf, clk_time, early_late);
 	reportClkSrcLatency(clk_insertion, clk_time, early_late);
- 	reportPath1(path, expanded, false, time_offset);
+ 	reportPath1(path, expanded, false, time_offset, end_check_arc);
       }
       else if (clk_used_as_data) {
 	reportClkLine(clk, clk_name.c_str(), clk_end_rf, clk_time, early_late);
  	if (delayGreater(clk_insertion, 0.0, this))
 	  reportClkSrcLatency(clk_insertion, clk_time, early_late);
 	if (reportClkPath())
-	  reportPath1(path, expanded, true, time_offset);
+	  reportPath1(path, expanded, true, time_offset, end_check_arc);
 	else {
 	  Arrival clk_arrival = clk_end_time;
 	  Arrival end_arrival = path->arrival() + time_offset;
@@ -2154,12 +2256,12 @@ ReportPath::reportSrcClkAndPath(const Path *path,
 	  reportLine(clkNetworkDelayIdealProp(is_prop), clk_delay,
 		     clk_arrival, early_late);
 	}
-	reportPath1(path, expanded, false, time_offset);
+	reportPath1(path, expanded, false, time_offset, end_check_arc);
       }
     }
   }
   else
-    reportPath1(path, expanded, false, time_offset);
+    reportPath1(path, expanded, false, time_offset, end_check_arc);
 }
 
 void
@@ -2227,7 +2329,7 @@ ReportPath::reportTgtClk(const PathEnd *end,
 	float insertion_offset = tgtClkInsertionOffet(clk_path, early_late,
 						      path_ap);
 	reportPath5(clk_path, clk_expanded, 0, clk_expanded.size() - 1, is_prop,
-		    reportClkPath(), delay_zero, time_offset + insertion_offset);
+		    reportClkPath(), delay_zero, time_offset + insertion_offset, end->checkArc());
       }
       else {
 	// Output departure.
@@ -2375,7 +2477,7 @@ ReportPath::reportGenClkSrcAndPath(const Path *path,
   if (path) {
     PathExpanded expanded(path, this);
     reportPath4(path, expanded, skip_first_path, false, clk_used_as_data,
-		path_time_offset);
+		path_time_offset, nullptr);
   }
 }
 
@@ -2417,7 +2519,7 @@ ReportPath::reportGenClkSrcPath1(const Clock *clk,
       }
       PathExpanded src_expanded(src_path, this);
       reportPath4(src_path, src_expanded, skip_first_path, false,
-                  clk_used_as_data, gclk_time);
+                  clk_used_as_data, gclk_time, nullptr);
       if (!clk->isPropagated())
         reportLine("clock network delay (ideal)", 0.0,
                    src_path->arrival(), min_max);
@@ -2473,10 +2575,11 @@ void
 ReportPath::reportRequired(const PathEnd *end,
 			   string margin_msg) const
 {
-  Required req_time = end->requiredTimeOffset(this);
+  Required req_time = calculateRequired(end);
   const EarlyLate *early_late = end->clkEarlyLate(this);
   float macro_clk_tree_delay = end->macroClkTreeDelay(this);
-  ArcDelay margin = end->margin(this);
+  float required_diff = req_time - end->requiredTime(this);
+  ArcDelay margin = end->margin(this) - required_diff;
   if (end->minMax(this) == MinMax::min()) {
     margin = -margin;
     macro_clk_tree_delay = -macro_clk_tree_delay;
@@ -2489,13 +2592,35 @@ ReportPath::reportRequired(const PathEnd *end,
   reportDashLine();
 }
 
+Required ReportPath::calculateRequired(const PathEnd *end) const
+{
+  Required req_time = end->requiredTimeOffset(this);
+
+  const TimingArc *end_check_arc = end->checkArc();
+  if (!end_check_arc) {
+    return req_time;
+  }
+
+  const auto& timing_paths = end_check_arc->set()->timingPaths();
+  if (timing_paths.empty()) {
+    return req_time;
+  }
+
+  if (end_check_arc->role() == TimingRole::setup()) {
+    const RiseFall* path_rf = end->path()->transition(this);
+    return timing_paths.at(TimingPath::Names::DATA_REQUIRED.at(path_rf->index())).time;
+  }
+
+  return req_time;
+}
+
 void
 ReportPath::reportSlack(const PathEnd *end) const
 {
   const EarlyLate *early_late = end->pathEarlyLate(this);
-  reportLine("data required time", end->requiredTimeOffset(this),
+  reportLine("data required time", calculateRequired(end),
 	     early_late->opposite());
-  reportLineNegative("data arrival time", end->dataArrivalTimeOffset(this), early_late);
+  reportLineNegative("data arrival time", calculateSrcPathArrival(end), early_late);
   reportDashLine();
   reportSlack(end->slack(this));
 }
@@ -2566,7 +2691,7 @@ ReportPath::reportPath(const PathEnd *end,
   reportPathHeader();
   // Source clk offset for path delays removes clock phase time.
   float src_clk_offset = end->sourceClkOffset(this);
-  reportPath1(end->path(), expanded, pathFromClkPin(expanded), src_clk_offset);
+  reportPath1(end->path(), expanded, pathFromClkPin(expanded), src_clk_offset, end->checkArc());
 }
 
 void
@@ -2595,7 +2720,7 @@ ReportPath::reportPathFull(const Path *path) const
 {
   reportPathHeader();
   PathExpanded expanded(path, this);
-  reportSrcClkAndPath(path, expanded, 0.0, delay_zero, delay_zero, false);
+  reportSrcClkAndPath(path, expanded, 0.0, delay_zero, delay_zero, false, nullptr);
 }
 
 ////////////////////////////////////////////////////////////////
@@ -2604,7 +2729,8 @@ void
 ReportPath::reportPath1(const Path *path,
 			const PathExpanded &expanded,
 			bool clk_used_as_data,
-			float time_offset) const
+			float time_offset,
+			const TimingArc *end_check_arc) const
 {
   const Path *d_path, *q_path;
   Edge *d_q_edge;
@@ -2621,7 +2747,7 @@ ReportPath::reportPath1(const Path *path,
 	PathExpanded enable_expanded(latch_enable_path, this);
 	// Report the path to the latch enable.
 	reportPath2(latch_enable_path, enable_expanded, false,
-		    time_offset);
+		    time_offset, end_check_arc);
       }
       Arrival time = latch_enable_time + latch_time_given;
       Arrival incr = latch_time_given;
@@ -2635,18 +2761,19 @@ ReportPath::reportPath1(const Path *path,
       bool report_clk_path = path->isClock(search_) || reportClkPath();
       reportPath5(path, expanded, 1, expanded.size() - 1,
 		  propagated_clk, report_clk_path,
-		  latch_enable_time + latch_time_given, time_offset);
+		  latch_enable_time + latch_time_given, time_offset, end_check_arc);
     }
   }
   else
-    reportPath2(path, expanded, clk_used_as_data, time_offset);
+    reportPath2(path, expanded, clk_used_as_data, time_offset, end_check_arc);
 }
 
 void
 ReportPath::reportPath2(const Path *path,
 			const PathExpanded &expanded,
 			bool clk_used_as_data,
-			float time_offset) const
+			float time_offset,
+			const TimingArc *end_check_arc) const
 {
   // Report the clock path if the end is a clock or we wouldn't have
   // anything to report.
@@ -2654,7 +2781,7 @@ ReportPath::reportPath2(const Path *path,
     || (reportClkPath()
 	&& path->clkInfo(search_)->isPropagated());
   reportPath3(path, expanded, clk_used_as_data, report_clk_path,
-	      delay_zero, time_offset);
+	      delay_zero, time_offset, end_check_arc);
 }
 
 void
@@ -2663,13 +2790,14 @@ ReportPath::reportPath3(const Path *path,
 			bool clk_used_as_data,
 			bool report_clk_path,
 			Arrival prev_time,
-			float time_offset) const
+			float time_offset,
+			const TimingArc *end_check_arc) const
 {
   bool propagated_clk = clk_used_as_data
     || path->clkInfo(search_)->isPropagated();
   size_t path_last_index = expanded.size() - 1;
   reportPath5(path, expanded, 0, path_last_index, propagated_clk,
-	      report_clk_path, prev_time, time_offset);
+	      report_clk_path, prev_time, time_offset, end_check_arc);
 }
 
 void
@@ -2678,7 +2806,8 @@ ReportPath::reportPath4(const Path *path,
 			bool skip_first_path,
 			bool skip_last_path,
 			bool clk_used_as_data,
-			float time_offset) const
+			float time_offset,
+			const TimingArc *end_check_arc) const
 {
   size_t path_first_index = 0;
   Arrival prev_time(0.0);
@@ -2698,7 +2827,7 @@ ReportPath::reportPath4(const Path *path,
   bool report_clk_path = path->isClock(search_) 
     || (reportClkPath() && propagated_clk);
   reportPath5(path, expanded, path_first_index, path_last_index,
-	      propagated_clk, report_clk_path, prev_time, time_offset);
+	      propagated_clk, report_clk_path, prev_time, time_offset, end_check_arc);
 }
 
 void
@@ -2709,24 +2838,48 @@ ReportPath::reportPath5(const Path *path,
 			bool propagated_clk,
 			bool report_clk_path,
 			Arrival prev_time,
-			float time_offset) const
+			float time_offset,
+			const TimingArc *end_check_arc) const
 {
   const MinMax *min_max = path->minMax(this);
   DcalcAnalysisPt *dcalc_ap = path->pathAnalysisPt(this)->dcalcAnalysisPt();
   DcalcAPIndex ap_index = dcalc_ap->index();
   const Path *clk_path = expanded.clkPath();
   Vertex *clk_start = clk_path ? clk_path->vertex(this) : nullptr;
+
+  auto instances_timing_arcs = extractInstancesTimingArcs(expanded, end_check_arc);
+
   for (size_t i = path_first_index; i <= path_last_index; i++) {
     const Path *path1 = expanded.path(i);
-    const TimingArc *prev_arc = path1->prevArc(this);
     Vertex *vertex = path1->vertex(this);
     Pin *pin = vertex->pin();
+    Instance *inst = network_->instance(pin);
     Arrival time = path1->arrival() + time_offset;
+
+    if (instances_timing_arcs.find(inst) != instances_timing_arcs.end()) {
+      const char* from_instance_name = network_->pathName(inst);
+      reportTimingPath(from_instance_name, instances_timing_arcs.at(inst), min_max, prev_time);
+
+      Instance *unwrapped_instance = inst;
+      while (inst == unwrapped_instance && i < path_last_index) {
+        prev_time = path1->arrival() + time_offset;
+
+        ++i;
+        path1 = expanded.path(i);
+        vertex = path1->vertex(this);
+        pin = vertex->pin();
+        inst = network_->instance(pin);
+      }
+
+      continue;
+    }
+
+    const TimingArc *prev_arc = path1->prevArc(this);
     Delay incr = 0.0;
     const char *line_case = nullptr;
     bool is_clk_start = path1->vertex(this) == clk_start;
     bool is_clk = path1->isClock(search_);
-    Instance *inst = network_->instance(pin);
+
     string src_attr = "";
     if (inst)
       src_attr = network_->getAttribute(inst, "src");
@@ -2739,7 +2892,7 @@ ReportPath::reportPath5(const Path *path,
       Slew slew = graph_->slew(vertex, rf, ap_index);
       if (prev_arc == nullptr) {
 	// First path.
-	reportInputExternalDelay(path1, time_offset);
+	reportInputExternalDelay(path1, time_offset, end_check_arc);
 	size_t next_index = i + 1;
 	const Path *next_path = expanded.path(next_index);
 	if (network_->isTopLevelPort(pin)
@@ -2842,6 +2995,71 @@ ReportPath::reportPath5(const Path *path,
     }
     else
       prev_time = time;
+  }
+}
+
+std::unordered_map<const Instance*, const TimingArc*> ReportPath::extractInstancesTimingArcs(const PathExpanded &path_expanded, const TimingArc *end_check_arc) const
+{
+  std::unordered_map<const Instance*, const TimingArc*> instances_timing_arcs{};
+
+  std::size_t starting_path_index = path_expanded.startIndex();
+  std::size_t ending_path_index = path_expanded.size();
+  Instance *inst = nullptr;
+  for (std::size_t index = starting_path_index; index < ending_path_index; ++index) {
+    const Path *path = path_expanded.path(index);
+    Vertex *vertex = path->vertex(this);
+    Pin *pin = vertex->pin();
+    inst = network_->instance(pin);
+    const TimingArc *timing_arc = path->prevArc(this);
+    if (hasTimingPaths(timing_arc)) {
+      instances_timing_arcs[inst] = timing_arc;
+    }
+  }
+
+  if (hasTimingPaths(end_check_arc)) {
+    instances_timing_arcs[inst] = end_check_arc;
+  }
+
+  return instances_timing_arcs;
+}
+
+bool ReportPath::hasTimingPaths(const TimingArc *timing_arc) const
+{
+  if (!timing_arc) {
+    return false;
+  }
+
+  const TimingArcSet *timing_arc_set = timing_arc->set();
+  return timing_arc_set && !timing_arc_set->timingPaths().empty();
+}
+
+void ReportPath::reportTimingPath(const char *instance_name, const TimingArc *timing_arc, const MinMax *min_max, float base_arrival) const
+{
+  const auto &timing_paths = timing_arc->set()->timingPaths();
+  const auto &timing_path = timing_paths.at(TimingPath::ROLE_PATH_MAPPINGS.at(timing_arc->role()).at(timing_arc->toEdge()->asRiseFall()->index()));
+  float previous_arrival = 0.0f;
+  for (std::size_t index = 0; index < timing_path.vertices.size(); ++index) {
+    const auto& vertex = timing_path.vertices[index];
+    std::string description = stdstrPrint("%s/%s (%s)", instance_name, vertex.pin.c_str(), vertex.cell.c_str());
+    
+    float increase = vertex.arrival - previous_arrival;
+    float time = base_arrival + vertex.arrival;
+
+    const RiseFall *rise_fall = RiseFall::find(vertex.transition.c_str());
+
+    if (vertex.is_driver) {
+      reportLine(description.c_str(), vertex.capacitance, vertex.slew, field_blank_, increase, time, false, min_max, rise_fall, "", "normal");
+    }
+    else {
+      reportLine(description.c_str(), field_blank_, vertex.slew, field_blank_, increase, time, false, min_max, rise_fall, "", "normal");
+    }
+
+    if (report_net_) {
+      const std::string net_description = stdstrPrint("%s (net)", vertex.net.c_str());
+      reportLine(net_description.c_str(), field_blank_, field_blank_, field_blank_, field_blank_, field_blank_, false, min_max, nullptr, "", "");
+    }
+
+    previous_arrival = vertex.arrival;
   }
 }
 
@@ -2971,7 +3189,8 @@ ReportPath::hasExtInputDriver(const Pin *pin,
 
 void
 ReportPath::reportInputExternalDelay(const Path *first_path,
-				     float time_offset) const
+				     float time_offset,
+				     const TimingArc *end_check_arc) const
 {
   const Pin *first_pin = first_path->pin(graph_);
   if (!pathFromClkPin(first_path, first_pin)) {
@@ -2987,7 +3206,7 @@ ReportPath::reportInputExternalDelay(const Path *first_path,
 	if (!ref_path.isNull() && reportClkPath()) {
 	  PathExpanded ref_expanded(&ref_path, this);
 	  reportPath3(&ref_path, ref_expanded, false, true,
-		      delay_zero, 0.0);
+		      delay_zero, 0.0, end_check_arc);
 	}
       }
       float input_arrival =

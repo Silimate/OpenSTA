@@ -422,6 +422,41 @@ LibertyReader::defineVisitors()
 		     &LibertyReader::endRiseFallConstraint);
   defineAttrVisitor("value", &LibertyReader::visitValue);
   defineAttrVisitor("values", &LibertyReader::visitValues);
+  defineAttrVisitor("slack", &LibertyReader::visitSlack);
+  defineGroupVisitor(
+         TimingPath::Names::DATA_ARRIVAL.at(RiseFall::riseIndex()),
+         &LibertyReader::beginRiseTimingPath,
+         &LibertyReader::endTimingPath);
+  defineGroupVisitor(
+         TimingPath::Names::DATA_ARRIVAL.at(RiseFall::fallIndex()),
+         &LibertyReader::beginFallTimingPath,
+         &LibertyReader::endTimingPath);
+  defineGroupVisitor(
+         TimingPath::Names::DATA_REQUIRED.at(RiseFall::riseIndex()),
+         &LibertyReader::beginRiseTimingPath,
+         &LibertyReader::endTimingPath);
+  defineGroupVisitor(
+         TimingPath::Names::DATA_REQUIRED.at(RiseFall::fallIndex()),
+         &LibertyReader::beginFallTimingPath,
+         &LibertyReader::endTimingPath);
+  defineGroupVisitor(
+         TimingPath::Names::CLOCKED_OUTPUT.at(RiseFall::riseIndex()),
+         &LibertyReader::beginRiseTimingPath,
+         &LibertyReader::endTimingPath);
+  defineGroupVisitor(
+         TimingPath::Names::CLOCKED_OUTPUT.at(RiseFall::fallIndex()),
+         &LibertyReader::beginFallTimingPath,
+         &LibertyReader::endTimingPath);
+  defineGroupVisitor(
+         TimingPath::Names::COMBINATIONAL.at(RiseFall::riseIndex()),
+         &LibertyReader::beginRiseTimingPath,
+         &LibertyReader::endTimingPath);
+  defineGroupVisitor(
+         TimingPath::Names::COMBINATIONAL.at(RiseFall::fallIndex()),
+         &LibertyReader::beginFallTimingPath,
+         &LibertyReader::endTimingPath);
+  defineAttrVisitor("time", &LibertyReader::visitTimingPathTime);
+  defineAttrVisitor("vertex", &LibertyReader::visitTimingPathVertex);
 
   defineGroupVisitor("lut", &LibertyReader::beginLut,&LibertyReader::endLut);
 
@@ -4552,6 +4587,56 @@ LibertyReader::beginFallConstraint(LibertyGroup *group)
 {
   // Scale factor depends on timing_type, which may follow this stmt.
   beginTimingTableModel(group, RiseFall::fall(), ScaleFactorType::unknown);
+}
+
+void
+LibertyReader::visitSlack(LibertyAttr *attr)
+{
+  timing_->attrs()->setSlack(library_->units()->timeUnit()->userToSta(attr->firstValue()->floatValue()));
+}
+
+void
+LibertyReader::beginRiseTimingPath(LibertyGroup *group)
+{
+  timing_path_.name = group->type();
+  timing_path_.rise_fall = RiseFall::rise();
+}
+
+void
+LibertyReader::beginFallTimingPath(LibertyGroup *group)
+{
+  timing_path_.name = group->type();
+  timing_path_.rise_fall = RiseFall::fall();
+}
+
+void
+LibertyReader::visitTimingPathTime(LibertyAttr *attr)
+{
+  timing_path_.time = library_->units()->timeUnit()->userToSta(attr->firstValue()->floatValue());
+}
+
+void
+LibertyReader::visitTimingPathVertex(LibertyAttr *attr)
+{
+  TimingPathVertex vertex{};
+  LibertyAttrValueSeq* values = attr->values();
+  vertex.instance = values->at(0)->stringValue();
+  vertex.cell = values->at(1)->stringValue();
+  vertex.pin = values->at(2)->stringValue();
+  vertex.net = values->at(3)->stringValue();
+  vertex.transition = values->at(4)->stringValue();
+  vertex.arrival = library_->units()->timeUnit()->userToSta(values->at(5)->floatValue());
+  vertex.slew = library_->units()->timeUnit()->userToSta(values->at(6)->floatValue());
+  vertex.capacitance = library_->units()->capacitanceUnit()->userToSta(values->at(7)->floatValue());
+  vertex.is_driver = values->at(8)->floatValue() > 0.5f;
+  timing_path_.vertices.emplace_back(vertex);
+}
+
+void
+LibertyReader::endTimingPath(LibertyGroup *)
+{
+  timing_->attrs()->addTimingPath(std::move(timing_path_));
+  timing_path_ = TimingPath{};
 }
 
 void
