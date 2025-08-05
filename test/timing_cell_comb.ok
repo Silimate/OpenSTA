@@ -6,7 +6,7 @@ library (timing_cell_comb) {
   leakage_power_unit             : 1pW;
   current_unit                   : "1mA";
   pulling_resistance_unit        : "1kohm";
-  time_unit                      : "1ns";
+  time_unit                      : "1ps";
   voltage_unit                   : "1v";
   library_features(report_delay_calculation);
 
@@ -14,28 +14,28 @@ library (timing_cell_comb) {
   input_threshold_pct_fall : 50;
   output_threshold_pct_rise : 50;
   output_threshold_pct_fall : 50;
-  slew_lower_threshold_pct_rise : 30;
-  slew_lower_threshold_pct_fall : 30;
-  slew_upper_threshold_pct_rise : 70;
-  slew_upper_threshold_pct_fall : 70;
+  slew_lower_threshold_pct_rise : 10;
+  slew_lower_threshold_pct_fall : 10;
+  slew_upper_threshold_pct_rise : 90;
+  slew_upper_threshold_pct_fall : 90;
   slew_derate_from_library : 1.0;
 
 
   nom_process                    : 1.0;
-  nom_temperature                : 125.0;
-  nom_voltage                    : 0.95;
+  nom_temperature                : 25.0;
+  nom_voltage                    : 0.70;
 
   lu_table_template(template_1) {
     variable_1 : total_output_net_capacitance;
-    index_1("0.36562,  1.89543,  3.79086,  7.58171,  15.16340,  30.32690,  60.65371");
+    index_1("1.44000,  2.88000,  5.76000,  11.52000,  23.04000,  46.08000,  92.16000");
   }
 
   cell ("timing_cell_comb") {
-    area : 0.798 
+    area : 0.073 
     is_macro_cell : true;
     pin("in") {
       direction : input;
-      capacitance : 0.9346;
+      capacitance : 0.5343;
     }
     pin("clk") {
       direction : input;
@@ -50,36 +50,36 @@ library (timing_cell_comb) {
         timing_sense : positive_unate;
         timing_type : combinational;
 	cell_rise(template_1) {
-          index_1("0.36562,  1.89543,  3.79086,  7.58171,  15.16340,  30.32690,  60.65371");
-          values("0.03778,0.05201,0.06870,0.10127,0.16559,0.29374,0.54949");
+          index_1("1.44000,  2.88000,  5.76000,  11.52000,  23.04000,  46.08000,  92.16000");
+          values("15.34000,18.76610,24.70210,36.34740,59.22760,104.82500,195.93398");
 	}
 	rise_transition(template_1) {
-          index_1("0.36562,  1.89543,  3.79086,  7.58171,  15.16340,  30.32690,  60.65371");
-          values("0.01335,0.02515,0.04029,0.07089,0.13219,0.25494,0.50009");
+          index_1("1.44000,  2.88000,  5.76000,  11.52000,  23.04000,  46.08000,  92.16000");
+          values("10.71910,16.68890,28.89130,53.74130,103.98500,204.87100,406.85599");
 	}
 	cell_fall(template_1) {
-          index_1("0.36562,  1.89543,  3.79086,  7.58171,  15.16340,  30.32690,  60.65371");
-          values("0.06977,0.07887,0.08724,0.10057,0.12244,0.16060,0.23211");
+          index_1("1.44000,  2.88000,  5.76000,  11.52000,  23.04000,  46.08000,  92.16000");
+          values("16.78370,19.81070,25.07290,34.75059,53.55110,91.08410,165.90601");
 	}
 	fall_transition(template_1) {
-          index_1("0.36562,  1.89543,  3.79086,  7.58171,  15.16340,  30.32690,  60.65371");
-          values("0.01347,0.01707,0.02105,0.02845,0.04280,0.07198,0.13291");
+          index_1("1.44000,  2.88000,  5.76000,  11.52000,  23.04000,  46.08000,  92.16000");
+          values("9.67198,14.34710,23.62830,42.45401,80.76170,158.09500,313.27496");
 	}
         paths() {
-          slack : 9.93240;
+          slack : 486.24326;
           fall_combinational() {
-            time: 0.06760;
-            vertex("", "timing_cell_comb", "in", "", "v", 0.00000, 0.00000, 0.83524, 1);
-            vertex("u2", "BUF_X1", "u2/A", "in", "v", 0.00000, 0.00000, 0.83524, 0);
-            vertex("u2", "BUF_X1", "u2/Z", "out", "v", 0.06760, 0.01261, 0.00000, 1);
-            vertex("", "timing_cell_comb", "out", "", "v", 0.06760, 0.01261, 0.00000, 0);
+            time: 13.75670;
+            vertex("", "timing_cell_comb", "in", "", "v", 0.00000, 0.00000, 0.39404, 1);
+            vertex("u2", "BUFx2_ASAP7_75t_R", "u2/A", "in", "v", 0.00000, 0.00000, 0.39404, 0);
+            vertex("u2", "BUFx2_ASAP7_75t_R", "u2/Y", "out", "v", 13.75670, 4.99686, 0.00000, 1);
+            vertex("", "timing_cell_comb", "out", "", "v", 13.75670, 4.99686, 0.00000, 0);
           }
           rise_combinational() {
-            time: 0.03438;
-            vertex("", "timing_cell_comb", "in", "", "^", 0.00000, 0.00000, 0.93456, 1);
-            vertex("u2", "BUF_X1", "u2/A", "in", "^", 0.00000, 0.00000, 0.93456, 0);
-            vertex("u2", "BUF_X1", "u2/Z", "out", "^", 0.03438, 0.01053, 0.00000, 1);
-            vertex("", "timing_cell_comb", "out", "", "^", 0.03438, 0.01053, 0.00000, 0);
+            time: 11.91390;
+            vertex("", "timing_cell_comb", "in", "", "^", 0.00000, 0.00000, 0.39934, 1);
+            vertex("u2", "BUFx2_ASAP7_75t_R", "u2/A", "in", "^", 0.00000, 0.00000, 0.39934, 0);
+            vertex("u2", "BUFx2_ASAP7_75t_R", "u2/Y", "out", "^", 11.91390, 4.74930, 0.00000, 1);
+            vertex("", "timing_cell_comb", "out", "", "^", 11.91390, 4.74930, 0.00000, 0);
           }
         }
       }

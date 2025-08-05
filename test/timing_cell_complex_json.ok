@@ -3,7 +3,7 @@
   "type": "check",
   "path_group": "clk",
   "path_type": "max",
-  "startpoint": "tt1/r1/CK (timing_cell_dff)",
+  "startpoint": "tt1/r1/CLK (timing_cell_dff)",
   "endpoint": "tt3/r1/D (timing_cell_dff)",
   "source_clock": "clk",
   "source_clock_edge": "rise",
@@ -14,118 +14,118 @@
       "verilog_src": "",
       "pin": "clk",
       "arrival": 0.000e+00,
-      "capacitance": 1.819e-15,
+      "capacitance": 9.510e-16,
       "slew": 0.000e+00
     },
     {
       "instance": "r1",
-      "cell": "DFF_X1",
-      "pin": "tt1/r1/CK",
+      "cell": "DFFHQx4_ASAP7_75t_R",
+      "pin": "tt1/r1/CLK",
       "net": "clk",
       "arrival": 0.000e+00,
       "slew": 0.000e+00
     },
     {
       "instance": "r1",
-      "cell": "DFF_X1",
+      "cell": "DFFHQx4_ASAP7_75t_R",
       "pin": "tt1/r1/Q",
       "net": "w2",
-      "arrival": 2.332e-10,
-      "slew": 1.635e-11
+      "arrival": 6.456e-11,
+      "slew": 8.703e-12
     },
     {
       "instance": "u2",
-      "cell": "BUF_X1",
+      "cell": "BUFx2_ASAP7_75t_R",
       "pin": "tt1/u2/A",
       "net": "w2",
-      "arrival": 2.332e-10,
-      "slew": 1.635e-11
+      "arrival": 6.456e-11,
+      "slew": 8.703e-12
     },
     {
       "instance": "u2",
-      "cell": "BUF_X1",
-      "pin": "tt1/u2/Z",
+      "cell": "BUFx2_ASAP7_75t_R",
+      "pin": "tt1/u2/Y",
       "net": "out",
-      "arrival": 3.091e-10,
-      "slew": 1.262e-11
+      "arrival": 7.972e-11,
+      "slew": 4.737e-12
     },
     {
       "cell": "timing_cell_dff",
       "pin": "tt1/out",
       "net": "",
-      "arrival": 3.091e-10,
-      "slew": 1.262e-11
+      "arrival": 7.972e-11,
+      "slew": 4.737e-12
     },
     {
       "cell": "timing_cell_comb",
       "pin": "tt2/in",
       "net": "",
-      "arrival": 3.147e-10,
+      "arrival": 8.125e-11,
       "slew": 0.000e+00
     },
     {
       "instance": "u2",
-      "cell": "BUF_X1",
+      "cell": "BUFx2_ASAP7_75t_R",
       "pin": "tt2/u2/A",
       "net": "in",
-      "arrival": 3.147e-10,
+      "arrival": 8.125e-11,
       "slew": 0.000e+00
     },
     {
       "instance": "u2",
-      "cell": "BUF_X1",
-      "pin": "tt2/u2/Z",
+      "cell": "BUFx2_ASAP7_75t_R",
+      "pin": "tt2/u2/Y",
       "net": "out",
-      "arrival": 3.823e-10,
-      "slew": 1.261e-11
+      "arrival": 9.317e-11,
+      "slew": 4.749e-12
     },
     {
       "cell": "timing_cell_comb",
       "pin": "tt2/out",
       "net": "",
-      "arrival": 3.823e-10,
-      "slew": 1.261e-11
+      "arrival": 9.317e-11,
+      "slew": 4.749e-12
     },
     {
       "instance": "u1",
-      "cell": "BUF_X1",
+      "cell": "BUFx2_ASAP7_75t_R",
       "verilog_src": "",
-      "pin": "u1/Z",
+      "pin": "u1/Y",
       "net": "w3",
-      "arrival": 4.677e-10,
-      "capacitance": 9.346e-16,
-      "slew": 1.482e-11
+      "arrival": 1.102e-10,
+      "capacitance": 5.343e-16,
+      "slew": 6.958e-12
     },
     {
       "cell": "timing_cell_dff",
       "pin": "tt3/in",
       "net": "",
-      "arrival": 4.677e-10,
+      "arrival": 1.102e-10,
       "slew": 0.000e+00
     },
     {
       "instance": "u1",
-      "cell": "BUF_X1",
+      "cell": "BUFx2_ASAP7_75t_R",
       "pin": "tt3/u1/A",
       "net": "in",
-      "arrival": 4.677e-10,
+      "arrival": 1.102e-10,
       "slew": 0.000e+00
     },
     {
       "instance": "u1",
-      "cell": "BUF_X1",
-      "pin": "tt3/u1/Z",
+      "cell": "BUFx2_ASAP7_75t_R",
+      "pin": "tt3/u1/Y",
       "net": "w1",
-      "arrival": 5.415e-10,
-      "slew": 1.504e-11
+      "arrival": 1.234e-10,
+      "slew": 7.065e-12
     },
     {
       "instance": "r1",
-      "cell": "DFF_X1",
+      "cell": "DFFHQx4_ASAP7_75t_R",
       "pin": "tt3/r1/D",
       "net": "w1",
-      "arrival": 5.415e-10,
-      "slew": 1.504e-11
+      "arrival": 1.234e-10,
+      "slew": 7.065e-12
     }
   ],
   "target_clock": "clk",
@@ -137,23 +137,23 @@
       "verilog_src": "",
       "pin": "clk",
       "arrival": 0.000e+00,
-      "capacitance": 1.819e-15,
+      "capacitance": 9.510e-16,
       "slew": 0.000e+00
     },
     {
       "instance": "r1",
-      "cell": "DFF_X1",
-      "pin": "tt3/r1/CK",
+      "cell": "DFFHQx4_ASAP7_75t_R",
+      "pin": "tt3/r1/CLK",
       "net": "clk",
       "arrival": 0.000e+00,
       "slew": 0.000e+00
     }
   ],
-  "data_arrival_time": 5.415e-10,
+  "data_arrival_time": 1.234e-10,
   "crpr": 0.000e+00,
-  "margin": 1.567e-10,
-  "required_time": 9.843e-09,
-  "slack": 9.302e-09
+  "margin": 1.261e-11,
+  "required_time": 4.874e-10,
+  "slack": 3.640e-10
 }
 ]
 }

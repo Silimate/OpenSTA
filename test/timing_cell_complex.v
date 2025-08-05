@@ -8,7 +8,7 @@ module timing_cell_complex (in, clk, out);
 
   timing_cell_comb tt2(.in(w1), .out(w2));
 
-  BUF_X1 u1 (.A(w2), .Z(w3));
+  BUFx2_ASAP7_75t_R u1 (.A(w2), .Y(w3));
 
   timing_cell_dff tt3(.in(w3), .clk(clk), .out(out));
 
