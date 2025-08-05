@@ -440,6 +440,7 @@ LibertyWriter::writeTimingArcSet(const TimingArcSet *arc_set)
   const Unit* time_unit = sta_state->units()->timeUnit();
   const Unit* cap_unit = sta_state->units()->capacitanceUnit();
 
+  // Custom Liberty attrs/groups for handling timing paths
   if (!arc_set->timingPaths().empty()) {
     fprintf(stream_, "        paths() {\n");
     fprintf(stream_, "          slack : %s;\n", time_unit->asString(arc_set->slack(), 5));
