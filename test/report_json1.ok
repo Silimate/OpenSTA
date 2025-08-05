@@ -3,8 +3,8 @@
   "type": "check",
   "path_group": "clk",
   "path_type": "max",
-  "startpoint": "_1415_/Q (sky130_fd_sc_hd__dfrtp_1)",
-  "endpoint": "_1416_[0]/D (sky130_fd_sc_hd__dfrtp_1)",
+  "startpoint": "_1415_/Q",
+  "endpoint": "_1416_[0]/D",
   "source_clock": "clk",
   "source_clock_edge": "rise",
   "source_path": [

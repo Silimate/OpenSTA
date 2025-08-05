@@ -3,8 +3,8 @@
   "type": "check",
   "path_group": "clk",
   "path_type": "max",
-  "startpoint": "tt1/r1/CLK (timing_cell_dff)",
-  "endpoint": "tt3/r1/D (timing_cell_dff)",
+  "startpoint": "tt1/out",
+  "endpoint": "tt3/in",
   "source_clock": "clk",
   "source_clock_edge": "rise",
   "source_path": [
