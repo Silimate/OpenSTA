@@ -599,7 +599,7 @@ MakeTimingModel::findClkedOutputPaths()
     Pin *output_pin = output_iter->next();
     if (network_->direction(output_pin)->isOutput()) {
       ClockEdgeDelays clk_delays;
-      std::unordered_map<const RiseFall*, RegisterOutputTimingPath> timing_paths;
+      std::unordered_map<const RiseFall*, CombinationalTimingPath> timing_paths;
       LibertyPort *output_port = modelPort(output_pin);
       Vertex *output_vertex = graph_->pinLoadVertex(output_pin);
       VertexPathIterator path_iter(output_vertex, this);
@@ -614,18 +614,18 @@ MakeTimingModel::findClkedOutputPaths()
           delays.mergeValue(output_rf, min_max,
                             delayAsFloat(delay, min_max, sta_));
 
-          RegisterOutputTimingPath timing_path{};
+          CombinationalTimingPath timing_path{};
 
           Arrival arrival = path->arrival();
           Required required = path->required();
           timing_path.slack = arrival - required;
           if ((timing_paths.count(output_rf) == 0 || timing_path.slack < timing_paths.at(output_rf).slack)) {
-            timing_path.sequential_delay_path.name = TimingPath::Names::CLOCKED_OUTPUT.at(output_rf->index());
+            timing_path.combinational_delay_path.name = TimingPath::Names::CLOCKED_OUTPUT.at(output_rf->index());
 
             static constexpr bool SKIP_CLOCK_VERTEX = true;
-            timing_path.sequential_delay_path.vertices = extractTimingPathVertices(path, output_rf, SKIP_CLOCK_VERTEX);
-            timing_path.sequential_delay_path.time = delay;
-            timing_path.sequential_delay_path.rise_fall = output_rf;
+            timing_path.combinational_delay_path.vertices = extractTimingPathVertices(path, output_rf, SKIP_CLOCK_VERTEX);
+            timing_path.combinational_delay_path.time = delay;
+            timing_path.combinational_delay_path.rise_fall = output_rf;
             timing_paths[output_rf] = std::move(timing_path);
           }
         }
@@ -650,7 +650,7 @@ MakeTimingModel::findClkedOutputPaths()
                 attrs = std::make_shared<TimingArcAttrs>();
               attrs->setModel(output_rf, gate_model);
               attrs->mergeSlack(timing_paths.at(output_rf).slack);
-              attrs->addTimingPath(timing_paths.at(output_rf).sequential_delay_path);
+              attrs->addTimingPath(timing_paths.at(output_rf).combinational_delay_path);
             }
 
             if (attrs) {

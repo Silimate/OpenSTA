@@ -58,12 +58,6 @@ struct InputRegisterTimingPath
   TimingPath data_required_path{};
 };
 
-struct RegisterOutputTimingPath
-{
-  float slack{std::numeric_limits<float>::max()};
-  TimingPath sequential_delay_path{};
-};
-
 struct CombinationalTimingPath
 {
   float slack{std::numeric_limits<float>::max()};
