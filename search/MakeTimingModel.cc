@@ -51,6 +51,7 @@
 #include "ClkLatency.hh"
 #include "PathExpanded.hh"
 #include "PathAnalysisPt.hh"
+#include "Latches.hh"
 
 namespace sta {
 
@@ -115,6 +116,7 @@ MakeTimingModel::makeTimingModel()
 
   findTimingFromInputs();
   findClkedOutputPaths();
+  findWorstSlackInternalPath();
   findClkTreeDelays();
 
   cell_->finish(false, report_, debug_);
@@ -678,6 +680,131 @@ MakeTimingModel::findClkedOutputPaths()
     }
   }
   delete output_iter;
+}
+
+////////////////////////////////////////////////////////////////
+
+class FindRegTimingArcs : public PathEndVisitor
+{
+public:
+  FindRegTimingArcs(Sta *sta);
+  FindRegTimingArcs(const FindRegTimingArcs&) = default;
+  virtual ~FindRegTimingArcs() {}
+  virtual PathEndVisitor *copy() const;
+  virtual void visit(PathEnd *path_end);
+  void setInputRf(const RiseFall *input_rf);
+  void mergeSlack(float slack, const InputRegisterTimingPath &timing_path);
+
+private:
+  const RiseFall *input_rf_;
+  Sta *sta_;
+  float slack_{std::numeric_limits<float>::max()};
+  InputRegisterTimingPath timing_path_;
+};
+
+FindRegTimingArcs::FindRegTimingArcs(Sta *sta) :
+  input_rf_(nullptr),
+  sta_(sta)
+{
+}
+
+PathEndVisitor *
+FindRegTimingArcs::copy() const
+{
+  return new FindRegTimingArcs(*this);
+}
+
+void
+FindRegTimingArcs::setInputRf(const RiseFall *input_rf)
+{
+  input_rf_ = input_rf;
+}
+
+void
+FindRegTimingArcs::visit(PathEnd *path_end)
+{
+  Path *src_path = path_end->path();
+  const Clock *src_clk = src_path->clock(sta_);
+  const ClockEdge *tgt_clk_edge = path_end->targetClkEdge(sta_);
+  if (src_clk == sta_->sdc()->defaultArrivalClock() && tgt_clk_edge) {
+    float slack = path_end->slack(sta_);
+    InputRegisterTimingPath timing_path = extractInputRegisterTimingPath(path_end, input_rf_);
+    mergeSlack(slack, timing_path);
+  }
+}
+
+void
+FindRegTimingArcs::mergeSlack(float slack, const InputRegisterTimingPath &timing_path)
+{
+  if (slack < slack_) {
+    slack_ = slack;
+    timing_path_ = std::move(timing_path);
+  }
+}
+
+bool isRegister(const TimingArcSet *timing_arc_set)
+{
+  return timing_arc_set && timing_arc_set->role() == TimingRole::regClkToQ();
+}
+
+void
+MakeTimingModel::findWorstSlackInternalPath()
+{
+  search_->deleteFilteredArrivals();
+
+  FindRegTimingArcs end_visitor(sta_);
+  Instance *top_inst = network_->topInstance();
+  LeafInstanceIterator *instance_iterator = network_->leafInstanceIterator(top_inst);
+  while (instance_iterator->hasNext()) {
+    Instance *instance = instance_iterator->next();
+    InstancePinIterator *instance_pin_iterator = network_->pinIterator(instance);
+    while (instance_pin_iterator->hasNext()) {
+      Pin *instance_pin = instance_pin_iterator->next();
+      if (network_->direction(instance_pin)->isOutput()) {
+        const char *instance_pin_name = network_->name(instance_pin);
+        Vertex *vertex = graph_->vertex(network_->vertexId(instance_pin));
+        bool is_register_instance{false};
+        VertexInEdgeIterator in_edge_iter(vertex, graph_);
+        while (in_edge_iter.hasNext()) {
+          Edge *in_edge = in_edge_iter.next();
+          if (isRegister(in_edge->timingArcSet())) {
+            is_register_instance = true;
+            break;
+          }
+        }
+
+        if (!is_register_instance) {
+          continue;
+        }
+
+        printf("Searching for register-register path starting from %s\n", instance_pin_name);
+        for (const RiseFall *input_rf : RiseFall::range()) {
+          const RiseFallBoth *input_rf1 = input_rf->asRiseFallBoth();
+          sta_->setInputDelay(instance_pin, input_rf1,
+                              sdc_->defaultArrivalClock(),
+                              sdc_->defaultArrivalClockEdge()->transition(),
+                              nullptr, false, false, MinMaxAll::all(), true, 0.0);
+
+          PinSet *from_pins = new PinSet(network_);
+          from_pins->insert(instance_pin);
+          ExceptionFrom *from = sta_->makeExceptionFrom(from_pins, nullptr, nullptr, input_rf1);
+          search_->findFilteredArrivals(from, nullptr, nullptr, false, false);
+
+          end_visitor.setInputRf(input_rf);
+          VertexSeq endpoints = search_->filteredEndpoints();
+          VisitPathEnds visit_ends(sta_);
+          for (Vertex *end : endpoints) {
+            const char *endpoint_name = network_->name(end->pin());
+            printf("%s %s -> %s\n", instance_pin_name, input_rf->shortName(), endpoint_name);
+            visit_ends.visitPathEnds(end, corner_, MinMaxAll::all(), true, &end_visitor);
+          }
+          search_->deleteFilteredArrivals();
+        }
+      }
+    }
+  }
+
+  delete instance_iterator;
 }
 
 ////////////////////////////////////////////////////////////////
