@@ -725,14 +725,9 @@ FindRegTimingArcs::setInputRf(const RiseFall *input_rf)
 void
 FindRegTimingArcs::visit(PathEnd *path_end)
 {
-  Path *src_path = path_end->path();
-  const Clock *src_clk = src_path->clock(sta_);
-  const ClockEdge *tgt_clk_edge = path_end->targetClkEdge(sta_);
-  if (src_clk == sta_->sdc()->defaultArrivalClock() && tgt_clk_edge) {
-    float slack = path_end->slack(sta_);
-    InputRegisterTimingPath timing_path = extractInputRegisterTimingPath(path_end, input_rf_);
-    mergeSlack(slack, timing_path);
-  }
+  float slack = path_end->slack(sta_);
+  InputRegisterTimingPath timing_path = extractInputRegisterTimingPath(path_end, input_rf_);
+  mergeSlack(slack, timing_path);
 }
 
 void
@@ -762,13 +757,14 @@ MakeTimingModel::findWorstSlackInternalPath()
     InstancePinIterator *instance_pin_iterator = network_->pinIterator(instance);
     while (instance_pin_iterator->hasNext()) {
       Pin *instance_pin = instance_pin_iterator->next();
-      if (network_->direction(instance_pin)->isOutput()) {
+      if (network_->direction(instance_pin)->isInput()) {
+        const char *instance_pin_name = network_->name(instance_pin);
         Vertex *vertex = graph_->vertex(network_->vertexId(instance_pin));
         bool is_register_instance{false};
-        VertexInEdgeIterator in_edge_iter(vertex, graph_);
-        while (in_edge_iter.hasNext()) {
-          Edge *in_edge = in_edge_iter.next();
-          if (isRegister(in_edge->timingArcSet())) {
+        VertexOutEdgeIterator out_edge_iter(vertex, graph_);
+        while (out_edge_iter.hasNext()) {
+          Edge *out_edge = out_edge_iter.next();
+          if (isRegister(out_edge->timingArcSet())) {
             is_register_instance = true;
             break;
           }
@@ -778,6 +774,7 @@ MakeTimingModel::findWorstSlackInternalPath()
           continue;
         }
 
+        printf("Searching for register-register path starting from %s\n", instance_pin_name);
         for (const RiseFall *input_rf : RiseFall::range()) {
           const RiseFallBoth *input_rf1 = input_rf->asRiseFallBoth();
           sta_->setInputDelay(instance_pin, input_rf1,
