@@ -77,6 +77,7 @@ public:
                   const char *filename,
                   const Corner *corner,
                   const bool scalar,
+                  const bool paths,
                   Sta *sta);
   ~MakeTimingModel();
   LibertyLibrary *makeTimingModel();
@@ -129,6 +130,7 @@ private:
   const char *filename_;
   const Corner *corner_;
   const bool scalar_;
+  const bool write_timing_paths_;
   LibertyLibrary *library_;
   LibertyCell *cell_;
   const MinMax *min_max_;

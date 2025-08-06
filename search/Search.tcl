@@ -1066,15 +1066,17 @@ define_cmd_args "write_timing_model" {[-scalar] \
                                         [-corner corner] \
                                         [-library_name lib_name]\
                                         [-cell_name cell_name]\
+                                        [-paths]\
                                         filename}
 
 proc write_timing_model { args } {
   parse_key_args "write_timing_model" args \
-    keys {-library_name -cell_name -corner} flags {-scalar}
+    keys {-library_name -cell_name -corner} flags {-scalar -paths}
   check_argc_eq1 "write_timing_model" $args
 
   set filename [file nativename [lindex $args 0]]
   set scalar [info exists flags(-scalar)]
+  set write_timing_paths [info exists flags(-paths)]
   if { [info exists keys(-cell_name)] } {
     set cell_name $keys(-cell_name)
   } else {
@@ -1086,7 +1088,7 @@ proc write_timing_model { args } {
     set lib_name $cell_name
   }
   set corner [parse_corner keys]
-  write_timing_model_cmd $lib_name $cell_name $filename $corner $scalar
+  write_timing_model_cmd $lib_name $cell_name $filename $corner $scalar $write_timing_paths
 }
 
 ################################################################

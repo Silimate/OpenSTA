@@ -65,9 +65,10 @@ makeTimingModel(const char *lib_name,
                 const char *filename,
                 const Corner *corner,
                 const bool scalar,
+                const bool write_timing_paths,
                 Sta *sta)
 {
-  MakeTimingModel maker(lib_name, cell_name, filename, corner, scalar, sta);
+  MakeTimingModel maker(lib_name, cell_name, filename, corner, scalar, write_timing_paths, sta);
   return maker.makeTimingModel();
 }
 
@@ -76,6 +77,7 @@ MakeTimingModel::MakeTimingModel(const char *lib_name,
                                  const char *filename,
                                  const Corner *corner,
                                  const bool scalar,
+                                 const bool write_timing_paths,
                                  Sta *sta) :
   StaState(sta),
   lib_name_(lib_name),
@@ -83,6 +85,7 @@ MakeTimingModel::MakeTimingModel(const char *lib_name,
   filename_(filename),
   corner_(corner),
   scalar_(scalar),
+  write_timing_paths_(write_timing_paths),
   cell_(nullptr),
   min_max_(MinMax::max()),
   lib_builder_(new LibertyBuilder),
@@ -288,7 +291,7 @@ std::vector<TimingPathVertex> extractTimingPathVertices(const Path *path, const 
 class MakeEndTimingArcs : public PathEndVisitor
 {
 public:
-  MakeEndTimingArcs(Sta *sta);
+  MakeEndTimingArcs(Sta *sta, bool export_paths);
   MakeEndTimingArcs(const MakeEndTimingArcs&) = default;
   virtual ~MakeEndTimingArcs() {}
   virtual PathEndVisitor *copy() const;
@@ -302,11 +305,13 @@ private:
   ClockEdgeDelays margins_;
   InputRegisterTimingPaths timing_paths_;
   Sta *sta_;
+  bool write_timing_paths_;
 };
 
-MakeEndTimingArcs::MakeEndTimingArcs(Sta *sta) :
+MakeEndTimingArcs::MakeEndTimingArcs(Sta *sta, bool export_paths) :
   input_rf_(nullptr),
-  sta_(sta)
+  sta_(sta),
+  write_timing_paths_(export_paths)
 {
 }
 
@@ -375,9 +380,11 @@ MakeEndTimingArcs::visit(PathEnd *path_end)
     if (debug->check("make_timing_model", 3))
       sta_->reportPathEnd(path_end);
 
-    InputRegisterTimingPath timing_path = extractInputRegisterTimingPath(path_end, input_rf_);
-    if (timing_path.slack < timing_paths_[min_max->index()][input_rf_->index()].slack) {
-      timing_paths_[min_max->index()][input_rf_->index()] = std::move(timing_path);
+    if (write_timing_paths_) {
+      InputRegisterTimingPath timing_path = extractInputRegisterTimingPath(path_end, input_rf_);
+      if (timing_path.slack < timing_paths_[min_max->index()][input_rf_->index()].slack) {
+        timing_paths_[min_max->index()][input_rf_->index()] = std::move(timing_path);
+      }
     }
 
     RiseFallMinMax &margins = margins_[tgt_clk_edge];
@@ -416,7 +423,7 @@ MakeTimingModel::findTimingFromInput(Port *input_port)
   Instance *top_inst = network_->topInstance();
   Pin *input_pin = network_->findPin(top_inst, input_port);
   if (!sta_->isClockSrc(input_pin)) {
-    MakeEndTimingArcs end_visitor(sta_);
+    MakeEndTimingArcs end_visitor(sta_, write_timing_paths_);
     OutputPinDelays output_delays;
     CombinationalTimingPaths timing_paths;
     for (const RiseFall *input_rf : RiseFall::range()) {
@@ -476,7 +483,7 @@ MakeTimingModel::findOutputDelays(const RiseFall *input_rf,
 
           Clock* clock = sdc_->clocks()->front();
           float slack = clock->period() - delay;
-          if (slack < timing_path.slack) {
+          if (write_timing_paths_ && slack < timing_path.slack) {
             timing_path.slack = slack;
             timing_path.combinational_delay_path.name = TimingPath::Names::COMBINATIONAL.at(output_rf->index());
             timing_path.combinational_delay_path.rise_fall = input_rf;
@@ -520,10 +527,12 @@ MakeTimingModel::makeSetupHoldTimingArcs(const Pin *input_pin,
             attrs = std::make_shared<TimingArcAttrs>();
           attrs->setModel(input_rf, check_model);
 
-          const InputRegisterTimingPath& timing_path = timing_paths[min_max->index()][input_rf->index()];
-          attrs->mergeSlack(timing_path.slack);
-          attrs->addTimingPath(timing_path.data_arrival_path);
-          attrs->addTimingPath(timing_path.data_required_path);
+          if (write_timing_paths_) {
+            const InputRegisterTimingPath& timing_path = timing_paths[min_max->index()][input_rf->index()];
+            attrs->mergeSlack(timing_path.slack);
+            attrs->addTimingPath(timing_path.data_arrival_path);
+            attrs->addTimingPath(timing_path.data_required_path);
+          }
         }
       }
       if (attrs) {
@@ -571,8 +580,10 @@ MakeTimingModel::makeInputOutputTimingArcs(const Pin *input_pin,
         if (attrs == nullptr)
           attrs = std::make_shared<TimingArcAttrs>();
         attrs->setModel(output_rf, gate_model);
-        attrs->mergeSlack(combinational_timing_paths.at(output_pin)[output_rf->index()].slack);
-        attrs->addTimingPath(combinational_timing_paths.at(output_pin)[output_rf->index()].combinational_delay_path);
+        if (write_timing_paths_) {
+          attrs->mergeSlack(combinational_timing_paths.at(output_pin)[output_rf->index()].slack);
+          attrs->addTimingPath(combinational_timing_paths.at(output_pin)[output_rf->index()].combinational_delay_path);
+        }
       }
     }
     if (attrs) {
@@ -619,7 +630,7 @@ MakeTimingModel::findClkedOutputPaths()
           Arrival arrival = path->arrival();
           Required required = path->required();
           timing_path.slack = arrival - required;
-          if ((timing_paths.count(output_rf) == 0 || timing_path.slack < timing_paths.at(output_rf).slack)) {
+          if (write_timing_paths_ && (timing_paths.count(output_rf) == 0 || timing_path.slack < timing_paths.at(output_rf).slack)) {
             timing_path.combinational_delay_path.name = TimingPath::Names::CLOCKED_OUTPUT.at(output_rf->index());
 
             static constexpr bool SKIP_CLOCK_VERTEX = true;
@@ -649,8 +660,10 @@ MakeTimingModel::findClkedOutputPaths()
               if (attrs == nullptr)
                 attrs = std::make_shared<TimingArcAttrs>();
               attrs->setModel(output_rf, gate_model);
-              attrs->mergeSlack(timing_paths.at(output_rf).slack);
-              attrs->addTimingPath(timing_paths.at(output_rf).combinational_delay_path);
+              if (write_timing_paths_) {
+                attrs->mergeSlack(timing_paths.at(output_rf).slack);
+                attrs->addTimingPath(timing_paths.at(output_rf).combinational_delay_path);
+              }
             }
 
             if (attrs) {

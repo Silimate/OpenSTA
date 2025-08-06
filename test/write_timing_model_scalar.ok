@@ -63,18 +63,6 @@ library (counter) {
 	rise_constraint(scalar) {
           values("0.29559");
 	}
-        paths() {
-          slack : -0.29559;
-          rise_data_required() {
-            time: 0.29559;
-            vertex("_1415_", "sky130_fd_sc_hd__dfrtp_1", "_1415_/CLK", "clk", "^", 0.00000, 0.00000, 0.00374, 0);
-          }
-          rise_data_arrival() {
-            time: 0.00000;
-            vertex("", "counter", "reset", "", "^", 0.00000, 0.00000, 0.00726, 1);
-            vertex("_1415_", "sky130_fd_sc_hd__dfrtp_1", "_1415_/RESET_B", "reset", "^", 0.00000, 0.00000, 0.00726, 0);
-          }
-        }
       }
       timing() {
         related_pin : "clk";
@@ -82,18 +70,6 @@ library (counter) {
 	rise_constraint(scalar) {
           values("-0.22827");
 	}
-        paths() {
-          slack : 0.22827;
-          rise_data_required() {
-            time: 0.22827;
-            vertex("_1415_", "sky130_fd_sc_hd__dfrtp_1", "_1415_/CLK", "clk", "^", 0.00000, 0.00000, 0.00374, 0);
-          }
-          rise_data_arrival() {
-            time: 0.00000;
-            vertex("", "counter", "reset", "", "^", 0.00000, 0.00000, 0.00726, 1);
-            vertex("_1415_", "sky130_fd_sc_hd__dfrtp_1", "_1415_/RESET_B", "reset", "^", 0.00000, 0.00000, 0.00726, 0);
-          }
-        }
       }
     }
     pin("in") {
@@ -108,27 +84,6 @@ library (counter) {
 	fall_constraint(scalar) {
           values("-0.03771");
 	}
-        paths() {
-          slack : 0.03143;
-          fall_data_required() {
-            time: -0.03771;
-            vertex("_1415_", "sky130_fd_sc_hd__dfrtp_1", "_1415_/CLK", "clk", "^", 0.00000, 0.00000, 0.00341, 0);
-          }
-          fall_data_arrival() {
-            time: 0.00000;
-            vertex("", "counter", "in", "", "v", 0.00000, 0.00000, 0.00195, 1);
-            vertex("_1415_", "sky130_fd_sc_hd__dfrtp_1", "_1415_/D", "in", "v", 0.00000, 0.00000, 0.00195, 0);
-          }
-          rise_data_required() {
-            time: -0.03143;
-            vertex("_1415_", "sky130_fd_sc_hd__dfrtp_1", "_1415_/CLK", "clk", "^", 0.00000, 0.00000, 0.00374, 0);
-          }
-          rise_data_arrival() {
-            time: 0.00000;
-            vertex("", "counter", "in", "", "^", 0.00000, 0.00000, 0.00201, 1);
-            vertex("_1415_", "sky130_fd_sc_hd__dfrtp_1", "_1415_/D", "in", "^", 0.00000, 0.00000, 0.00201, 0);
-          }
-        }
       }
       timing() {
         related_pin : "clk";
@@ -139,27 +94,6 @@ library (counter) {
 	fall_constraint(scalar) {
           values("0.10489");
 	}
-        paths() {
-          slack : -0.10489;
-          fall_data_required() {
-            time: -0.10489;
-            vertex("_1415_", "sky130_fd_sc_hd__dfrtp_1", "_1415_/CLK", "clk", "^", 0.00000, 0.00000, 0.00341, 0);
-          }
-          fall_data_arrival() {
-            time: 0.00000;
-            vertex("", "counter", "in", "", "v", 0.00000, 0.00000, 0.00195, 1);
-            vertex("_1415_", "sky130_fd_sc_hd__dfrtp_1", "_1415_/D", "in", "v", 0.00000, 0.00000, 0.00195, 0);
-          }
-          rise_data_required() {
-            time: -0.05608;
-            vertex("_1415_", "sky130_fd_sc_hd__dfrtp_1", "_1415_/CLK", "clk", "^", 0.00000, 0.00000, 0.00374, 0);
-          }
-          rise_data_arrival() {
-            time: 0.00000;
-            vertex("", "counter", "in", "", "^", 0.00000, 0.00000, 0.00201, 1);
-            vertex("_1415_", "sky130_fd_sc_hd__dfrtp_1", "_1415_/D", "in", "^", 0.00000, 0.00000, 0.00201, 0);
-          }
-        }
       }
     }
     pin("out") {
@@ -180,21 +114,6 @@ library (counter) {
 	fall_transition(scalar) {
           values("4.53677");
 	}
-        paths() {
-          slack : 3.79896;
-          fall_clocked_output() {
-            time: 3.79896;
-            vertex("_1416_\[0\]", "sky130_fd_sc_hd__dfrtp_1", "_1416_[0]/CLK", "clk", "^", 0.00000, 0.00000, 0.00341, 0);
-            vertex("_1416_\[0\]", "sky130_fd_sc_hd__dfrtp_1", "_1416_[0]/Q", "out", "v", 3.79896, 4.53677, 1.00000, 1);
-            vertex("", "counter", "out", "", "v", 3.79896, 4.53677, 1.00000, 0);
-          }
-          rise_clocked_output() {
-            time: 6.24237;
-            vertex("_1416_\[0\]", "sky130_fd_sc_hd__dfrtp_1", "_1416_[0]/CLK", "clk", "^", 0.00000, 0.00000, 0.00374, 0);
-            vertex("_1416_\[0\]", "sky130_fd_sc_hd__dfrtp_1", "_1416_[0]/Q", "out", "^", 6.24237, 8.46194, 1.00000, 1);
-            vertex("", "counter", "out", "", "^", 6.24237, 8.46194, 1.00000, 0);
-          }
-        }
       }
     }
   }

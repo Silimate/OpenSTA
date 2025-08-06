@@ -48,7 +48,8 @@ public:
   LibertyWriter(const LibertyLibrary *lib,
                 const char *filename,
                 FILE *stream,
-                Report *report);
+                Report *report,
+                bool write_timing_paths);
   void writeLibrary();
 
 protected:
@@ -86,16 +87,18 @@ protected:
   Report *report_;
   const Unit *time_unit_;
   const Unit *cap_unit_;
+  bool write_timing_paths_;
 };
 
 void
 writeLiberty(LibertyLibrary *lib,
              const char *filename,
-             StaState *sta)
+             StaState *sta,
+             bool write_timing_paths)
 {
   FILE *stream = fopen(filename, "w");
   if (stream) {
-    LibertyWriter writer(lib, filename, stream, sta->report());
+    LibertyWriter writer(lib, filename, stream, sta->report(), write_timing_paths);
     writer.writeLibrary();
     fclose(stream);
   }
@@ -106,13 +109,15 @@ writeLiberty(LibertyLibrary *lib,
 LibertyWriter::LibertyWriter(const LibertyLibrary *lib,
                              const char *filename,
                              FILE *stream,
-                             Report *report) :
+                             Report *report,
+                             bool write_timing_paths) :
   library_(lib),
   filename_(filename),
   stream_(stream),
   report_(report),
   time_unit_(lib->units()->timeUnit()),
-  cap_unit_(lib->units()->capacitanceUnit())
+  cap_unit_(lib->units()->capacitanceUnit()),
+  write_timing_paths_(write_timing_paths)
 {
 }
 
@@ -437,7 +442,7 @@ LibertyWriter::writeTimingArcSet(const TimingArcSet *arc_set)
   }
 
   // Custom Liberty attrs/groups for handling timing paths
-  if (arc_set->hasTimingPaths()) {
+  if (write_timing_paths_ && arc_set->hasTimingPaths()) {
     fprintf(stream_, "        paths() {\n");
     fprintf(stream_, "          slack : %s;\n", time_unit_->asString(arc_set->slack(), 5));
 
