@@ -133,6 +133,19 @@ struct TimingPath
   };
 };
 
+struct InputRegisterTimingPath
+{
+  float slack{std::numeric_limits<float>::max()};
+  TimingPath data_arrival_path{};
+  TimingPath data_required_path{};
+};
+
+struct CombinationalTimingPath
+{
+  float slack{std::numeric_limits<float>::max()};
+  TimingPath combinational_delay_path{};
+};
+
 ////////////////////////////////////////////////////////////////
 
 class TimingArcAttrs

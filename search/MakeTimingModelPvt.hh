@@ -51,19 +51,6 @@ public:
   bool rf_path_exists[RiseFall::index_count][RiseFall::index_count];
 };
 
-struct InputRegisterTimingPath
-{
-  float slack{std::numeric_limits<float>::max()};
-  TimingPath data_arrival_path{};
-  TimingPath data_required_path{};
-};
-
-struct CombinationalTimingPath
-{
-  float slack{std::numeric_limits<float>::max()};
-  TimingPath combinational_delay_path{};
-};
-
 typedef std::map<const ClockEdge*, RiseFallMinMax> ClockEdgeDelays;
 typedef std::map<const Pin *, OutputDelays> OutputPinDelays;
 typedef std::unordered_map<const Pin *, std::array<CombinationalTimingPath, 2>> CombinationalTimingPaths;

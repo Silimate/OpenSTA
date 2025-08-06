@@ -74,6 +74,7 @@ protected:
                        int index);
   void writeTableAxis10(const TableAxis *axis,
                         int index);
+  void writeTimingPath(int indent, const TimingPath &timing_path);
 
   const char *asString(bool value);
   const char *asString(const PortDirection *dir);
@@ -327,8 +328,38 @@ LibertyWriter::writeCell(const LibertyCell *cell)
     }
   }
 
+  fprintf(stream_, "    worst_slack_path() {\n");
+  fprintf(stream_, "      slack : %s;\n", time_unit_->asString(cell->getWorstSlack(), 5));
+  auto& data_arrival_timing_path = cell->getWorstSlackTimingPath().data_arrival_path;
+  writeTimingPath(6, data_arrival_timing_path);
+  auto& data_required_timing_path = cell->getWorstSlackTimingPath().data_required_path;
+  writeTimingPath(6, data_required_timing_path);
+  fprintf(stream_, "    }\n");
+
   fprintf(stream_, "  }\n");
   fprintf(stream_, "\n");
+}
+
+void
+LibertyWriter::writeTimingPath(int indent, const TimingPath &timing_path)
+{
+  fprintf(stream_, "%*s%s() {\n", indent, " ", timing_path.name.c_str());
+  fprintf(stream_, "%*s  time: %s;\n", indent, " ", time_unit_->asString(timing_path.time, 5));
+  for (auto& vertex : timing_path.vertices) {
+    fprintf(stream_, "%*s  vertex(\"%s\", \"%s\", \"%s\", \"%s\", \"%s\", %s, %s, %s, %d);\n",
+      indent,
+      " ",
+      vertex.instance.c_str(),
+      vertex.cell.c_str(),
+      vertex.pin.c_str(),
+      vertex.net.c_str(),
+      vertex.transition.c_str(),
+      time_unit_->asString(vertex.arrival, 5),
+      time_unit_->asString(vertex.slew, 5),
+      cap_unit_->asString(vertex.capacitance, 5),
+      vertex.is_driver);
+  }
+  fprintf(stream_, "%*s}\n", indent, " ");
 }
 
 void

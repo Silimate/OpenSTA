@@ -36,6 +36,7 @@
 #include "Transition.hh"
 #include "Delay.hh"
 #include "LibertyClass.hh"
+#include "TimingArc.hh"
 
 namespace sta {
 
@@ -561,6 +562,10 @@ public:
   const char *userFunctionClass() const;
   void setUserFunctionClass(const char *user_function_class);
 
+  void setWorstSlackTimingPath(float slack, const InputRegisterTimingPath& timing_path);
+  float getWorstSlack() const { return worst_slack_; }
+  const InputRegisterTimingPath &getWorstSlackTimingPath() const { return worst_slack_timing_path_; }
+
 protected:
   void addPort(ConcretePort *port);
   void setHasInternalPorts(bool has_internal);
@@ -652,6 +657,8 @@ protected:
   std::mutex waveform_lock_;
   std::string footprint_;
   std::string user_function_class_;
+  float worst_slack_{std::numeric_limits<float>::max()};
+  InputRegisterTimingPath worst_slack_timing_path_;
 
 private:
   friend class LibertyLibrary;

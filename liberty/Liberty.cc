@@ -2062,6 +2062,13 @@ LibertyCell::setUserFunctionClass(const char *user_function_class)
   user_function_class_ = user_function_class;
 }
 
+void
+LibertyCell::setWorstSlackTimingPath(float slack, const InputRegisterTimingPath& timing_path)
+{
+  worst_slack_ = slack;
+  worst_slack_timing_path_ = timing_path;
+}
+
 ////////////////////////////////////////////////////////////////
 
 LibertyCellPortIterator::LibertyCellPortIterator(const LibertyCell *cell) :

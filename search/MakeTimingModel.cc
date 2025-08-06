@@ -694,6 +694,8 @@ public:
   virtual void visit(PathEnd *path_end);
   void setInputRf(const RiseFall *input_rf);
   void mergeSlack(float slack, const InputRegisterTimingPath &timing_path);
+  float slack() const { return slack_; }
+  const InputRegisterTimingPath &timingPath() const { return timing_path_; }
 
 private:
   const RiseFall *input_rf_;
@@ -761,7 +763,6 @@ MakeTimingModel::findWorstSlackInternalPath()
     while (instance_pin_iterator->hasNext()) {
       Pin *instance_pin = instance_pin_iterator->next();
       if (network_->direction(instance_pin)->isOutput()) {
-        const char *instance_pin_name = network_->name(instance_pin);
         Vertex *vertex = graph_->vertex(network_->vertexId(instance_pin));
         bool is_register_instance{false};
         VertexInEdgeIterator in_edge_iter(vertex, graph_);
@@ -777,7 +778,6 @@ MakeTimingModel::findWorstSlackInternalPath()
           continue;
         }
 
-        printf("Searching for register-register path starting from %s\n", instance_pin_name);
         for (const RiseFall *input_rf : RiseFall::range()) {
           const RiseFallBoth *input_rf1 = input_rf->asRiseFallBoth();
           sta_->setInputDelay(instance_pin, input_rf1,
@@ -794,8 +794,6 @@ MakeTimingModel::findWorstSlackInternalPath()
           VertexSeq endpoints = search_->filteredEndpoints();
           VisitPathEnds visit_ends(sta_);
           for (Vertex *end : endpoints) {
-            const char *endpoint_name = network_->name(end->pin());
-            printf("%s %s -> %s\n", instance_pin_name, input_rf->shortName(), endpoint_name);
             visit_ends.visitPathEnds(end, corner_, MinMaxAll::all(), true, &end_visitor);
           }
           search_->deleteFilteredArrivals();
@@ -803,6 +801,8 @@ MakeTimingModel::findWorstSlackInternalPath()
       }
     }
   }
+
+  cell_->setWorstSlackTimingPath(end_visitor.slack(), end_visitor.timingPath());
 
   delete instance_iterator;
 }
