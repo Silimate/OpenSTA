@@ -90,6 +90,15 @@
       "instance": "u1",
       "cell": "BUFx2_ASAP7_75t_R",
       "verilog_src": "",
+      "pin": "u1/A",
+      "net": "w2",
+      "arrival": 9.444e-11,
+      "slew": 6.964e-12
+    },
+    {
+      "instance": "u1",
+      "cell": "BUFx2_ASAP7_75t_R",
+      "verilog_src": "",
       "pin": "u1/Y",
       "net": "w3",
       "arrival": 1.102e-10,

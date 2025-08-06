@@ -1201,17 +1201,14 @@ ReportPath::reportJson(const PathExpanded &expanded,
     if (instances_timing_arcs.find(inst) != instances_timing_arcs.end()) {
       const char* from_instance_name = network_->pathName(inst);
       reportTimingPathJson(from_instance_name, instances_timing_arcs.at(inst), indent, i == path_last_index - 1, result, is_clk_path, prev_time);
-
-      const Instance *unwrapped_instance = inst;
-      while (inst == unwrapped_instance && i < path_last_index - 1) {
-        prev_time = path->arrival();
-
-        ++i;
+      
+      // Paths only contain cell input/outpin pin, so we can just skip input pin
+      // and calculate prev time from the output pin
+      ++i;
+      if (i < path_last_index) {
         path = expanded.path(i);
-        pin = path->vertex(this)->pin();
-        inst = network_->instance(pin);
+        prev_time = path->arrival();
       }
-
       continue;
     }
 
@@ -2845,18 +2842,14 @@ ReportPath::reportPath5(const Path *path,
     if (instances_timing_arcs.find(inst) != instances_timing_arcs.end()) {
       const char* from_instance_name = network_->pathName(inst);
       reportTimingPath(from_instance_name, instances_timing_arcs.at(inst), min_max, prev_time);
-
-      Instance *unwrapped_instance = inst;
-      while (inst == unwrapped_instance && i < path_last_index) {
-        prev_time = path1->arrival() + time_offset;
-
-        ++i;
+      
+      // Paths only contain cell input/outpin pin, so we can just skip input pin
+      // and calculate prev time from the output pin
+      ++i;
+      if (i < path_last_index) {
         path1 = expanded.path(i);
-        vertex = path1->vertex(this);
-        pin = vertex->pin();
-        inst = network_->instance(pin);
+        prev_time = path1->arrival() + time_offset;
       }
-
       continue;
     }
 

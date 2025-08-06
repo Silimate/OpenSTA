@@ -16,6 +16,7 @@ Path Type: max
    0.00   81.25 ^ tt2/u2/A (BUFx2_ASAP7_75t_R)
   11.91   93.17 ^ tt2/u2/Y (BUFx2_ASAP7_75t_R)
    0.00   93.17 ^ tt2/out (timing_cell_comb)
+   0.00   94.44 ^ u1/A (BUFx2_ASAP7_75t_R)
   15.75  110.19 ^ u1/Y (BUFx2_ASAP7_75t_R)
    0.00  110.19 ^ tt3/in (timing_cell_dff)
    0.00  110.19 ^ tt3/u1/A (BUFx2_ASAP7_75t_R)
