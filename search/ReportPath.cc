@@ -3016,7 +3016,7 @@ bool ReportPath::hasTimingPaths(const TimingArc *timing_arc) const
   }
 
   const TimingArcSet *timing_arc_set = timing_arc->set();
-  return timing_arc_set && !timing_arc_set->timingPaths().empty();
+  return timing_arc_set && timing_arc_set->hasTimingPaths();
 }
 
 void ReportPath::reportTimingPath(const char *instance_name, const TimingArc *timing_arc, const MinMax *min_max, float base_arrival) const

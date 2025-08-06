@@ -436,18 +436,14 @@ LibertyWriter::writeTimingArcSet(const TimingArcSet *arc_set)
     }
   }
 
-  StaState* sta_state = Sta::sta();
-  const Unit* time_unit = sta_state->units()->timeUnit();
-  const Unit* cap_unit = sta_state->units()->capacitanceUnit();
-
   // Custom Liberty attrs/groups for handling timing paths
-  if (!arc_set->timingPaths().empty()) {
+  if (arc_set->hasTimingPaths()) {
     fprintf(stream_, "        paths() {\n");
-    fprintf(stream_, "          slack : %s;\n", time_unit->asString(arc_set->slack(), 5));
+    fprintf(stream_, "          slack : %s;\n", time_unit_->asString(arc_set->slack(), 5));
 
     for (auto& [_, timing_path] : arc_set->timingPaths()) {
       fprintf(stream_, "          %s() {\n", timing_path.name.c_str());
-      fprintf(stream_, "            time: %s;\n", time_unit->asString(timing_path.time, 5));
+      fprintf(stream_, "            time: %s;\n", time_unit_->asString(timing_path.time, 5));
       for (auto& vertex : timing_path.vertices) {
         fprintf(stream_, "            vertex(\"%s\", \"%s\", \"%s\", \"%s\", \"%s\", %s, %s, %s, %d);\n",
           vertex.instance.c_str(),
@@ -455,9 +451,9 @@ LibertyWriter::writeTimingArcSet(const TimingArcSet *arc_set)
           vertex.pin.c_str(),
           vertex.net.c_str(),
           vertex.transition.c_str(),
-          time_unit->asString(vertex.arrival, 5),
-          time_unit->asString(vertex.slew, 5),
-          cap_unit->asString(vertex.capacitance, 5),
+          time_unit_->asString(vertex.arrival, 5),
+          time_unit_->asString(vertex.slew, 5),
+          cap_unit_->asString(vertex.capacitance, 5),
           vertex.is_driver);
       }
       fprintf(stream_, "          }\n");

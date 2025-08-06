@@ -234,6 +234,7 @@ public:
   const char *modeName() const { return attrs_->modeName(); }
   const char *modeValue() const { return attrs_->modeValue(); }
   float slack() const { return attrs_->slack(); }
+  bool hasTimingPaths() const { return !attrs_->timingPaths().empty(); }
   const std::unordered_map<std::string, TimingPath>& timingPaths() const { return attrs_->timingPaths(); }
 
   // Timing arc set index in cell.
