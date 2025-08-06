@@ -328,13 +328,16 @@ LibertyWriter::writeCell(const LibertyCell *cell)
     }
   }
 
-  fprintf(stream_, "    worst_slack_path() {\n");
-  fprintf(stream_, "      slack : %s;\n", time_unit_->asString(cell->getWorstSlack(), 5));
-  auto& data_arrival_timing_path = cell->getWorstSlackTimingPath().data_arrival_path;
-  writeTimingPath(6, data_arrival_timing_path);
-  auto& data_required_timing_path = cell->getWorstSlackTimingPath().data_required_path;
-  writeTimingPath(6, data_required_timing_path);
-  fprintf(stream_, "    }\n");
+  for (const MinMax *min_max : MinMax::range()) {
+    for (const RiseFall *rise_fall : RiseFall::range()) {
+      fprintf(stream_, "    worst_slack_paths() {\n");
+      fprintf(stream_, "      slack : %s;\n", time_unit_->asString(cell->getWorstSlack(), 5));
+      auto& timing_path = cell->getWorstSlackTimingPath(min_max, rise_fall);
+      writeTimingPath(8, timing_path.data_arrival_path);
+      writeTimingPath(8, timing_path.data_required_path);
+      fprintf(stream_, "    }\n");
+    }
+  }
 
   fprintf(stream_, "  }\n");
   fprintf(stream_, "\n");

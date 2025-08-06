@@ -693,15 +693,18 @@ public:
   virtual PathEndVisitor *copy() const;
   virtual void visit(PathEnd *path_end);
   void setInputRf(const RiseFall *input_rf);
-  void mergeSlack(float slack, const InputRegisterTimingPath &timing_path);
+  void mergeSlack(const InputRegisterTimingPath &timing_path,
+                  const MinMax *min_max,
+                  const RiseFall *rise_fall);
   float slack() const { return slack_; }
-  const InputRegisterTimingPath &timingPath() const { return timing_path_; }
+  const InputRegisterTimingPath &timingPath(const MinMax *min_max,
+                                            const RiseFall *rise_fall) const;
 
 private:
   const RiseFall *input_rf_;
   Sta *sta_;
   float slack_{std::numeric_limits<float>::max()};
-  InputRegisterTimingPath timing_path_;
+  std::array<std::array<InputRegisterTimingPath, 2>, 2> timing_paths_;
 };
 
 FindRegTimingArcs::FindRegTimingArcs(Sta *sta) :
@@ -725,18 +728,31 @@ FindRegTimingArcs::setInputRf(const RiseFall *input_rf)
 void
 FindRegTimingArcs::visit(PathEnd *path_end)
 {
-  float slack = path_end->slack(sta_);
   InputRegisterTimingPath timing_path = extractInputRegisterTimingPath(path_end, input_rf_);
-  mergeSlack(slack, timing_path);
+  printf("Traversing register-register path %s %s -> %s (%s)\n",
+    timing_path.data_arrival_path.vertices.at(1).pin.c_str(),
+    input_rf_->shortName(),
+    timing_path.data_arrival_path.vertices.back().pin.c_str(),
+    path_end->minMax(sta_)->to_string().c_str());
+  mergeSlack(timing_path, path_end->minMax(sta_), input_rf_);
 }
 
 void
-FindRegTimingArcs::mergeSlack(float slack, const InputRegisterTimingPath &timing_path)
+FindRegTimingArcs::mergeSlack(const InputRegisterTimingPath &timing_path,
+                              const MinMax *min_max,
+                              const RiseFall *rise_fall)
 {
-  if (slack < slack_) {
-    slack_ = slack;
-    timing_path_ = std::move(timing_path);
+  InputRegisterTimingPath &existing_timing_path = timing_paths_.at(min_max->index()).at(rise_fall->index());
+  if (timing_path.slack < existing_timing_path.slack) {
+    slack_ = std::min(timing_path.slack, slack_);
+    existing_timing_path = std::move(timing_path);
   }
+}
+
+const InputRegisterTimingPath &
+FindRegTimingArcs::timingPath(const MinMax *min_max, const RiseFall *rise_fall) const
+{
+  return timing_paths_.at(min_max->index()).at(rise_fall->index());
 }
 
 bool isRegister(const TimingArcSet *timing_arc_set)
@@ -758,7 +774,6 @@ MakeTimingModel::findWorstSlackInternalPath()
     while (instance_pin_iterator->hasNext()) {
       Pin *instance_pin = instance_pin_iterator->next();
       if (network_->direction(instance_pin)->isInput()) {
-        const char *instance_pin_name = network_->name(instance_pin);
         Vertex *vertex = graph_->vertex(network_->vertexId(instance_pin));
         bool is_register_instance{false};
         VertexOutEdgeIterator out_edge_iter(vertex, graph_);
@@ -774,7 +789,6 @@ MakeTimingModel::findWorstSlackInternalPath()
           continue;
         }
 
-        printf("Searching for register-register path starting from %s\n", instance_pin_name);
         for (const RiseFall *input_rf : RiseFall::range()) {
           const RiseFallBoth *input_rf1 = input_rf->asRiseFallBoth();
           sta_->setInputDelay(instance_pin, input_rf1,
@@ -799,7 +813,11 @@ MakeTimingModel::findWorstSlackInternalPath()
     }
   }
 
-  cell_->setWorstSlackTimingPath(end_visitor.slack(), end_visitor.timingPath());
+  for (const MinMax *min_max : MinMax::range()) {
+    for (const RiseFall *rise_fall : RiseFall::range()) {
+      cell_->setWorstSlackTimingPath(end_visitor.timingPath(min_max, rise_fall), min_max, rise_fall);
+    }
+  }
 
   delete instance_iterator;
 }

@@ -2063,10 +2063,19 @@ LibertyCell::setUserFunctionClass(const char *user_function_class)
 }
 
 void
-LibertyCell::setWorstSlackTimingPath(float slack, const InputRegisterTimingPath& timing_path)
+LibertyCell::setWorstSlackTimingPath(const InputRegisterTimingPath& timing_path,
+                                     const MinMax *min_max,
+                                     const RiseFall *rise_fall)
 {
-  worst_slack_ = slack;
-  worst_slack_timing_path_ = timing_path;
+  worst_slack_ = std::min(timing_path.slack, worst_slack_);
+  worst_slack_timing_paths_.at(min_max->index()).at(rise_fall->index()) = timing_path;
+}
+
+const InputRegisterTimingPath &
+LibertyCell::getWorstSlackTimingPath(const MinMax *min_max,
+                                     const RiseFall *rise_fall) const
+{
+  return worst_slack_timing_paths_.at(min_max->index()).at(rise_fall->index());
 }
 
 ////////////////////////////////////////////////////////////////

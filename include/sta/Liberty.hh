@@ -562,9 +562,12 @@ public:
   const char *userFunctionClass() const;
   void setUserFunctionClass(const char *user_function_class);
 
-  void setWorstSlackTimingPath(float slack, const InputRegisterTimingPath& timing_path);
+  void setWorstSlackTimingPath(const InputRegisterTimingPath& timing_path,
+                               const MinMax *min_max,
+                               const RiseFall *rise_fall);
   float getWorstSlack() const { return worst_slack_; }
-  const InputRegisterTimingPath &getWorstSlackTimingPath() const { return worst_slack_timing_path_; }
+  const InputRegisterTimingPath &getWorstSlackTimingPath(const MinMax *min_max,
+                                                         const RiseFall *rise_fall) const;
 
 protected:
   void addPort(ConcretePort *port);
@@ -658,7 +661,7 @@ protected:
   std::string footprint_;
   std::string user_function_class_;
   float worst_slack_{std::numeric_limits<float>::max()};
-  InputRegisterTimingPath worst_slack_timing_path_;
+  std::array<std::array<InputRegisterTimingPath, 2>, 2> worst_slack_timing_paths_;
 
 private:
   friend class LibertyLibrary;
