@@ -813,13 +813,9 @@ MakeTimingModel::findWorstSlackInternalPath()
           from_pins->insert(register_input_pin);
           ExceptionFrom *from = sta_->makeExceptionFrom(from_pins, nullptr, nullptr, RiseFallBoth::rise());
 
-          PinSet *thru_pins = new PinSet(network_);
-          thru_pins->insert(register_output_pin);
-          ExceptionThru *thru = sta_->makeExceptionThru(thru_pins, nullptr, nullptr, input_rf1);
-          ExceptionThruSeq *thru_seq = new ExceptionThruSeq;
-          thru_seq->emplace_back(thru);
+          ExceptionTo *to = sta_->makeExceptionTo(nullptr, nullptr, nullptr, input_rf1, input_rf1);
 
-          search_->findFilteredArrivals(from, thru_seq, nullptr, false, false);
+          search_->findFilteredArrivals(from, nullptr, to, false, false);
 
           end_visitor.setInputRf(input_rf);
           VertexSeq endpoints = search_->filteredEndpoints();
