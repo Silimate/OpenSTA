@@ -771,35 +771,55 @@ MakeTimingModel::findWorstSlackInternalPath()
   while (instance_iterator->hasNext()) {
     Instance *instance = instance_iterator->next();
     InstancePinIterator *instance_pin_iterator = network_->pinIterator(instance);
+
+    std::vector<Pin*> input_pins{};
+    std::vector<Pin*> output_pins{};
+
     while (instance_pin_iterator->hasNext()) {
       Pin *instance_pin = instance_pin_iterator->next();
+      const char *instance_pin_name = network_->name(instance_pin);
       if (network_->direction(instance_pin)->isInput()) {
         Vertex *vertex = graph_->vertex(network_->vertexId(instance_pin));
-        bool is_register_instance{false};
         VertexOutEdgeIterator out_edge_iter(vertex, graph_);
         while (out_edge_iter.hasNext()) {
           Edge *out_edge = out_edge_iter.next();
           if (isRegister(out_edge->timingArcSet())) {
-            is_register_instance = true;
+            input_pins.emplace_back(instance_pin);
             break;
           }
         }
+      } else if (network_->direction(instance_pin)->isOutput()) {
+        output_pins.emplace_back(instance_pin);
+      }
+    }
 
-        if (!is_register_instance) {
-          continue;
-        }
+    if (input_pins.empty()) {
+      continue;
+    }
+
+    for (auto& register_input_pin : input_pins) {
+      for (auto& register_output_pin : output_pins) {
+        const char *input_pin_name = network_->name(register_input_pin);
+        const char *output_pin_name = network_->name(register_output_pin);
 
         for (const RiseFall *input_rf : RiseFall::range()) {
           const RiseFallBoth *input_rf1 = input_rf->asRiseFallBoth();
-          sta_->setInputDelay(instance_pin, input_rf1,
+          sta_->setInputDelay(register_input_pin, input_rf1,
                               sdc_->defaultArrivalClock(),
                               sdc_->defaultArrivalClockEdge()->transition(),
                               nullptr, false, false, MinMaxAll::all(), true, 0.0);
 
           PinSet *from_pins = new PinSet(network_);
-          from_pins->insert(instance_pin);
-          ExceptionFrom *from = sta_->makeExceptionFrom(from_pins, nullptr, nullptr, input_rf1);
-          search_->findFilteredArrivals(from, nullptr, nullptr, false, false);
+          from_pins->insert(register_input_pin);
+          ExceptionFrom *from = sta_->makeExceptionFrom(from_pins, nullptr, nullptr, RiseFallBoth::rise());
+
+          PinSet *thru_pins = new PinSet(network_);
+          thru_pins->insert(register_output_pin);
+          ExceptionThru *thru = sta_->makeExceptionThru(thru_pins, nullptr, nullptr, input_rf1);
+          ExceptionThruSeq *thru_seq = new ExceptionThruSeq;
+          thru_seq->emplace_back(thru);
+
+          search_->findFilteredArrivals(from, thru_seq, nullptr, false, false);
 
           end_visitor.setInputRf(input_rf);
           VertexSeq endpoints = search_->filteredEndpoints();
