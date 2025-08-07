@@ -565,9 +565,9 @@ public:
   void setWorstSlackTimingPath(const InputRegisterTimingPath& timing_path,
                                const MinMax *min_max,
                                const RiseFall *rise_fall);
-  float getWorstSlack() const { return worst_slack_; }
   const InputRegisterTimingPath &getWorstSlackTimingPath(const MinMax *min_max,
                                                          const RiseFall *rise_fall) const;
+  bool hasWorstSlackTimingPaths() const;
 
 protected:
   void addPort(ConcretePort *port);

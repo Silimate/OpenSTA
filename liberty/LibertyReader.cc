@@ -457,6 +457,26 @@ LibertyReader::defineVisitors()
          &LibertyReader::endTimingPath);
   defineAttrVisitor("time", &LibertyReader::visitTimingPathTime);
   defineAttrVisitor("vertex", &LibertyReader::visitTimingPathVertex);
+  defineGroupVisitor(
+         "worst_slack_paths",
+         &LibertyReader::beginRegisterToRegisterTimingPaths,
+         &LibertyReader::endRegisterToRegisterTimingPaths);
+  defineGroupVisitor(
+         "min_rise",
+         &LibertyReader::beginRegisterToRegisterMinRiseTimingPath,
+         &LibertyReader::endRegisterToRegisterTimingPath);
+  defineGroupVisitor(
+         "min_fall",
+         &LibertyReader::beginRegisterToRegisterMinFallTimingPath,
+         &LibertyReader::endRegisterToRegisterTimingPath);
+  defineGroupVisitor(
+         "max_rise",
+         &LibertyReader::beginRegisterToRegisterMaxRiseTimingPath,
+         &LibertyReader::endRegisterToRegisterTimingPath);
+  defineGroupVisitor(
+         "max_fall",
+         &LibertyReader::beginRegisterToRegisterMaxFallTimingPath,
+         &LibertyReader::endRegisterToRegisterTimingPath);
 
   defineGroupVisitor("lut", &LibertyReader::beginLut,&LibertyReader::endLut);
 
@@ -4571,12 +4591,18 @@ LibertyReader::beginFallConstraint(LibertyGroup *group)
 void
 LibertyReader::visitSlack(LibertyAttr *attr)
 {
-  timing_->attrs()->setSlack(library_->units()->timeUnit()->userToSta(attr->firstValue()->floatValue()));
+  float slack = library_->units()->timeUnit()->userToSta(attr->firstValue()->floatValue());
+  if (timing_) {
+    timing_->attrs()->setSlack(slack);
+  } else if (traversing_cell_worst_timing_paths_) {
+    register_to_register_timing_path_.slack = slack;
+  }
 }
 
 void
 LibertyReader::beginRiseTimingPath(LibertyGroup *group)
 {
+  timing_path_ = TimingPath{};
   timing_path_.name = group->type();
   timing_path_.rise_fall = RiseFall::rise();
 }
@@ -4584,6 +4610,7 @@ LibertyReader::beginRiseTimingPath(LibertyGroup *group)
 void
 LibertyReader::beginFallTimingPath(LibertyGroup *group)
 {
+  timing_path_ = TimingPath{};
   timing_path_.name = group->type();
   timing_path_.rise_fall = RiseFall::fall();
 }
@@ -4614,8 +4641,60 @@ LibertyReader::visitTimingPathVertex(LibertyAttr *attr)
 void
 LibertyReader::endTimingPath(LibertyGroup *)
 {
-  timing_->attrs()->addTimingPath(std::move(timing_path_));
-  timing_path_ = TimingPath{};
+  if (timing_) {
+    timing_->attrs()->addTimingPath(std::move(timing_path_));
+  } else if (traversing_cell_worst_timing_paths_) {
+    if (timing_path_.name.rfind("data_arrival") != std::string::npos) {
+      register_to_register_timing_path_.data_arrival_path = std::move(timing_path_);
+    } else {
+      register_to_register_timing_path_.data_required_path = std::move(timing_path_);
+    }
+  }
+}
+
+void
+LibertyReader::beginRegisterToRegisterTimingPaths(LibertyGroup *)
+{
+  traversing_cell_worst_timing_paths_ = true;
+}
+
+void
+LibertyReader::endRegisterToRegisterTimingPaths(LibertyGroup *)
+{
+  traversing_cell_worst_timing_paths_ = false;
+}
+
+void LibertyReader::beginRegisterToRegisterMinRiseTimingPath(LibertyGroup *)
+{
+  register_to_register_timing_path_ = InputRegisterTimingPath{};
+  timing_path_min_max_ = MinMax::min();
+  timing_path_rise_fall_ = RiseFall::rise();
+}
+
+void LibertyReader::beginRegisterToRegisterMinFallTimingPath(LibertyGroup *)
+{
+  register_to_register_timing_path_ = InputRegisterTimingPath{};
+  timing_path_min_max_ = MinMax::min();
+  timing_path_rise_fall_ = RiseFall::fall();
+}
+
+void LibertyReader::beginRegisterToRegisterMaxRiseTimingPath(LibertyGroup *)
+{
+  register_to_register_timing_path_ = InputRegisterTimingPath{};
+  timing_path_min_max_ = MinMax::max();
+  timing_path_rise_fall_ = RiseFall::rise();
+}
+
+void LibertyReader::beginRegisterToRegisterMaxFallTimingPath(LibertyGroup *)
+{
+  register_to_register_timing_path_ = InputRegisterTimingPath{};
+  timing_path_min_max_ = MinMax::max();
+  timing_path_rise_fall_ = RiseFall::fall();
+}
+
+void LibertyReader::endRegisterToRegisterTimingPath(LibertyGroup *)
+{
+  cell_->setWorstSlackTimingPath(register_to_register_timing_path_, timing_path_min_max_, timing_path_rise_fall_);
 }
 
 void

@@ -328,18 +328,20 @@ LibertyWriter::writeCell(const LibertyCell *cell)
     }
   }
 
-  fprintf(stream_, "    worst_slack_paths() {\n");
-  for (const MinMax *min_max : MinMax::range()) {
-    for (const RiseFall *rise_fall : RiseFall::range()) {
-      fprintf(stream_, "      %s_%s() {\n", min_max->to_string().c_str(), rise_fall->name());
-      auto& timing_path = cell->getWorstSlackTimingPath(min_max, rise_fall);
-      fprintf(stream_, "        slack : %s;\n", time_unit_->asString(timing_path.slack, 5));
-      writeTimingPath(8, timing_path.data_arrival_path);
-      writeTimingPath(8, timing_path.data_required_path);
-      fprintf(stream_, "      }\n");
+  if (write_timing_paths_ && cell->hasWorstSlackTimingPaths()) {
+    fprintf(stream_, "    worst_slack_paths() {\n");
+    for (const MinMax *min_max : MinMax::range()) {
+      for (const RiseFall *rise_fall : RiseFall::range()) {
+        fprintf(stream_, "      %s_%s() {\n", min_max->to_string().c_str(), rise_fall->name());
+        auto& timing_path = cell->getWorstSlackTimingPath(min_max, rise_fall);
+        fprintf(stream_, "        slack : %s;\n", time_unit_->asString(timing_path.slack, 5));
+        writeTimingPath(8, timing_path.data_arrival_path);
+        writeTimingPath(8, timing_path.data_required_path);
+        fprintf(stream_, "      }\n");
+      }
     }
+    fprintf(stream_, "    }\n");
   }
-  fprintf(stream_, "    }\n");
 
   fprintf(stream_, "  }\n");
   fprintf(stream_, "\n");

@@ -2078,6 +2078,20 @@ LibertyCell::getWorstSlackTimingPath(const MinMax *min_max,
   return worst_slack_timing_paths_.at(min_max->index()).at(rise_fall->index());
 }
 
+bool
+LibertyCell::hasWorstSlackTimingPaths() const
+{
+  for (const auto& min_max_paths : worst_slack_timing_paths_) {
+    for (const auto& rise_fall_paths : min_max_paths) {
+      if (!rise_fall_paths.data_arrival_path.vertices.empty()) {
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+
 ////////////////////////////////////////////////////////////////
 
 LibertyCellPortIterator::LibertyCellPortIterator(const LibertyCell *cell) :
