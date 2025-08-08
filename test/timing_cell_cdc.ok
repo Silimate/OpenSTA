@@ -285,6 +285,60 @@ library (timing_cell_cdc) {
         }
       }
     }
+    worst_slack_paths() {
+      min_rise() {
+        slack : 69.42394;
+        rise_data_arrival() {
+          time: 64.70945;
+          vertex("r1", "DFFHQx4_ASAP7_75t_R", "r1/CLK", "clk_a", "^", 0.00000, 0.00000, 0.35582, 0);
+          vertex("r1", "DFFHQx4_ASAP7_75t_R", "r1/Q", "w1", "^", 64.70945, 8.88979, 0.49848, 1);
+          vertex("r2", "DFFHQx4_ASAP7_75t_R", "r2/D", "w1", "^", 64.70945, 8.88979, 0.49848, 0);
+        }
+        rise_data_required() {
+          time: -4.71449;
+          vertex("r2", "DFFHQx4_ASAP7_75t_R", "r2/CLK", "clk_b", "^", 0.00000, 0.00000, 0.47554, 0);
+        }
+      }
+      min_fall() {
+        slack : 51.65410;
+        fall_data_arrival() {
+          time: 60.37365;
+          vertex("r1", "DFFHQx4_ASAP7_75t_R", "r1/CLK", "clk_a", "^", 0.00000, 0.00000, 0.35251, 0);
+          vertex("r1", "DFFHQx4_ASAP7_75t_R", "r1/Q", "w1", "v", 60.37365, 7.26521, 0.48550, 1);
+          vertex("r2", "DFFHQx4_ASAP7_75t_R", "r2/D", "w1", "v", 60.37365, 7.26521, 0.48550, 0);
+        }
+        fall_data_required() {
+          time: 8.71955;
+          vertex("r2", "DFFHQx4_ASAP7_75t_R", "r2/CLK", "clk_b", "^", 0.00000, 0.00000, 0.47543, 0);
+        }
+      }
+      max_rise() {
+        slack : 422.26083;
+        rise_data_arrival() {
+          time: 64.80278;
+          vertex("r1", "DFFHQx4_ASAP7_75t_R", "r1/CLK", "clk_a", "^", 0.00000, 0.00000, 0.47554, 0);
+          vertex("r1", "DFFHQx4_ASAP7_75t_R", "r1/Q", "w1", "^", 64.80278, 9.00323, 0.55869, 1);
+          vertex("r2", "DFFHQx4_ASAP7_75t_R", "r2/D", "w1", "^", 64.80278, 9.00323, 0.55869, 0);
+        }
+        rise_data_required() {
+          time: 487.06360;
+          vertex("r2", "DFFHQx4_ASAP7_75t_R", "r2/CLK", "clk_b", "^", 0.00000, 0.00000, 0.35582, 0);
+        }
+      }
+      max_fall() {
+        slack : 435.13882;
+        fall_data_arrival() {
+          time: 60.47008;
+          vertex("r1", "DFFHQx4_ASAP7_75t_R", "r1/CLK", "clk_a", "^", 0.00000, 0.00000, 0.47543, 0);
+          vertex("r1", "DFFHQx4_ASAP7_75t_R", "r1/Q", "w1", "v", 60.47008, 7.37528, 0.55560, 1);
+          vertex("r2", "DFFHQx4_ASAP7_75t_R", "r2/D", "w1", "v", 60.47008, 7.37528, 0.55560, 0);
+        }
+        fall_data_required() {
+          time: 495.60889;
+          vertex("r2", "DFFHQx4_ASAP7_75t_R", "r2/CLK", "clk_b", "^", 0.00000, 0.00000, 0.35251, 0);
+        }
+      }
+    }
   }
 
 }

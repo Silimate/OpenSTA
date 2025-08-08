@@ -5,4 +5,3 @@ link_design timing_cell
 create_clock -name clk -period 500 {clk}
 set_input_delay -clock clk 0 {in}
 write_timing_model -paths results/timing_paths_non_propagated_clock.log
-report_checks

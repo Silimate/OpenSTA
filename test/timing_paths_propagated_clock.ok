@@ -49,7 +49,6 @@ library (timing_cell) {
           slack : -24.81533;
           fall_data_required() {
             time: 24.81533;
-            vertex("", "timing_cell", "clk", "", "^", 0.00000, 0.00000, 1.00966, 1);
             vertex("b1", "BUFx2_ASAP7_75t_R", "b1/A", "clk", "^", 0.00000, 0.00000, 1.00966, 0);
             vertex("b1", "BUFx2_ASAP7_75t_R", "b1/Y", "clk_d", "^", 13.04533, 6.72075, 0.47543, 1);
             vertex("d1", "DFFHQx4_ASAP7_75t_R", "d1/CLK", "clk_d", "^", 13.04533, 6.72075, 0.47543, 0);
@@ -61,7 +60,6 @@ library (timing_cell) {
           }
           rise_data_required() {
             time: 10.68728;
-            vertex("", "timing_cell", "clk", "", "^", 0.00000, 0.00000, 1.00982, 1);
             vertex("b1", "BUFx2_ASAP7_75t_R", "b1/A", "clk", "^", 0.00000, 0.00000, 1.00982, 0);
             vertex("b1", "BUFx2_ASAP7_75t_R", "b1/Y", "clk_d", "^", 13.04533, 6.72075, 0.47554, 1);
             vertex("d1", "DFFHQx4_ASAP7_75t_R", "d1/CLK", "clk_d", "^", 13.04533, 6.72075, 0.47554, 0);
@@ -86,7 +84,6 @@ library (timing_cell) {
           slack : 502.69290;
           fall_data_required() {
             time: 511.90652;
-            vertex("", "timing_cell", "clk", "", "^", 0.00000, 0.00000, 0.74655, 1);
             vertex("b1", "BUFx2_ASAP7_75t_R", "b1/A", "clk", "^", 0.00000, 0.00000, 0.74655, 0);
             vertex("b1", "BUFx2_ASAP7_75t_R", "b1/Y", "clk_d", "^", 12.76048, 6.22442, 0.35251, 1);
             vertex("d1", "DFFHQx4_ASAP7_75t_R", "d1/CLK", "clk_d", "^", 12.76048, 6.22442, 0.35251, 0);
@@ -98,7 +95,6 @@ library (timing_cell) {
           }
           rise_data_required() {
             time: 502.69290;
-            vertex("", "timing_cell", "clk", "", "^", 0.00000, 0.00000, 0.75516, 1);
             vertex("b1", "BUFx2_ASAP7_75t_R", "b1/A", "clk", "^", 0.00000, 0.00000, 0.75516, 0);
             vertex("b1", "BUFx2_ASAP7_75t_R", "b1/Y", "clk_d", "^", 12.76048, 6.22442, 0.35582, 1);
             vertex("d1", "DFFHQx4_ASAP7_75t_R", "d1/CLK", "clk_d", "^", 12.76048, 6.22442, 0.35582, 0);
@@ -162,14 +158,12 @@ library (timing_cell) {
           slack : 59.70571;
           fall_clocked_output() {
             time: 59.70571;
-            vertex("", "timing_cell", "clk", "", "^", 0.00000, 0.00000, 0.74655, 1);
             vertex("d2", "DFFHQx4_ASAP7_75t_R", "d2/CLK", "clk", "^", 0.00000, 0.00000, 0.74655, 0);
             vertex("d2", "DFFHQx4_ASAP7_75t_R", "d2/Q", "out", "v", 59.70571, 6.50280, 0.00000, 1);
             vertex("", "timing_cell", "out", "", "v", 59.70571, 6.50280, 0.00000, 0);
           }
           rise_clocked_output() {
             time: 63.93688;
-            vertex("", "timing_cell", "clk", "", "^", 0.00000, 0.00000, 0.75516, 1);
             vertex("d2", "DFFHQx4_ASAP7_75t_R", "d2/CLK", "clk", "^", 0.00000, 0.00000, 0.75516, 0);
             vertex("d2", "DFFHQx4_ASAP7_75t_R", "d2/Q", "out", "^", 63.93688, 7.95060, 0.00000, 1);
             vertex("", "timing_cell", "out", "", "^", 63.93688, 7.95060, 0.00000, 0);
@@ -195,7 +189,6 @@ library (timing_cell) {
         }
         rise_data_required() {
           time: -4.35271;
-          vertex("", "timing_cell", "clk", "", "^", 0.00000, 0.00000, 1.00982, 1);
           vertex("d2", "DFFHQx4_ASAP7_75t_R", "d2/CLK", "clk", "^", 0.00000, 0.00000, 1.00982, 0);
         }
       }
@@ -216,7 +209,6 @@ library (timing_cell) {
         }
         fall_data_required() {
           time: 8.77794;
-          vertex("", "timing_cell", "clk", "", "^", 0.00000, 0.00000, 1.00966, 1);
           vertex("d2", "DFFHQx4_ASAP7_75t_R", "d2/CLK", "clk", "^", 0.00000, 0.00000, 1.00966, 0);
         }
       }
@@ -237,7 +229,6 @@ library (timing_cell) {
         }
         rise_data_required() {
           time: 487.39279;
-          vertex("", "timing_cell", "clk", "", "^", 0.00000, 0.00000, 0.75516, 1);
           vertex("d2", "DFFHQx4_ASAP7_75t_R", "d2/CLK", "clk", "^", 0.00000, 0.00000, 0.75516, 0);
         }
       }
@@ -258,7 +249,6 @@ library (timing_cell) {
         }
         fall_data_required() {
           time: 495.70926;
-          vertex("", "timing_cell", "clk", "", "^", 0.00000, 0.00000, 0.74655, 1);
           vertex("d2", "DFFHQx4_ASAP7_75t_R", "d2/CLK", "clk", "^", 0.00000, 0.00000, 0.74655, 0);
         }
       }
