@@ -169,6 +169,8 @@ record_sta_tests {
   timing_cell_complex_json
   timing_cell_cdc
   timing_cell_complex_cdc
+  timing_paths_propagated_clock
+  timing_paths_non_propagated_clock
 }
 
 define_test_group fast [group_tests all]

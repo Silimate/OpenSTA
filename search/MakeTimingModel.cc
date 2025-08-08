@@ -250,58 +250,95 @@ MakeTimingModel::checkClock(Clock *clk)
 
 ////////////////////////////////////////////////////////////////
 
-std::vector<TimingPathVertex> extractTimingPathVertices(const Path *path, const RiseFall *rise_fall)
+TimingPathVertex extractTimingPathVertexDescription(StaState *sta_state,
+                                                    const RiseFall *rise_fall,
+                                                    DcalcAnalysisPt *dcalc_ap,
+                                                    const Path *path_element,
+                                                    bool is_clock_propagated)
+{
+  Vertex *vertex = path_element->vertex(sta_state);
+  Pin *pin = vertex->pin();
+
+  bool is_clk = path_element->isClock(sta_state->search());
+
+  Instance *inst = sta_state->network()->instance(pin);
+
+  TimingPathVertex timing_path_vertex{};
+  
+  timing_path_vertex.instance = sta_state->network()->pathName(inst);
+  if (auto net = sta_state->network()->net(pin)) {
+    timing_path_vertex.net = sta_state->sdcNetwork()->pathName(net);
+  }
+  timing_path_vertex.pin = sta_state->cmdNetwork()->pathName(pin);
+  timing_path_vertex.cell = sta_state->network()->cellName(inst);
+  
+  timing_path_vertex.arrival = path_element->arrival();
+  if (is_clk && !is_clock_propagated) {
+    timing_path_vertex.arrival = 0.0f;
+  }
+
+  timing_path_vertex.slew = path_element->slew(sta_state);
+
+  timing_path_vertex.capacitance = sta_state->graphDelayCalc()->loadCap(pin, rise_fall, dcalc_ap);
+
+  const RiseFall* vertex_rise_fall = path_element->transition(sta_state);
+  timing_path_vertex.transition = vertex_rise_fall->shortName();
+
+  timing_path_vertex.is_driver = sta_state->network()->isDriver(pin);
+
+  return timing_path_vertex;
+}
+
+std::vector<TimingPathVertex> extractTimingPathVertices(const Path *path, const RiseFall *rise_fall, bool skip_clk_vertex)
 {
   StaState* sta_state = Sta::sta();
 
   PathExpanded expanded(path, sta_state);
-  std::size_t path_first_index = 0;
+  std::size_t path_first_index = skip_clk_vertex ? 1 : 0;
   std::size_t path_last_index = expanded.size() - 1;
 
   bool is_clock_propagated = path->clkInfo(sta_state->search())->isPropagated();
   const Path *clk_path = expanded.clkPath();
   Vertex *clk_start = clk_path ? clk_path->vertex(sta_state) : nullptr;
 
+  DcalcAnalysisPt *dcalc_ap = path->pathAnalysisPt(sta_state)->dcalcAnalysisPt();
+
   std::vector<TimingPathVertex> vertices;
   vertices.reserve(path_last_index - path_first_index + 1);
   for (std::size_t i = path_first_index; i <= path_last_index; ++i) {
     const Path *path_element = expanded.path(i);
-    Vertex *vertex = path_element->vertex(sta_state);
-    Pin *pin = vertex->pin();
 
     bool is_clk_start = path_element->vertex(sta_state) == clk_start;
     bool is_clk = path_element->isClock(sta_state->search());
-
-    if (!is_clock_propagated && !is_clk_start && is_clk) {
+    
+    if (is_clk && !is_clock_propagated && !is_clk_start) {
       continue;
     }
-
-    Instance *inst = sta_state->network()->instance(pin);
-
-    TimingPathVertex timing_path_vertex{};
-    
-    timing_path_vertex.instance = sta_state->network()->pathName(inst);
-    if (auto net = sta_state->network()->net(pin)) {
-      timing_path_vertex.net = sta_state->sdcNetwork()->pathName(net);
-    }
-    timing_path_vertex.pin = sta_state->cmdNetwork()->pathName(pin);
-    timing_path_vertex.cell = sta_state->network()->cellName(inst);
-    
-    timing_path_vertex.arrival = path_element->arrival();
-    if (is_clk && !is_clock_propagated) {
-      timing_path_vertex.arrival = 0.0f;
-    }
-
-    timing_path_vertex.slew = path_element->slew(sta_state);
-
-    DcalcAnalysisPt *dcalc_ap = path->pathAnalysisPt(sta_state)->dcalcAnalysisPt();
-    timing_path_vertex.capacitance = sta_state->graphDelayCalc()->loadCap(pin, rise_fall, dcalc_ap);
-
-    const RiseFall* vertex_rise_fall = path_element->transition(sta_state);
-    timing_path_vertex.transition = vertex_rise_fall->shortName();
-
-    timing_path_vertex.is_driver = sta_state->network()->isDriver(pin);
   
+    TimingPathVertex timing_path_vertex = extractTimingPathVertexDescription(sta_state, rise_fall, dcalc_ap, path_element, is_clock_propagated);
+    vertices.emplace_back(timing_path_vertex);
+  }
+
+  return vertices;
+}
+
+std::vector<TimingPathVertex> extractDataRequiredTimingPathVertices(const Path *path, const RiseFall *rise_fall)
+{
+  StaState* sta_state = Sta::sta();
+
+  PathExpanded expanded(path, sta_state);
+  std::size_t path_last_index = expanded.size() - 1;
+  
+  bool is_clock_propagated = path->clkInfo(sta_state->search())->isPropagated();
+  std::size_t path_first_index = is_clock_propagated ? 1 : path_last_index;
+
+  DcalcAnalysisPt *dcalc_ap = path->pathAnalysisPt(sta_state)->dcalcAnalysisPt();
+
+  std::vector<TimingPathVertex> vertices;
+  vertices.reserve(path_last_index - path_first_index + 1);
+  for (std::size_t i = path_first_index; i <= path_last_index; ++i) {
+    const Path *path_element = expanded.path(i);
+    TimingPathVertex timing_path_vertex = extractTimingPathVertexDescription(sta_state, rise_fall, dcalc_ap, path_element, is_clock_propagated);
     vertices.emplace_back(timing_path_vertex);
   }
 
@@ -354,12 +391,15 @@ extractInputRegisterTimingPath(PathEnd *path_end, const RiseFall *input_rf)
 
   InputRegisterTimingPath input_register_timing_path{};
 
-  input_register_timing_path.data_arrival_path.vertices = extractTimingPathVertices(path_end->path(), input_rf);
+  const Path *path = path_end->path();
+  static constexpr bool INCLUDE_CLOCK_VERTEX = false;
+  input_register_timing_path.data_arrival_path.vertices = extractTimingPathVertices(path, input_rf, INCLUDE_CLOCK_VERTEX);
   input_register_timing_path.data_arrival_path.time = path_end->dataArrivalTime(sta_state);
   input_register_timing_path.data_arrival_path.rise_fall = input_rf;
   input_register_timing_path.data_arrival_path.name = TimingPath::Names::DATA_ARRIVAL.at(input_rf->index());
   
-  input_register_timing_path.data_required_path.vertices = extractTimingPathVertices(path_end->targetClkPath(), input_rf);
+  const Path *clock_path = path_end->targetClkPath();
+  input_register_timing_path.data_required_path.vertices = extractDataRequiredTimingPathVertices(clock_path, input_rf);
   input_register_timing_path.data_required_path.time = path_end->requiredTime(sta_state);
   input_register_timing_path.data_required_path.rise_fall = input_rf;
   input_register_timing_path.data_required_path.name = TimingPath::Names::DATA_REQUIRED.at(input_rf->index());
@@ -506,7 +546,8 @@ MakeTimingModel::findOutputDelays(const RiseFall *input_rf,
             timing_path.combinational_delay_path.name = TimingPath::Names::COMBINATIONAL.at(output_rf->index());
             timing_path.combinational_delay_path.rise_fall = input_rf;
 
-            timing_path.combinational_delay_path.vertices = extractTimingPathVertices(path, input_rf);
+            static constexpr bool INCLUDE_CLOCK_VERTEX = false;
+            timing_path.combinational_delay_path.vertices = extractTimingPathVertices(path, input_rf, INCLUDE_CLOCK_VERTEX);
             timing_path.combinational_delay_path.time = path->arrival();
           }
         }
@@ -650,7 +691,8 @@ MakeTimingModel::findClkedOutputPaths()
           if (write_timing_paths_ && (timing_paths.count(output_rf) == 0 || timing_path.slack < timing_paths.at(output_rf).slack)) {
             timing_path.combinational_delay_path.name = TimingPath::Names::CLOCKED_OUTPUT.at(output_rf->index());
 
-            timing_path.combinational_delay_path.vertices = extractTimingPathVertices(path, output_rf);
+            static constexpr bool SKIP_CLOCK_VERTEX = true;
+            timing_path.combinational_delay_path.vertices = extractTimingPathVertices(path, output_rf, SKIP_CLOCK_VERTEX);
             timing_path.combinational_delay_path.time = delay;
             timing_path.combinational_delay_path.rise_fall = output_rf;
             timing_paths[output_rf] = std::move(timing_path);
@@ -764,7 +806,7 @@ FindRegTimingArcs::timingPath(const MinMax *min_max, const RiseFall *rise_fall) 
   return timing_paths_.at(min_max->index()).at(rise_fall->index());
 }
 
-bool isRegister(const TimingArcSet *timing_arc_set)
+bool isRegisterInput(const TimingArcSet *timing_arc_set)
 {
   return timing_arc_set && timing_arc_set->role() == TimingRole::regClkToQ();
 }
@@ -772,6 +814,10 @@ bool isRegister(const TimingArcSet *timing_arc_set)
 void
 MakeTimingModel::findWorstSlackInternalPath()
 {
+  if (!write_timing_paths_) {
+    return;
+  }
+
   search_->deleteFilteredArrivals();
 
   FindRegTimingArcs end_visitor(sta_);
@@ -792,7 +838,7 @@ MakeTimingModel::findWorstSlackInternalPath()
         VertexOutEdgeIterator out_edge_iter(vertex, graph_);
         while (out_edge_iter.hasNext()) {
           Edge *out_edge = out_edge_iter.next();
-          if (isRegister(out_edge->timingArcSet())) {
+          if (isRegisterInput(out_edge->timingArcSet())) {
             input_pins.emplace_back(instance_pin);
             break;
           }
