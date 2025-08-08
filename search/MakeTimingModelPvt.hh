@@ -25,12 +25,15 @@
 #pragma once
 
 #include <map>
+#include <unordered_map>
+#include <limits>
 
 #include "LibertyClass.hh"
 #include "SdcClass.hh"
 #include "SearchClass.hh"
 #include "StaState.hh"
 #include "RiseFallMinMax.hh"
+#include "TimingArc.hh"
 
 namespace sta {
 
@@ -48,8 +51,29 @@ public:
   bool rf_path_exists[RiseFall::index_count][RiseFall::index_count];
 };
 
+struct InputRegisterTimingPath
+{
+  float slack{std::numeric_limits<float>::max()};
+  TimingPath data_arrival_path{};
+  TimingPath data_required_path{};
+};
+
+struct RegisterOutputTimingPath
+{
+  float slack{std::numeric_limits<float>::max()};
+  TimingPath sequential_delay_path{};
+};
+
+struct CombinationalTimingPath
+{
+  float slack{std::numeric_limits<float>::max()};
+  TimingPath combinational_delay_path{};
+};
+
 typedef std::map<const ClockEdge*, RiseFallMinMax> ClockEdgeDelays;
 typedef std::map<const Pin *, OutputDelays> OutputPinDelays;
+typedef std::unordered_map<const Pin *, std::array<CombinationalTimingPath, 2>> CombinationalTimingPaths;
+typedef std::array<std::array<InputRegisterTimingPath, 2>, 2> InputRegisterTimingPaths;
 
 class MakeTimingModel : public StaState
 {
@@ -78,11 +102,14 @@ private:
                         TimingSense sense,
                         const ClkDelays &delays);
   void findOutputDelays(const RiseFall *input_rf,
-                        OutputPinDelays &output_pin_delays);
+                        OutputPinDelays &output_pin_delays,
+                        CombinationalTimingPaths &combinational_timing_paths);
   void makeSetupHoldTimingArcs(const Pin *input_pin,
-                               const ClockEdgeDelays &clk_margins);
+                               const ClockEdgeDelays &clk_margins,
+                               const InputRegisterTimingPaths& timing_paths);
   void makeInputOutputTimingArcs(const Pin *input_pin,
-                                 OutputPinDelays &output_pin_delays);
+                                 OutputPinDelays &output_pin_delays,
+                                 CombinationalTimingPaths &combinational_timing_paths);
   TimingModel *makeScalarCheckModel(float value,
                                     ScaleFactorType scale_factor_type,
                                     const RiseFall *rf);
