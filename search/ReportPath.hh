@@ -100,12 +100,16 @@ public:
                   const char *path_name,
                   int indent,
                   bool trailing_comma,
-                  std::string &result) const;
+                  std::string &result,
+                  const TimingArc *end_check_arc,
+                  bool is_clk_path) const;
   void reportJson(const PathExpanded &expanded,
                   const char *path_name,
                   int indent,
                   bool trailing_comma,
-                  std::string &result) const;
+                  std::string &result,
+                  const TimingArc *end_check_arc,
+                  bool is_clk_path) const;
 
   void reportEndHeader() const;
   void reportEndLine(const PathEnd *end) const;
@@ -238,7 +242,8 @@ protected:
 			   float time_offset,
 			   Arrival clk_insertion,
 			   Arrival clk_latency,
-			   bool is_path_delay) const;
+			   bool is_path_delay,
+			   const TimingArc *end_check_arc) const;
   bool reportGenClkSrcPath(const Path *clk_path,
                            const Clock *clk,
 			   const RiseFall *clk_rf,
@@ -284,6 +289,7 @@ protected:
 		     const MinMax *min_max) const ;
   void reportRequired(const PathEnd *end,
 		      std::string margin_msg) const ;
+  Required calculateRequired(const PathEnd *end) const;
   void reportSlack(const PathEnd *end) const ;
   void reportSlack(Slack slack) const ;
   void reportSpaceSlack(const PathEnd *end,
@@ -292,6 +298,8 @@ protected:
                         std::string &line) const ;
   void reportSrcPathArrival(const PathEnd *end,
 			    const PathExpanded &expanded) const ;
+  float calculateSrcPathArrival(const PathEnd *end) const;
+  float calculateMargin(const PathEnd *end) const;
   void reportPath(const PathEnd *end,
 		  const PathExpanded &expanded) const;
   void reportPathFull(const Path *path) const;
@@ -299,23 +307,27 @@ protected:
   void reportPath1(const Path *path,
 		   const PathExpanded &expanded,
 		   bool clk_used_as_data,
-		   float time_offset) const;
+		   float time_offset,
+		   const TimingArc *end_check_arc) const;
   void reportPath2(const Path *path,
 		   const PathExpanded &expanded,
 		   bool clk_used_as_data,
-		   float time_offset) const;
+		   float time_offset,
+		   const TimingArc *end_check_arc) const;
   void  reportPath3(const Path *path,
 		    const PathExpanded &expanded,
 		    bool clk_used_as_data,
 		    bool report_clk_path,
 		    Arrival prev_time,
-		    float time_offset) const;
+		    float time_offset,
+		    const TimingArc *end_check_arc) const;
   void reportPath4(const Path *path,
 		   const PathExpanded &expanded,
 		   bool clk_used_as_data,
 		   bool skip_first_path,
 		   bool skip_last_path,
-		   float time_offset) const;
+		   float time_offset,
+		   const TimingArc *end_check_arc) const;
   void reportPath5(const Path *path,
 		   const PathExpanded &expanded,
 		   size_t path_first_index,
@@ -323,10 +335,12 @@ protected:
 		   bool propagated_clk,
 		   bool report_clk_path,
 		   Arrival prev_time,
-		   float time_offset) const;
+		   float time_offset,
+		   const TimingArc *end_check_arc) const;
   void reportHierPinsThru(const Path *path) const;
   void reportInputExternalDelay(const Path *path,
-				float time_offset) const;
+				float time_offset,
+				const TimingArc *end_check_arc) const;
   void reportLine(const char *what,
 		  Delay total,
 		  const EarlyLate *early_late) const;
@@ -461,6 +475,10 @@ protected:
   Delay delayIncr(Delay time,
 		  Delay prev,
 		  const MinMax *min_max) const;
+  std::unordered_map<const Instance*, const TimingArc*> extractInstancesTimingArcs(const PathExpanded &path_expanded, const TimingArc *end_check_arc) const;
+  bool hasTimingPaths(const TimingArc *timing_arc) const;
+  void reportTimingPath(const char *instance_name, const TimingArc *timing_arc, const MinMax *min_max, float prev_arrival) const;
+  void reportTimingPathJson(const char *instance_name, const TimingArc *timing_arc, int indent, bool last_path, std::string &result, bool is_clk_path, float prev_time) const;
 
   // Path options.
   ReportPathFormat format_;

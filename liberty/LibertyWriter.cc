@@ -35,6 +35,7 @@
 #include "TimingArc.hh"
 #include "TimingModel.hh"
 #include "TableModel.hh"
+#include "Sta.hh"
 #include "StaState.hh"
 
 namespace sta {
@@ -47,7 +48,8 @@ public:
   LibertyWriter(const LibertyLibrary *lib,
                 const char *filename,
                 FILE *stream,
-                Report *report);
+                Report *report,
+                bool write_timing_paths);
   void writeLibrary();
 
 protected:
@@ -72,6 +74,7 @@ protected:
                        int index);
   void writeTableAxis10(const TableAxis *axis,
                         int index);
+  void writeTimingPath(int indent, const TimingPath &timing_path);
 
   const char *asString(bool value);
   const char *asString(const PortDirection *dir);
@@ -85,16 +88,18 @@ protected:
   Report *report_;
   const Unit *time_unit_;
   const Unit *cap_unit_;
+  bool write_timing_paths_;
 };
 
 void
 writeLiberty(LibertyLibrary *lib,
              const char *filename,
-             StaState *sta)
+             StaState *sta,
+             bool write_timing_paths)
 {
   FILE *stream = fopen(filename, "w");
   if (stream) {
-    LibertyWriter writer(lib, filename, stream, sta->report());
+    LibertyWriter writer(lib, filename, stream, sta->report(), write_timing_paths);
     writer.writeLibrary();
     fclose(stream);
   }
@@ -105,13 +110,15 @@ writeLiberty(LibertyLibrary *lib,
 LibertyWriter::LibertyWriter(const LibertyLibrary *lib,
                              const char *filename,
                              FILE *stream,
-                             Report *report) :
+                             Report *report,
+                             bool write_timing_paths) :
   library_(lib),
   filename_(filename),
   stream_(stream),
   report_(report),
   time_unit_(lib->units()->timeUnit()),
-  cap_unit_(lib->units()->capacitanceUnit())
+  cap_unit_(lib->units()->capacitanceUnit()),
+  write_timing_paths_(write_timing_paths)
 {
 }
 
@@ -321,8 +328,45 @@ LibertyWriter::writeCell(const LibertyCell *cell)
     }
   }
 
+  if (write_timing_paths_ && cell->hasWorstSlackTimingPaths()) {
+    fprintf(stream_, "    worst_slack_paths() {\n");
+    for (const MinMax *min_max : MinMax::range()) {
+      for (const RiseFall *rise_fall : RiseFall::range()) {
+        fprintf(stream_, "      %s_%s() {\n", min_max->to_string().c_str(), rise_fall->name());
+        auto& timing_path = cell->getWorstSlackTimingPath(min_max, rise_fall);
+        fprintf(stream_, "        slack : %s;\n", time_unit_->asString(timing_path.slack, 5));
+        writeTimingPath(8, timing_path.data_arrival_path);
+        writeTimingPath(8, timing_path.data_required_path);
+        fprintf(stream_, "      }\n");
+      }
+    }
+    fprintf(stream_, "    }\n");
+  }
+
   fprintf(stream_, "  }\n");
   fprintf(stream_, "\n");
+}
+
+void
+LibertyWriter::writeTimingPath(int indent, const TimingPath &timing_path)
+{
+  fprintf(stream_, "%*s%s() {\n", indent, " ", timing_path.name.c_str());
+  fprintf(stream_, "%*s  time: %s;\n", indent, " ", time_unit_->asString(timing_path.time, 5));
+  for (auto& vertex : timing_path.vertices) {
+    fprintf(stream_, "%*s  vertex(\"%s\", \"%s\", \"%s\", \"%s\", \"%s\", %s, %s, %s, %d);\n",
+      indent,
+      " ",
+      vertex.instance.c_str(),
+      vertex.cell.c_str(),
+      vertex.pin.c_str(),
+      vertex.net.c_str(),
+      vertex.transition.c_str(),
+      time_unit_->asString(vertex.arrival, 5),
+      time_unit_->asString(vertex.slew, 5),
+      cap_unit_->asString(vertex.capacitance, 5),
+      vertex.is_driver);
+  }
+  fprintf(stream_, "%*s}\n", indent, " ");
 }
 
 void
@@ -433,6 +477,31 @@ LibertyWriter::writeTimingArcSet(const TimingArcSet *arc_set)
         : rf;
       writeTimingModels(arc, model_rf);
     }
+  }
+
+  // Custom Liberty attrs/groups for handling timing paths
+  if (write_timing_paths_ && arc_set->hasTimingPaths()) {
+    fprintf(stream_, "        paths() {\n");
+    fprintf(stream_, "          slack : %s;\n", time_unit_->asString(arc_set->slack(), 5));
+
+    for (auto& [_, timing_path] : arc_set->timingPaths()) {
+      fprintf(stream_, "          %s() {\n", timing_path.name.c_str());
+      fprintf(stream_, "            time: %s;\n", time_unit_->asString(timing_path.time, 5));
+      for (auto& vertex : timing_path.vertices) {
+        fprintf(stream_, "            vertex(\"%s\", \"%s\", \"%s\", \"%s\", \"%s\", %s, %s, %s, %d);\n",
+          vertex.instance.c_str(),
+          vertex.cell.c_str(),
+          vertex.pin.c_str(),
+          vertex.net.c_str(),
+          vertex.transition.c_str(),
+          time_unit_->asString(vertex.arrival, 5),
+          time_unit_->asString(vertex.slew, 5),
+          cap_unit_->asString(vertex.capacitance, 5),
+          vertex.is_driver);
+      }
+      fprintf(stream_, "          }\n");
+    }
+    fprintf(stream_, "        }\n");
   }
 
   fprintf(stream_, "      }\n");

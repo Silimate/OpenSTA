@@ -365,6 +365,19 @@ public:
   virtual void beginRiseConstraint(LibertyGroup *group);
   virtual void endRiseFallConstraint(LibertyGroup *group);
   virtual void beginFallConstraint(LibertyGroup *group);
+  virtual void visitSlack(LibertyAttr *attr);
+  virtual void beginRiseTimingPath(LibertyGroup *group);
+  virtual void beginFallTimingPath(LibertyGroup *group);
+  virtual void endTimingPath(LibertyGroup *group);
+  virtual void beginRegisterToRegisterTimingPaths(LibertyGroup *group);
+  virtual void endRegisterToRegisterTimingPaths(LibertyGroup *group);
+  virtual void beginRegisterToRegisterMinRiseTimingPath(LibertyGroup *group);
+  virtual void beginRegisterToRegisterMinFallTimingPath(LibertyGroup *group);
+  virtual void beginRegisterToRegisterMaxRiseTimingPath(LibertyGroup *group);
+  virtual void beginRegisterToRegisterMaxFallTimingPath(LibertyGroup *group);
+  virtual void endRegisterToRegisterTimingPath(LibertyGroup *group);
+  virtual void visitTimingPathTime(LibertyAttr *attr);
+  virtual void visitTimingPathVertex(LibertyAttr *attr);
 
   virtual void beginRiseTransitionDegredation(LibertyGroup *group);
   virtual void beginFallTransitionDegredation(LibertyGroup *group);
@@ -641,6 +654,11 @@ protected:
   SequentialGroupSeq cell_sequentials_;
   StatetableGroup *statetable_;
   TimingGroup *timing_;
+  TimingPath timing_path_;
+  InputRegisterTimingPath register_to_register_timing_path_{};
+  bool traversing_cell_worst_timing_paths_{false};
+  const MinMax *timing_path_min_max_{nullptr};
+  const RiseFall *timing_path_rise_fall_{nullptr};
   InternalPowerGroup *internal_power_;
   LeakagePowerGroup *leakage_power_;
   LeakagePowerGroupSeq leakage_powers_;
