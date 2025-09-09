@@ -25,12 +25,15 @@
 #pragma once
 
 #include <map>
+#include <unordered_map>
+#include <limits>
 
 #include "LibertyClass.hh"
 #include "SdcClass.hh"
 #include "SearchClass.hh"
 #include "StaState.hh"
 #include "RiseFallMinMax.hh"
+#include "TimingArc.hh"
 
 namespace sta {
 
@@ -50,6 +53,8 @@ public:
 
 typedef std::map<const ClockEdge*, RiseFallMinMax> ClockEdgeDelays;
 typedef std::map<const Pin *, OutputDelays> OutputPinDelays;
+typedef std::unordered_map<const Pin *, std::array<CombinationalTimingPath, 2>> CombinationalTimingPaths;
+typedef std::array<std::array<InputRegisterTimingPath, 2>, 2> InputRegisterTimingPaths;
 
 class MakeTimingModel : public StaState
 {
@@ -59,6 +64,8 @@ public:
                   const char *filename,
                   const Corner *corner,
                   const bool scalar,
+                  const bool paths,
+                  const unsigned int internal_path_count,
                   Sta *sta);
   ~MakeTimingModel();
   LibertyLibrary *makeTimingModel();
@@ -69,20 +76,25 @@ private:
   float findArea();
   void makePorts();
   void checkClock(Clock *clk);
+  void ensurePathGroups();
   void findTimingFromInputs();
   void findTimingFromInput(Port *input_port);
   void findClkedOutputPaths();
+  void findWorstInternalPaths();
   void findClkTreeDelays();
   void makeClkTreePaths(LibertyPort *lib_port,
                         const MinMax *min_max,
                         TimingSense sense,
                         const ClkDelays &delays);
   void findOutputDelays(const RiseFall *input_rf,
-                        OutputPinDelays &output_pin_delays);
+                        OutputPinDelays &output_pin_delays,
+                        CombinationalTimingPaths &combinational_timing_paths);
   void makeSetupHoldTimingArcs(const Pin *input_pin,
-                               const ClockEdgeDelays &clk_margins);
+                               const ClockEdgeDelays &clk_margins,
+                               const InputRegisterTimingPaths& timing_paths);
   void makeInputOutputTimingArcs(const Pin *input_pin,
-                                 OutputPinDelays &output_pin_delays);
+                                 OutputPinDelays &output_pin_delays,
+                                 CombinationalTimingPaths &combinational_timing_paths);
   TimingModel *makeScalarCheckModel(float value,
                                     ScaleFactorType scale_factor_type,
                                     const RiseFall *rf);
@@ -108,6 +120,8 @@ private:
   const char *filename_;
   const Corner *corner_;
   const bool scalar_;
+  const bool write_timing_paths_;
+  const int internal_path_count_;
   LibertyLibrary *library_;
   LibertyCell *cell_;
   const MinMax *min_max_;

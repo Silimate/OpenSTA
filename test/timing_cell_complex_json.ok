@@ -1,0 +1,161 @@
+{"checks": [
+{
+  "type": "check",
+  "path_group": "clk",
+  "path_type": "max",
+  "startpoint": "tt1/out",
+  "endpoint": "tt3/in",
+  "source_clock": "clk",
+  "source_clock_edge": "rise",
+  "source_clock_path": [
+    {
+      "instance": "",
+      "cell": "timing_cell_complex",
+      "verilog_src": "",
+      "pin": "clk",
+      "arrival": 0.000e+00,
+      "capacitance": 9.510e-16,
+      "slew": 0.000e+00
+    },
+    {
+      "instance": "r1",
+      "cell": "DFFHQx4_ASAP7_75t_R",
+      "pin": "tt1/r1/CLK",
+      "net": "clk",
+      "arrival": 0.000e+00,
+      "slew": 0.000e+00
+    }
+  ],
+  "source_path": [
+    {
+      "instance": "r1",
+      "cell": "DFFHQx4_ASAP7_75t_R",
+      "pin": "tt1/r1/Q",
+      "net": "w2",
+      "arrival": 6.456e-11,
+      "slew": 8.703e-12
+    },
+    {
+      "instance": "u2",
+      "cell": "BUFx2_ASAP7_75t_R",
+      "pin": "tt1/u2/A",
+      "net": "w2",
+      "arrival": 6.456e-11,
+      "slew": 8.703e-12
+    },
+    {
+      "instance": "u2",
+      "cell": "BUFx2_ASAP7_75t_R",
+      "pin": "tt1/u2/Y",
+      "net": "out",
+      "arrival": 7.972e-11,
+      "slew": 4.737e-12
+    },
+    {
+      "cell": "timing_cell_dff",
+      "pin": "tt1/out",
+      "net": "",
+      "arrival": 7.972e-11,
+      "slew": 4.737e-12
+    },
+    {
+      "cell": "timing_cell_comb",
+      "pin": "tt2/in",
+      "net": "",
+      "arrival": 8.125e-11,
+      "slew": 0.000e+00
+    },
+    {
+      "instance": "u2",
+      "cell": "BUFx2_ASAP7_75t_R",
+      "pin": "tt2/u2/A",
+      "net": "in",
+      "arrival": 8.125e-11,
+      "slew": 0.000e+00
+    },
+    {
+      "instance": "u2",
+      "cell": "BUFx2_ASAP7_75t_R",
+      "pin": "tt2/u2/Y",
+      "net": "out",
+      "arrival": 9.317e-11,
+      "slew": 4.749e-12
+    },
+    {
+      "cell": "timing_cell_comb",
+      "pin": "tt2/out",
+      "net": "",
+      "arrival": 9.317e-11,
+      "slew": 4.749e-12
+    },
+    {
+      "instance": "u1",
+      "cell": "BUFx2_ASAP7_75t_R",
+      "verilog_src": "",
+      "pin": "u1/Y",
+      "net": "w3",
+      "arrival": 1.102e-10,
+      "capacitance": 5.343e-16,
+      "slew": 6.958e-12
+    },
+    {
+      "cell": "timing_cell_dff",
+      "pin": "tt3/in",
+      "net": "",
+      "arrival": 1.102e-10,
+      "slew": 0.000e+00
+    },
+    {
+      "instance": "u1",
+      "cell": "BUFx2_ASAP7_75t_R",
+      "pin": "tt3/u1/A",
+      "net": "in",
+      "arrival": 1.102e-10,
+      "slew": 0.000e+00
+    },
+    {
+      "instance": "u1",
+      "cell": "BUFx2_ASAP7_75t_R",
+      "pin": "tt3/u1/Y",
+      "net": "w1",
+      "arrival": 1.234e-10,
+      "slew": 7.065e-12
+    },
+    {
+      "instance": "r1",
+      "cell": "DFFHQx4_ASAP7_75t_R",
+      "pin": "tt3/r1/D",
+      "net": "w1",
+      "arrival": 1.234e-10,
+      "slew": 7.065e-12
+    }
+  ],
+  "target_clock": "clk",
+  "target_clock_edge": "rise",
+  "target_clock_path": [
+    {
+      "instance": "",
+      "cell": "timing_cell_complex",
+      "verilog_src": "",
+      "pin": "clk",
+      "arrival": 0.000e+00,
+      "capacitance": 9.510e-16,
+      "slew": 0.000e+00
+    },
+    {
+      "instance": "r1",
+      "cell": "DFFHQx4_ASAP7_75t_R",
+      "pin": "tt3/r1/CLK",
+      "net": "clk",
+      "arrival": 0.000e+00,
+      "slew": 0.000e+00
+    }
+  ],
+  "data_arrival_time": 1.234e-10,
+  "crpr": 0.000e+00,
+  "margin": 1.261e-11,
+  "required_time": 4.874e-10,
+  "slack": 3.640e-10
+}
+]
+}

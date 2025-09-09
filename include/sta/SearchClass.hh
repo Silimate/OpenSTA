@@ -35,6 +35,7 @@
 #include "Delay.hh"
 #include "NetworkClass.hh"
 #include "GraphClass.hh"
+#include "TimingArc.hh"
 
 namespace sta {
 
@@ -113,6 +114,8 @@ typedef Vector<MinPeriodCheck*> MinPeriodCheckSeq;
 typedef Vector<MaxSkewCheck*> MaxSkewCheckSeq;
 typedef StringSet PathGroupNameSet;
 typedef Vector<PathEnd*> PathEndSeq;
+typedef Vector<const InputRegisterTimingPath*> InternalPathSeq;
+typedef std::set<const InputRegisterTimingPath*> InternalPathSet;
 typedef Vector<Arrival> ArrivalSeq;
 typedef Map<Vertex*, size_t> VertexPathCountMap;
 typedef Map<Tag*, size_t, TagMatchLess> PathIndexMap;
@@ -134,6 +137,48 @@ enum class ReportPathFormat { full,
 enum class ReportDeduplicationMode { none,
 			      keep_worst,
 			      keep_different
+};
+
+class PathsStitch
+{
+public:
+  PathsStitch() = default;
+
+  PathsStitch(
+      PathEndSeq path_ends,
+      InternalPathSeq internal_timing_paths,
+      bool sorted_by_slack)
+    : path_ends_{std::move(path_ends)},
+    internal_timing_paths_{std::move(internal_timing_paths)},
+    sorted_by_slack_{sorted_by_slack},
+    num_of_paths_{static_cast<unsigned int>(path_ends_.size() + internal_timing_paths_.size())} {}
+
+  PathsStitch(
+      PathEndSeq path_ends,
+      bool sorted_by_slack)
+    : path_ends_{std::move(path_ends)},
+    sorted_by_slack_{sorted_by_slack},
+    num_of_paths_{static_cast<unsigned int>(path_ends_.size())} {}
+
+  PathsStitch(
+      InternalPathSeq internal_timing_paths,
+      bool sorted_by_slack)
+    : internal_timing_paths_{std::move(internal_timing_paths)},
+    sorted_by_slack_{sorted_by_slack},
+    num_of_paths_{static_cast<unsigned int>(internal_timing_paths_.size())} {}
+
+  bool hasPathEnds() const { return !path_ends_.empty(); }
+  const PathEndSeq &pathEnds() const { return path_ends_; }
+  bool hasInternalPaths() const { return !internal_timing_paths_.empty(); }
+  const InternalPathSeq &internalPaths() const { return internal_timing_paths_; }
+  bool sortedBySlack() const { return sorted_by_slack_; }
+  unsigned int size() const { return num_of_paths_; }
+
+private:
+  PathEndSeq path_ends_{};
+  InternalPathSeq internal_timing_paths_{};
+  bool sorted_by_slack_{false};
+  unsigned int num_of_paths_{0};
 };
 
 static const TagIndex tag_index_bit_count = 28;

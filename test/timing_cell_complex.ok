@@ -1,0 +1,39 @@
+Startpoint: tt1 (rising edge-triggered flip-flop clocked by clk)
+Endpoint: tt3 (rising edge-triggered flip-flop clocked by clk)
+Path Group: clk
+Path Type: max
+
+  Delay    Time   Description
+---------------------------------------------------------
+   0.00    0.00   clock clk (rise edge)
+   0.00    0.00   clock network delay (ideal)
+   0.00    0.00 ^ tt1/r1/CLK (DFFHQx4_ASAP7_75t_R)
+  64.56   64.56 ^ tt1/r1/Q (DFFHQx4_ASAP7_75t_R)
+   0.00   64.56 ^ tt1/u2/A (BUFx2_ASAP7_75t_R)
+  15.17   79.72 ^ tt1/u2/Y (BUFx2_ASAP7_75t_R)
+   0.00   79.72 ^ tt1/out (timing_cell_dff)
+   0.00   81.25 ^ tt2/in (timing_cell_comb)
+   0.00   81.25 ^ tt2/u2/A (BUFx2_ASAP7_75t_R)
+  11.91   93.17 ^ tt2/u2/Y (BUFx2_ASAP7_75t_R)
+   0.00   93.17 ^ tt2/out (timing_cell_comb)
+   0.00   94.44 ^ u1/A (BUFx2_ASAP7_75t_R)
+  15.75  110.19 ^ u1/Y (BUFx2_ASAP7_75t_R)
+   0.00  110.19 ^ tt3/in (timing_cell_dff)
+   0.00  110.19 ^ tt3/u1/A (BUFx2_ASAP7_75t_R)
+  13.24  123.43 ^ tt3/u1/Y (BUFx2_ASAP7_75t_R)
+   0.00  123.43 ^ tt3/r1/D (DFFHQx4_ASAP7_75t_R)
+         123.43   data arrival time
+
+ 500.00  500.00   clock clk (rise edge)
+   0.00  500.00   clock network delay (ideal)
+   0.00  500.00   clock reconvergence pessimism
+         500.00 ^ tt3/clk (timing_cell_dff)
+ -12.61  487.39   library setup time
+         487.39   data required time
+---------------------------------------------------------
+         487.39   data required time
+        -123.43   data arrival time
+---------------------------------------------------------
+         363.96   slack (MET)
+
+

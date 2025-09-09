@@ -836,6 +836,17 @@ public:
                                   bool removal,
                                   bool clk_gating_setup,
                                   bool clk_gating_hold);
+  InternalPathSeq findInternalTimingPaths(const MinMaxAll *delay_min_max,
+                                          const RiseFallBoth *transition_rise_fall,
+                                          float slack_min,
+                                          float slack_max,
+                                          bool sort_by_slack,
+                                          PathGroupNameSet *groups,
+                                          int path_count);
+  PathsStitch mergePaths(const PathEndSeq *path_ends,
+                         const InternalPathSeq *timing_paths,
+                         bool sort_by_slack,
+                         unsigned int path_count);
   void setReportPathFormat(ReportPathFormat format);
   void setReportPathFieldOrder(StringSeq *field_names);
   void setReportPathFields(bool report_input_pin,
@@ -862,8 +873,11 @@ public:
 		     PathEnd *prev_end);
   void reportPathEnd(PathEnd *end);
   void reportPathEnds(PathEndSeq *ends);
+  void reportPaths(const PathsStitch *paths_stitch);
   ReportPath *reportPath() { return report_path_; }
   void reportPath(const Path *path);
+  void reportPath(const InputRegisterTimingPath *internal_path);
+  void reportPaths(const InternalPathSeq *internal_paths);
 
   // Report clk skews for clks.
   void reportClkSkew(ConstClockSeq &clks,
@@ -1249,7 +1263,9 @@ public:
                         const char *cell_name,
                         const char *filename,
                         const Corner *corner,
-			const bool scalar);
+			const bool scalar,
+			const bool paths,
+                        const int internal_path_count);
 
   // Find equivalent cells in equiv_libs.
   // Optionally add mappings for cells in map_libs.

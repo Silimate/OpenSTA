@@ -376,6 +376,44 @@ find_path_ends(ExceptionFrom *from,
 
 ////////////////////////////////////////////////////////////////
 
+InternalPathSeq
+find_internal_timing_paths(const MinMaxAll *delay_min_max,
+                           const RiseFallBoth *transition_rise_fall,
+                           float slack_min,
+                           float slack_max,
+                           bool sort_by_slack,
+                           PathGroupNameSet *groups,
+                           int path_count)
+{
+  Sta *sta = Sta::sta();
+  InternalPathSeq internal_paths = sta->findInternalTimingPaths(delay_min_max,
+                                                                transition_rise_fall,
+                                                                slack_min,
+                                                                slack_max,
+                                                                sort_by_slack,
+                                                                groups,
+                                                                path_count);
+  delete groups;
+  return internal_paths;
+}
+
+////////////////////////////////////////////////////////////////
+
+PathsStitch
+merge_paths(PathEndSeq *path_ends,
+            InternalPathSeq *timing_paths,
+            bool sort_by_slack,
+            unsigned int path_count)
+{
+  Sta *sta = Sta::sta();
+  return sta->mergePaths(path_ends,
+                         timing_paths,
+                         sort_by_slack,
+                         path_count);
+}
+
+////////////////////////////////////////////////////////////////
+
 void
 report_path_end_header()
 {
@@ -493,6 +531,20 @@ report_path_ends(PathEndSeq *ends)
 {
   Sta::sta()->reportPathEnds(ends);
   delete ends;
+}
+
+void
+report_paths_combined(PathsStitch *paths_stitch)
+{
+  Sta::sta()->reportPaths(paths_stitch);
+  delete paths_stitch;
+}
+
+void
+report_internal_paths(InternalPathSeq *internal_paths)
+{
+  Sta::sta()->reportPaths(internal_paths);
+  delete internal_paths;
 }
 
 ////////////////////////////////////////////////////////////////
@@ -826,9 +878,11 @@ write_timing_model_cmd(const char *lib_name,
                        const char *cell_name,
                        const char *filename,
                        const Corner *corner,
-                       const bool scalar)
+                       const bool scalar,
+                       const bool paths,
+                       const int internal_path_count)
 {
-  Sta::sta()->writeTimingModel(lib_name, cell_name, filename, corner, scalar);
+  Sta::sta()->writeTimingModel(lib_name, cell_name, filename, corner, scalar, paths, internal_path_count);
 }
 
 ////////////////////////////////////////////////////////////////

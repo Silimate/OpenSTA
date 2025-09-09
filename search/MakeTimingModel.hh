@@ -36,6 +36,8 @@ makeTimingModel(const char *lib_name,
                 const char *filename,
                 const Corner *corner,
 		const bool scalar,
+		const bool paths,
+                const unsigned int internal_path_count,
                 Sta *sta);
 
 } // namespace

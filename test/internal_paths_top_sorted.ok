@@ -1,0 +1,172 @@
+Startpoint: r1/Q (internal_paths_cell)
+Endpoint: r6/D (internal_paths_cell)
+Path Group: long
+Path Type: max
+
+  Delay    Time   Description
+---------------------------------------------------------
+   0.00    0.00   clock clk (rise edge)
+   0.00    0.00   clock network delay (ideal)
+   0.00    0.00 ^ internal_paths_cell/r1/CLK (DFFHQx4_ASAP7_75t_R)
+  64.76   64.76 ^ internal_paths_cell/r1/Q (DFFHQx4_ASAP7_75t_R)
+   0.00   64.76 ^ internal_paths_cell/u2/A (BUFx2_ASAP7_75t_R)
+  17.77   82.53 ^ internal_paths_cell/u2/Y (BUFx2_ASAP7_75t_R)
+   0.00   82.53 ^ internal_paths_cell/u3/A (BUFx2_ASAP7_75t_R)
+  17.88  100.42 ^ internal_paths_cell/u3/Y (BUFx2_ASAP7_75t_R)
+   0.00  100.42 ^ internal_paths_cell/u5/A (BUFx2_ASAP7_75t_R)
+  17.88  118.30 ^ internal_paths_cell/u5/Y (BUFx2_ASAP7_75t_R)
+   0.00  118.30 ^ internal_paths_cell/u6/A (BUFx2_ASAP7_75t_R)
+  17.88  136.18 ^ internal_paths_cell/u6/Y (BUFx2_ASAP7_75t_R)
+   0.00  136.18 ^ internal_paths_cell/u7/A (BUFx2_ASAP7_75t_R)
+  16.60  152.79 ^ internal_paths_cell/u7/Y (BUFx2_ASAP7_75t_R)
+   0.00  152.79 ^ internal_paths_cell/u8/A (BUFx2_ASAP7_75t_R)
+  15.81  168.59 ^ internal_paths_cell/u8/Y (BUFx2_ASAP7_75t_R)
+   0.00  168.59 ^ internal_paths_cell/r6/D (DFFHQx4_ASAP7_75t_R)
+         168.59   data arrival time
+
+ 500.00  500.00   clock clk (rise edge)
+   0.00  500.00   clock network delay (ideal)
+   0.00  500.00   clock reconvergence pessimism
+   0.00  500.00 ^ internal_paths_cell/r6/CLK (DFFHQx4_ASAP7_75t_R)
+ -12.61  487.39   library setup time
+         487.39   data required time
+---------------------------------------------------------
+         487.39   data required time
+        -168.59   data arrival time
+---------------------------------------------------------
+         318.80   slack (MET)
+
+
+Startpoint: r1/Q (internal_paths_cell)
+Endpoint: r6/D (internal_paths_cell)
+Path Group: long
+Path Type: max
+
+  Delay    Time   Description
+---------------------------------------------------------
+   0.00    0.00   clock clk (rise edge)
+   0.00    0.00   clock network delay (ideal)
+   0.00    0.00 ^ internal_paths_cell/r1/CLK (DFFHQx4_ASAP7_75t_R)
+  60.44   60.44 v internal_paths_cell/r1/Q (DFFHQx4_ASAP7_75t_R)
+   0.00   60.44 v internal_paths_cell/u2/A (BUFx2_ASAP7_75t_R)
+  18.51   78.96 v internal_paths_cell/u2/Y (BUFx2_ASAP7_75t_R)
+   0.00   78.96 v internal_paths_cell/u3/A (BUFx2_ASAP7_75t_R)
+  18.92   97.87 v internal_paths_cell/u3/Y (BUFx2_ASAP7_75t_R)
+   0.00   97.87 v internal_paths_cell/u5/A (BUFx2_ASAP7_75t_R)
+  18.92  116.79 v internal_paths_cell/u5/Y (BUFx2_ASAP7_75t_R)
+   0.00  116.79 v internal_paths_cell/u6/A (BUFx2_ASAP7_75t_R)
+  18.92  135.71 v internal_paths_cell/u6/Y (BUFx2_ASAP7_75t_R)
+   0.00  135.71 v internal_paths_cell/u7/A (BUFx2_ASAP7_75t_R)
+  17.74  153.45 v internal_paths_cell/u7/Y (BUFx2_ASAP7_75t_R)
+   0.00  153.45 v internal_paths_cell/u8/A (BUFx2_ASAP7_75t_R)
+  17.18  170.63 v internal_paths_cell/u8/Y (BUFx2_ASAP7_75t_R)
+   0.00  170.63 v internal_paths_cell/r6/D (DFFHQx4_ASAP7_75t_R)
+         170.63   data arrival time
+
+ 500.00  500.00   clock clk (rise edge)
+   0.00  500.00   clock network delay (ideal)
+   0.00  500.00   clock reconvergence pessimism
+   0.00  500.00 ^ internal_paths_cell/r6/CLK (DFFHQx4_ASAP7_75t_R)
+  -4.29  495.71   library setup time
+         495.71   data required time
+---------------------------------------------------------
+         495.71   data required time
+        -170.63   data arrival time
+---------------------------------------------------------
+         325.08   slack (MET)
+
+
+Startpoint: r1/Q (internal_paths_cell)
+Endpoint: r4/D (internal_paths_cell)
+Path Group: custom
+Path Type: max
+
+  Delay    Time   Description
+---------------------------------------------------------
+   0.00    0.00   clock clk (rise edge)
+   0.00    0.00   clock network delay (ideal)
+   0.00    0.00 ^ internal_paths_cell/r1/CLK (DFFHQx4_ASAP7_75t_R)
+  64.76   64.76 ^ internal_paths_cell/r1/Q (DFFHQx4_ASAP7_75t_R)
+   0.00   64.76 ^ internal_paths_cell/u2/A (BUFx2_ASAP7_75t_R)
+  17.77   82.53 ^ internal_paths_cell/u2/Y (BUFx2_ASAP7_75t_R)
+   0.00   82.53 ^ internal_paths_cell/u3/A (BUFx2_ASAP7_75t_R)
+  17.88  100.42 ^ internal_paths_cell/u3/Y (BUFx2_ASAP7_75t_R)
+   0.00  100.42 ^ internal_paths_cell/u5/A (BUFx2_ASAP7_75t_R)
+  17.88  118.30 ^ internal_paths_cell/u5/Y (BUFx2_ASAP7_75t_R)
+   0.00  118.30 ^ internal_paths_cell/r4/D (DFFHQx4_ASAP7_75t_R)
+         118.30   data arrival time
+
+ 500.00  500.00   clock clk (rise edge)
+   0.00  500.00   clock network delay (ideal)
+   0.00  500.00   clock reconvergence pessimism
+   0.00  500.00 ^ internal_paths_cell/r4/CLK (DFFHQx4_ASAP7_75t_R)
+ -12.98  487.02   library setup time
+         487.02   data required time
+---------------------------------------------------------
+         487.02   data required time
+        -118.30   data arrival time
+---------------------------------------------------------
+         368.72   slack (MET)
+
+
+Startpoint: r1/Q (internal_paths_cell)
+Endpoint: r4/D (internal_paths_cell)
+Path Group: custom
+Path Type: max
+
+  Delay    Time   Description
+---------------------------------------------------------
+   0.00    0.00   clock clk (rise edge)
+   0.00    0.00   clock network delay (ideal)
+   0.00    0.00 ^ internal_paths_cell/r1/CLK (DFFHQx4_ASAP7_75t_R)
+  60.44   60.44 v internal_paths_cell/r1/Q (DFFHQx4_ASAP7_75t_R)
+   0.00   60.44 v internal_paths_cell/u2/A (BUFx2_ASAP7_75t_R)
+  18.51   78.96 v internal_paths_cell/u2/Y (BUFx2_ASAP7_75t_R)
+   0.00   78.96 v internal_paths_cell/u3/A (BUFx2_ASAP7_75t_R)
+  18.92   97.87 v internal_paths_cell/u3/Y (BUFx2_ASAP7_75t_R)
+   0.00   97.87 v internal_paths_cell/u5/A (BUFx2_ASAP7_75t_R)
+  18.92  116.79 v internal_paths_cell/u5/Y (BUFx2_ASAP7_75t_R)
+   0.00  116.79 v internal_paths_cell/r4/D (DFFHQx4_ASAP7_75t_R)
+         116.79   data arrival time
+
+ 500.00  500.00   clock clk (rise edge)
+   0.00  500.00   clock network delay (ideal)
+   0.00  500.00   clock reconvergence pessimism
+   0.00  500.00 ^ internal_paths_cell/r4/CLK (DFFHQx4_ASAP7_75t_R)
+  -4.60  495.40   library setup time
+         495.40   data required time
+---------------------------------------------------------
+         495.40   data required time
+        -116.79   data arrival time
+---------------------------------------------------------
+         378.61   slack (MET)
+
+
+Startpoint: in (input port clocked by clk)
+Endpoint: t1 (rising edge-triggered flip-flop clocked by clk)
+Path Group: clk
+Path Type: max
+
+  Delay    Time   Description
+---------------------------------------------------------
+   0.00    0.00   clock clk (rise edge)
+   0.00    0.00   clock network delay (ideal)
+   0.00    0.00 ^ input external delay
+   0.00    0.00 ^ in (in)
+   0.00    0.00 ^ t1/in (internal_paths_cell)
+   0.00    0.00 ^ t1/r1/D (DFFHQx4_ASAP7_75t_R)
+           0.00   data arrival time
+
+ 500.00  500.00   clock clk (rise edge)
+   0.00  500.00   clock network delay (ideal)
+   0.00  500.00   clock reconvergence pessimism
+         500.00 ^ t1/clk (internal_paths_cell)
+ -11.41  488.59   library setup time
+         488.59   data required time
+---------------------------------------------------------
+         488.59   data required time
+          -0.00   data arrival time
+---------------------------------------------------------
+         488.59   slack (MET)
+
+

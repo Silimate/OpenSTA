@@ -28,6 +28,7 @@
 #include <cmath> // isnan, nanf
 #include <cstdlib>
 #include <string>
+#include <cassert>
 
 #include "EnumNameMap.hh"
 #include "Report.hh"
@@ -422,6 +423,97 @@ LibertyReader::defineVisitors()
 		     &LibertyReader::endRiseFallConstraint);
   defineAttrVisitor("value", &LibertyReader::visitValue);
   defineAttrVisitor("values", &LibertyReader::visitValues);
+
+  // Custom Liberty attrs/groups for handling timing paths
+  defineAttrVisitor("slack", &LibertyReader::visitSlack);
+  defineAttrVisitor("crpr", &LibertyReader::visitCrpr);
+  defineAttrVisitor("clk_arrival", &LibertyReader::visitClkArrival);
+  defineAttrVisitor("clk_time", &LibertyReader::visitClkTime);
+  defineAttrVisitor("source_clk_propagated", &LibertyReader::visitSourceClkPropagated);
+  defineAttrVisitor("source_clk_arrival", &LibertyReader::visitSourceClkArrival);
+  defineAttrVisitor("source_clk_time", &LibertyReader::visitSourceClkTime);
+  defineAttrVisitor("target_clk_delay", &LibertyReader::visitTargetClkDelay);
+  defineAttrVisitor("target_clk_offset", &LibertyReader::visitTargetClkOffset);
+  defineAttrVisitor("target_clk_mcp_adjustment", &LibertyReader::visitTargetClkMcpAdjustment);
+  defineAttrVisitor("target_clk_insertion_delay", &LibertyReader::visitTargetClkInsertionDelay);
+  defineAttrVisitor("target_clk_insertion_offset", &LibertyReader::visitTargetClkInsertionOffset);
+  defineAttrVisitor("target_clk_non_inter_uncertainty", &LibertyReader::visitTargetClkNonInterUncertainty);
+  defineAttrVisitor("target_clk_uncertainty", &LibertyReader::visitTargetClkUncertainty);
+  defineAttrVisitor("target_clk_propagated", &LibertyReader::visitTargetClkPropagated);
+  defineAttrVisitor("path_delay", &LibertyReader::visitPathDelay);
+  defineAttrVisitor("library_setup_time", &LibertyReader::visitTimingPathLibrarySetupTime);
+  defineAttrVisitor("source_clock", &LibertyReader::visitTimingPathSourceClock);
+  defineAttrVisitor("source_clock_transition", &LibertyReader::visitTimingPathSourceClockTransition);
+  defineAttrVisitor("target_clock", &LibertyReader::visitTimingPathTargetClock);
+  defineAttrVisitor("target_clock_transition", &LibertyReader::visitTimingPathTargetClockTransition);
+  defineAttrVisitor("timing_path_group", &LibertyReader::visitTimingPathGroup);
+  defineAttrVisitor("timing_path_type", &LibertyReader::visitTimingPathType);
+  defineGroupVisitor(
+         TimingPath::Names::DATA_ARRIVAL.at(RiseFall::riseIndex()),
+         &LibertyReader::beginRiseTimingPath,
+         &LibertyReader::endTimingPath);
+  defineGroupVisitor(
+         TimingPath::Names::DATA_ARRIVAL.at(RiseFall::fallIndex()),
+         &LibertyReader::beginFallTimingPath,
+         &LibertyReader::endTimingPath);
+  defineGroupVisitor(
+         TimingPath::Names::DATA_REQUIRED.at(RiseFall::riseIndex()),
+         &LibertyReader::beginRiseTimingPath,
+         &LibertyReader::endTimingPath);
+  defineGroupVisitor(
+         TimingPath::Names::DATA_REQUIRED.at(RiseFall::fallIndex()),
+         &LibertyReader::beginFallTimingPath,
+         &LibertyReader::endTimingPath);
+  defineGroupVisitor(
+         TimingPath::Names::CLOCKED_OUTPUT.at(RiseFall::riseIndex()),
+         &LibertyReader::beginRiseTimingPath,
+         &LibertyReader::endTimingPath);
+  defineGroupVisitor(
+         TimingPath::Names::CLOCKED_OUTPUT.at(RiseFall::fallIndex()),
+         &LibertyReader::beginFallTimingPath,
+         &LibertyReader::endTimingPath);
+  defineGroupVisitor(
+         TimingPath::Names::COMBINATIONAL.at(RiseFall::riseIndex()),
+         &LibertyReader::beginRiseTimingPath,
+         &LibertyReader::endTimingPath);
+  defineGroupVisitor(
+         TimingPath::Names::COMBINATIONAL.at(RiseFall::fallIndex()),
+         &LibertyReader::beginFallTimingPath,
+         &LibertyReader::endTimingPath);
+  defineGroupVisitor(
+         TimingPath::Names::SOURCE_CLOCK.at(RiseFall::riseIndex()),
+         &LibertyReader::beginRiseTimingPath,
+         &LibertyReader::endTimingPath);
+  defineGroupVisitor(
+         TimingPath::Names::SOURCE_CLOCK.at(RiseFall::fallIndex()),
+         &LibertyReader::beginFallTimingPath,
+         &LibertyReader::endTimingPath);
+  defineAttrVisitor("time", &LibertyReader::visitTimingPathTime);
+  defineAttrVisitor("vertex", &LibertyReader::visitTimingPathVertex);
+  defineGroupVisitor(
+         "worst_slack_paths",
+         &LibertyReader::beginRegisterToRegisterTimingPaths,
+         &LibertyReader::endRegisterToRegisterTimingPaths);
+  defineGroupVisitor(
+         "min_rise",
+         &LibertyReader::beginRegisterToRegisterMinRiseTimingPaths,
+         &LibertyReader::endRegisterToRegisterTimingPaths);
+  defineGroupVisitor(
+         "min_fall",
+         &LibertyReader::beginRegisterToRegisterMinFallTimingPaths,
+         &LibertyReader::endRegisterToRegisterTimingPaths);
+  defineGroupVisitor(
+         "max_rise",
+         &LibertyReader::beginRegisterToRegisterMaxRiseTimingPaths,
+         &LibertyReader::endRegisterToRegisterTimingPaths);
+  defineGroupVisitor(
+         "max_fall",
+         &LibertyReader::beginRegisterToRegisterMaxFallTimingPaths,
+         &LibertyReader::endRegisterToRegisterTimingPaths);
+  defineGroupVisitor(
+         "timing_path",
+         &LibertyReader::beginRegisterToRegisterTimingPath,
+         &LibertyReader::endRegisterToRegisterTimingPath);
 
   defineGroupVisitor("lut", &LibertyReader::beginLut,&LibertyReader::endLut);
 
@@ -4562,6 +4654,314 @@ LibertyReader::beginFallConstraint(LibertyGroup *group)
 {
   // Scale factor depends on timing_type, which may follow this stmt.
   beginTimingTableModel(group, RiseFall::fall(), ScaleFactorType::unknown);
+}
+
+void
+LibertyReader::visitSlack(LibertyAttr *attr)
+{
+  float slack = library_->units()->timeUnit()->userToSta(attr->firstValue()->floatValue());
+  if (timing_) {
+    timing_->attrs()->setSlack(slack);
+  } else if (traversing_cell_worst_timing_paths_) {
+    register_to_register_timing_path_.slack = slack;
+  }
+}
+
+void
+LibertyReader::visitCrpr(LibertyAttr *attr)
+{
+  if (traversing_cell_worst_timing_paths_) {
+    float crpr = library_->units()->timeUnit()->userToSta(attr->firstValue()->floatValue());
+    register_to_register_timing_path_.crpr = crpr;
+  }
+}
+
+void
+LibertyReader::visitClkArrival(LibertyAttr *attr)
+{
+  if (traversing_cell_worst_timing_paths_) {
+    float clk_arrival = library_->units()->timeUnit()->userToSta(attr->firstValue()->floatValue());
+    register_to_register_timing_path_.clk_arrival = clk_arrival;
+  }
+}
+
+void
+LibertyReader::visitClkTime(LibertyAttr *attr)
+{
+  if (traversing_cell_worst_timing_paths_) {
+    float clk_time = library_->units()->timeUnit()->userToSta(attr->firstValue()->floatValue());
+    register_to_register_timing_path_.target_clk_time = clk_time;
+  }
+}
+
+void
+LibertyReader::visitSourceClkPropagated(LibertyAttr *attr)
+{
+  if (traversing_cell_worst_timing_paths_) {
+    register_to_register_timing_path_.is_source_clock_propagated = attr->firstValue()->floatValue() > 0.5f;
+  }
+}
+
+void
+LibertyReader::visitSourceClkArrival(LibertyAttr *attr)
+{
+  if (traversing_cell_worst_timing_paths_) {
+    register_to_register_timing_path_.source_clk_arrival = library_->units()->timeUnit()->userToSta(attr->firstValue()->floatValue());
+  }
+}
+
+void
+LibertyReader::visitSourceClkTime(LibertyAttr *attr)
+{
+  if (traversing_cell_worst_timing_paths_) {
+    register_to_register_timing_path_.source_clk_time = library_->units()->timeUnit()->userToSta(attr->firstValue()->floatValue());
+  }
+}
+
+void
+LibertyReader::visitTargetClkOffset(LibertyAttr *attr)
+{
+  if (traversing_cell_worst_timing_paths_) {
+    register_to_register_timing_path_.target_clk_offset = library_->units()->timeUnit()->userToSta(attr->firstValue()->floatValue());
+  }
+}
+
+void
+LibertyReader::visitTargetClkMcpAdjustment(LibertyAttr *attr)
+{
+  if (traversing_cell_worst_timing_paths_) {
+    register_to_register_timing_path_.target_clk_mcp_adjustment = library_->units()->timeUnit()->userToSta(attr->firstValue()->floatValue());
+  }
+}
+
+void
+LibertyReader::visitTargetClkInsertionDelay(LibertyAttr *attr)
+{
+  if (traversing_cell_worst_timing_paths_) {
+    register_to_register_timing_path_.target_clk_insertion_delay = library_->units()->timeUnit()->userToSta(attr->firstValue()->floatValue());
+  }
+}
+
+void
+LibertyReader::visitTargetClkDelay(LibertyAttr *attr)
+{
+  if (traversing_cell_worst_timing_paths_) {
+    register_to_register_timing_path_.target_clk_delay = library_->units()->timeUnit()->userToSta(attr->firstValue()->floatValue());
+  }
+}
+
+void
+LibertyReader::visitTargetClkInsertionOffset(LibertyAttr *attr)
+{
+  if (traversing_cell_worst_timing_paths_) {
+    register_to_register_timing_path_.target_clk_insertion_offset = library_->units()->timeUnit()->userToSta(attr->firstValue()->floatValue());
+  }
+}
+
+void
+LibertyReader::visitTargetClkNonInterUncertainty(LibertyAttr *attr)
+{
+  if (traversing_cell_worst_timing_paths_) {
+    register_to_register_timing_path_.target_clk_non_inter_uncertainty = library_->units()->timeUnit()->userToSta(attr->firstValue()->floatValue());
+  }
+}
+
+void
+LibertyReader::visitTargetClkUncertainty(LibertyAttr *attr)
+{
+  if (traversing_cell_worst_timing_paths_) {
+    register_to_register_timing_path_.target_clk_uncertainty = library_->units()->timeUnit()->userToSta(attr->firstValue()->floatValue());
+  }
+}
+
+void
+LibertyReader::visitTargetClkPropagated(LibertyAttr *attr)
+{
+  if (traversing_cell_worst_timing_paths_) {
+    register_to_register_timing_path_.is_target_clock_propagated = attr->firstValue()->floatValue() > 0.5f;
+  }
+}
+
+void
+LibertyReader::visitPathDelay(LibertyAttr *attr)
+{
+  if (traversing_cell_worst_timing_paths_) {
+    float path_delay = library_->units()->timeUnit()->userToSta(attr->firstValue()->floatValue());
+    register_to_register_timing_path_.path_delay = path_delay;
+  }
+}
+
+void
+LibertyReader::visitTimingPathLibrarySetupTime(LibertyAttr *attr)
+{
+  if (traversing_cell_worst_timing_paths_) {
+    float library_setup_time = library_->units()->timeUnit()->userToSta(attr->firstValue()->floatValue());
+    register_to_register_timing_path_.library_setup_time = library_setup_time;
+  }
+}
+
+void
+LibertyReader::visitTimingPathSourceClock(LibertyAttr *attr)
+{
+  if (traversing_cell_worst_timing_paths_) {
+    register_to_register_timing_path_.source_clock_name = attr->firstValue()->stringValue();
+  }
+}
+
+void
+LibertyReader::visitTimingPathSourceClockTransition(LibertyAttr *attr)
+{
+  if (traversing_cell_worst_timing_paths_) {
+    std::string transition_as_string = attr->firstValue()->stringValue();
+    register_to_register_timing_path_.source_clock_transition =
+      RiseFall::fall()->shortName() == transition_as_string ? RiseFall::fall() : RiseFall::rise();
+  }
+}
+
+void
+LibertyReader::visitTimingPathTargetClock(LibertyAttr *attr)
+{
+  if (traversing_cell_worst_timing_paths_) {
+    register_to_register_timing_path_.target_clock_name = attr->firstValue()->stringValue();
+  }
+}
+
+void
+LibertyReader::visitTimingPathTargetClockTransition(LibertyAttr *attr)
+{
+  if (traversing_cell_worst_timing_paths_) {
+    std::string transition_as_string = attr->firstValue()->stringValue();
+    register_to_register_timing_path_.target_clock_transition=
+      RiseFall::fall()->shortName() == transition_as_string ? RiseFall::fall() : RiseFall::rise();
+  }
+}
+
+void
+LibertyReader::visitTimingPathGroup(LibertyAttr *attr)
+{
+  if (traversing_cell_worst_timing_paths_) {
+    register_to_register_timing_path_.path_group_name = attr->firstValue()->stringValue();
+  }
+}
+
+void
+LibertyReader::visitTimingPathType(LibertyAttr *attr)
+{
+  if (traversing_cell_worst_timing_paths_) {
+    register_to_register_timing_path_.type = attr->firstValue()->stringValue();
+  }
+}
+
+void
+LibertyReader::beginRiseTimingPath(LibertyGroup *group)
+{
+  timing_path_ = TimingPath{};
+  timing_path_.name = group->type();
+  timing_path_.rise_fall = RiseFall::rise();
+}
+
+void
+LibertyReader::beginFallTimingPath(LibertyGroup *group)
+{
+  timing_path_ = TimingPath{};
+  timing_path_.name = group->type();
+  timing_path_.rise_fall = RiseFall::fall();
+}
+
+void
+LibertyReader::visitTimingPathTime(LibertyAttr *attr)
+{
+  timing_path_.time = library_->units()->timeUnit()->userToSta(attr->firstValue()->floatValue());
+}
+
+void
+LibertyReader::visitTimingPathVertex(LibertyAttr *attr)
+{
+  TimingPathVertex vertex{};
+  LibertyAttrValueSeq* values = attr->values();
+  vertex.instance = values->at(0)->stringValue();
+  vertex.cell = values->at(1)->stringValue();
+  vertex.pin = values->at(2)->stringValue();
+  vertex.net = values->at(3)->stringValue();
+  vertex.transition = values->at(4)->stringValue();
+  vertex.arrival = library_->units()->timeUnit()->userToSta(values->at(5)->floatValue());
+  vertex.slew = library_->units()->timeUnit()->userToSta(values->at(6)->floatValue());
+  vertex.capacitance = library_->units()->capacitanceUnit()->userToSta(values->at(7)->floatValue());
+  vertex.is_driver = values->at(8)->floatValue() > 0.5f;
+  timing_path_.vertices.emplace_back(vertex);
+}
+
+void
+LibertyReader::endTimingPath(LibertyGroup *)
+{
+  if (timing_) {
+    timing_->attrs()->addTimingPath(std::move(timing_path_));
+    return;
+  }
+
+  if (timing_path_.isDataArrivalPath()) {
+    register_to_register_timing_path_.data_arrival_path = std::move(timing_path_);
+    return;
+  }
+
+  if (timing_path_.isDataRequiredPath()) {
+    register_to_register_timing_path_.data_required_path = std::move(timing_path_);
+    return;
+  }
+
+  if (timing_path_.isSourceClockPath()) {
+    register_to_register_timing_path_.source_clock_path = std::move(timing_path_);
+  }
+}
+
+void
+LibertyReader::beginRegisterToRegisterTimingPaths(LibertyGroup *)
+{
+  traversing_cell_worst_timing_paths_ = true;
+}
+
+void
+LibertyReader::endRegisterToRegisterTimingPaths(LibertyGroup *)
+{
+  traversing_cell_worst_timing_paths_ = false;
+}
+
+void LibertyReader::beginRegisterToRegisterMinRiseTimingPaths(LibertyGroup *)
+{
+  traversing_cell_worst_timing_paths_ = true;
+  timing_path_min_max_ = MinMax::min();
+  timing_path_rise_fall_ = RiseFall::rise();
+}
+
+void LibertyReader::beginRegisterToRegisterMinFallTimingPaths(LibertyGroup *)
+{
+  traversing_cell_worst_timing_paths_ = true;
+  timing_path_min_max_ = MinMax::min();
+  timing_path_rise_fall_ = RiseFall::fall();
+}
+
+void LibertyReader::beginRegisterToRegisterMaxRiseTimingPaths(LibertyGroup *)
+{
+  traversing_cell_worst_timing_paths_ = true;
+  timing_path_min_max_ = MinMax::max();
+  timing_path_rise_fall_ = RiseFall::rise();
+}
+
+void LibertyReader::beginRegisterToRegisterMaxFallTimingPaths(LibertyGroup *)
+{
+  traversing_cell_worst_timing_paths_ = true;
+  timing_path_min_max_ = MinMax::max();
+  timing_path_rise_fall_ = RiseFall::fall();
+}
+
+void LibertyReader::beginRegisterToRegisterTimingPath(LibertyGroup *)
+{
+  register_to_register_timing_path_ = InputRegisterTimingPath{};
+}
+
+void LibertyReader::endRegisterToRegisterTimingPath(LibertyGroup *)
+{
+  cell_->addInternalTimingPath(register_to_register_timing_path_, timing_path_min_max_, timing_path_rise_fall_);
 }
 
 void

@@ -46,6 +46,26 @@ timingArcsLess(const TimingArcSet *set1,
 
 ////////////////////////////////////////////////////////////////
 
+bool TimingPath::isDataArrivalPath() const
+{
+  return std::find(Names::DATA_ARRIVAL.begin(), Names::DATA_ARRIVAL.end(), name)
+         != Names::DATA_ARRIVAL.end();
+}
+
+bool TimingPath::isDataRequiredPath() const
+{
+  return std::find(Names::DATA_REQUIRED.begin(), Names::DATA_REQUIRED.end(), name)
+         != Names::DATA_REQUIRED.end();
+}
+
+bool TimingPath::isSourceClockPath() const
+{
+  return std::find(Names::SOURCE_CLOCK.begin(), Names::SOURCE_CLOCK.end(), name)
+         != Names::SOURCE_CLOCK.end();
+}
+
+////////////////////////////////////////////////////////////////
+
 TimingArcAttrs::TimingArcAttrs() :
   timing_type_(TimingType::combinational),
   timing_sense_(TimingSense::unknown),
@@ -160,6 +180,24 @@ void
 TimingArcAttrs::setOcvArcDepth(float depth)
 {
   ocv_arc_depth_ = depth;
+}
+
+void
+TimingArcAttrs::setSlack(float slack)
+{
+  slack_ = slack;
+}
+
+void
+TimingArcAttrs::mergeSlack(float slack)
+{
+  slack_ = std::min(slack, slack_);
+}
+
+void TimingArcAttrs::addTimingPath(TimingPath timing_path)
+{
+  std::string name = timing_path.name;
+  timing_paths_[std::move(name)] = std::move(timing_path);
 }
 
 float

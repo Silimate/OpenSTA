@@ -1,0 +1,32 @@
+Startpoint: d1/Q (timing_cell)
+Endpoint: d2/D (timing_cell)
+Path Group: clk
+Path Type: max
+
+  Delay    Time   Description
+---------------------------------------------------------
+   0.00    0.00   clock clk (rise edge)
+   1.00    1.00   clock network delay (ideal)
+   0.00    1.00 ^ timing_cell/d1/CLK (DFFHQx4_ASAP7_75t_R)
+  64.76   65.76 ^ timing_cell/d1/Q (DFFHQx4_ASAP7_75t_R)
+   0.00   65.76 ^ timing_cell/b2/A (BUFx2_ASAP7_75t_R)
+  16.49   82.25 ^ timing_cell/b2/Y (BUFx2_ASAP7_75t_R)
+   0.00   82.25 ^ timing_cell/b3/A (BUFx2_ASAP7_75t_R)
+  15.81   98.06 ^ timing_cell/b3/Y (BUFx2_ASAP7_75t_R)
+   0.00   98.06 ^ timing_cell/d2/D (DFFHQx4_ASAP7_75t_R)
+          98.06   data arrival time
+
+ 500.00  500.00   clock clk (rise edge)
+   1.00  501.00   clock network delay (ideal)
+  -0.10  500.90   clock uncertainty
+   0.00  500.90   clock reconvergence pessimism
+   0.00  500.90 ^ timing_cell/d2/CLK (DFFHQx4_ASAP7_75t_R)
+ -12.61  488.29   library setup time
+         488.29   data required time
+---------------------------------------------------------
+         488.29   data required time
+         -98.06   data arrival time
+---------------------------------------------------------
+         390.23   slack (MET)
+
+

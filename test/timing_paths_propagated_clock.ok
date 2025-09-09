@@ -1,0 +1,374 @@
+library (timing_cell) {
+  comment                        : "";
+  delay_model                    : table_lookup;
+  simulation                     : false;
+  capacitive_load_unit (1,fF);
+  leakage_power_unit             : 1pW;
+  current_unit                   : "1mA";
+  pulling_resistance_unit        : "1kohm";
+  time_unit                      : "1ps";
+  voltage_unit                   : "1v";
+  library_features(report_delay_calculation);
+
+  input_threshold_pct_rise : 50;
+  input_threshold_pct_fall : 50;
+  output_threshold_pct_rise : 50;
+  output_threshold_pct_fall : 50;
+  slew_lower_threshold_pct_rise : 10;
+  slew_lower_threshold_pct_fall : 10;
+  slew_upper_threshold_pct_rise : 90;
+  slew_upper_threshold_pct_fall : 90;
+  slew_derate_from_library : 1.0;
+
+
+  nom_process                    : 1.0;
+  nom_temperature                : 25.0;
+  nom_voltage                    : 0.70;
+
+  lu_table_template(template_1) {
+    variable_1 : total_output_net_capacitance;
+    index_1("1.44000,  2.88000,  5.76000,  11.52000,  23.04000,  46.08000,  92.16000");
+  }
+
+  cell ("timing_cell") {
+    area : 0.948 
+    is_macro_cell : true;
+    pin("in") {
+      direction : input;
+      capacitance : 0.5587;
+      timing() {
+        related_pin : "clk";
+        timing_type : hold_rising;
+	rise_constraint(scalar) {
+          values("12.05646");
+	}
+	fall_constraint(scalar) {
+          values("26.65778");
+	}
+        paths() {
+          slack : -26.65778;
+          fall_data_required() {
+            time: 26.65778;
+            vertex("b1", "BUFx2_ASAP7_75t_R", "b1/A", "clk", "^", 0.00000, 0.00000, 0.53423, 0);
+            vertex("b1", "BUFx2_ASAP7_75t_R", "b1/Y", "clk_d", "^", 14.17675, 8.69220, 0.95086, 1);
+            vertex("d1", "DFFHQx4_ASAP7_75t_R", "d1/CLK", "clk_d", "^", 14.17675, 8.69220, 0.95086, 0);
+          }
+          fall_data_arrival() {
+            time: 0.00000;
+            vertex("", "timing_cell", "in", "", "v", 0.00000, 0.00000, 0.48550, 1);
+            vertex("d1", "DFFHQx4_ASAP7_75t_R", "d1/D", "in", "v", 0.00000, 0.00000, 0.48550, 0);
+          }
+          rise_data_required() {
+            time: 12.05646;
+            vertex("b1", "BUFx2_ASAP7_75t_R", "b1/A", "clk", "^", 0.00000, 0.00000, 0.53428, 0);
+            vertex("b1", "BUFx2_ASAP7_75t_R", "b1/Y", "clk_d", "^", 14.17675, 8.69220, 0.95108, 1);
+            vertex("d1", "DFFHQx4_ASAP7_75t_R", "d1/CLK", "clk_d", "^", 14.17675, 8.69220, 0.95108, 0);
+          }
+          rise_data_arrival() {
+            time: 0.00000;
+            vertex("", "timing_cell", "in", "", "^", 0.00000, 0.00000, 0.49848, 1);
+            vertex("d1", "DFFHQx4_ASAP7_75t_R", "d1/D", "in", "^", 0.00000, 0.00000, 0.49848, 0);
+          }
+        }
+      }
+      timing() {
+        related_pin : "clk";
+        timing_type : setup_rising;
+	rise_constraint(scalar) {
+          values("-3.85817");
+	}
+	fall_constraint(scalar) {
+          values("-13.27770");
+	}
+        paths() {
+          slack : 503.85818;
+          fall_data_required() {
+            time: 513.27771;
+            vertex("b1", "BUFx2_ASAP7_75t_R", "b1/A", "clk", "^", 0.00000, 0.00000, 0.39404, 0);
+            vertex("b1", "BUFx2_ASAP7_75t_R", "b1/Y", "clk_d", "^", 13.60706, 7.69955, 0.70502, 1);
+            vertex("d1", "DFFHQx4_ASAP7_75t_R", "d1/CLK", "clk_d", "^", 13.60706, 7.69955, 0.70502, 0);
+          }
+          fall_data_arrival() {
+            time: 0.00000;
+            vertex("", "timing_cell", "in", "", "v", 0.00000, 0.00000, 0.55560, 1);
+            vertex("d1", "DFFHQx4_ASAP7_75t_R", "d1/D", "in", "v", 0.00000, 0.00000, 0.55560, 0);
+          }
+          rise_data_required() {
+            time: 503.85818;
+            vertex("b1", "BUFx2_ASAP7_75t_R", "b1/A", "clk", "^", 0.00000, 0.00000, 0.39934, 0);
+            vertex("b1", "BUFx2_ASAP7_75t_R", "b1/Y", "clk_d", "^", 13.60706, 7.69955, 0.71164, 1);
+            vertex("d1", "DFFHQx4_ASAP7_75t_R", "d1/CLK", "clk_d", "^", 13.60706, 7.69955, 0.71164, 0);
+          }
+          rise_data_arrival() {
+            time: 0.00000;
+            vertex("", "timing_cell", "in", "", "^", 0.00000, 0.00000, 0.55869, 1);
+            vertex("d1", "DFFHQx4_ASAP7_75t_R", "d1/D", "in", "^", 0.00000, 0.00000, 0.55869, 0);
+          }
+        }
+      }
+    }
+    pin("clk") {
+      direction : input;
+      clock : true;
+      capacitance : 0.5343;
+      timing() {
+        timing_sense : positive_unate;
+        timing_type : min_clock_tree_path;
+	cell_rise(scalar) {
+          values("13.60706");
+	}
+	cell_fall(scalar) {
+          values("15.23873");
+	}
+      }
+      timing() {
+        timing_sense : positive_unate;
+        timing_type : max_clock_tree_path;
+	cell_rise(scalar) {
+          values("14.17675");
+	}
+	cell_fall(scalar) {
+          values("15.75548");
+	}
+      }
+    }
+    pin("out") {
+      direction : output;
+      capacitance : 0.0000;
+      timing() {
+        related_pin : "clk";
+        timing_type : rising_edge;
+	cell_rise(template_1) {
+          index_1("1.44000,  2.88000,  5.76000,  11.52000,  23.04000,  46.08000,  92.16000");
+          values("83.37069,85.60405,89.17402,95.31512,106.95321,129.96185,175.79482");
+	}
+	rise_transition(template_1) {
+          index_1("1.44000,  2.88000,  5.76000,  11.52000,  23.04000,  46.08000,  92.16000");
+          values("10.67935,13.39053,18.81810,30.42268,54.96764,105.46177,207.52626");
+	}
+	cell_fall(template_1) {
+          index_1("1.44000,  2.88000,  5.76000,  11.52000,  23.04000,  46.08000,  92.16000");
+          values("78.94285,80.92013,84.08546,89.40567,99.11184,118.00378,155.56178");
+	}
+	fall_transition(template_1) {
+          index_1("1.44000,  2.88000,  5.76000,  11.52000,  23.04000,  46.08000,  92.16000");
+          values("8.76045,11.02783,15.42397,24.41804,43.14261,81.67929,159.88257");
+	}
+        paths() {
+          slack : 76.04379;
+          fall_clocked_output() {
+            time: 76.04379;
+            vertex("d2", "DFFHQx4_ASAP7_75t_R", "d2/Q", "out", "v", 76.04379, 6.49418, 0.00000, 1);
+            vertex("", "timing_cell", "out", "", "v", 76.04379, 6.49418, 0.00000, 0);
+          }
+          rise_clocked_output() {
+            time: 80.22231;
+            vertex("d2", "DFFHQx4_ASAP7_75t_R", "d2/Q", "out", "^", 80.22231, 7.96615, 0.00000, 1);
+            vertex("", "timing_cell", "out", "", "^", 80.22231, 7.96615, 0.00000, 0);
+          }
+          rise_source_clock() {
+            time: 0.00000;
+            vertex("b1", "BUFx2_ASAP7_75t_R", "b1/A", "clk", "^", 0.00000, 0.00000, 0.39934, 0);
+            vertex("b1", "BUFx2_ASAP7_75t_R", "b1/Y", "clk_d", "^", 13.60706, 7.69955, 0.71164, 1);
+            vertex("d2", "DFFHQx4_ASAP7_75t_R", "d2/CLK", "clk_d", "^", 13.60706, 7.69955, 0.71164, 0);
+          }
+        }
+      }
+    }
+    worst_slack_paths() {
+      min_rise() {
+        timing_path() {
+          slack : 102.08885;
+          crpr : -0.56969;
+          clk_time : 0.00000;
+          clk_arrival : 14.17675;
+          clk_delay : 14.17675;
+          source_clk_propagated : 1;
+          source_clk_arrival : 13.60706;
+          source_clk_time : 0.00000;
+          target_clk_propagated : 1;
+          target_clk_offset : 0.00000;
+          target_clk_mcp_adjustment : 0.00000;
+          target_clk_insertion_delay : 0.00000;
+          target_clk_delay : 14.17675;
+          target_clk_insertion_offset : 0.00000;
+          target_clk_non_inter_uncertainty : 0.00000;
+          target_clk_uncertainty : 0.00000;
+          library_setup_time : -3.30443;
+          source_clock : "clk";
+          source_clock_transition : "^";
+          target_clock : "clk";
+          target_clock_transition : "^";
+          timing_path_group : "clk";
+          timing_path_type : "check";
+          rise_source_clock() {
+            time: 13.60706;
+            vertex("b1", "BUFx2_ASAP7_75t_R", "b1/A", "clk", "^", 0.00000, 0.00000, 0.39934, 0);
+            vertex("b1", "BUFx2_ASAP7_75t_R", "b1/Y", "clk_d", "^", 13.60706, 7.69955, 0.71164, 1);
+            vertex("d1", "DFFHQx4_ASAP7_75t_R", "d1/CLK", "clk_d", "^", 13.60706, 7.69955, 0.71164, 0);
+          }
+          rise_data_arrival() {
+            time: 112.39148;
+            vertex("d1", "DFFHQx4_ASAP7_75t_R", "d1/Q", "w1", "^", 80.84162, 8.71807, 0.39934, 1);
+            vertex("b2", "BUFx2_ASAP7_75t_R", "b2/A", "w1", "^", 80.84162, 8.71807, 0.39934, 0);
+            vertex("b2", "BUFx2_ASAP7_75t_R", "b2/Y", "w2", "^", 96.93140, 6.39544, 0.39934, 1);
+            vertex("b3", "BUFx2_ASAP7_75t_R", "b3/A", "w2", "^", 96.93140, 6.39544, 0.39934, 0);
+            vertex("b3", "BUFx2_ASAP7_75t_R", "b3/Y", "w3", "^", 112.39148, 6.80940, 0.49848, 1);
+            vertex("d2", "DFFHQx4_ASAP7_75t_R", "d2/D", "w3", "^", 112.39148, 6.80940, 0.49848, 0);
+          }
+          rise_data_required() {
+            time: 10.30263;
+            vertex("b1", "BUFx2_ASAP7_75t_R", "b1/A", "clk", "^", 0.00000, 0.00000, 0.53428, 0);
+            vertex("b1", "BUFx2_ASAP7_75t_R", "b1/Y", "clk_d", "^", 14.17675, 8.69220, 0.95108, 1);
+            vertex("d2", "DFFHQx4_ASAP7_75t_R", "d2/CLK", "clk_d", "^", 14.17675, 8.69220, 0.95108, 0);
+          }
+        }
+      }
+      min_fall() {
+        timing_path() {
+          slack : 84.90628;
+          crpr : -0.56969;
+          clk_time : 0.00000;
+          clk_arrival : 14.17675;
+          clk_delay : 14.17675;
+          source_clk_propagated : 1;
+          source_clk_arrival : 13.60706;
+          source_clk_time : 0.00000;
+          target_clk_propagated : 1;
+          target_clk_offset : 0.00000;
+          target_clk_mcp_adjustment : 0.00000;
+          target_clk_insertion_delay : 0.00000;
+          target_clk_delay : 14.17675;
+          target_clk_insertion_offset : 0.00000;
+          target_clk_non_inter_uncertainty : 0.00000;
+          target_clk_uncertainty : 0.00000;
+          library_setup_time : 11.91287;
+          source_clock : "clk";
+          source_clock_transition : "^";
+          target_clock : "clk";
+          target_clock_transition : "^";
+          timing_path_group : "clk";
+          timing_path_type : "check";
+          rise_source_clock() {
+            time: 13.60706;
+            vertex("b1", "BUFx2_ASAP7_75t_R", "b1/A", "clk", "^", 0.00000, 0.00000, 0.39934, 0);
+            vertex("b1", "BUFx2_ASAP7_75t_R", "b1/Y", "clk_d", "^", 13.60706, 7.69955, 0.71164, 1);
+            vertex("d1", "DFFHQx4_ASAP7_75t_R", "d1/CLK", "clk_d", "^", 13.60706, 7.69955, 0.71164, 0);
+          }
+          fall_data_arrival() {
+            time: 110.42621;
+            vertex("d1", "DFFHQx4_ASAP7_75t_R", "d1/Q", "w1", "v", 76.58497, 7.11443, 0.39404, 1);
+            vertex("b2", "BUFx2_ASAP7_75t_R", "b2/A", "w1", "v", 76.58497, 7.11443, 0.39404, 0);
+            vertex("b2", "BUFx2_ASAP7_75t_R", "b2/Y", "w2", "v", 93.54554, 6.29415, 0.39404, 1);
+            vertex("b3", "BUFx2_ASAP7_75t_R", "b3/A", "w2", "v", 93.54554, 6.29415, 0.39404, 0);
+            vertex("b3", "BUFx2_ASAP7_75t_R", "b3/Y", "w3", "v", 110.42621, 6.58809, 0.48550, 1);
+            vertex("d2", "DFFHQx4_ASAP7_75t_R", "d2/D", "w3", "v", 110.42621, 6.58809, 0.48550, 0);
+          }
+          fall_data_required() {
+            time: 25.51993;
+            vertex("b1", "BUFx2_ASAP7_75t_R", "b1/A", "clk", "^", 0.00000, 0.00000, 0.53423, 0);
+            vertex("b1", "BUFx2_ASAP7_75t_R", "b1/Y", "clk_d", "^", 14.17675, 8.69220, 0.95086, 1);
+            vertex("d2", "DFFHQx4_ASAP7_75t_R", "d2/CLK", "clk_d", "^", 14.17675, 8.69220, 0.95086, 0);
+          }
+        }
+      }
+      max_rise() {
+        timing_path() {
+          slack : 388.96738;
+          crpr : 0.56969;
+          clk_time : 500.00000;
+          clk_arrival : 513.60706;
+          clk_delay : 13.60706;
+          source_clk_propagated : 1;
+          source_clk_arrival : 14.17675;
+          source_clk_time : 0.00000;
+          target_clk_propagated : 1;
+          target_clk_offset : 500.00000;
+          target_clk_mcp_adjustment : 0.00000;
+          target_clk_insertion_delay : 0.00000;
+          target_clk_delay : 13.60706;
+          target_clk_insertion_offset : 0.00000;
+          target_clk_non_inter_uncertainty : 0.00000;
+          target_clk_uncertainty : 0.00000;
+          library_setup_time : 10.94380;
+          source_clock : "clk";
+          source_clock_transition : "^";
+          target_clock : "clk";
+          target_clock_transition : "^";
+          timing_path_group : "clk";
+          timing_path_type : "check";
+          rise_source_clock() {
+            time: 14.17675;
+            vertex("b1", "BUFx2_ASAP7_75t_R", "b1/A", "clk", "^", 0.00000, 0.00000, 0.53428, 0);
+            vertex("b1", "BUFx2_ASAP7_75t_R", "b1/Y", "clk_d", "^", 14.17675, 8.69220, 0.95108, 1);
+            vertex("d1", "DFFHQx4_ASAP7_75t_R", "d1/CLK", "clk_d", "^", 14.17675, 8.69220, 0.95108, 0);
+          }
+          rise_data_arrival() {
+            time: 114.26556;
+            vertex("d1", "DFFHQx4_ASAP7_75t_R", "d1/Q", "w1", "^", 81.96596, 8.97408, 0.53428, 1);
+            vertex("b2", "BUFx2_ASAP7_75t_R", "b2/A", "w1", "^", 81.96596, 8.97408, 0.53428, 0);
+            vertex("b2", "BUFx2_ASAP7_75t_R", "b2/Y", "w2", "^", 98.45967, 6.95545, 0.53428, 1);
+            vertex("b3", "BUFx2_ASAP7_75t_R", "b3/A", "w2", "^", 98.45967, 6.95545, 0.53428, 0);
+            vertex("b3", "BUFx2_ASAP7_75t_R", "b3/Y", "w3", "^", 114.26556, 7.05876, 0.55869, 1);
+            vertex("d2", "DFFHQx4_ASAP7_75t_R", "d2/D", "w3", "^", 114.26556, 7.05876, 0.55869, 0);
+          }
+          rise_data_required() {
+            time: 503.23297;
+            vertex("b1", "BUFx2_ASAP7_75t_R", "b1/A", "clk", "^", 0.00000, 0.00000, 0.39934, 0);
+            vertex("b1", "BUFx2_ASAP7_75t_R", "b1/Y", "clk_d", "^", 13.60706, 7.69955, 0.71164, 1);
+            vertex("d2", "DFFHQx4_ASAP7_75t_R", "d2/CLK", "clk_d", "^", 13.60706, 7.69955, 0.71164, 0);
+          }
+        }
+      }
+      max_fall() {
+        timing_path() {
+          slack : 400.41196;
+          crpr : 0.56969;
+          clk_time : 500.00000;
+          clk_arrival : 513.60706;
+          clk_delay : 13.60706;
+          source_clk_propagated : 1;
+          source_clk_arrival : 14.17675;
+          source_clk_time : 0.00000;
+          target_clk_propagated : 1;
+          target_clk_offset : 500.00000;
+          target_clk_mcp_adjustment : 0.00000;
+          target_clk_insertion_delay : 0.00000;
+          target_clk_delay : 13.60706;
+          target_clk_insertion_offset : 0.00000;
+          target_clk_non_inter_uncertainty : 0.00000;
+          target_clk_uncertainty : 0.00000;
+          library_setup_time : 1.55275;
+          source_clock : "clk";
+          source_clock_transition : "^";
+          target_clock : "clk";
+          target_clock_transition : "^";
+          timing_path_group : "clk";
+          timing_path_type : "check";
+          rise_source_clock() {
+            time: 14.17675;
+            vertex("b1", "BUFx2_ASAP7_75t_R", "b1/A", "clk", "^", 0.00000, 0.00000, 0.53428, 0);
+            vertex("b1", "BUFx2_ASAP7_75t_R", "b1/Y", "clk_d", "^", 14.17675, 8.69220, 0.95108, 1);
+            vertex("d1", "DFFHQx4_ASAP7_75t_R", "d1/CLK", "clk_d", "^", 14.17675, 8.69220, 0.95108, 0);
+          }
+          fall_data_arrival() {
+            time: 112.21204;
+            vertex("d1", "DFFHQx4_ASAP7_75t_R", "d1/Q", "w1", "v", 77.69913, 7.33425, 0.53423, 1);
+            vertex("b2", "BUFx2_ASAP7_75t_R", "b2/A", "w1", "v", 77.69913, 7.33425, 0.53423, 0);
+            vertex("b2", "BUFx2_ASAP7_75t_R", "b2/Y", "w2", "v", 95.03088, 6.74818, 0.53423, 1);
+            vertex("b3", "BUFx2_ASAP7_75t_R", "b3/A", "w2", "v", 95.03088, 6.74818, 0.53423, 0);
+            vertex("b3", "BUFx2_ASAP7_75t_R", "b3/Y", "w3", "v", 112.21204, 6.81597, 0.55560, 1);
+            vertex("d2", "DFFHQx4_ASAP7_75t_R", "d2/D", "w3", "v", 112.21204, 6.81597, 0.55560, 0);
+          }
+          fall_data_required() {
+            time: 512.62402;
+            vertex("b1", "BUFx2_ASAP7_75t_R", "b1/A", "clk", "^", 0.00000, 0.00000, 0.39404, 0);
+            vertex("b1", "BUFx2_ASAP7_75t_R", "b1/Y", "clk_d", "^", 13.60706, 7.69955, 0.70502, 1);
+            vertex("d2", "DFFHQx4_ASAP7_75t_R", "d2/CLK", "clk_d", "^", 13.60706, 7.69955, 0.70502, 0);
+          }
+        }
+      }
+    }
+  }
+
+}
