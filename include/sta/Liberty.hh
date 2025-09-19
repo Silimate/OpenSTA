@@ -36,6 +36,7 @@
 #include "Transition.hh"
 #include "Delay.hh"
 #include "LibertyClass.hh"
+#include "TimingArc.hh"
 
 namespace sta {
 
@@ -561,6 +562,13 @@ public:
   const char *userFunctionClass() const;
   void setUserFunctionClass(const char *user_function_class);
 
+  void addInternalTimingPath(InputRegisterTimingPath timing_path,
+                             const MinMax *min_max,
+                             const RiseFall *rise_fall);
+  const std::vector<InputRegisterTimingPath> &getInternalTimingPaths(const MinMax *min_max,
+                                                                     const RiseFall *rise_fall) const;
+  bool hasInternalTimingPaths() const;
+
 protected:
   void addPort(ConcretePort *port);
   void setHasInternalPorts(bool has_internal);
@@ -652,6 +660,8 @@ protected:
   std::mutex waveform_lock_;
   std::string footprint_;
   std::string user_function_class_;
+  float worst_slack_{std::numeric_limits<float>::max()};
+  std::array<std::array<std::vector<InputRegisterTimingPath>, 2>, 2> internal_timing_paths_;
 
 private:
   friend class LibertyLibrary;

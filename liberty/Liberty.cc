@@ -2065,6 +2065,38 @@ LibertyCell::setUserFunctionClass(const char *user_function_class)
   user_function_class_ = user_function_class;
 }
 
+void
+LibertyCell::addInternalTimingPath(InputRegisterTimingPath timing_path,
+                                   const MinMax *min_max,
+                                   const RiseFall *rise_fall)
+{
+  worst_slack_ = std::min(timing_path.slack, worst_slack_);
+  timing_path.cell_name = name();
+  timing_path.path_type = min_max->to_string();
+  internal_timing_paths_.at(min_max->index()).at(rise_fall->index()).emplace_back(std::move(timing_path));
+}
+
+const std::vector<InputRegisterTimingPath>&
+LibertyCell::getInternalTimingPaths(const MinMax *min_max,
+                                    const RiseFall *rise_fall) const
+{
+  return internal_timing_paths_.at(min_max->index()).at(rise_fall->index());
+}
+
+bool
+LibertyCell::hasInternalTimingPaths() const
+{
+  for (const auto& min_max_paths : internal_timing_paths_) {
+    for (const auto& rise_fall_paths : min_max_paths) {
+      if (!rise_fall_paths.empty()) {
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+
 ////////////////////////////////////////////////////////////////
 
 LibertyCellPortIterator::LibertyCellPortIterator(const LibertyCell *cell) :

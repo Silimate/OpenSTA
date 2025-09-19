@@ -25,11 +25,14 @@
 #pragma once
 
 #include <memory>
+#include <unordered_map>
+#include <limits>
 
 #include "Vector.hh"
 #include "Transition.hh"
 #include "Delay.hh"
 #include "LibertyClass.hh"
+#include "TimingRole.hh"
 
 namespace sta {
 
@@ -93,6 +96,90 @@ timingTypeScaleFactorType(TimingType type);
 
 ////////////////////////////////////////////////////////////////
 
+struct TimingPathVertex
+{
+  std::string instance;
+  std::string cell;
+  std::string pin;
+  std::string net;
+  std::string transition;
+  float arrival;
+  float slew;
+  float capacitance;
+  bool is_driver;
+};
+
+struct TimingPath
+{
+  std::string name{};
+  std::vector<TimingPathVertex> vertices{};
+  float time{0.0f};
+  const RiseFall* rise_fall;
+
+  struct Names
+  {
+    static constexpr std::array<const char*, 2> DATA_ARRIVAL{"rise_data_arrival", "fall_data_arrival"};
+    static constexpr std::array<const char*, 2> DATA_REQUIRED{"rise_data_required", "fall_data_required"};
+    static constexpr std::array<const char*, 2> CLOCKED_OUTPUT{"rise_clocked_output", "fall_clocked_output"};
+    static constexpr std::array<const char*, 2> COMBINATIONAL{"rise_combinational", "fall_combinational"};
+    static constexpr std::array<const char*, 2> SOURCE_CLOCK{"rise_source_clock", "fall_source_clock"};
+  };
+
+  inline static const std::unordered_map<const TimingRole*, std::array<const char*, 2>> ROLE_PATH_MAPPINGS =
+  {
+    {TimingRole::regClkToQ(), Names::CLOCKED_OUTPUT},
+    {TimingRole::combinational(), Names::COMBINATIONAL},
+    {TimingRole::setup(), Names::DATA_ARRIVAL},
+    {TimingRole::hold(), Names::DATA_ARRIVAL}
+  };
+
+  bool isDataArrivalPath() const;
+  bool isDataRequiredPath() const;
+  bool isSourceClockPath() const;
+};
+
+struct InputRegisterTimingPath
+{
+  float slack{std::numeric_limits<float>::max()};
+  float crpr{std::numeric_limits<float>::max()};
+  float clk_arrival{std::numeric_limits<float>::max()};
+  float library_setup_time{std::numeric_limits<float>::max()};
+  float path_delay{std::numeric_limits<float>::max()};
+  bool has_path_delay{false};
+  bool is_source_clock_propagated{false};
+  bool is_target_clock_propagated{false};
+  std::string cell_name{};
+  std::string path_group_name{};
+  std::string path_type{};
+  std::string type{};
+  const RiseFall *source_clock_transition{nullptr};
+  std::string source_clock_name{};
+  float source_clk_time{std::numeric_limits<float>::max()};
+  float source_clk_arrival{std::numeric_limits<float>::max()};
+  const RiseFall *target_clock_transition{nullptr};
+  std::string target_clock_name{};
+  float target_clk_delay{std::numeric_limits<float>::max()};
+  float target_clk_time{std::numeric_limits<float>::max()};
+  float target_clk_offset{std::numeric_limits<float>::max()};
+  float target_clk_mcp_adjustment{std::numeric_limits<float>::max()};
+  float target_clk_insertion_delay{std::numeric_limits<float>::max()};
+  float target_clk_insertion_offset{std::numeric_limits<float>::max()};
+  float target_clk_non_inter_uncertainty{std::numeric_limits<float>::max()};
+  float target_clk_uncertainty{std::numeric_limits<float>::max()};
+  TimingPath source_clock_path{};
+  TimingPath data_arrival_path{};
+  TimingPath data_required_path{};
+};
+
+struct CombinationalTimingPath
+{
+  float slack{std::numeric_limits<float>::max()};
+  TimingPath source_clock_path{};
+  TimingPath combinational_delay_path{};
+};
+
+////////////////////////////////////////////////////////////////
+
 class TimingArcAttrs
 {
 public:
@@ -120,6 +207,11 @@ public:
 		TimingModel *model);
   float ocvArcDepth() const { return ocv_arc_depth_; }
   void setOcvArcDepth(float depth);
+  void setSlack(float slack);
+  void mergeSlack(float slack);
+  void addTimingPath(TimingPath timing_path);
+  float slack() const { return slack_; }
+  const std::unordered_map<std::string, TimingPath>& timingPaths() const { return timing_paths_; }
 
 protected:
   TimingType timing_type_;
@@ -132,6 +224,8 @@ protected:
   const char *mode_value_;
   float ocv_arc_depth_;
   TimingModel *models_[RiseFall::index_count];
+  float slack_{std::numeric_limits<float>::max()};
+  std::unordered_map<std::string, TimingPath> timing_paths_;
 };
 
 // A timing arc set is a group of related timing arcs between from/to
@@ -184,6 +278,10 @@ public:
   const char *sdfCondEnd() const { return attrs_->sdfCondEnd(); }
   const char *modeName() const { return attrs_->modeName(); }
   const char *modeValue() const { return attrs_->modeValue(); }
+  float slack() const { return attrs_->slack(); }
+  bool hasTimingPaths() const { return !attrs_->timingPaths().empty(); }
+  const std::unordered_map<std::string, TimingPath>& timingPaths() const { return attrs_->timingPaths(); }
+
   // Timing arc set index in cell.
   TimingArcIndex index() const { return index_; }
   bool isDisabledConstraint() const { return is_disabled_constraint_; }
@@ -281,3 +379,25 @@ private:
 };
 
 } // namespace
+
+namespace std {
+  
+  template<>
+  struct less<sta::InputRegisterTimingPath>
+  {
+    bool operator()(const sta::InputRegisterTimingPath &first, const sta::InputRegisterTimingPath &second) const
+    {
+      return first.slack < second.slack;
+    }
+  };
+
+  template<>
+  struct less<const sta::InputRegisterTimingPath*>
+  {
+    bool operator()(const sta::InputRegisterTimingPath *first, const sta::InputRegisterTimingPath *second) const
+    {
+      return first->slack < second->slack;
+    }
+  };
+
+}

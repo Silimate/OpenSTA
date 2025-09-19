@@ -1,0 +1,89 @@
+library (timing_cell_comb) {
+  comment                        : "";
+  delay_model                    : table_lookup;
+  simulation                     : false;
+  capacitive_load_unit (1,fF);
+  leakage_power_unit             : 1pW;
+  current_unit                   : "1mA";
+  pulling_resistance_unit        : "1kohm";
+  time_unit                      : "1ps";
+  voltage_unit                   : "1v";
+  library_features(report_delay_calculation);
+
+  input_threshold_pct_rise : 50;
+  input_threshold_pct_fall : 50;
+  output_threshold_pct_rise : 50;
+  output_threshold_pct_fall : 50;
+  slew_lower_threshold_pct_rise : 10;
+  slew_lower_threshold_pct_fall : 10;
+  slew_upper_threshold_pct_rise : 90;
+  slew_upper_threshold_pct_fall : 90;
+  slew_derate_from_library : 1.0;
+
+
+  nom_process                    : 1.0;
+  nom_temperature                : 25.0;
+  nom_voltage                    : 0.70;
+
+  lu_table_template(template_1) {
+    variable_1 : total_output_net_capacitance;
+    index_1("1.44000,  2.88000,  5.76000,  11.52000,  23.04000,  46.08000,  92.16000");
+  }
+
+  cell ("timing_cell_comb") {
+    area : 0.073 
+    is_macro_cell : true;
+    pin("in") {
+      direction : input;
+      capacitance : 0.5343;
+    }
+    pin("clk") {
+      direction : input;
+      clock : true;
+      capacitance : 0.0000;
+    }
+    pin("out") {
+      direction : output;
+      capacitance : 0.0000;
+      timing() {
+        related_pin : "in";
+        timing_sense : positive_unate;
+        timing_type : combinational;
+	cell_rise(template_1) {
+          index_1("1.44000,  2.88000,  5.76000,  11.52000,  23.04000,  46.08000,  92.16000");
+          values("15.34000,18.76610,24.70210,36.34740,59.22760,104.82500,195.93398");
+	}
+	rise_transition(template_1) {
+          index_1("1.44000,  2.88000,  5.76000,  11.52000,  23.04000,  46.08000,  92.16000");
+          values("10.71910,16.68890,28.89130,53.74130,103.98500,204.87100,406.85599");
+	}
+	cell_fall(template_1) {
+          index_1("1.44000,  2.88000,  5.76000,  11.52000,  23.04000,  46.08000,  92.16000");
+          values("16.78370,19.81070,25.07290,34.75059,53.55110,91.08410,165.90601");
+	}
+	fall_transition(template_1) {
+          index_1("1.44000,  2.88000,  5.76000,  11.52000,  23.04000,  46.08000,  92.16000");
+          values("9.67198,14.34710,23.62830,42.45401,80.76170,158.09500,313.27496");
+	}
+        paths() {
+          slack : 486.24326;
+          fall_combinational() {
+            time: 13.75670;
+            vertex("", "timing_cell_comb", "in", "", "v", 0.00000, 0.00000, 0.39404, 1);
+            vertex("u2", "BUFx2_ASAP7_75t_R", "u2/A", "in", "v", 0.00000, 0.00000, 0.39404, 0);
+            vertex("u2", "BUFx2_ASAP7_75t_R", "u2/Y", "out", "v", 13.75670, 4.99686, 0.00000, 1);
+            vertex("", "timing_cell_comb", "out", "", "v", 13.75670, 4.99686, 0.00000, 0);
+          }
+          rise_combinational() {
+            time: 11.91390;
+            vertex("", "timing_cell_comb", "in", "", "^", 0.00000, 0.00000, 0.39934, 1);
+            vertex("u2", "BUFx2_ASAP7_75t_R", "u2/A", "in", "^", 0.00000, 0.00000, 0.39934, 0);
+            vertex("u2", "BUFx2_ASAP7_75t_R", "u2/Y", "out", "^", 11.91390, 4.74930, 0.00000, 1);
+            vertex("", "timing_cell_comb", "out", "", "^", 11.91390, 4.74930, 0.00000, 0);
+          }
+        }
+      }
+    }
+  }
+
+}

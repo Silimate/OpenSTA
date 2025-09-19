@@ -155,7 +155,7 @@ proc find_timing_paths_cmd { cmd args_var } {
     sta_error 511 "$cmd command failed."
   }
 
-  check_for_key_args $cmd args
+  check_for_key_args $cmd args 0
 
   if { [info exists flags(-unconstrained)] } {
     set unconstrained 1
@@ -217,16 +217,6 @@ proc find_timing_paths_cmd { cmd args_var } {
     set groups [parse_path_group_arg $keys(-path_group)]
   }
 
-  if { [llength $args] != 0 } {
-    delete_from_thrus_to $from $thrus $to
-    set arg [lindex $args 0]
-    if { [is_keyword_arg $arg] } {
-      sta_error 514 "'$arg' is not a known keyword or flag."
-    } else {
-      sta_error 515 "positional arguments not supported."
-    }
-  }
-
   set path_ends [find_path_ends $from $thrus $to $unconstrained \
 		   $corner $min_max \
 		   $group_path_count $endpoint_path_count $unique_pins \
@@ -234,6 +224,126 @@ proc find_timing_paths_cmd { cmd args_var } {
 		   $sort_by_slack $groups \
 		   1 1 1 1 1 1]
   return $path_ends
+}
+
+################################################################
+
+define_cmd_args "find_internal_timing_paths_cmd" \
+  {[-from from_list|-rise_from from_list|-fall_from from_list]\
+     [-through through_list|-rise_through through_list|-fall_through through_list]\
+     [-to to_list|-rise_to to_list|-fall_to to_list]\
+     [-path_delay min|min_rise|min_fall|max|max_rise|max_fall|min_max]\
+     [-group_path_count path_count] \
+     [-unique_paths_to_endpoint]\
+     [-slack_max slack_max]\
+     [-slack_min slack_min]\
+     [-sort_by_slack]\
+     [-path_group group_name]}
+
+proc find_internal_timing_paths_cmd { cmd args_var } {
+  upvar 1 $args_var args
+
+  parse_key_args $cmd args \
+    keys {-from -rise_from -fall_from \
+      -to -rise_to -fall_to \
+      -through -rise_through -fall_through \
+      -path_delay -group_count \
+      -endpoint_count -group_path_count \
+	    -slack_max -slack_min -path_group} \
+    flags {-sort_by_slack} 0
+
+  if { [info exists keys(-from)] || [info exists keys(-rise_from)] || [info exists keys(-fall_from)] ||
+       [info exists keys(-through)] || [info exists keys(-rise_through)] || [info exists keys(-fall_through)] ||
+       [info exists keys(-to)] || [info exists keys(-rise_to)] || [info exists keys(-fall_to)] } {
+    return NULL
+  }
+
+  set min_max "max"
+  set end_rf "rise_fall"
+  if [info exists keys(-path_delay)] {
+    set mm_key $keys(-path_delay)
+    if { $mm_key == "max_rise" } {
+      set min_max "max"
+      set end_rf "rise"
+    } elseif { $mm_key == "max_fall" } {
+      set min_max "max"
+      set end_rf "fall"
+    } elseif { $mm_key == "min_rise" } {
+      set min_max "min"
+      set end_rf "rise"
+    } elseif { $mm_key == "min_fall" } {
+      set min_max "min"
+      set end_rf "fall"
+    } elseif { $mm_key == "min" || $mm_key == "max" || $mm_key == "min_max" } {
+      set min_max $mm_key
+    } else {
+      sta_error 510 "$cmd -path_delay must be min, min_rise, min_fall, max, max_rise, max_fall or min_max."
+    }
+  }
+
+  set group_path_count 1
+  if [info exists keys(-group_path_count)] {
+    set group_path_count $keys(-group_path_count)
+  }
+  check_positive_integer "-group_path_count" $group_path_count
+  if { $group_path_count < 1 } {
+    sta_error 513 "-group_path_count must be >= 1."
+  }
+
+  set slack_min "-1e+30"
+  if [info exist keys(-slack_min)] {
+    set slack_min $keys(-slack_min)
+    check_float "-slack_min" $slack_min
+    set slack_min [time_ui_sta $slack_min]
+  }
+
+  set slack_max "1e+30"
+  if [info exist keys(-slack_max)] {
+    set slack_max $keys(-slack_max)
+    check_float "-slack_max" $slack_max
+    set slack_max [time_ui_sta $slack_max]
+  }
+
+  set sort_by_slack [info exists flags(-sort_by_slack)]
+
+  set groups {}
+  if [info exists keys(-path_group)] {
+    set groups [parse_path_group_arg $keys(-path_group)]
+  }
+
+  set internal_timing_paths [find_internal_timing_paths $min_max \
+		   $end_rf $slack_min $slack_max $sort_by_slack $groups $group_path_count]
+  return $internal_timing_paths
+}
+
+################################################################
+
+define_cmd_args "merge_paths_cmd" \
+  {[-group_path_count path_count] \
+   [-sort_by_slack]}
+
+proc merge_paths_cmd { cmd args_var path_ends_var internal_paths_var } {
+  upvar 1 $args_var args
+  upvar 1 $path_ends_var path_ends
+  upvar 1 $internal_paths_var internal_paths
+
+  parse_key_args $cmd args \
+    keys {-group_path_count} \
+    flags {-sort_by_slack} 0
+
+  set group_path_count 1
+  if [info exists keys(-group_path_count)] {
+    set group_path_count $keys(-group_path_count)
+  }
+  check_positive_integer "-group_path_count" $group_path_count
+  if { $group_path_count < 1 } {
+    sta_error 513 "-group_path_count must be >= 1."
+  }
+
+  set sort_by_slack [info exists flags(-sort_by_slack)]
+
+  set merged_paths [merge_paths $path_ends $internal_paths $sort_by_slack $group_path_count]
+  return $merged_paths
 }
 
 ################################################################
@@ -429,9 +539,24 @@ define_cmd_args "report_checks" \
 
 proc_redirect report_checks {
   global sta_report_unconstrained_paths
+
+  # Some keys/flags are used more than one time and parse_key_args
+  # function clears out the args variable from used keys/flags
+  # so keep the original contents
+  set original_args $args
+
   parse_report_path_options "report_checks" args "full" 0
+
+  set args $original_args
   set path_ends [find_timing_paths_cmd "report_checks" args]
-  report_path_ends $path_ends
+
+  set args $original_args
+  set internal_paths [find_internal_timing_paths_cmd "report_checks" args]
+
+  set args $original_args
+  set merged_paths [merge_paths_cmd "report_checks" args path_ends internal_paths]
+
+  report_paths_combined $merged_paths
 }
 
 ################################################################
@@ -1071,15 +1196,18 @@ define_cmd_args "write_timing_model" {[-scalar] \
                                         [-corner corner] \
                                         [-library_name lib_name]\
                                         [-cell_name cell_name]\
+                                        [-paths]\
+                                        [-internal_path_count]\
                                         filename}
 
 proc write_timing_model { args } {
   parse_key_args "write_timing_model" args \
-    keys {-library_name -cell_name -corner} flags {-scalar}
+    keys {-library_name -cell_name -corner -internal_path_count} flags {-scalar -paths}
   check_argc_eq1 "write_timing_model" $args
 
   set filename [file nativename [lindex $args 0]]
   set scalar [info exists flags(-scalar)]
+  set write_timing_paths [info exists flags(-paths)]
   if { [info exists keys(-cell_name)] } {
     set cell_name $keys(-cell_name)
   } else {
@@ -1091,7 +1219,17 @@ proc write_timing_model { args } {
     set lib_name $cell_name
   }
   set corner [parse_corner keys]
-  write_timing_model_cmd $lib_name $cell_name $filename $corner $scalar
+
+  set internal_path_count 1
+  if [info exists keys(-internal_path_count)] {
+    set internal_path_count $keys(-internal_path_count)
+  }
+  check_positive_integer "-internal_path_count" $internal_path_count
+  if { $internal_path_count < 1 } {
+    sta_error 513 "-internal_path_count must be >= 1."
+  }
+
+  write_timing_model_cmd $lib_name $cell_name $filename $corner $scalar $write_timing_paths $internal_path_count
 }
 
 ################################################################

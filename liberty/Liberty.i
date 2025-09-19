@@ -127,9 +127,10 @@ read_liberty_cmd(char *filename,
 
 void
 write_liberty_cmd(LibertyLibrary *library,
-                  char *filename)
+                  char *filename,
+                  bool write_timing_paths)
 {
-  writeLiberty(library, filename, Sta::sta());
+  writeLiberty(library, filename, Sta::sta(), write_timing_paths);
 }
 
 void

@@ -26,6 +26,8 @@
 
 #include <algorithm>
 #include <cmath> // abs
+#include <unordered_map>
+#include <list>
 
 #include "Mutex.hh"
 #include "Report.hh"
@@ -68,6 +70,7 @@
 #include "Crpr.hh"
 #include "Genclks.hh"
 #include "Variables.hh"
+#include "ClkNetwork.hh"
 
 namespace sta {
 
@@ -708,6 +711,225 @@ Search::seedFilterStarts()
         if (bidirect_drvr_vertex)
           seedArrival(bidirect_drvr_vertex);
       }
+    }
+  }
+}
+
+////////////////////////////////////////////////////////////////
+
+InternalPathSeq
+Search::findInternalTimingPaths(const MinMaxAll *delay_min_max,
+                                const RiseFallBoth *transition_rise_fall,
+                                float slack_min,
+                                float slack_max,
+                                bool sort_by_slack,
+                                PathGroupNameSet *groups,
+                                unsigned int path_count)
+{
+  std::unordered_map<std::string, InternalPathSet> found_timing_paths{};
+  LibertyLibraryIterator *liberty_library_iterator = network_->libertyLibraryIterator();
+  while (liberty_library_iterator->hasNext()) {
+    LibertyLibrary *liberty_library = liberty_library_iterator->next();
+    LibertyCellIterator cell_iter(liberty_library);
+    while (cell_iter.hasNext()) {
+      LibertyCell *liberty_cell = cell_iter.next();
+      if (!liberty_cell) {
+        continue;
+      }
+
+      for (auto &min_max : delay_min_max->range()) {
+        for (auto &rise_fall : transition_rise_fall->range()) {
+          const std::vector<InputRegisterTimingPath> &timing_paths = liberty_cell->getInternalTimingPaths(min_max, rise_fall);
+          for (const auto &timing_path : timing_paths) {
+            if (!isSlackInsideSearchingBounds(timing_path.slack, slack_min, slack_max) ||
+                !isMatchingSearchedPathGroups(timing_path.path_group_name.c_str(), groups)) {
+              continue;
+            }
+
+            InternalPathSet& group_timing_paths = found_timing_paths[timing_path.path_group_name];
+
+            if (group_timing_paths.size() < path_count ||
+                (*std::prev(group_timing_paths.end()))->slack > timing_path.slack) {
+              group_timing_paths.insert(&timing_path);
+
+              if (group_timing_paths.size() > path_count) {
+                group_timing_paths.erase(std::prev(group_timing_paths.end()));
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  InternalPathSeq internal_path_seq{};
+  for (const auto &[group, group_paths] : found_timing_paths) {
+    internal_path_seq.insert(internal_path_seq.end(), group_paths.begin(), group_paths.end());
+  }
+
+  if (sort_by_slack) {
+    sort(internal_path_seq, std::less<const InputRegisterTimingPath*>{});
+  }
+
+  return internal_path_seq;
+}
+
+bool
+Search::isSlackInsideSearchingBounds(float slack, float min_slack, float max_slack) const
+{
+  return min_slack <= slack && slack <= max_slack;
+}
+
+bool
+Search::isMatchingSearchedPathGroups(const char *path_group, PathGroupNameSet *groups) const
+{
+  return groups->empty() || groups->count(path_group) != 0;
+}
+
+////////////////////////////////////////////////////////////////
+
+PathsStitch
+Search::mergePaths(const PathEndSeq *path_ends,
+                   const InternalPathSeq *timing_paths,
+                   bool sort_by_slack,
+                   unsigned int path_count)
+{
+  bool has_timing_paths = timing_paths && !timing_paths->empty();
+  bool has_path_ends = path_ends && !path_ends->empty();
+  if (!has_timing_paths && !has_path_ends) {
+    return PathsStitch{};
+  }
+
+  if (!has_timing_paths) {
+    return PathsStitch{*path_ends, sort_by_slack};
+  }
+
+  if (!has_path_ends) {
+    return PathsStitch{*timing_paths, sort_by_slack};
+  }
+
+  std::unordered_map<PathGroup*, PathEndSeq> grouped_path_ends;
+  for (auto &path_end : *path_ends) {
+    PathGroup *path_group = search_->pathGroup(path_end);
+    grouped_path_ends[path_group].emplace_back(path_end);
+  }
+
+  std::unordered_map<PathGroup*, InternalPathSeq> grouped_internal_paths;
+  for (auto &internal_timing_path : *timing_paths) {
+    PathGroup *path_group = findPathGroupForInternalPath(internal_timing_path);
+    if (path_group) {
+      grouped_internal_paths[path_group].emplace_back(internal_timing_path);
+    }
+  }
+
+  PathEndSeq filtered_path_ends{};
+  InternalPathSeq filtered_internal_paths{};
+  for (auto &[path_group, path_ends] : grouped_path_ends) {
+    if (grouped_internal_paths.find(path_group) != grouped_internal_paths.end()) {
+      InternalPathSeq &internal_paths = grouped_internal_paths.at(path_group);
+      mergePathsBySlack(path_ends, internal_paths, filtered_path_ends, filtered_internal_paths, path_count);
+      grouped_internal_paths.erase(path_group);
+    } else {
+      filtered_path_ends.insert(filtered_path_ends.end(), path_ends.begin(), path_ends.end());
+    }
+  }
+
+  for (auto &[path_group, internal_paths] : grouped_internal_paths) {
+    filtered_internal_paths.insert(filtered_internal_paths.end(), internal_paths.begin(), internal_paths.end());
+  }
+
+  if (sort_by_slack) {
+    sort(filtered_path_ends, PathEndLess{this});
+    sort(filtered_internal_paths, std::less<const InputRegisterTimingPath*>{});
+  }
+
+  return PathsStitch{std::move(filtered_path_ends), std::move(filtered_internal_paths), sort_by_slack};
+}
+
+PathGroup *
+Search::findPathGroupForInternalPath(const InputRegisterTimingPath *timing_path) const
+{
+  const MinMax *min_max = timing_path->path_type == "max" ? MinMax::max() : MinMax::min();
+  if (timing_path->path_group_name == "clk") {
+    Pin *clock_pin = network_->findPin(timing_path->target_clock_name.c_str());
+    if (!clock_pin) {
+      return nullptr;
+    }
+
+    const ClockSet *clock_set = network_->clkNetwork()->clocks(clock_pin);
+    if (!clock_set) {
+      return nullptr;
+    }
+
+    const Clock *clock = *clock_set->begin();
+    if (!clock) {
+      return nullptr;
+    }
+
+    return search_->findPathGroup(clock, min_max);
+  }
+
+  if (!PathGroups::isGroupPathName(timing_path->path_group_name.c_str())) {
+    return search_->findPathGroup(timing_path->path_group_name.c_str(), min_max);
+  }
+
+  if (stringEq(timing_path->path_group_name.c_str(), PathGroups::pathDelayPathGroupName())) {
+    return search_->pathGroups()->pathDelayGroup(min_max);
+  }
+
+  if (stringEq(timing_path->path_group_name.c_str(), PathGroups::gatedClkPathGroupName())) {
+    return search_->pathGroups()->gatedClkGroup(min_max);
+  }
+
+  if (stringEq(timing_path->path_group_name.c_str(), PathGroups::asyncPathGroupName())) {
+    return search_->pathGroups()->asyncGroup(min_max);
+  }
+
+  if (stringEq(timing_path->path_group_name.c_str(), PathGroups::unconstrainedPathGroupName())) {
+    return search_->pathGroups()->unconstrainedGroup(min_max);
+  }
+
+  return nullptr;
+}
+
+void
+Search::mergePathsBySlack(
+    PathEndSeq &input_path_ends, InternalPathSeq &input_internal_paths,
+    PathEndSeq &filtered_path_ends, InternalPathSeq &filtered_internal_paths,
+    unsigned int group_path_count) const
+{
+  unsigned int total_reported_count = std::min(group_path_count, static_cast<unsigned int>(input_path_ends.size() + input_internal_paths.size()));
+
+  unsigned int first_index = 0;
+  unsigned int second_index = 0;
+
+  sort(input_path_ends, PathEndLess(this));
+  sort(input_internal_paths, std::less<const InputRegisterTimingPath*>{});
+  
+  unsigned int current_index = 0;
+  while (current_index < total_reported_count) {
+    current_index += 1;
+
+    if (first_index >= input_path_ends.size()) {
+      filtered_internal_paths.emplace_back(input_internal_paths.at(second_index));
+      second_index += 1;
+      continue;
+    }
+
+    if (second_index >= input_internal_paths.size()) {
+      filtered_path_ends.emplace_back(input_path_ends.at(first_index));
+      first_index += 1;
+      continue;
+    }
+
+    float path_end_slack = input_path_ends.at(first_index)->slack(this);
+    float internal_path_slack = input_internal_paths.at(second_index)->slack;
+    if (path_end_slack < internal_path_slack) {
+      filtered_path_ends.emplace_back(input_path_ends.at(first_index));
+      first_index += 1;
+    } else {
+      filtered_internal_paths.emplace_back(input_internal_paths.at(second_index));
+      second_index += 1;
     }
   }
 }

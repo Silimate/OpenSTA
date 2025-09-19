@@ -35,6 +35,7 @@
 #include "TimingArc.hh"
 #include "TimingModel.hh"
 #include "TableModel.hh"
+#include "Sta.hh"
 #include "StaState.hh"
 
 namespace sta {
@@ -47,7 +48,8 @@ public:
   LibertyWriter(const LibertyLibrary *lib,
                 const char *filename,
                 FILE *stream,
-                Report *report);
+                Report *report,
+                bool write_timing_paths);
   void writeLibrary();
 
 protected:
@@ -72,6 +74,7 @@ protected:
                        int index);
   void writeTableAxis10(const TableAxis *axis,
                         int index);
+  void writeTimingPath(int indent, const TimingPath &timing_path);
 
   const char *asString(bool value);
   const char *asString(const PortDirection *dir);
@@ -85,16 +88,18 @@ protected:
   Report *report_;
   const Unit *time_unit_;
   const Unit *cap_unit_;
+  bool write_timing_paths_;
 };
 
 void
 writeLiberty(LibertyLibrary *lib,
              const char *filename,
-             StaState *sta)
+             StaState *sta,
+             bool write_timing_paths)
 {
   FILE *stream = fopen(filename, "w");
   if (stream) {
-    LibertyWriter writer(lib, filename, stream, sta->report());
+    LibertyWriter writer(lib, filename, stream, sta->report(), write_timing_paths);
     writer.writeLibrary();
     fclose(stream);
   }
@@ -105,13 +110,15 @@ writeLiberty(LibertyLibrary *lib,
 LibertyWriter::LibertyWriter(const LibertyLibrary *lib,
                              const char *filename,
                              FILE *stream,
-                             Report *report) :
+                             Report *report,
+                             bool write_timing_paths) :
   library_(lib),
   filename_(filename),
   stream_(stream),
   report_(report),
   time_unit_(lib->units()->timeUnit()),
-  cap_unit_(lib->units()->capacitanceUnit())
+  cap_unit_(lib->units()->capacitanceUnit()),
+  write_timing_paths_(write_timing_paths)
 {
 }
 
@@ -321,8 +328,81 @@ LibertyWriter::writeCell(const LibertyCell *cell)
     }
   }
 
+  if (write_timing_paths_ && cell->hasInternalTimingPaths()) {
+    fprintf(stream_, "    worst_slack_paths() {\n");
+    for (const MinMax *min_max : MinMax::range()) {
+      for (const RiseFall *rise_fall : RiseFall::range()) {
+        fprintf(stream_, "      %s_%s() {\n", min_max->to_string().c_str(), rise_fall->name());
+        for (const auto &timing_path : cell->getInternalTimingPaths(min_max, rise_fall)) {
+          fprintf(stream_, "        timing_path() {\n");
+          fprintf(stream_, "          slack : %s;\n", time_unit_->asString(timing_path.slack, 5));
+          fprintf(stream_, "          crpr : %s;\n", time_unit_->asString(timing_path.crpr, 5));
+          fprintf(stream_, "          clk_time : %s;\n", time_unit_->asString(timing_path.target_clk_time, 5));
+          fprintf(stream_, "          clk_arrival : %s;\n", time_unit_->asString(timing_path.clk_arrival, 5));
+          fprintf(stream_, "          clk_delay : %s;\n", time_unit_->asString(timing_path.target_clk_delay, 5));
+          fprintf(stream_, "          source_clk_propagated : %d;\n", timing_path.is_source_clock_propagated);
+          fprintf(stream_, "          source_clk_arrival : %s;\n", time_unit_->asString(timing_path.source_clk_arrival, 5));
+          fprintf(stream_, "          source_clk_time : %s;\n", time_unit_->asString(timing_path.source_clk_time, 5));
+          fprintf(stream_, "          target_clk_propagated : %d;\n", timing_path.is_target_clock_propagated);
+          fprintf(stream_, "          target_clk_offset : %s;\n", time_unit_->asString(timing_path.target_clk_offset, 5));
+          fprintf(stream_, "          target_clk_mcp_adjustment : %s;\n", time_unit_->asString(timing_path.target_clk_mcp_adjustment, 5));
+          fprintf(stream_, "          target_clk_insertion_delay : %s;\n", time_unit_->asString(timing_path.target_clk_insertion_delay, 5));
+          fprintf(stream_, "          target_clk_delay : %s;\n", time_unit_->asString(timing_path.target_clk_delay, 5));
+          fprintf(stream_, "          target_clk_insertion_offset : %s;\n", time_unit_->asString(timing_path.target_clk_insertion_offset, 5));
+          fprintf(stream_, "          target_clk_non_inter_uncertainty : %s;\n", time_unit_->asString(timing_path.target_clk_non_inter_uncertainty, 5));
+          fprintf(stream_, "          target_clk_uncertainty : %s;\n", time_unit_->asString(timing_path.target_clk_uncertainty, 5));
+
+          if (timing_path.has_path_delay) {
+            fprintf(stream_, "          path_delay : %s;\n", time_unit_->asString(timing_path.path_delay, 5));
+          }
+          
+          fprintf(stream_, "          library_setup_time : %s;\n", time_unit_->asString(timing_path.library_setup_time, 5));
+
+          fprintf(stream_, "          source_clock : \"%s\";\n", timing_path.source_clock_name.c_str());
+          fprintf(stream_, "          source_clock_transition : \"%s\";\n", timing_path.source_clock_transition->shortName());
+          fprintf(stream_, "          target_clock : \"%s\";\n", timing_path.target_clock_name.c_str());
+          fprintf(stream_, "          target_clock_transition : \"%s\";\n", timing_path.target_clock_transition->shortName());
+
+          fprintf(stream_, "          timing_path_group : \"%s\";\n", timing_path.path_group_name.c_str());
+          fprintf(stream_, "          timing_path_type : \"%s\";\n", timing_path.type.c_str());
+          
+          if (!timing_path.source_clock_path.vertices.empty()) {
+            writeTimingPath(10, timing_path.source_clock_path);
+          }
+          writeTimingPath(10, timing_path.data_arrival_path);
+          writeTimingPath(10, timing_path.data_required_path);
+          fprintf(stream_, "        }\n");
+        }
+        fprintf(stream_, "      }\n");
+      }
+    }
+    fprintf(stream_, "    }\n");
+  }
+
   fprintf(stream_, "  }\n");
   fprintf(stream_, "\n");
+}
+
+void
+LibertyWriter::writeTimingPath(int indent, const TimingPath &timing_path)
+{
+  fprintf(stream_, "%*s%s() {\n", indent, " ", timing_path.name.c_str());
+  fprintf(stream_, "%*s  time: %s;\n", indent, " ", time_unit_->asString(timing_path.time, 5));
+  for (auto& vertex : timing_path.vertices) {
+    fprintf(stream_, "%*s  vertex(\"%s\", \"%s\", \"%s\", \"%s\", \"%s\", %s, %s, %s, %d);\n",
+      indent,
+      " ",
+      vertex.instance.c_str(),
+      vertex.cell.c_str(),
+      vertex.pin.c_str(),
+      vertex.net.c_str(),
+      vertex.transition.c_str(),
+      time_unit_->asString(vertex.arrival, 5),
+      time_unit_->asString(vertex.slew, 5),
+      cap_unit_->asString(vertex.capacitance, 5),
+      vertex.is_driver);
+  }
+  fprintf(stream_, "%*s}\n", indent, " ");
 }
 
 void
@@ -433,6 +513,31 @@ LibertyWriter::writeTimingArcSet(const TimingArcSet *arc_set)
         : rf;
       writeTimingModels(arc, model_rf);
     }
+  }
+
+  // Custom Liberty attrs/groups for handling timing paths
+  if (write_timing_paths_ && arc_set->hasTimingPaths()) {
+    fprintf(stream_, "        paths() {\n");
+    fprintf(stream_, "          slack : %s;\n", time_unit_->asString(arc_set->slack(), 5));
+
+    for (auto& [_, timing_path] : arc_set->timingPaths()) {
+      fprintf(stream_, "          %s() {\n", timing_path.name.c_str());
+      fprintf(stream_, "            time: %s;\n", time_unit_->asString(timing_path.time, 5));
+      for (auto& vertex : timing_path.vertices) {
+        fprintf(stream_, "            vertex(\"%s\", \"%s\", \"%s\", \"%s\", \"%s\", %s, %s, %s, %d);\n",
+          vertex.instance.c_str(),
+          vertex.cell.c_str(),
+          vertex.pin.c_str(),
+          vertex.net.c_str(),
+          vertex.transition.c_str(),
+          time_unit_->asString(vertex.arrival, 5),
+          time_unit_->asString(vertex.slew, 5),
+          cap_unit_->asString(vertex.capacitance, 5),
+          vertex.is_driver);
+      }
+      fprintf(stream_, "          }\n");
+    }
+    fprintf(stream_, "        }\n");
   }
 
   fprintf(stream_, "      }\n");

@@ -208,6 +208,7 @@ public:
   void visitStartpoints(VertexVisitor *visitor);
   void visitEndpoints(VertexVisitor *visitor);
   bool havePathGroups() const;
+  const PathGroups *pathGroups() const { return path_groups_; }
   PathGroup *findPathGroup(const char *name,
 			   const MinMax *min_max) const;
   PathGroup *findPathGroup(const Clock *clk,
@@ -410,6 +411,19 @@ public:
   void deletePaths(Vertex *vertex);
   void deleteTagGroup(TagGroup *group);
 
+  InternalPathSeq findInternalTimingPaths(const MinMaxAll *delay_min_max,
+                                          const RiseFallBoth *transition_rise_fall,
+                                          float slack_min,
+                                          float slack_max,
+                                          bool sort_by_slack,
+                                          PathGroupNameSet *groups,
+                                          unsigned int path_count);
+
+  PathsStitch mergePaths(const PathEndSeq *path_ends,
+                         const InternalPathSeq *timing_paths,
+                         bool sort_by_slack,
+                         unsigned int path_count);
+
 protected:
   void init(StaState *sta);
   void initVars();
@@ -582,6 +596,13 @@ protected:
   void clockDomains(const Vertex *vertex,
                     // Return value.
                     ClockSet &clks) const;
+  bool isSlackInsideSearchingBounds(float slack, float min_slack, float max_slack) const;
+  bool isMatchingSearchedPathGroups(const char *path_group, PathGroupNameSet *group_names) const;
+  PathGroup *findPathGroupForInternalPath(const InputRegisterTimingPath *timing_path) const;
+  void mergePathsBySlack(
+    PathEndSeq &input_path_ends, InternalPathSeq &input_internal_paths,
+    PathEndSeq &filtered_path_ends, InternalPathSeq &filtered_internal_paths,
+    unsigned int group_path_count) const;
 
   ////////////////////////////////////////////////////////////////
 

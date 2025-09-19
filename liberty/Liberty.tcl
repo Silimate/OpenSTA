@@ -47,7 +47,8 @@ proc write_liberty { args } {
 
   set library [get_liberty_error "library" [lindex $args 0]]
   set filename [file nativename [lindex $args 1]]
-  write_liberty_cmd $library $filename
+  set write_timing_paths [info exists flags(-paths)]
+  write_liberty_cmd $library $filename $write_timing_paths
 }
 
 ################################################################

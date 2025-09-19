@@ -33,6 +33,7 @@ class StaState;
 void
 writeLiberty(LibertyLibrary *lib,
              const char *filename,
-             StaState *sta);
+             StaState *sta,
+             bool write_timing_paths);
 
 } // namespace

@@ -134,8 +134,15 @@ public:
   PathGroup *findPathGroup(const Clock *clock,
 			   const MinMax *min_max) const;
   PathGroup *pathGroup(const PathEnd *path_end) const;
+  PathGroup *pathDelayGroup(const MinMax *min_max) const { return path_delay_[min_max->index()]; }
+  PathGroup *gatedClkGroup(const MinMax *min_max) const { return gated_clk_[min_max->index()]; }
+  PathGroup *asyncGroup(const MinMax *min_max) const { return async_[min_max->index()]; }
+  PathGroup *unconstrainedGroup(const MinMax *min_max) const { return unconstrained_[min_max->index()]; }
   static bool isGroupPathName(const char *group_name);
+  static const char *pathDelayPathGroupName() { return path_delay_group_name_; }
+  static const char *gatedClkPathGroupName() { return gated_clk_group_name_; }
   static const char *asyncPathGroupName() { return async_group_name_; }
+  static const char *unconstrainedPathGroupName() { return unconstrained_group_name_; }
 
 protected:
   void makeGroupPathEnds(ExceptionTo *to,

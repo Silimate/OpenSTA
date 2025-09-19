@@ -2521,6 +2521,41 @@ Sta::findPathEnds(ExceptionFrom *from,
 
 ////////////////////////////////////////////////////////////////
 
+InternalPathSeq
+Sta::findInternalTimingPaths(
+      const MinMaxAll *delay_min_max,
+      const RiseFallBoth *transition_rise_fall,
+      float slack_min,
+      float slack_max,
+      bool sort_by_slack,
+      PathGroupNameSet *groups,
+      int path_count)
+{
+  return search_->findInternalTimingPaths(delay_min_max,
+                                          transition_rise_fall,
+                                          slack_min,
+                                          slack_max,
+                                          sort_by_slack,
+                                          groups,
+                                          path_count);
+}
+
+////////////////////////////////////////////////////////////////
+
+PathsStitch
+Sta::mergePaths(const PathEndSeq *path_ends,
+                const InternalPathSeq *timing_paths,
+                bool sort_by_slack,
+                unsigned int path_count)
+{
+  return search_->mergePaths(path_ends,
+                             timing_paths,
+                             sort_by_slack,
+                             path_count);
+}
+
+////////////////////////////////////////////////////////////////
+
 // Overall flow:
 //  make graph
 //  propagate constants
@@ -2628,9 +2663,21 @@ Sta::reportPathEnds(PathEndSeq *ends)
 }
 
 void
+Sta::reportPaths(const PathsStitch *paths_stitch)
+{
+  report_path_->reportPaths(paths_stitch);
+}
+
+void
 Sta::reportPath(const Path *path)
 {
   report_path_->reportPath(path);
+}
+
+void
+Sta::reportPaths(const InternalPathSeq *internal_paths)
+{
+  report_path_->reportPaths(internal_paths);
 }
 
 void
@@ -5724,13 +5771,15 @@ Sta::writeTimingModel(const char *lib_name,
                       const char *cell_name,
                       const char *filename,
                       const Corner *corner,
-                      const bool scalar)
+                      const bool scalar,
+                      const bool write_timing_paths,
+                      const int internal_path_count)
 {
   ensureLibLinked();
   ensureGraph();
   LibertyLibrary *library = makeTimingModel(lib_name, cell_name, filename,
-                                            corner, scalar, this);
-  writeLiberty(library, filename, this);
+                                            corner, scalar, write_timing_paths, internal_path_count, this);
+  writeLiberty(library, filename, this, write_timing_paths);
 }
 
 ////////////////////////////////////////////////////////////////
