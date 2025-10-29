@@ -2969,6 +2969,12 @@ proc set_max_area { area } {
   set_max_area_cmd $area
 }
 
+define_cmd_args "get_max_area" {}
+
+proc get_max_area {} {
+  return [max_area]
+}
+
 ################################################################
 
 define_cmd_args "set_max_capacitance" {cap objects}
@@ -3580,7 +3586,14 @@ proc set_level_shifter_threshold { args } {
 define_cmd_args "set_max_dynamic_power" {power [unit]}
 
 proc set_max_dynamic_power { power {unit {}} } {
-  # ignored
+  check_positive_float "power" $power
+  set_max_dynamic_power_cmd $power
+}
+
+define_cmd_args "get_max_dynamic_power" {}
+
+proc get_max_dynamic_power {} {
+  return [max_dynamic_power]
 }
 
 ################################################################
@@ -3588,7 +3601,14 @@ proc set_max_dynamic_power { power {unit {}} } {
 define_cmd_args "set_max_leakage_power" {power [unit]}
 
 proc set_max_leakage_power { power {unit {}} } {
-  # ignored
+  check_positive_float "power" $power
+  set_max_leakage_power_cmd $power
+}
+
+define_cmd_args "get_max_leakage_power" {}
+
+proc get_max_leakage_power {} {
+  return [max_leakage_power]
 }
 
 ################################################################

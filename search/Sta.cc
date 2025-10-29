@@ -1102,6 +1102,18 @@ Sta::setMaxArea(float area)
 }
 
 void
+Sta::setMaxDynamicPower(float power)
+{
+  sdc_->setMaxDynamicPower(power);
+}
+
+void
+Sta::setMaxLeakagePower(float power)
+{
+  sdc_->setMaxLeakagePower(power);
+}
+
+void
 Sta::makeClock(const char *name,
 	       PinSet *pins,
 	       bool add_to_pins,

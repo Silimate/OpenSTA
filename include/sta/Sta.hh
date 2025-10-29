@@ -274,6 +274,8 @@ public:
 		      const MinMax *min_max,
 		      float fanout);
   void setMaxArea(float area);
+  void setMaxDynamicPower(float power);
+  void setMaxLeakagePower(float power);
 
   void makeClock(const char *name,
 		 PinSet *pins,
