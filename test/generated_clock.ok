@@ -1,0 +1,4 @@
+clk u_second_hierarchy/my_divider/CLK_OUT_DIV2 u_second_hierarchy/my_divider/CLK_OUT_MUL2
+clk period: 10.000000
+u_second_hierarchy/my_divider/CLK_OUT_DIV2 period: 20.000000
+u_second_hierarchy/my_divider/CLK_OUT_MUL2 period: 5.000000

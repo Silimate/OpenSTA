@@ -35,6 +35,7 @@
 #include "FuncExpr.hh"
 #include "EquivCells.hh"
 #include "Liberty.hh"
+#include "GeneratedClock.hh"
 #include "liberty/LibertyReader.hh"
 #include "LibertyWriter.hh"
 #include "SdcNetwork.hh"
@@ -767,6 +768,7 @@ Sta::linkDesign(const char *top_cell_name,
   bool status = network_->linkNetwork(top_cell_name,
 				      make_black_boxes,
 				      report_);
+
   stats.report("Link");
   return status;
 }
@@ -3617,6 +3619,12 @@ Sta::updateGeneratedClks()
     }
   }
   update_genclks_ = false;
+}
+
+void
+Sta::setUpdateGenclks()
+{
+  update_genclks_ = true;
 }
 
 Level

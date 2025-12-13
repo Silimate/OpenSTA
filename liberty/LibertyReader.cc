@@ -26,6 +26,7 @@
 
 #include <cctype>
 #include <cstdlib>
+#include <cstdio>
 #include <string>
 
 #include "EnumNameMap.hh"
@@ -315,6 +316,18 @@ LibertyReader::defineVisitors()
   defineAttrVisitor("cell_footprint", &LibertyReader::visitCellFootprint);
   defineAttrVisitor("user_function_class",
                     &LibertyReader::visitCellUserFunctionClass);
+
+  // Generated clock
+  defineGroupVisitor("generated_clock", &LibertyReader::beginGeneratedClock,
+                     &LibertyReader::endGeneratedClock);
+  defineAttrVisitor("clock_pin", &LibertyReader::visitClockPin);
+  defineAttrVisitor("master_pin", &LibertyReader::visitMasterPin);
+  defineAttrVisitor("divided_by", &LibertyReader::visitDividedBy);
+  defineAttrVisitor("multiplied_by", &LibertyReader::visitMultipliedBy);
+  defineAttrVisitor("duty_cycle", &LibertyReader::visitDutyCycle);
+  defineAttrVisitor("invert", &LibertyReader::visitInvert);
+  defineAttrVisitor("shifts", &LibertyReader::visitShifts);
+  defineAttrVisitor("edges", &LibertyReader::visitEdges);
 
   // Pins
   defineGroupVisitor("pin", &LibertyReader::beginPin,&LibertyReader::endPin);
@@ -1995,6 +2008,8 @@ LibertyReader::endCell(LibertyGroup *group)
     parseCellFuncs();
     makeLeakagePowers();
     finishPortGroups();
+    // Make generated clocks if they exist
+    makeGeneratedClocks();
 
     if (ocv_derate_name_) {
       OcvDerate *derate = cell_->findOcvDerate(ocv_derate_name_);
@@ -2185,6 +2200,32 @@ LibertyReader::makeCellSequential(SequentialGroup *seq)
     clr_expr->deleteSubexprs();
   if (preset_expr)
     preset_expr->deleteSubexprs();
+}
+
+void
+LibertyReader::makeGeneratedClocks()
+{
+  for (GeneratedClockGroup *generated_clock : generated_clocks_) {
+    makeGeneratedClock(generated_clock);
+    delete generated_clock;
+  }
+  generated_clocks_.clear();
+}
+
+void
+LibertyReader::makeGeneratedClock(GeneratedClockGroup *generated_clock)
+{
+  if (cell_) {
+    cell_->makeGeneratedClock(generated_clock->name(),
+                              generated_clock->clockPin(),
+                              generated_clock->masterPin(),
+                              generated_clock->dividedBy(),
+                              generated_clock->multipliedBy(),
+                              generated_clock->dutyCycle(),
+                              generated_clock->invert(),
+                              generated_clock->edges(),
+                              generated_clock->edgeShifts());
+  }
 }
 
 void
@@ -3166,6 +3207,184 @@ LibertyReader::visitCellUserFunctionClass(LibertyAttr *attr)
 }
 
 ////////////////////////////////////////////////////////////////
+
+static bool
+isPowerOfTwo(int i)
+{
+  return (i & (i - 1)) == 0;
+}
+
+void
+LibertyReader::beginGeneratedClock(LibertyGroup *group)
+{
+  if (cell_) {
+    const char *name = group->firstName();
+    if (name) {
+      generated_clock_ = new GeneratedClockGroup();
+      generated_clock_->setName(name);
+      generated_clocks_.push_back(generated_clock_);
+    }
+  }
+}
+
+void
+LibertyReader::endGeneratedClock(LibertyGroup *group)
+{
+  if (generated_clock_) {
+    if (!generated_clock_->clockPin()) {
+      libError(1234, group, "generated_clock missing clock_pin.");
+    }
+  }
+  generated_clock_ = nullptr;
+}
+
+void
+LibertyReader::visitClockPin(LibertyAttr *attr)
+{
+  if (generated_clock_) {
+    const char *clock_pin = getAttrString(attr);
+    if (clock_pin) {
+      generated_clock_->setClockPin(clock_pin);
+    }
+  }
+}
+
+void
+LibertyReader::visitMasterPin(LibertyAttr *attr)
+{
+  if (generated_clock_) {
+    const char *master_pin = getAttrString(attr);
+    if (master_pin) {
+      generated_clock_->setMasterPin(master_pin);
+    }
+  }
+}
+
+void
+LibertyReader::visitDividedBy(LibertyAttr *attr)
+{
+  bool exists;
+  int value;
+  getAttrInt(attr, value, exists);
+  if (exists) {
+    if (!isPowerOfTwo(value)) {
+      libError(1234, attr, "divided_by must be a power of two.");
+    }
+    generated_clock_->setDividedBy(value);
+  }
+}
+
+void
+LibertyReader::visitMultipliedBy(LibertyAttr *attr)
+{
+  bool exists;
+  int value;
+  getAttrInt(attr, value, exists);
+  if (exists) {
+    if (!isPowerOfTwo(value)) {
+      libError(1234, attr, "multiplied_by must be a power of two.");
+    }
+    generated_clock_->setMultipliedBy(value);
+  }
+}
+
+void
+LibertyReader::visitDutyCycle(LibertyAttr *attr)
+{
+  bool exists;
+  float dutyCycle;
+  getAttrFloat(attr, dutyCycle, exists);
+  if (exists) {
+    if (dutyCycle < 0.0 || dutyCycle > 100.0) {
+      libError(1234, attr, "duty_cycle must be between 0.0 and 100.0, inclusive.");
+    }
+    generated_clock_->setDutyCycle(dutyCycle);
+  }
+}
+
+void
+LibertyReader::visitInvert(LibertyAttr *attr)
+{
+  bool exists, value;
+  getAttrBool(attr, value, exists);
+  if (exists) {
+    generated_clock_->setInvert(value);
+  }
+}
+
+void
+LibertyReader::visitShifts(LibertyAttr *attr)
+{
+  if (generated_clock_) {
+    if (!attr->isComplex()) {
+      libError(1234, attr, "'shifts' attribute is not a complex attribute.");
+    }
+    // Initialize edges sequence
+    FloatSeq *shifts = new FloatSeq;
+    LibertyAttrValueIterator value_iter(attr->values());
+    while (value_iter.hasNext()) {
+      LibertyAttrValue *value = value_iter.next();
+      if (!value->isFloat()) {
+        delete shifts;
+        libError(1234, attr, "shifts attribute must be a float.");
+      }
+      float float_value = value->floatValue();
+      shifts->push_back(float_value);
+    }
+
+    // Error checking
+    if (shifts->size() < 3) {
+      delete shifts;
+      libError(1234, attr, "shifts attribute must have at least 3 values.");
+    } else if (shifts->size() % 2 != 1) {
+      delete shifts;
+      libError(1234, attr, "shifts attribute must have an odd number of values.");
+    } else if (generated_clock_->edges() && generated_clock_->edges()->size() != shifts->size()) {
+      delete shifts;
+      libError(1234, attr, "shifts and edges attribute must have the same number of values.");
+    }
+    generated_clock_->setEdgeShifts(shifts);
+  }
+}
+
+void
+LibertyReader::visitEdges(LibertyAttr *attr)
+{
+  if (generated_clock_) {
+    if (!attr->isComplex()) {
+      libError(1234, attr, "'edges' attribute is not a complex attribute.");
+    }
+    // Initialize edges sequence
+    IntSeq *edges = new IntSeq;
+    LibertyAttrValueIterator value_iter(attr->values());
+    while (value_iter.hasNext()) {
+      LibertyAttrValue *value = value_iter.next();
+      if (!value->isFloat()) {
+        delete edges;
+        libError(1234, attr, "edges attribute must be a float.");
+      }
+      float float_value = value->floatValue();
+      int int_value = static_cast<int>(float_value);
+      edges->push_back(int_value);
+    }
+
+    // Error checking
+    if (edges->size() < 3) {
+      delete edges;
+      libError(1234, attr, "edges attribute must have at least 3 values.");
+    } else if (edges->size() % 2 != 1) {
+      delete edges;
+      libError(1234, attr, "edges attribute must have an odd number of values.");
+    } else if ((*edges)[0] < 1) {
+      delete edges;
+      libError(1234, attr, "first edge must be greater than or equal to 1.");
+    } else if (generated_clock_->edgeShifts() && generated_clock_->edgeShifts()->size() != edges->size()) {
+      delete edges;
+      libError(1234, attr, "edges and shifts attribute must have the same number of values.");
+    }
+    generated_clock_->setEdges(edges);
+  }
+}
 
 void
 LibertyReader::beginPin(LibertyGroup *group)
@@ -5863,6 +6082,59 @@ void
 SequentialGroup::setClrPresetVar2(LogicValue var)
 {
   clr_preset_var2_ = var;
+}
+
+////////////////////////////////////////////////////////////////
+
+GeneratedClockGroup::GeneratedClockGroup() :
+  name_(nullptr),
+  clock_pin_(nullptr),
+  master_pin_(nullptr),
+  divided_by_(1),
+  multiplied_by_(1),
+  duty_cycle_(50.0),
+  invert_(false),
+  edges_(nullptr),
+  edge_shifts_(nullptr)
+{
+}
+
+GeneratedClockGroup::~GeneratedClockGroup()
+{
+  if (name_)
+    stringDelete(name_);
+  if (clock_pin_)
+    stringDelete(clock_pin_);
+  if (master_pin_)
+    stringDelete(master_pin_);
+  if (edges_)
+    delete edges_;
+  if (edge_shifts_)
+    delete edge_shifts_;
+}
+
+void
+GeneratedClockGroup::setName(const char *name)
+{
+  if (name_)
+    stringDelete(name_);
+  name_ = name ? stringCopy(name) : nullptr;
+}
+
+void
+GeneratedClockGroup::setClockPin(const char *clockPin)
+{
+  if (clock_pin_)
+    stringDelete(clock_pin_);
+  clock_pin_ = clockPin ? stringCopy(clockPin) : nullptr;
+}
+
+void
+GeneratedClockGroup::setMasterPin(const char *masterPin)
+{
+  if (master_pin_)
+    stringDelete(master_pin_);
+  master_pin_ = masterPin ? stringCopy(masterPin) : nullptr;
 }
 
 ////////////////////////////////////////////////////////////////

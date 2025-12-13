@@ -150,6 +150,7 @@ record_public_tests {
   extras
   filter_expr_defined
   filter_expr_to_postfix
+  generated_clock
   get_cell_hierarchy
   get_filter
   get_is_buffer

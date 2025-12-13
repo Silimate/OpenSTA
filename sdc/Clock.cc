@@ -395,7 +395,7 @@ Clock::generate(const Clock *src_clk)
   else
     waveform_->clear();
 
-  if (divide_by_ == 1.0) {
+  if (divide_by_ == 1.0 && multiply_by_ == 1) {
     period_ = src_clk->period();
     const FloatSeq *src_wave = src_clk->waveform();
     waveform_->push_back((*src_wave)[0]);
