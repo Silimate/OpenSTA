@@ -1041,6 +1041,9 @@ void Sdc::createLibertyGeneratedClocks(Clock *clk) {
     // Get all generated clock pins from the network
     const Map<const char*, LibertyCell*> &generated_clock_pins_to_cells =
       network_->generatedClockPinsToCellMap();
+    
+    // Need top instance to get full clock name
+    const char *topModuleName = network_->cellName(network_->topInstance());
 
     // The keys of generated_clock_pins_to_cells_
     // (master clock pins) will be searched in the current clock network
@@ -1067,12 +1070,13 @@ void Sdc::createLibertyGeneratedClocks(Clock *clk) {
             "%s/%s", instPath,
             generatedClock->masterPin()
           );
+
           if (strcmp(comparePath, network_->pathName(pin)) == 0) {
 
             // Hierarchical path of the generated clock pin
             // (name is with respect to source clock)
             const char *generatedClockName = stringPrintTmp(
-              "%s/%s", instPath,
+              "%s/%s/%s", topModuleName, instPath,
               generatedClock->clockPin()
             );
 

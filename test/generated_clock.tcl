@@ -16,7 +16,7 @@ foreach_in_collection clk [get_clocks] {
 create_generated_clock \
   -name clk_manual \
   -source [get_pins clk_edge_shift/CLK_OUT] \
-  -master_clock clk_edge_shift/CLK_OUT \
+  -master_clock generated_clock/clk_edge_shift/CLK_OUT \
   -divide_by 2 \
   [get_ports CLK_OUT_2]
 
