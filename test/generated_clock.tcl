@@ -25,3 +25,7 @@ puts "Number of clocks: [ llength [get_clocks]]"
 
 # Use command to validate waveforms
 report_clock_properties
+
+# get_pins should work
+set name [get_object_name [get_pin generated_clock/u_second_hierarchy/slow_clk_out]]
+puts "NAME: $name"
