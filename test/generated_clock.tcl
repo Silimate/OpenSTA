@@ -8,8 +8,13 @@ create_clock -name clk2 -period 100 [get_ports CLK_IN_2]
 puts "Number of clocks: [ llength [get_clocks]]"
 
 # Report all clock periods
+set clock_list {}
 foreach_in_collection clk [get_clocks] {
-  puts "[get_object_name $clk] period: [get_attribute $clk period]"
+  lappend clock_list [get_object_name $clk]
+}
+foreach clk_name [lsort -dictionary $clock_list] {
+  set clk [get_clocks $clk_name]
+  puts "$clk_name period: [get_attribute $clk period]"
 }
 
 # Use TCL command to create a generated clock from generated clock
@@ -24,4 +29,12 @@ create_generated_clock \
 puts "Number of clocks: [ llength [get_clocks]]"
 
 # Use command to validate waveforms
-report_clock_properties
+set clk_properties [report_clock_properties]
+
+# Split into lines, sort data rows while preserving header
+set lines [split $clk_properties "\n"]
+set header [lrange $lines 0 1]
+set data_lines [lrange $lines 2 end]
+set sorted_data [lsort -dictionary $data_lines]
+set sorted_output [join [concat $header $sorted_data] "\n"]
+puts $sorted_output
