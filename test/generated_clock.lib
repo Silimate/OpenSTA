@@ -63,4 +63,28 @@ library (generated_clock) {
       intrinsic_fall : 10;
     }
   }
+  cell (original_test) {
+    area : 10.0;
+    pin (original) {
+      direction : input;
+    }
+    pin (internal) {
+      direction : internal;
+      original_pin : original;
+    }
+    pin (out) {
+      diection: output;
+    }
+    generated_clock ( genclk ) {
+      clock_pin : out   ;
+      master_pin : internal;
+      divided_by : 2;
+    }
+    timing () {
+      related_pin : CLK_IN;
+      timing_type : rising_edge;
+      intrinsic_rise : 10;
+      intrinsic_fall : 10;
+    }
+  }
 }

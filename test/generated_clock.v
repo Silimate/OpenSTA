@@ -13,7 +13,10 @@ module generated_clock (
 
   // Test edges/shifts (shifts not supported)
   input wire CLK_IN_2,
-  output wire CLK_OUT_2
+  output wire CLK_OUT_2,
+
+  // Test original_pin
+  output wire original_out
 );
 
   // Give one more level of hierarchy to test names
@@ -30,6 +33,11 @@ module generated_clock (
   CLK_EDGE_SHIFT clk_edge_shift (
     .CLK_IN(CLK_IN_2),
     .CLK_OUT(CLK_OUT_2)
+  );
+
+  original_test original_test (
+    .original(CLK_IN_1),
+    .out(original_out)
   );
 
 endmodule
