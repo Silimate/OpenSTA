@@ -1068,7 +1068,7 @@ void Sdc::createLibertyGeneratedClocks(Clock *clk) {
             clkNetworkSearchPin = network_->findPin(stringPrintTmp(
               "%s/%s", instPath, orig_pin
             ));
-          } else {
+          } else { // otherwise use original instance pin
             clkNetworkSearchPin = instance_pin;
           }
         }
