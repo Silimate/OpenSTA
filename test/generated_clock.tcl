@@ -28,13 +28,19 @@ create_generated_clock \
 # Should see 10 clocks
 puts "Number of clocks: [ llength [get_clocks]]"
 
-# Use command to validate waveforms
-set clk_properties [report_clock_properties]
-
-# Split into lines, sort data rows while preserving header
+# Use command to validate waveforms, capture output to variable
+with_output_to_variable clk_properties { report_clock_properties }
 set lines [split $clk_properties "\n"]
-set header [lrange $lines 0 1]
-set data_lines [lrange $lines 2 end]
-set sorted_data [lsort -dictionary $data_lines]
-set sorted_output [join [concat $header $sorted_data] "\n"]
-puts $sorted_output
+# Print header (first 2 lines)
+puts [lindex $lines 0]
+puts [lindex $lines 1]
+# Sort and print data lines (skip empty lines)
+set data_lines {}
+foreach line [lrange $lines 2 end] {
+  if {[string trim $line] ne ""} {
+    lappend data_lines $line
+  }
+}
+foreach line [lsort -dictionary $data_lines] {
+  puts $line
+}
