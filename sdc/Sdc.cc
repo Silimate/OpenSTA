@@ -25,6 +25,7 @@
 #include "Sdc.hh"
 
 #include <algorithm>
+#include <string>
 
 #include "Stats.hh"
 #include "Debug.hh"
@@ -1050,59 +1051,81 @@ void Sdc::createLibertyGeneratedClocks(Clock *clk) {
 
       // Search the current clock network for the pin and validate 
       // that it is in the clock network
-      Pin *pin = network_->findPin(pinName);
-      if (pin && clkNetworkPins.hasKey(pin)) {
+      Pin *instance_pin = network_->findPin(pinName);
 
-        // Search liberty cell for the corresponding generated clock
-        for (const GeneratedClock *generatedClock : cell->generatedClocks()) {
+      if (instance_pin) {
 
-          // Use the pin to find the instance and the path to the instance
-          const Instance *inst = network_->instance(pin);
-          const char *instPath = network_->pathName(inst);
+        const Instance *inst = network_->instance(instance_pin);
+        const char *instPath = network_->pathName(inst);
 
-          // Compare the full {instance path/master pin} 
-          // and the full path to pin to validate the correct
-          // liberty information is supplied
-          const char *comparePath = stringPrintTmp(
-            "%s/%s", instPath,
-            generatedClock->masterPin()
-          );
-          if (strcmp(comparePath, network_->pathName(pin)) == 0) {
+        // Use instance path to find original pin in clock network, if it exists
+        LibertyPort *lib_port = network_->libertyPort(instance_pin);
+        Pin *clkNetworkSearchPin = nullptr;
+        const char *orig_pin = nullptr;
+        if (lib_port) {
+          orig_pin = lib_port->originalPin();
+          if (orig_pin && orig_pin[0] != '\0') { // if there is an original pin, it will exist
+            clkNetworkSearchPin = network_->findPin(stringPrintTmp(
+              "%s/%s", instPath, orig_pin
+            ));
+          } else {
+            clkNetworkSearchPin = instance_pin;
+          }
+        }
 
-            // Hierarchical path of the generated clock pin
-            // (name is with respect to source clock)
-            const char *generatedClockName = stringPrintTmp(
+        if (clkNetworkSearchPin && clkNetworkPins.hasKey(clkNetworkSearchPin)) {
+
+          // Search liberty cell for the corresponding generated clock
+          for (const GeneratedClock *generatedClock : cell->generatedClocks()) {
+
+            // Use the pin to find the instance and the path to the instance
+            const Instance *inst = network_->instance(instance_pin);
+            const char *instPath = network_->pathName(inst);
+
+            // Compare the full {instance path/master pin} 
+            // and the full path to pin to validate the correct
+            // liberty information is supplied
+            const char *comparePath = stringPrintTmp(
               "%s/%s", instPath,
-              generatedClock->clockPin()
+              generatedClock->masterPin()
             );
+            if (strcmp(comparePath, network_->pathName(instance_pin)) == 0) {
 
-            // Find the output pin, for nested generated clocks
-            Pin *clkOutPin = network_->findPin(
-              inst, 
-              generatedClock->clockPin()
-            );
-            PinSet *clkPins = nullptr;
-            if (clkOutPin) {
-              clkPins = new PinSet();
-              clkPins->insert(clkOutPin);
+              // Hierarchical path of the generated clock pin
+              // (name is with respect to source clock)
+              const char *generatedClockName = stringPrintTmp(
+                "%s/%s", instPath,
+                generatedClock->clockPin()
+              );
+
+              // Find the output pin, for nested generated clocks
+              Pin *clkOutPin = network_->findPin(
+                inst, 
+                generatedClock->clockPin()
+              );
+              PinSet *clkPins = nullptr;
+              if (clkOutPin) {
+                clkPins = new PinSet();
+                clkPins->insert(clkOutPin);
+              }
+
+              // Create generated clock using the existing
+              // makeGeneratedClock function
+              makeGeneratedClock(
+                generatedClockName,
+                clkPins, 
+                true,
+                const_cast<Pin*>(instance_pin),
+                clk,
+                generatedClock->dividedBy(),
+                generatedClock->multipliedBy(),
+                generatedClock->dutyCycle(),
+                generatedClock->invert(),
+                false,
+                generatedClock->edges(),
+                generatedClock->edgeShifts(),
+                nullptr);
             }
-
-            // Create generated clock using the existing
-            // makeGeneratedClock function
-            makeGeneratedClock(
-              generatedClockName,
-              clkPins, 
-              true,
-              const_cast<Pin*>(pin),
-              clk,
-              generatedClock->dividedBy(),
-              generatedClock->multipliedBy(),
-              generatedClock->dutyCycle(),
-              generatedClock->invert(),
-              false,
-              generatedClock->edges(),
-              generatedClock->edgeShifts(),
-              nullptr);
           }
         }
       }

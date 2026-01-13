@@ -2212,6 +2212,12 @@ LibertyPort::setDirection(PortDirection *dir)
 }
 
 void
+LibertyPort::setOriginalPin(const char *original_pin)
+{
+  original_pin_ = original_pin;
+}
+
+void
 LibertyPort::setScanSignalType(ScanSignalType type)
 {
   scan_signal_type_ = type;

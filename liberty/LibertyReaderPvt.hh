@@ -250,6 +250,7 @@ public:
   virtual void setPortCapDefault(LibertyPort *port);
   virtual void visitMembers(LibertyAttr *attr);
   virtual void visitDirection(LibertyAttr *attr);
+  virtual void visitOriginalPin(LibertyAttr *attr);
   virtual void visitFunction(LibertyAttr *attr);
   virtual void visitThreeState(LibertyAttr *attr);
   virtual void visitBusType(LibertyAttr *attr);

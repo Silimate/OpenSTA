@@ -335,6 +335,7 @@ LibertyReader::defineVisitors()
   defineGroupVisitor("bundle", &LibertyReader::beginBundle,
 		     &LibertyReader::endBundle);
   defineAttrVisitor("direction", &LibertyReader::visitDirection);
+  defineAttrVisitor("original_pin", &LibertyReader::visitOriginalPin);
   defineAttrVisitor("clock", &LibertyReader::visitClock);
   defineAttrVisitor("bus_type", &LibertyReader::visitBusType);
   defineAttrVisitor("members", &LibertyReader::visitMembers);
@@ -3680,6 +3681,18 @@ LibertyReader::visitDirection(LibertyAttr *attr)
 	if (!port->direction()->isTristate())
 	  port->setDirection(port_dir);
       }
+    }
+  }
+}
+
+void
+LibertyReader::visitOriginalPin(LibertyAttr *attr)
+{
+  const char *original_pin_ = getAttrString(attr);
+  if (original_pin_) {
+    if (ports_) {
+      for (LibertyPort *port : *ports_)
+        port->setOriginalPin(original_pin_);
     }
   }
 }

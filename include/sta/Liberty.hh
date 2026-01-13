@@ -707,6 +707,8 @@ public:
   LibertyPort *bundlePort() const;
   BusDcl *busDcl() const { return bus_dcl_; }
   void setDirection(PortDirection *dir);
+  const char *originalPin() const { return original_pin_.c_str(); }
+  void setOriginalPin(const char *original_pin);
 
   ////////////////////////////////////////////////////////////////
   // pg_pin functions
@@ -918,6 +920,7 @@ protected:
   const RiseFall *pulse_clk_sense_;
   std::string related_ground_pin_;
   std::string related_power_pin_;
+  std::string original_pin_;
   Vector<LibertyPort*> corner_ports_;
   ReceiverModelPtr receiver_model_;
   DriverWaveform *driver_waveform_[RiseFall::index_count];

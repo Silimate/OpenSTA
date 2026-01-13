@@ -380,6 +380,7 @@ public:
   float maxDynamicPower() const;
   void setMaxLeakagePower(float power);
   float maxLeakagePower() const;
+  std::string getOriginalPinName(const Pin * pin);
   void createLibertyGeneratedClocks(Clock *clk);
   Clock *makeClock(const char *name,
                    PinSet *pins,
