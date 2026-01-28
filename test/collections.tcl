@@ -39,8 +39,8 @@ report_object_full_names [query_collection [get_ports req_*]]
 puts "append_to_collection -unique"
 set resp_ports [get_ports req_*]
 append_to_collection -unique resp_ports [get_ports req_*]
-append_to_collection resp_ports [get_ports resp_*]
-append_to_collection resp_ports [get_ports resp_*] -unique
+append_to_collection resp_ports [get_ports req_*]
+append_to_collection resp_ports [get_ports req_*] -unique
 
-# Should only be one of each port
+# There should be two of each port
 report_object_full_names $resp_ports

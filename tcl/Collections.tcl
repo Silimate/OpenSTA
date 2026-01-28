@@ -48,11 +48,14 @@ proc append_to_collection { args } {
   set objects [lindex $args 1]
 
   upvar $collection coll
-  lappend coll {*}$objects
-
-  # Uniquify collection if flag was set
-  if {$unique} {
-    set coll [lsort -unique $coll]
+  if {$unique} { # don't add duplicates
+    foreach object $objects {
+      if {![lsearch -exact $coll $object]} {
+        lappend coll $object
+      }
+    }
+  } else {
+    lappend coll {*}$objects
   }
 }
 
