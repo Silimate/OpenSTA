@@ -35,7 +35,7 @@ interp alias {} query_collection {} return -level 0
 
 # Append objects to a collection and modifies a variable. (Link 2)
 proc append_to_collection { args } {
-  
+
   # Extract and remove -unique flag if set
   set idx [lsearch -exact $args "-unique"]
   set unique [expr {$idx != -1}]
