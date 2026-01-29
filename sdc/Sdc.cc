@@ -1052,6 +1052,8 @@ void Sdc::createLibertyGeneratedClocks(Clock *clk) {
       // that it is in the clock network
       Pin *pin = network_->findPin(pinName);
       if (pin && clkNetworkPins.hasKey(pin)) {
+        report_->reportLine("Found pin %s in clock network %s", 
+          pinName, clk->name());
 
         // Search liberty cell for the corresponding generated clock
         for (const GeneratedClock *generatedClock : cell->generatedClocks()) {
@@ -1071,10 +1073,13 @@ void Sdc::createLibertyGeneratedClocks(Clock *clk) {
 
             // Hierarchical path of the generated clock pin
             // (name is with respect to source clock)
-            const char *generatedClockName = stringPrintTmp(
+            const char *generatedClockName = stringCopy(stringPrintTmp(
               "%s/%s", instPath,
               generatedClock->clockPin()
-            );
+            ));
+            report_->reportLine("Creating generated clock %s "
+              "from clock %s in instance %s", 
+              generatedClockName, clk->name(), instPath);
 
             // Find the output pin, for nested generated clocks
             Pin *clkOutPin = network_->findPin(
@@ -1137,7 +1142,9 @@ Sdc::makeClock(const char *name,
   clearCycleAcctings();
   invalidateGeneratedClks();
   clkHpinDisablesInvalid();
-  createLibertyGeneratedClocks(clk);
+  if (network_->generatedClockPinsToCellMap().size() > 0) {
+    createLibertyGeneratedClocks(clk);
+  }
   return clk;
 }
 
@@ -1177,7 +1184,7 @@ Sdc::makeGeneratedClock(const char *name,
   invalidateGeneratedClks();
   clkHpinDisablesInvalid();
 
-  // Trigger update of generated clocks
+  // Trigger update of generated clocks DISABLED FOR NOW
   Sta::sta()->setUpdateGenclks();
   Sta::sta()->updateGeneratedClks();
   createLibertyGeneratedClocks(clk);
