@@ -34,9 +34,29 @@ interp alias {} sort_collection {} lsort
 interp alias {} query_collection {} return -level 0
 
 # Append objects to a collection and modifies a variable. (Link 2)
-proc append_to_collection { collection objects } {
+proc append_to_collection { args } {
+
+  # Extract and remove -unique flag if set
+  set idx [lsearch -exact $args "-unique"]
+  set unique [expr {$idx != -1}]
+  if {$unique} {
+    set args [lreplace $args $idx $idx]
+  }
+
+  # Extract collection and objects from args
+  set collection [lindex $args 0]
+  set objects [lindex $args 1]
+
   upvar $collection coll
-  lappend coll {*}$objects
+  if {$unique} { # don't add duplicates
+    foreach object $objects {
+      if {![lsearch -exact $coll $object]} {
+        lappend coll $object
+      }
+    }
+  } else {
+    lappend coll {*}$objects
+  }
 }
 
 # Remove objects from a collection, resulting in a new collection. The base collection remains unchanged. (Link 2)

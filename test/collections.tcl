@@ -35,3 +35,12 @@ puts [sizeof_collection [get_ports req_*]]
 
 puts "query_collection"
 report_object_full_names [query_collection [get_ports req_*]]
+
+puts "append_to_collection -unique"
+set resp_ports [get_ports req_*]
+append_to_collection -unique resp_ports [get_ports req_*]
+append_to_collection resp_ports [get_ports req_*]
+append_to_collection resp_ports [get_ports req_*] -unique
+
+# There should be two of each port
+report_object_full_names $resp_ports
