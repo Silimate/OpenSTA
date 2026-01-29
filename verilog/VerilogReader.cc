@@ -1815,6 +1815,8 @@ VerilogReader::makeGeneratedClocks(LibertyCell *lib_cell, Instance *inst)
       // Map the full pinpath of source clock to the liberty cell
       // containing the generated clock definition
       network_->addGeneratedClockPinToCell(pinPath, lib_cell);
+      report_->reportLine("Added generated clock pin %s to liberty cell %s", 
+        pinPath, lib_cell->name());
     }
   }
 }
