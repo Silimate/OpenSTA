@@ -1184,7 +1184,7 @@ Sdc::makeGeneratedClock(const char *name,
   invalidateGeneratedClks();
   clkHpinDisablesInvalid();
 
-  // Trigger update of generated clocks DISABLED FOR NOW
+  // Trigger update of generated clocks
   Sta::sta()->setUpdateGenclks();
   Sta::sta()->updateGeneratedClks();
   createLibertyGeneratedClocks(clk);
