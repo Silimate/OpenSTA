@@ -1607,15 +1607,7 @@ Power::clockMinPeriod()
 }
 
 void
-Power::deleteInstanceBefore(const Instance *)
-{
-  activities_valid_ = false;
-  instance_powers_.clear();
-  corner_ = nullptr;
-}
-
-void
-Power::deletePinBefore(const Pin *)
+Power::powerInvalid()
 {
   activities_valid_ = false;
   instance_powers_.clear();

@@ -4340,6 +4340,7 @@ Sta::makeInstanceAfter(const Instance *inst)
         }
       }
       graph_->makeInstanceEdges(inst);
+      power_->powerInvalid();
     }
   }
 }
@@ -4406,6 +4407,8 @@ Sta::replaceEquivCellAfter(const Instance *inst)
 	parasitics_->loadPinCapacitanceChanged(pin);
     }
     delete pin_iter;
+    clk_skews_->clear();
+    power_->powerInvalid();
   }
 }
 
@@ -4476,7 +4479,6 @@ Sta::replaceCellBefore(const Instance *inst,
       }
     }
     delete pin_iter;
-    clk_skews_->clear();
   }
 }
 
@@ -4542,6 +4544,7 @@ Sta::connectPinAfter(const Pin *pin)
   sdc_->connectPinAfter(pin);
   sim_->connectPinAfter(pin);
   clk_skews_->clear();
+  power_->powerInvalid();
 }
 
 void
@@ -4633,6 +4636,7 @@ Sta::disconnectPinBefore(const Pin *pin)
       }
     }
     clk_skews_->clear();
+    power_->powerInvalid();
   }
 }
 
@@ -4677,6 +4681,8 @@ Sta::deleteNetBefore(const Net *net)
     delete pin_iter;
   }
   sdc_->deleteNetBefore(net);
+  clk_skews_->clear();
+  power_->powerInvalid();
 }
 
 void
@@ -4704,7 +4710,8 @@ Sta::deleteLeafInstanceBefore(const Instance *inst)
 {
   sim_->deleteInstanceBefore(inst);
   sdc_->deleteInstanceBefore(inst);
-  power_->deleteInstanceBefore(inst);
+  clk_skews_->clear();
+  power_->powerInvalid();
 }
 
 void
@@ -4782,8 +4789,6 @@ Sta::deletePinBefore(const Pin *pin)
   sdc_->deletePinBefore(pin);
   sim_->deletePinBefore(pin);
   clk_network_->deletePinBefore(pin);
-  power_->deletePinBefore(pin);
-  clk_skews_->clear();
 }
 
 void
