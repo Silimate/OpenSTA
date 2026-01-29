@@ -1052,8 +1052,6 @@ void Sdc::createLibertyGeneratedClocks(Clock *clk) {
       // that it is in the clock network
       Pin *pin = network_->findPin(pinName);
       if (pin && clkNetworkPins.hasKey(pin)) {
-        report_->reportLine("Found pin %s in clock network %s", 
-          pinName, clk->name());
 
         // Search liberty cell for the corresponding generated clock
         for (const GeneratedClock *generatedClock : cell->generatedClocks()) {
@@ -1077,9 +1075,6 @@ void Sdc::createLibertyGeneratedClocks(Clock *clk) {
               "%s/%s", instPath,
               generatedClock->clockPin()
             ));
-            report_->reportLine("Creating generated clock %s "
-              "from clock %s in instance %s", 
-              generatedClockName, clk->name(), instPath);
 
             // Find the output pin, for nested generated clocks
             Pin *clkOutPin = network_->findPin(

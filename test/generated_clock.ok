@@ -1,4 +1,11 @@
 Warning: generated_clock.lib line 57, shifts are not supported yet, may cause malformed waveforms.
+Adding generated clock pin u_second_hierarchy/clk_gen/CLK_IN to liberty cell CLK_GEN
+Adding generated clock pin u_second_hierarchy/clk_gen/CLK_IN to liberty cell CLK_GEN
+Adding generated clock pin u_second_hierarchy/clk_gen2/CLK_IN to liberty cell CLK_GEN
+Adding generated clock pin u_second_hierarchy/clk_gen2/CLK_IN to liberty cell CLK_GEN
+Adding generated clock pin u_second_hierarchy/clk_gen3/CLK_IN to liberty cell CLK_GEN
+Adding generated clock pin u_second_hierarchy/clk_gen3/CLK_IN to liberty cell CLK_GEN
+Adding generated clock pin clk_edge_shift/CLK_IN to liberty cell CLK_EDGE_SHIFT
 Number of clocks: 9
 clk period: 10.000000
 u_second_hierarchy/clk_gen/CLK_OUT_DIV period: 20.000000
