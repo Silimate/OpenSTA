@@ -25,12 +25,10 @@
 #include "PatternMatch.hh"
 #include "Sta.hh"
 #include <cstring>
-#include <regex>
 #include <tcl.h>
 
 namespace sta {
 
-using std::regex;
 using std::string;
 
 PatternMatch::PatternMatch(const char *pattern,
@@ -123,21 +121,35 @@ PatternMatch::match(const string &str) const
 string
 stripEscapedBus(string str)
 {
-  // strip escaped bus indices from str
+  // strip trailing escaped bus indices from str
   // bus\[8\] -> bus
   // bus\[8\]\[7\] -> bus
   // bus\[8\]\[7\]\[6\] -> bus
   // bus\[8\].hello -> bus\[8\].hello
   // bus\[hello\].world -> bus\[hello\].world
   // etc.
-  string result = str;
-  regex trailing_numeric_pattern(R"(\\\[\s*\d+\s*\\\]$)");
-  string prev_result;
-  do {
-    prev_result = result;
-    result = std::regex_replace(result, trailing_numeric_pattern, "");
-  } while (result != prev_result);
-  return result;
+  while (true) {
+    int len = static_cast<int>(str.size());
+    // Minimum pattern \[0\] is 5 chars
+    if (len < 5)
+      break;
+    // Must end with \]
+    if (str[len - 1] != ']' || str[len - 2] != '\\')
+      break;
+    int pos = len - 3;
+    // Need at least one digit
+    if (pos < 0 || !isdigit(static_cast<unsigned char>(str[pos])))
+      break;
+    // Skip digits
+    while (pos >= 0 && isdigit(static_cast<unsigned char>(str[pos])))
+      pos--;
+    // Must have \[ at current position
+    if (pos < 1 || str[pos] != '[' || str[pos - 1] != '\\')
+      break;
+    // Truncate before the \[
+    str.resize(pos - 1);
+  }
+  return str;
 }
 
 bool
