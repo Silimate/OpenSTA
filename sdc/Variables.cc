@@ -45,7 +45,8 @@ Variables::Variables() :
   direction_props_short_(false),
   liberty_line_debug_(false),
   no_inv_delay_calc_(false),
-  strip_escaped_bus_(false)
+  strip_escaped_bus_(false),
+  enable_collections_(false)
 {
 }
 

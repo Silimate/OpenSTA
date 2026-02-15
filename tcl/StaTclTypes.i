@@ -51,6 +51,9 @@
 #include "Sta.hh"
 #include "TclTypeHelpers.hh"
 
+#include <sstream>
+#include <iostream>
+
 namespace sta {
 
 typedef MinPulseWidthCheckSeq::Iterator MinPulseWidthCheckSeqIterator;
@@ -274,6 +277,7 @@ using namespace sta;
 // SWIG type definitions.
 //
 ////////////////////////////////////////////////////////////////
+%include "tcl/Collections.i"
 
 // String that is deleted after crossing over to tcland.
 %typemap(out) string {
@@ -357,7 +361,13 @@ using namespace sta;
 }
 
 %typemap(out) CellSeq {
-  seqTclList<CellSeq, Cell>($1, SWIGTYPE_p_Cell, interp);
+  if (Sta::sta()->enableCollections()) {
+    CellSeq *copy = new CellSeq($1);
+    Tcl_Obj *obj = SWIG_NewInstanceObj(copy, $1_descriptor, true);
+    Tcl_SetObjResult(interp, obj);
+  } else {
+    seqTclList<CellSeq, Cell>($1, SWIGTYPE_p_Cell, interp);
+  }
 }
 
 %typemap(in) LibertyCellSeq* {
@@ -396,12 +406,33 @@ using namespace sta;
 }
 
 %typemap(in) PortSeq* {
-  $1 = tclListSeqPtr<const Port*>($input, SWIGTYPE_p_Port, interp);
+  // Assume collection, if it fails, interpret as Tcl list
+  int res = SWIG_Tcl_ConvertPtr(interp, $input, (void**)&$1, SWIGTYPE_p_PortSeq, 0);
+  if (!SWIG_IsOK(res)) {
+    $1 = tclListSeqPtr<const Port*>($input, SWIGTYPE_p_Port, interp);
+  }
 }
 
 %typemap(out) PortSeq {
-  seqTclList<PortSeq, Port>($1, SWIGTYPE_p_Port, interp);
+  if (Sta::sta()->enableCollections()) {
+    auto *copy = new PortSeq($1);
+    Tcl_Obj *obj = SWIG_NewInstanceObj(copy, SWIGTYPE_p_PortSeq, true);
+    Tcl_SetObjResult(interp, obj);
+  } else {
+    seqTclList<PortSeq, Port>($1, SWIGTYPE_p_Port, interp);
+  }
 }
+
+%typemap(out) PortSeq* {
+  if (Sta::sta()->enableCollections()) {
+    Tcl_Obj *obj = SWIG_NewInstanceObj($1, SWIGTYPE_p_PortSeq, true);
+    Tcl_SetObjResult(interp, obj);
+  } else {
+    seqPtrTclList<PortSeq, Port>($1, SWIGTYPE_p_Port, interp);
+  }
+}
+
+COLLECTION_HELPERS(PortSeq, const Port *, PortSeqIterator);
 
 %typemap(out) PortMemberIterator* {
   Tcl_Obj *obj = SWIG_NewInstanceObj($1, $1_descriptor, false);
@@ -574,12 +605,29 @@ using namespace sta;
   Tcl_SetObjResult(interp, obj);
 }
 
+COLLECTION_HELPERS(InstanceSeq, const Instance *, InstanceSeqIterator);
+
 %typemap(in) InstanceSeq* {
   $1 = tclListSeqPtr<const Instance*>($input, SWIGTYPE_p_Instance, interp);
 }
 
 %typemap(out) InstanceSeq {
-  seqTclList<InstanceSeq, Instance>($1, SWIGTYPE_p_Instance, interp);
+  if (Sta::sta()->enableCollections()) {
+    auto *copy = new InstanceSeq($1);
+    Tcl_Obj *obj = SWIG_NewInstanceObj(copy, $1_descriptor, true);
+    Tcl_SetObjResult(interp, obj);
+  } else {
+    seqTclList<InstanceSeq, Instance>($1, SWIGTYPE_p_Instance, interp);
+  }
+}
+
+%typemap(out) InstanceSeq* {
+  if (Sta::sta()->enableCollections()) {
+    Tcl_Obj *obj = SWIG_NewInstanceObj($1, $1_descriptor, true);
+    Tcl_SetObjResult(interp, obj);
+  } else {
+    seqPtrTclList<InstanceSeq, Instance>($1, SWIGTYPE_p_Instance, interp);
+  }
 }
 
 %typemap(out) InstanceChildIterator* {

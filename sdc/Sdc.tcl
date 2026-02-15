@@ -351,48 +351,47 @@ proc get_cells { args } {
     parse_port_pin_net_arg $keys(-of_objects) pins nets
     foreach pin $pins {
       if { [$pin is_top_level_port] } {
-	set net [get_nets [get_name $pin]]
-	if { $net != "NULL" } {
-	  lappend nets $net
-	}
+        set net [get_nets [get_name $pin]]
+        if { $net != "NULL" } {
+          lappend nets $net
+        }
       } else {
-	lappend insts [$pin instance]
+        lappend insts [$pin instance]
       }
     }
     foreach net $nets {
       set pin_iter [$net pin_iterator]
       while { [$pin_iter has_next] } {
-	set pin [$pin_iter next]
-	lappend insts [$pin instance]
+        set pin [$pin_iter next]
+        lappend insts [$pin instance]
       }
       $pin_iter finish
     }
+    if [info exists keys(-filter)] {
+      set insts [filter_objs $keys(-filter) $insts filter_insts "instance"]
+    }
   } else {
     check_argc_eq0or1 "get_cells" $args
+    set directly_referenced_objects ""
+    set patterns_regsubbed ""
     foreach pattern $patterns {
       if { [is_object $pattern] } {
-	if { [object_type $pattern] != "Instance" } {
-	  sta_error 326 "object '$pattern' is not an instance."
-	}
-	set insts [concat $insts $pattern]
+        if { [object_type $pattern] != "Instance" } {
+          sta_error 326 "object '$pattern' is not an instance."
+        }
+        lappend directly_referenced_objects $pattern
       } else {
-	if { $divider != $hierarchy_separator } {
-	  regsub $divider $pattern $hierarchy_separator pattern
-	}
-	if { $hierarchical } {
-	  set matches [find_instances_hier_matching $pattern $regexp $nocase]
-	} else {
-	  set matches [find_instances_matching $pattern $regexp $nocase]
-	}
-	if { $matches == {} && !$quiet} {
-	  sta_warn 349 "instance '$pattern' not found."
-	}
-	set insts [concat $insts $matches]
+        if { $divider != $hierarchy_separator } {
+          regsub $divider $pattern $hierarchy_separator pattern
+        }
+        lappend patterns_regsubbed $pattern
       }
     }
-  }
-  if [info exists keys(-filter)] {
-    set insts [filter_objs $keys(-filter) $insts filter_insts "instance"]
+    set filter_expression ""
+    if [info exists keys(-filter)] {
+      set filter_expression $keys(-filter)
+    }
+    set insts [find_instances_complete $directly_referenced_objects $patterns_regsubbed $regexp $nocase $hierarchical $filter_expression $::sta_boolean_props_as_int]
   }
   return $insts
 }
@@ -899,26 +898,23 @@ proc get_ports { args } {
     }
   } else {
     check_argc_eq0or1 "get_ports" $args
+    set directly_referenced_objects ""
+    set patterns_regsubbed ""
     foreach pattern $patterns {
       if { [is_object $pattern] } {
-	if { [object_type $pattern] != "Port" } {
-	  sta_error 333 "object '$pattern' is not a port."
-	}
-	set ports [concat $ports $pattern]
-      } else {
-        set matches [find_ports_matching $pattern $regexp $nocase]
-        if { $matches != {} } {
-	  set ports [concat $ports $matches]
-        } else {
-	  if {![info exists flags(-quiet)]} {
-	    sta_warn 366 "port '$pattern' not found."
-	  }
+        if { [object_type $pattern] != "Port" } {
+          sta_error 333 "object '$pattern' is not an port."
         }
+        lappend directly_referenced_objects $pattern
+      } else {
+        lappend patterns_regsubbed $pattern
       }
     }
-  }
-  if [info exists keys(-filter)] {
-    set ports [filter_objs $keys(-filter) $ports filter_ports "port"]
+    set filter_expression ""
+    if [info exists keys(-filter)] {
+      set filter_expression $keys(-filter)
+    }
+    set ports [find_ports_complete $directly_referenced_objects $patterns_regsubbed $regexp $nocase $filter_expression $::sta_boolean_props_as_int]
   }
   return $ports
 }
