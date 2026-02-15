@@ -2481,6 +2481,18 @@ Sta::setStripEscapedBus(bool enable)
   variables_->setStripEscapedBus(enable);
 }
 
+bool
+Sta::enableCollections() const
+{
+  return variables_->enableCollections();
+}
+
+void
+Sta::setEnableCollections(bool enable)
+{
+  variables_->setEnableCollections(enable);
+}
+
 ////////////////////////////////////////////////////////////////
 
 Corner *

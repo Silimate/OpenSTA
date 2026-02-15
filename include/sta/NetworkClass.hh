@@ -53,12 +53,14 @@ typedef Iterator<Library*> LibraryIterator;
 typedef Iterator<LibertyLibrary*> LibertyLibraryIterator;
 typedef Vector<Cell*> CellSeq;
 typedef Vector<const Port*> PortSeq;
+typedef PortSeq::ConstIterator PortSeqIterator;
 typedef Iterator<Port*> CellPortIterator;
 typedef Iterator<Port*> CellPortBitIterator;
 typedef Iterator<Port*> PortMemberIterator;
 
 typedef Vector<const Pin*> PinSeq;
 typedef Vector<const Instance*> InstanceSeq;
+typedef InstanceSeq::ConstIterator InstanceSeqIterator;
 typedef Vector<const Net*> NetSeq;
 typedef std::vector<const Net*> ConstNetSeq;
 typedef Iterator<Instance*> InstanceChildIterator;

@@ -171,6 +171,7 @@ protected:
 //  constructor
 //  copy constructor switch clause
 //  move constructor switch clause
+//  type_name switch clause
 //  operator= &  switch clause
 //  operator= && switch clause
 //  StaTcl.i swig %typemap(out) PropertyValue switch clause
@@ -183,6 +184,7 @@ public:
 	      type_liberty_library, type_liberty_cell, type_liberty_port,
 	      type_instance, type_pin, type_pins, type_net,
 	      type_clk, type_clks, type_paths, type_pwr_activity };
+  static const char *type_name(Type type);
   PropertyValue();
   PropertyValue(const char *value);
   PropertyValue(std::string &value);
@@ -237,6 +239,9 @@ public:
   PropertyValue &operator=(const PropertyValue &);
   // Move assignment.
   PropertyValue &operator=(PropertyValue &&);
+
+  // Comparison
+  int compare(const PropertyValue &rhs, const Network *network) const;
 
 private:
   Type type_;

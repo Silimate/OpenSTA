@@ -1263,6 +1263,18 @@ set_strip_escaped_bus(bool enable)
   Sta::sta()->setStripEscapedBus(enable);
 }
 
+bool
+enable_collections()
+{
+  return Sta::sta()->enableCollections();
+}
+
+void
+set_enable_collections(bool enable)
+{
+  Sta::sta()->setEnableCollections(enable);
+}
+
 %} // inline
 
 ////////////////////////////////////////////////////////////////

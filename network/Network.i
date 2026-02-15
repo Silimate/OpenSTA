@@ -26,6 +26,7 @@
 
 %{
 #include "Network.hh"
+#include "FilterExpr.hh"
 %}
 
 ////////////////////////////////////////////////////////////////
@@ -420,6 +421,78 @@ find_instances_matching(const char *pattern,
   PatternMatch matcher(pattern, regexp, nocase, sta->tclInterp());
   InstanceSeq matches = network->findInstancesMatching(current_instance, &matcher);
   return matches;
+}
+
+InstanceSeq *
+find_instances_complete(InstanceSeq* collection,
+			StringSeq* patterns,
+			bool regexp,
+			bool nocase,
+			bool hier,
+			const char* filter_expression,
+			bool sta_boolean_props_as_int)
+{
+  if (collection == nullptr) {
+    collection = new InstanceSeq();
+  }
+  Sta *sta = Sta::sta();
+  Network *network = sta->ensureLinked();
+  Instance *current_instance = sta->currentInstance();
+  for (const char *pattern: *patterns) {
+    PatternMatch matcher(pattern, regexp, nocase, sta->tclInterp());
+    InstanceSeq matches =
+      hier ?
+      network->findInstancesHierMatching(current_instance, &matcher) : 
+      network->findInstancesMatching(current_instance, &matcher);
+    for (const Instance* match: matches) {
+      collection->push_back(match);
+    }
+  }
+  if (strlen(filter_expression)) {
+    auto filtered = filter_objects<const Instance>(filter_expression, collection, sta_boolean_props_as_int);
+    delete collection;
+    collection = new InstanceSeq(filtered);
+  }
+  return collection;
+}
+
+PortSeq *
+find_ports_complete(PortSeq* collection,
+			StringSeq* patterns,
+			bool regexp,
+			bool nocase,
+			const char* filter_expression,
+			bool sta_boolean_props_as_int)
+{
+  if (collection == nullptr) {
+    collection = new PortSeq();
+  }
+  Sta *sta = Sta::sta();
+  Network *network = sta->ensureLinked();
+  Cell *top_cell = network->cell(network->topInstance());
+  for (const char *pattern: *patterns) {
+    PatternMatch matcher(pattern, regexp, nocase, sta->tclInterp());
+    PortSeq matches =
+      network->findPortsMatching(top_cell, &matcher);
+    for (const auto *port: matches) {
+      if (network->isBus(port) || network->isBundle(port)) {
+        PortMemberIterator *member_iter = network->memberIterator(port);
+        while (member_iter->hasNext()) {
+          auto next = member_iter->next();
+          collection->push_back(next);
+        }
+        delete member_iter;
+      } else {
+        collection->push_back(port);
+      }
+    }
+  }
+  if (strlen(filter_expression)) {
+    auto filtered = filter_objects<const Port>(filter_expression, collection, sta_boolean_props_as_int);
+    delete collection;
+    collection = new PortSeq(filtered);
+  }
+  return collection;
 }
 
 InstanceSeq

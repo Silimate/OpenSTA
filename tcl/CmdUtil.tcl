@@ -251,7 +251,7 @@ proc set_cmd_namespace { namespc } {
 define_cmd_args "report_object_full_names" {objects}
 
 proc report_object_full_names { objects } {
-  foreach obj [sort_by_full_name $objects] {
+  foreach_in_collection obj [sort_by_full_name $objects] {
     report_line [get_full_name $obj]
   }
 }
@@ -259,7 +259,7 @@ proc report_object_full_names { objects } {
 define_cmd_args "report_object_names" {objects}
 
 proc report_object_names { objects } {
-  foreach obj [sort_by_name $objects] {
+  foreach_in_collection obj [sort_by_name $objects] {
     report_line [get_name $obj]
   }
 }
@@ -276,7 +276,15 @@ proc get_name { object } {
 }
 
 proc get_full_name { object } {
-  if { [llength $object] > 1 } {
+  if { [sta::is_collection $object] } {
+    set it [sta::get_iterator $object]
+    while {[$it has_next]} {
+      # TODO: StringSeq as collection?
+      lappend full_names [$it next]
+    }
+    $it finish
+    return $full_names
+  } elseif { [llength $object] > 1 } {
     foreach obj $object {
       lappend full_names [get_full_name $obj]
     }
@@ -286,7 +294,11 @@ proc get_full_name { object } {
 }
 
 proc sort_by_name { objects } {
-  return [lsort -command name_cmp $objects]
+  if {[sta::is_collection $objects]} {
+    return [sort_collection $objects "name"]
+  } else {
+    return [lsort -command name_cmp $objects]
+  }
 }
 
 proc name_cmp { obj1 obj2 } {
@@ -294,7 +306,11 @@ proc name_cmp { obj1 obj2 } {
 }
 
 proc sort_by_full_name { objects } {
-  return [lsort -command full_name_cmp $objects]
+  if {[sta::is_collection $objects]} {
+    return [sort_collection $objects "full_name"]
+  } else {
+    return [lsort -command full_name_cmp $objects]
+  }
 }
 
 proc full_name_cmp { obj1 obj2 } {
@@ -326,6 +342,13 @@ proc get_object_type { obj } {
   } else {
     return "?"
   }
+}
+
+proc is_collection {object} {
+  if {[catch {set result [sta::confirm_collection $object]}]} {
+    return 0
+  }
+  return $result
 }
 
 # sta namespace end.
