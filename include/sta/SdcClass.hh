@@ -83,6 +83,7 @@ public:
 typedef Vector<float> FloatSeq;
 typedef Vector<int> IntSeq;
 typedef Vector<Clock*> ClockSeq;
+typedef ClockSeq::ConstIterator ClockSeqIterator;
 typedef std::vector<const Clock*> ConstClockSeq;
 typedef Set<Clock*, ClockIndexLess> ClockSet;
 typedef std::set<const Clock*, ClockIndexLess> ConstClockSet;

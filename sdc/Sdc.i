@@ -1144,6 +1144,45 @@ default_arrival_clock()
   return Sta::sta()->sdc()->defaultArrivalClock();
 }
 
+ClockSeq *
+find_clocks_complete(ClockSeq *collection,
+		     StringSeq *patterns,
+		     bool regexp,
+		     bool nocase,
+		     bool quiet,
+		     const char *filter_expression
+)
+{
+  if (collection == nullptr) {
+    collection = new ClockSeq();
+  }
+  Sta *sta = Sta::sta();
+  Sdc *sdc = sta->sdc();
+  for (const char *pattern: *patterns) {
+    PatternMatch matcher(pattern, regexp, nocase, sta->tclInterp());
+    ClockSeq matches = sdc->findClocksMatching(&matcher);
+    if (matches.size() == 0) {
+      if (!quiet) {
+        Sta::sta()->report()->warn(351, "clock '%s' not found.", pattern);
+      }
+    } else {
+      auto entries = collection->size();
+      collection->resize(entries + matches.size());
+      std::move(
+        matches.begin(),
+        matches.end(),
+        collection->begin() + entries
+      );
+    }
+  }
+  if (strlen(filter_expression)) {
+    auto filtered = filter_objects<Clock>(filter_expression, collection, sta->booleanPropsAsInt());
+    delete collection;
+    collection = new ClockSeq(filtered);
+  }
+  return collection;
+}
+
 ClockSeq
 find_clocks_matching(const char *pattern,
 		     bool regexp,

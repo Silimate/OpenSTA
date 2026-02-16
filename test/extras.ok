@@ -9,7 +9,7 @@ Clock period: 10.000000
 dummy is empty
 Warning: clock objects do not have a dummy property.
 
-Warning: extras.tcl line 30, clock '*_x4*' not found.
+Warning: clock '*_x4*' not found.
 Warning: extras.tcl line 30, get_property  is not an object.
 clk_x4 clk_x41
 Startpoint: req_val (input port clocked by clk)

@@ -424,13 +424,13 @@ find_instances_matching(const char *pattern,
 }
 
 InstanceSeq *
-find_instances_complete(InstanceSeq* collection,
-			StringSeq* patterns,
+find_instances_complete(InstanceSeq *collection,
+			StringSeq *patterns,
 			bool regexp,
 			bool nocase,
 			bool hier,
-			const char* filter_expression,
-			bool sta_boolean_props_as_int)
+			bool quiet,
+			const char *filter_expression)
 {
   if (collection == nullptr) {
     collection = new InstanceSeq();
@@ -444,12 +444,22 @@ find_instances_complete(InstanceSeq* collection,
       hier ?
       network->findInstancesHierMatching(current_instance, &matcher) : 
       network->findInstancesMatching(current_instance, &matcher);
-    for (const Instance* match: matches) {
-      collection->push_back(match);
+    if (matches.size() == 0) {
+      if (!quiet) {
+        Sta::sta()->report()->warn(349, "instance '%s' not found.", pattern);
+      }
+    } else {
+      auto entries = collection->size();
+      collection->resize(entries + matches.size());
+      std::move(
+        matches.begin(),
+        matches.end(),
+        collection->begin() + entries
+      );
     }
   }
   if (strlen(filter_expression)) {
-    auto filtered = filter_objects<const Instance>(filter_expression, collection, sta_boolean_props_as_int);
+    auto filtered = filter_objects<const Instance>(filter_expression, collection, sta->booleanPropsAsInt());
     delete collection;
     collection = new InstanceSeq(filtered);
   }
@@ -457,12 +467,12 @@ find_instances_complete(InstanceSeq* collection,
 }
 
 PortSeq *
-find_ports_complete(PortSeq* collection,
-			StringSeq* patterns,
+find_ports_complete(PortSeq *collection,
+			StringSeq *patterns,
 			bool regexp,
 			bool nocase,
-			const char* filter_expression,
-			bool sta_boolean_props_as_int)
+			bool quiet,
+			const char *filter_expression)
 {
   if (collection == nullptr) {
     collection = new PortSeq();
@@ -474,21 +484,27 @@ find_ports_complete(PortSeq* collection,
     PatternMatch matcher(pattern, regexp, nocase, sta->tclInterp());
     PortSeq matches =
       network->findPortsMatching(top_cell, &matcher);
-    for (const auto *port: matches) {
-      if (network->isBus(port) || network->isBundle(port)) {
-        PortMemberIterator *member_iter = network->memberIterator(port);
-        while (member_iter->hasNext()) {
-          auto next = member_iter->next();
-          collection->push_back(next);
+    if (matches.size() == 0) {
+      if (!quiet) {
+        Sta::sta()->report()->warn(366, "port '%s' not found.", pattern);
+      }
+    } else {
+      for (const auto *port: matches) {
+        if (network->isBus(port) || network->isBundle(port)) {
+          PortMemberIterator *member_iter = network->memberIterator(port);
+          while (member_iter->hasNext()) {
+            auto next = member_iter->next();
+            collection->push_back(next);
+          }
+          delete member_iter;
+        } else {
+          collection->push_back(port);
         }
-        delete member_iter;
-      } else {
-        collection->push_back(port);
       }
     }
   }
   if (strlen(filter_expression)) {
-    auto filtered = filter_objects<const Port>(filter_expression, collection, sta_boolean_props_as_int);
+    auto filtered = filter_objects<const Port>(filter_expression, collection, sta->booleanPropsAsInt());
     delete collection;
     collection = new PortSeq(filtered);
   }

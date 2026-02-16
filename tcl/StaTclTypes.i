@@ -672,17 +672,8 @@ COLLECTION_HELPERS(NetSeq, const Net *, NetSeqIterator);
   $1 = tclListSeq<const Clock*>($input, SWIGTYPE_p_Clock, interp);
 }
 
-%typemap(in) ClockSeq* {
-  $1 = tclListSeqPtr<Clock*>($input, SWIGTYPE_p_Clock, interp);
-}
-
-%typemap(out) ClockSeq* {
-  seqPtrTclList<ClockSeq, Clock>($1, SWIGTYPE_p_Clock, interp);
-}
-
-%typemap(out) ClockSeq {
-  seqTclList<ClockSeq, Clock>($1, SWIGTYPE_p_Clock, interp);
-}
+COLLECTION_TYPEMAPS(ClockSeq, Clock *, Clock);
+COLLECTION_HELPERS(ClockSeq, Clock *, ClockSeqIterator);
 
 %typemap(out) ClockEdge* {
   Tcl_Obj *obj = SWIG_NewInstanceObj($1,$1_descriptor, false);
