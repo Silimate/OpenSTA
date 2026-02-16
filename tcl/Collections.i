@@ -6,8 +6,12 @@
             const char *rem = input + 3;
             if (*rem == '-') {
                 rem += 1;
-                result -= std::stoull(rem);
-                return result;
+                size_t offset = std::stoull(rem);
+                if (offset <= result) {
+                    return result - offset;
+                } else {
+                    return 0;
+                }
             } else if (*rem != '\0') {
                 throw std::invalid_argument("indices can only be a decimal integer, end, or end-decimal integer");
             }
@@ -16,6 +20,47 @@
         return std::stoull(input);
     }
 }
+
+%define COLLECTION_TYPEMAPS(CollectionType, ElementType, ElementBaseType)
+
+%typemap(in) CollectionType* {
+  // Assume collection, if it fails, interpret as Tcl list
+  int res = SWIG_Tcl_ConvertPtr(interp, $input, (void**)&$1, $descriptor(CollectionType *), 0);
+  if (!SWIG_IsOK(res)) {
+    $1 = tclListSeqPtr<ElementType>($input, $descriptor(ElementType), interp);
+  }
+}
+
+%typemap(typecheck, precedence=SWIG_TYPECHECK_POINTER) CollectionType* {
+  void *obj;
+  int res = SWIG_Tcl_ConvertPtr(interp, $input, (void**)&obj, $descriptor(CollectionType *), 0);
+  if (SWIG_IsOK(res)) {
+    $1 = 1;
+  } else {
+    $1 = tclCheckListSeq<ElementType>($input, $descriptor(ElementType), interp);
+  }
+}
+
+%typemap(out) CollectionType {
+  if (Sta::sta()->enableCollections()) {
+    auto *copy = new CollectionType($1);
+    Tcl_Obj *obj = SWIG_NewInstanceObj(copy, $descriptor(CollectionType *), true);
+    Tcl_SetObjResult(interp, obj);
+  } else {
+    seqTclList<CollectionType, ElementBaseType>($1, $descriptor(ElementType), interp);
+  }
+}
+
+%typemap(out) CollectionType* {
+  if (Sta::sta()->enableCollections()) {
+    Tcl_Obj *obj = SWIG_NewInstanceObj($1, $descriptor(CollectionType *), true);
+    Tcl_SetObjResult(interp, obj);
+  } else {
+    seqPtrTclList<CollectionType, ElementBaseType>($1, $descriptor(ElementType), interp);
+  }
+}
+
+%enddef
 
 %define COLLECTION_HELPERS(CollectionType, ElementType, IteratorType)
 
@@ -61,16 +106,31 @@ private:
         return result;
     }
 
-    void append_to_collection(CollectionType *v, const CollectionType *q) {
+    void append_to_collection_inplace(CollectionType *v, const CollectionType *q, bool unique = false) {
         v->reserve(v->size() + q->size());
-        for (ElementType e: *q) {
-            v->push_back(e);
+        if (unique) {
+            std::unordered_set<ElementType> unique_elements;
+            for (ElementType e: *v) {
+                unique_elements.insert(e);
+            }
+            for (ElementType e: *q) {
+                if (unique_elements.count(e)) {
+                    continue;
+                }
+                v->push_back(e);
+                unique_elements.insert(e);
+            }
+            v->shrink_to_fit();
+        } else {
+            for (ElementType e: *q) {
+                v->push_back(e);
+            }
         }
     }
 
-    CollectionType *concat_collection(const CollectionType *v, const CollectionType *q) {
+    CollectionType *concat_collection(const CollectionType *v, const CollectionType *q, bool unique = false) {
         auto result = new CollectionType(*v);
-        append_to_collection(result, q);
+        append_to_collection_inplace(result, q, unique);
         return result;
     }
 
@@ -78,15 +138,12 @@ private:
         size_t index1_resolved = resolve_index(index1, v->size());
         size_t index2_resolved = resolve_index(index2, v->size());
         auto result = new CollectionType();
-        if (index1_resolved == index2_resolved) {
-            result->push_back(v->at(index1_resolved));
-            return result;
+        if (index2_resolved < index1_resolved) {
+            return result; // empty slice
         }
         result->reserve(index2_resolved - index1_resolved + 1);
-        for (size_t i = 0; i < v->size(); i += 1) {
-            if (i >= index1_resolved && i <= index2_resolved) {
-                result->push_back(v->at(i));
-            }
+        for (size_t i = index1_resolved; i <= index2_resolved && i < v->size(); i += 1) {
+            result->push_back(v->at(i));
         }
         return result;
     }
@@ -97,12 +154,6 @@ private:
 
     size_t count_collection(const CollectionType *v) {
         return v->size();
-    }
-
-    bool confirm_collection(const CollectionType *v) {
-        // testing for this method's existence should verify that the object is
-        // a collection without maintaining a list of collections separately
-        return true;
     }
 
     CollectionType *new_collection_removing(const CollectionType *v, const CollectionType *q) {

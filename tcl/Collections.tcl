@@ -154,13 +154,23 @@ proc query_collection { args } {
 
 # Append objects to a collection
 # https://docs.altera.com/r/docs/683432/25.3.1/quartus-prime-pro-edition-user-guide-scripting/dni-append_to_collection-quartus-dcmd_dni
-proc append_to_collection { collection objects } {
-  # TODO: UNIQUE
+proc append_to_collection { args } {
+  sta::parse_key_args "append_to_collection" args \
+    keys {} \
+    flags {-unique}
+
+  sta::check_argc_eq2 "append_to_collection" $args
+
+  set collection [lindex $args 0]
+  set objects [lindex $args 1]
+
   upvar 1 $collection coll
-  if {[sta::is_collection $coll]} {
-    sta::append_to_collection $coll $objects
+
+  if { [sta::is_collection $coll] } {
+    sta::append_to_collection_inplace $coll $objects [info exists flags(-unique)]
   } else {
-    lappend coll {*}$objects
+    # tcl list cannot be modified in-place, use concat_collection
+    set coll [sta::concat_collection $coll $objects [info exists flags(-unique)]]
   }
 }
 

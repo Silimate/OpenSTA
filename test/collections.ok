@@ -126,7 +126,7 @@ req_msg[8]
 req_msg[9]
 req_rdy
 req_val
-	append_to_collection: llength? 52
+	append_to_collection: llength? 52; sizeof_collection 52
 req_msg[0]
 req_msg[10]
 req_msg[11]
@@ -179,6 +179,7 @@ resp_msg[8]
 resp_msg[9]
 resp_rdy
 resp_val
+	append_to_collection -unique: size changed? 0
 	index_collection (singleton): result is collection? 0
 req_val
 	index_collection (slice): result is collection? 0
@@ -247,7 +248,7 @@ resp_msg[7]
 resp_msg[8]
 resp_msg[9]
 resp_val
-	sort_collection== Collection Mode ==
+== Collection Mode ==
 	is_collection: 1
 	get_collection_size: 34
 	sizeof_collection: 34
@@ -374,7 +375,7 @@ req_msg[8]
 req_msg[9]
 req_rdy
 req_val
-	append_to_collection: llength? 1
+	append_to_collection: llength? 1; sizeof_collection 52
 req_msg[0]
 req_msg[10]
 req_msg[11]
@@ -427,6 +428,7 @@ resp_msg[8]
 resp_msg[9]
 resp_rdy
 resp_val
+	append_to_collection -unique: size changed? 0
 	index_collection (singleton): result is collection? 1
 req_val
 	index_collection (slice): result is collection? 1

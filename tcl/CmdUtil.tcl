@@ -345,10 +345,8 @@ proc get_object_type { obj } {
 }
 
 proc is_collection {object} {
-  if {[catch {set result [sta::confirm_collection $object]}]} {
-    return 0
-  }
-  return $result
+  set object_type [sta::object_type $object]
+  return [expr [lsearch {PortSeq} $object_type] != -1]
 }
 
 # sta namespace end.

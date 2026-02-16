@@ -88,6 +88,30 @@ tclListSeqPtr(Tcl_Obj *const source,
 }
 
 template <class TYPE>
+int
+tclCheckListSeq(Tcl_Obj *const source,
+              swig_type_info *swig_type,
+              Tcl_Interp *interp)
+{
+  Tcl_Size argc;
+  Tcl_Obj **argv;
+
+  if (Tcl_ListObjGetElements(interp, source, &argc, &argv) == TCL_OK
+      && argc > 0) {
+    for (int i = 0; i < argc; i++) {
+      void *obj;
+      int res = SWIG_ConvertPtr(argv[i], &obj, swig_type, false);
+      if (!SWIG_IsOK(res)) {
+        return 0;
+      }
+    }
+    return 1;
+  }
+  else
+    return 0;
+}
+
+template <class TYPE>
 std::vector<TYPE>
 tclListSeq(Tcl_Obj *const source,
            swig_type_info *swig_type,
@@ -356,19 +380,8 @@ using namespace sta;
   Tcl_SetObjResult(interp, obj);
 }
 
-%typemap(in) CellSeq* {
-  $1 = tclListSeqPtr<Cell*>($input, SWIGTYPE_p_Cell, interp);
-}
-
-%typemap(out) CellSeq {
-  if (Sta::sta()->enableCollections()) {
-    CellSeq *copy = new CellSeq($1);
-    Tcl_Obj *obj = SWIG_NewInstanceObj(copy, $1_descriptor, true);
-    Tcl_SetObjResult(interp, obj);
-  } else {
-    seqTclList<CellSeq, Cell>($1, SWIGTYPE_p_Cell, interp);
-  }
-}
+COLLECTION_TYPEMAPS(CellSeq, Cell *, Cell);
+COLLECTION_HELPERS(CellSeq, Cell *, CellSeqIterator);
 
 %typemap(in) LibertyCellSeq* {
   $1 = tclListSeqPtr<LibertyCell*>($input, SWIGTYPE_p_LibertyCell, interp);
@@ -405,33 +418,7 @@ using namespace sta;
   Tcl_SetObjResult(interp, obj);
 }
 
-%typemap(in) PortSeq* {
-  // Assume collection, if it fails, interpret as Tcl list
-  int res = SWIG_Tcl_ConvertPtr(interp, $input, (void**)&$1, SWIGTYPE_p_PortSeq, 0);
-  if (!SWIG_IsOK(res)) {
-    $1 = tclListSeqPtr<const Port*>($input, SWIGTYPE_p_Port, interp);
-  }
-}
-
-%typemap(out) PortSeq {
-  if (Sta::sta()->enableCollections()) {
-    auto *copy = new PortSeq($1);
-    Tcl_Obj *obj = SWIG_NewInstanceObj(copy, SWIGTYPE_p_PortSeq, true);
-    Tcl_SetObjResult(interp, obj);
-  } else {
-    seqTclList<PortSeq, Port>($1, SWIGTYPE_p_Port, interp);
-  }
-}
-
-%typemap(out) PortSeq* {
-  if (Sta::sta()->enableCollections()) {
-    Tcl_Obj *obj = SWIG_NewInstanceObj($1, SWIGTYPE_p_PortSeq, true);
-    Tcl_SetObjResult(interp, obj);
-  } else {
-    seqPtrTclList<PortSeq, Port>($1, SWIGTYPE_p_Port, interp);
-  }
-}
-
+COLLECTION_TYPEMAPS(PortSeq, const Port *, Port);
 COLLECTION_HELPERS(PortSeq, const Port *, PortSeqIterator);
 
 %typemap(out) PortMemberIterator* {
@@ -605,30 +592,8 @@ COLLECTION_HELPERS(PortSeq, const Port *, PortSeqIterator);
   Tcl_SetObjResult(interp, obj);
 }
 
+COLLECTION_TYPEMAPS(InstanceSeq, const Instance *, Instance);
 COLLECTION_HELPERS(InstanceSeq, const Instance *, InstanceSeqIterator);
-
-%typemap(in) InstanceSeq* {
-  $1 = tclListSeqPtr<const Instance*>($input, SWIGTYPE_p_Instance, interp);
-}
-
-%typemap(out) InstanceSeq {
-  if (Sta::sta()->enableCollections()) {
-    auto *copy = new InstanceSeq($1);
-    Tcl_Obj *obj = SWIG_NewInstanceObj(copy, $1_descriptor, true);
-    Tcl_SetObjResult(interp, obj);
-  } else {
-    seqTclList<InstanceSeq, Instance>($1, SWIGTYPE_p_Instance, interp);
-  }
-}
-
-%typemap(out) InstanceSeq* {
-  if (Sta::sta()->enableCollections()) {
-    Tcl_Obj *obj = SWIG_NewInstanceObj($1, $1_descriptor, true);
-    Tcl_SetObjResult(interp, obj);
-  } else {
-    seqPtrTclList<InstanceSeq, Instance>($1, SWIGTYPE_p_Instance, interp);
-  }
-}
 
 %typemap(out) InstanceChildIterator* {
   Tcl_Obj *obj = SWIG_NewInstanceObj($1, $1_descriptor, false);
@@ -663,33 +628,19 @@ COLLECTION_HELPERS(InstanceSeq, const Instance *, InstanceSeqIterator);
   Tcl_SetObjResult(interp, obj);
 }
 
-%typemap(out) PinSeq* {
-  seqPtrTclList<PinSeq, Pin>($1, SWIGTYPE_p_Pin, interp);
-}
-
-%typemap(out) PinSeq {
-  seqTclList<PinSeq, Pin>($1, SWIGTYPE_p_Pin, interp);
-}
+COLLECTION_TYPEMAPS(PinSeq, const Pin *, Pin);
+COLLECTION_HELPERS(PinSeq, const Pin *, PinSeqIterator);
 
 %typemap(out) Net* {
   Tcl_Obj *obj = SWIG_NewInstanceObj($1, $1_descriptor, false);
   Tcl_SetObjResult(interp, obj);
 }
 
-%typemap(in) NetSeq* {
-  $1 = tclListSeqPtr<const Net*>($input, SWIGTYPE_p_Net, interp);
-}
-
-%typemap(out) NetSeq* {
-  seqPtrTclList<NetSeq, Net>($1, SWIGTYPE_p_Net, interp);
-}
+COLLECTION_TYPEMAPS(NetSeq, const Net *, Net);
+COLLECTION_HELPERS(NetSeq, const Net *, NetSeqIterator);
 
 %typemap(in) ConstNetSeq {
   $1 = tclListSeq<const Net*>($input, SWIGTYPE_p_Net, interp);
-}
-
-%typemap(out) NetSeq {
-  seqTclList<NetSeq, Net>($1, SWIGTYPE_p_Net, interp);
 }
 
 %typemap(out) NetPinIterator* {

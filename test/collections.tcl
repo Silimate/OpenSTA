@@ -31,12 +31,18 @@ foreach mode {0 1} {
   puts "[sta::is_collection $copy_result]"
   report_object_full_names $copy_result
 
-  # llength should be 1 for the collection
+  # llength should be 1 for the collection, but sizeof_collection should be the same
   puts -nonewline "\tappend_to_collection: llength? "
   set appendable [copy_collection $collection]
   append_to_collection appendable [get_ports resp_*]
-  puts "[llength $appendable]"
+  puts "[llength $appendable]; sizeof_collection [sizeof_collection $appendable]"
   report_object_full_names $appendable
+
+  # size should not change
+  puts -nonewline "\tappend_to_collection -unique: size changed? "
+  set before [sizeof_collection $appendable]
+  append_to_collection -unique appendable [get_ports resp_*]
+  puts "[expr $before != [sizeof_collection $appendable]]"
 
   puts -nonewline "\tindex_collection (singleton): result is collection? "
   set index_singleton_result [index_collection $collection 1]
