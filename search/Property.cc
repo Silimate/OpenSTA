@@ -656,10 +656,7 @@ int PropertyValue::compare(const PropertyValue &rhs, const Network *network) con
     lhs_s = to_string(network);
     rhs_s = rhs.to_string(network);
     return strcmp(lhs_s.c_str(), rhs_s.c_str());
-  case Type::type_pins:
-  case Type::type_clks:
-  case Type::type_paths:
-  case Type::type_pwr_activity:
+  default:
     throw PropertyTypeNotComparable(type_name(type_));
   }
 }

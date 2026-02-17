@@ -172,6 +172,7 @@ protected:
 //  copy constructor switch clause
 //  move constructor switch clause
 //  type_name switch clause
+//  compare switch clause
 //  operator= &  switch clause
 //  operator= && switch clause
 //  StaTcl.i swig %typemap(out) PropertyValue switch clause
