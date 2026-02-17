@@ -346,7 +346,7 @@ proc get_object_type { obj } {
 
 proc is_collection {object} {
   set object_type [sta::object_type $object]
-  return [expr [lsearch {PortSeq} $object_type] != -1]
+  return [expr [lsearch {ClockSeq CellSeq PortSeq InstanceSeq PinSeq NetSeq LibertyLibrarySeq LibertyCellSeq LibertyPortSeq} $object_type] != -1]
 }
 
 # sta namespace end.
