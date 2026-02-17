@@ -372,6 +372,48 @@ get_port_pin(const Port *port)
   return network->findPin(network->topInstance(), port);
 }
 
+PinSeq *
+find_pins_complete(PinSeq *collection,
+		   StringSeq *patterns,
+		   bool regexp,
+		   bool nocase,
+		   bool hier,
+		   bool quiet,
+		   const char *filter_expression = nullptr)
+{
+  if (collection == nullptr) {
+    collection = new PinSeq();
+  }
+  Sta *sta = Sta::sta();
+  Network *network = sta->ensureLinked();
+  Instance *current_instance = sta->currentInstance();
+  for (const char *pattern: *patterns) {
+    PatternMatch matcher(pattern, regexp, nocase, sta->tclInterp());
+    PinSeq matches = hier ?
+      network->findPinsHierMatching(current_instance, &matcher) :
+      network->findPinsMatching(current_instance, &matcher);
+    if (matches.size() == 0) {
+      if (!quiet) {
+        Sta::sta()->report()->warn(363, "pin '%s' not found.", pattern);
+      }
+    } else {
+      for (const auto *pin: matches) {
+        auto *lib_port = network->libertyPort(pin);
+        if (!lib_port || !lib_port->isPwrGnd()) {
+          collection->push_back(pin);
+        }
+      }
+    }
+  }
+  if (filter_expression != nullptr) {
+    auto filtered = filter_objects<const Pin>(filter_expression, collection, sta->booleanPropsAsInt());
+    delete collection;
+    collection = new PinSeq(filtered);
+  }
+  return collection;
+  
+}
+
 PinSeq
 find_pins_matching(const char *pattern,
 		   bool regexp,
@@ -430,7 +472,7 @@ find_instances_complete(InstanceSeq *collection,
 			bool nocase,
 			bool hier,
 			bool quiet,
-			const char *filter_expression)
+			const char *filter_expression = nullptr)
 {
   if (collection == nullptr) {
     collection = new InstanceSeq();
@@ -458,7 +500,7 @@ find_instances_complete(InstanceSeq *collection,
       );
     }
   }
-  if (strlen(filter_expression)) {
+  if (filter_expression != nullptr) {
     auto filtered = filter_objects<const Instance>(filter_expression, collection, sta->booleanPropsAsInt());
     delete collection;
     collection = new InstanceSeq(filtered);
@@ -472,7 +514,7 @@ find_ports_complete(PortSeq *collection,
 			bool regexp,
 			bool nocase,
 			bool quiet,
-			const char *filter_expression)
+			const char *filter_expression = nullptr)
 {
   if (collection == nullptr) {
     collection = new PortSeq();
@@ -503,7 +545,7 @@ find_ports_complete(PortSeq *collection,
       }
     }
   }
-  if (strlen(filter_expression)) {
+  if (filter_expression != nullptr) {
     auto filtered = filter_objects<const Port>(filter_expression, collection, sta->booleanPropsAsInt());
     delete collection;
     collection = new PortSeq(filtered);
@@ -594,6 +636,48 @@ Net *
 find_net(char *path_name)
 {
   return Sta::sta()->ensureLinked()->findNet(path_name);
+}
+
+NetSeq *
+find_nets_complete(NetSeq *collection,
+		   StringSeq *patterns,
+		   bool regexp,
+		   bool nocase,
+		   bool hier,
+		   bool quiet,
+		   const char *filter_expression = nullptr)
+{
+  if (collection == nullptr) {
+    collection = new NetSeq();
+  }
+  Sta *sta = Sta::sta();
+  Network *network = sta->ensureLinked();
+  Instance *current_instance = sta->currentInstance();
+  for (const char *pattern: *patterns) {
+    PatternMatch matcher(pattern, regexp, nocase, sta->tclInterp());
+    NetSeq matches = hier ?
+      network->findNetsHierMatching(current_instance, &matcher) :
+      network->findNetsMatching(current_instance, &matcher);
+    if (matches.size() == 0) {
+      if (!quiet) {
+        Sta::sta()->report()->warn(361, "net '%s' not found.", pattern);
+      }
+    } else {
+      auto entries = collection->size();
+      collection->resize(entries + matches.size());
+      std::move(
+        matches.begin(),
+        matches.end(),
+        collection->begin() + entries
+      );
+    }
+  }
+  if (filter_expression != nullptr) {
+    auto filtered = filter_objects<const Net>(filter_expression, collection, sta->booleanPropsAsInt());
+    delete collection;
+    collection = new NetSeq(filtered);
+  }
+  return collection;
 }
 
 NetSeq

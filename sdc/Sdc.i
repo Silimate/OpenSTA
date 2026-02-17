@@ -1150,7 +1150,7 @@ find_clocks_complete(ClockSeq *collection,
 		     bool regexp,
 		     bool nocase,
 		     bool quiet,
-		     const char *filter_expression
+		     const char *filter_expression = nullptr
 )
 {
   if (collection == nullptr) {
@@ -1175,7 +1175,7 @@ find_clocks_complete(ClockSeq *collection,
       );
     }
   }
-  if (strlen(filter_expression)) {
+  if (filter_expression != nullptr) {
     auto filtered = filter_objects<Clock>(filter_expression, collection, sta->booleanPropsAsInt());
     delete collection;
     collection = new ClockSeq(filtered);

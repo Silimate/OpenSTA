@@ -370,6 +370,7 @@ proc get_cells { args } {
     if [info exists keys(-filter)] {
       set insts [filter_objs $keys(-filter) $insts filter_insts "instance"]
     }
+    return [copy_collection $insts]
   } else {
     check_argc_eq0or1 "get_cells" $args
     set directly_referenced_objects ""
@@ -387,13 +388,12 @@ proc get_cells { args } {
         lappend patterns_regsubbed $pattern
       }
     }
-    set filter_expression ""
+    set filter_expression_arg ""
     if [info exists keys(-filter)] {
-      set filter_expression $keys(-filter)
+      lappend filter_expression_arg $keys(-filter)
     }
-    set insts [find_instances_complete $directly_referenced_objects $patterns_regsubbed $regexp $nocase $hierarchical $quiet $filter_expression]
+    return [find_instances_complete $directly_referenced_objects $patterns_regsubbed $regexp $nocase $hierarchical $quiet {*}$filter_expression_arg]
   }
-  return $insts
 }
 
 ################################################################
@@ -428,12 +428,11 @@ proc get_clocks { args } {
       lappend patterns_to_match $pattern
     }
   }
-  set filter_expression ""
+  set filter_expression_arg ""
   if [info exists keys(-filter)] {
-    set filter_expression $keys(-filter)
+    lappend filter_expression_arg $keys(-filter)
   }
-  set clocks [find_clocks_complete $directly_referenced_objects $patterns_to_match $regexp $nocase $quiet $filter_expression]
-  return $clocks
+  return [find_clocks_complete $directly_referenced_objects $patterns_to_match $regexp $nocase $quiet {*}$filter_expression_arg]
 }
 
 ################################################################
@@ -514,7 +513,7 @@ proc get_lib_cells { args } {
   if [info exists keys(-filter)] {
     set cells [filter_objs $keys(-filter) $cells filter_lib_cells "liberty cell"]
   }
-  return $cells
+  return [copy_collection $cells]
 }
 
 ################################################################
@@ -618,7 +617,7 @@ proc get_lib_pins { args } {
   if [info exists keys(-filter)] {
     set ports [filter_objs $keys(-filter) $ports filter_lib_pins "liberty port"]
   }
-  return $ports
+  return [copy_collection $ports]
 }
 
 proc check_nocase_flag { flags_var } {
@@ -668,7 +667,7 @@ proc get_libs { args } {
   if [info exists keys(-filter)] {
     set libs [filter_objs $keys(-filter) $libs filter_liberty_libraries "liberty library"]
   }
-  return $libs
+  return [copy_collection $libs]
 }
 
 proc find_liberty_libraries_matching { pattern regexp nocase } {
@@ -737,39 +736,39 @@ proc get_nets { args } {
     foreach inst $insts {
       set pin_iter [$inst pin_iterator]
       while { [$pin_iter has_next] } {
-	set pin [$pin_iter next]
-	lappend nets [$pin net]
+        set pin [$pin_iter next]
+        lappend nets [$pin net]
       }
       $pin_iter finish
     }
     foreach pin $pins {
       lappend nets [$pin net]
     }
+    if [info exists keys(-filter)] {
+      set nets [filter_objs $keys(-filter) $nets filter_nets "net"]
+    }
+    return [copy_collection $nets]
   } else {
     check_argc_eq0or1 "get_nets" $args
+    set directly_referenced_objects ""
+    set patterns_to_match ""
     foreach pattern $patterns {
       if { [is_object $pattern] } {
-	if { [object_type $pattern] != "Net" } {
-	  sta_error 331 "object '$pattern' is not a net."
-	}
-	set nets [concat $nets $pattern]
+        if { [object_type $pattern] != "Net" } {
+          sta_error 331 "object '$pattern' is not a net."
+        }
+        lappend directly_referenced_objects $pattern
       } else {
-	if { $hierarchical } {
-	  set matches [find_nets_hier_matching $pattern $regexp $nocase]
-	} else {
-	  set matches [find_nets_matching $pattern $regexp $nocase]
-	}
-	set nets [concat $nets $matches]
-	if { $matches == {} && !$quiet } {
-	  sta_warn 361 "net '$pattern' not found."
-	}
+        lappend patterns_to_match $pattern
       }
     }
+    
+    set filter_expression_arg ""
+    if [info exists keys(-filter)] {
+      lappend filter_expression_arg $keys(-filter)
+    }
+    return [find_nets_complete $directly_referenced_objects $patterns_to_match $regexp $nocase $hierarchical $quiet {*}$filter_expression_arg]
   }
-  if [info exists keys(-filter)] {
-    set nets [filter_objs $keys(-filter) $nets filter_nets "net"]
-  }
-  return $nets
 }
 
 ################################################################
@@ -819,6 +818,10 @@ proc get_pins { args } {
       }
       $pin_iter finish
     }
+    if [info exists keys(-filter)] {
+      set pins [filter_objs $keys(-filter) $pins filter_pins "pin"]
+    }
+    return [copy_collection $pins]
   } else {
     check_argc_eq0or1 "get_pins" $args
     if { $args == {} } {
@@ -833,34 +836,24 @@ proc get_pins { args } {
     }
     # Copy backslashes that will be removed by foreach.
     set patterns [string map {\\ \\\\} $patterns]
+    set directly_referenced_objects ""
+    set patterns_to_match ""
     foreach pattern $patterns {
       if { [is_object $pattern] } {
         if { [object_type $pattern] != "Pin" } {
           sta_error 332 "object '$pattern' is not a pin."
         }
-        set pins [concat $pins $pattern]
+        lappend directly_referenced_objects $pattern
       } else {
-        if { $hierarchical } {
-          set matches [find_pins_hier_matching $pattern $regexp $nocase]
-        } else {
-          set matches [find_pins_matching $pattern $regexp $nocase]
-        }
-        foreach match $matches {
-          # Filter pg ports.
-          if { ![$match is_pwr_gnd] } {
-            lappend pins $match
-          }
-        }
-        if { $matches == {} && !$quiet } {
-          sta_warn 363 "pin '$pattern' not found."
-        }
+        lappend patterns_to_match $pattern
       }
     }
+    set filter_expression_arg ""
+    if [info exists keys(-filter)] {
+      lappend filter_expression_arg $keys(-filter)
+    }
+    return [find_pins_complete $directly_referenced_objects $patterns_to_match $regexp $nocase $hierarchical $quiet {*}$filter_expression_arg]
   }
-  if [info exists keys(-filter)] {
-    set pins [filter_objs $keys(-filter) $pins filter_pins "pin"]
-  }
-  return $pins
 }
 
 ################################################################
@@ -894,6 +887,10 @@ proc get_ports { args } {
     foreach net $nets {
       set ports [concat $ports [$net ports]]
     }
+    if [info exists keys(-filter)] {
+      set ports [filter_objs $keys(-filter) $ports filter_ports "port"]
+    }
+    return [copy_collection $ports]
   } else {
     check_argc_eq0or1 "get_ports" $args
     set directly_referenced_objects ""
@@ -908,13 +905,12 @@ proc get_ports { args } {
         lappend patterns_to_match $pattern
       }
     }
-    set filter_expression ""
+    set filter_expression_arg ""
     if [info exists keys(-filter)] {
-      set filter_expression $keys(-filter)
+      lappend filter_expression_arg $keys(-filter)
     }
-    set ports [find_ports_complete $directly_referenced_objects $patterns_to_match $regexp $nocase $quiet $filter_expression]
+    return [find_ports_complete $directly_referenced_objects $patterns_to_match $regexp $nocase $quiet {*}$filter_expression_arg]
   }
-  return $ports
 }
 
 ################################################################

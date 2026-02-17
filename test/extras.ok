@@ -104,7 +104,7 @@ Path Type: max
 (Path is unconstrained)
 
 
-Warning: extras.tcl line 56, pin 'clk_x41' not found.
+Warning: pin 'clk_x41' not found.
 
 
 

@@ -96,8 +96,7 @@ tclCheckListSeq(Tcl_Obj *const source,
   Tcl_Size argc;
   Tcl_Obj **argv;
 
-  if (Tcl_ListObjGetElements(interp, source, &argc, &argv) == TCL_OK
-      && argc > 0) {
+  if (Tcl_ListObjGetElements(interp, source, &argc, &argv) == TCL_OK) {
     for (int i = 0; i < argc; i++) {
       void *obj;
       int res = SWIG_ConvertPtr(argv[i], &obj, swig_type, false);
@@ -326,6 +325,10 @@ using namespace sta;
   $1 = tclListSeqConstChar($input, interp);
 }
 
+%typemap(typecheck, precedence=SWIG_TYPECHECK_POINTER) StringSeq* {
+  $1 = tclListSeqConstCharCheck($input, interp);
+}
+
 %typemap(in) StdStringSet* {
   $1 = tclListSetStdString($input, interp);
 }
@@ -383,25 +386,11 @@ using namespace sta;
 COLLECTION_TYPEMAPS(CellSeq, Cell *, Cell);
 COLLECTION_HELPERS(CellSeq, Cell *, CellSeqIterator);
 
-%typemap(in) LibertyCellSeq* {
-  $1 = tclListSeqPtr<LibertyCell*>($input, SWIGTYPE_p_LibertyCell, interp);
-}
+COLLECTION_TYPEMAPS(LibertyCellSeq, LibertyCell *, LibertyCell);
+COLLECTION_HELPERS(LibertyCellSeq, LibertyCell *, LibertyCellSeqIterator);
 
-%typemap(out) LibertyCellSeq * {
-  seqPtrTclList<LibertyCellSeq, LibertyCell>($1, SWIGTYPE_p_LibertyCell, interp);
-}
-
-%typemap(out) LibertyCellSeq {
-  seqTclList<LibertyCellSeq, LibertyCell>($1, SWIGTYPE_p_LibertyCell, interp);
-}
-
-%typemap(in) LibertyPortSeq* {
-  $1 = tclListSeqPtr<LibertyPort*>($input, SWIGTYPE_p_LibertyPort, interp);
-}
-
-%typemap(out) LibertyPortSeq {
-  seqTclList<LibertyPortSeq, LibertyPort>($1, SWIGTYPE_p_LibertyPort, interp);
-}
+COLLECTION_TYPEMAPS(LibertyPortSeq, LibertyPort *, LibertyPort);
+COLLECTION_HELPERS(LibertyPortSeq, LibertyPort *, LibertyPortSeqIterator);
 
 %typemap(out) CellPortIterator* {
   Tcl_Obj *obj = SWIG_NewInstanceObj($1, $1_descriptor, false);
@@ -615,13 +604,8 @@ COLLECTION_HELPERS(InstanceSeq, const Instance *, InstanceSeqIterator);
   Tcl_SetObjResult(interp, obj);
 }
 
-%typemap(in) LibertyLibrarySeq* {
-  $1 = tclListSeqPtr<LibertyLibrary*>($input, SWIGTYPE_p_LibertyLibrary, interp);
-}
-
-%typemap(out) LibertyLibrarySeq {
-  seqTclList<LibertyLibrarySeq, LibertyLibrary>($1, SWIGTYPE_p_LibertyLibrary, interp);
-}
+COLLECTION_TYPEMAPS(LibertyLibrarySeq, LibertyLibrary *, LibertyLibrary);
+COLLECTION_HELPERS(LibertyLibrarySeq, LibertyLibrary *, LibertyLibrarySeqIterator);
 
 %typemap(out) Pin* {
   Tcl_Obj *obj = SWIG_NewInstanceObj($1, $1_descriptor, false);

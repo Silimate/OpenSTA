@@ -74,19 +74,13 @@ private:
     IteratorType *get_iterator(const CollectionType *v) {
         return new IteratorType(v);
     }
-    void sort_collection_by_properties(CollectionType *v, const char *property_names, bool descending = false) {
+    void sort_collection_by_properties(CollectionType *v, StringSeq *property_names, bool descending = false) {
         auto network = Sta::sta()->network();
         auto properties = Sta::sta()->properties();
-        std::vector<std::string> property_names_parsed;
-        std::stringstream property_names_stream(property_names);
-        std::string property_name;
-        while (property_names_stream >> property_name) {
-            property_names_parsed.push_back(property_name);
-        }
         sta::sort(
             v,
             [&](ElementType A, ElementType B) {
-                for (const auto &property_name: property_names_parsed) {
+                for (auto *property_name: *property_names) {
                     auto propertyA = properties.getProperty(A, property_name);
                     auto propertyB = properties.getProperty(B, property_name);
                     int diff = propertyA.compare(propertyB, network);
@@ -100,7 +94,7 @@ private:
         );
     }
 
-    CollectionType *collection_sorted_by_properties(const CollectionType *v, const char *property_names, bool descending = false) {
+    CollectionType *collection_sorted_by_properties(const CollectionType *v, StringSeq *property_names, bool descending = false) {
         auto result = new CollectionType(*v);
         sort_collection_by_properties(result, property_names, descending);
         return result;
