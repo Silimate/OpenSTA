@@ -3324,10 +3324,6 @@ LibertyReader::visitShifts(LibertyAttr *attr)
     LibertyAttrValueIterator value_iter(attr->values());
     while (value_iter.hasNext()) {
       LibertyAttrValue *value = value_iter.next();
-      if (!value->isFloat()) {
-        delete shifts;
-        libError(1234, attr, "shifts attribute must be a float.");
-      }
       float float_value = value->floatValue();
       shifts->push_back(float_value);
     }
@@ -3357,10 +3353,6 @@ LibertyReader::visitEdges(LibertyAttr *attr)
     LibertyAttrValueIterator value_iter(attr->values());
     while (value_iter.hasNext()) {
       LibertyAttrValue *value = value_iter.next();
-      if (!value->isFloat()) {
-        delete edges;
-        libError(1234, attr, "edges attribute must be a float.");
-      }
       float float_value = value->floatValue();
       int int_value = static_cast<int>(float_value);
       edges->push_back(int_value);
