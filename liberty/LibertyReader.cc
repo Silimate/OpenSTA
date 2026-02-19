@@ -3269,9 +3269,6 @@ LibertyReader::visitDividedBy(LibertyAttr *attr)
   int value;
   getAttrInt(attr, value, exists);
   if (exists) {
-    if (!isPowerOfTwo(value)) {
-      libError(1234, attr, "divided_by must be a power of two.");
-    }
     generated_clock_->setDividedBy(value);
   }
 }
@@ -3283,9 +3280,6 @@ LibertyReader::visitMultipliedBy(LibertyAttr *attr)
   int value;
   getAttrInt(attr, value, exists);
   if (exists) {
-    if (!isPowerOfTwo(value)) {
-      libError(1234, attr, "multiplied_by must be a power of two.");
-    }
     generated_clock_->setMultipliedBy(value);
   }
 }
