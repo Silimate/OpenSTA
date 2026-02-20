@@ -3335,6 +3335,7 @@ LibertyReader::visitShifts(LibertyAttr *attr)
         shifts->push_back(float_value);
       }
       else {
+        delete shifts;
         libError(1234, attr, "shifts attribute must be a float or string.");
       }
     }
@@ -3366,14 +3367,17 @@ LibertyReader::visitEdges(LibertyAttr *attr)
       // Convert string to float if necessary
       if (value->isFloat()) {
         float float_value = value->floatValue();
-        edges->push_back(float_value);
+        int int_value = static_cast<int>(float_value);
+        edges->push_back(int_value);
       }
       else if (value->isString()) {
         const char *string_value = value->stringValue();
         float float_value = strtof(string_value, nullptr);
-        edges->push_back(float_value);
+        int int_value = static_cast<int>(float_value);
+        edges->push_back(int_value);
       }
       else {
+        delete edges;
         libError(1234, attr, "edges attribute must be a float or string.");
       }
     }
