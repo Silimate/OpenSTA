@@ -95,6 +95,10 @@ public:
   // TCL variable sta_strip_escaped_bus.
   bool stripEscapedBus() const { return strip_escaped_bus_; }
   void setStripEscapedBus(bool enable) { strip_escaped_bus_ = enable; }
+  // TCL variable sta_enable_collections
+  bool enableCollections() const { return enable_collections_; }
+  void setEnableCollections(bool enable) { enable_collections_ = enable; }
+
 
 private:
   bool crpr_enabled_;
@@ -118,6 +122,7 @@ private:
   bool liberty_line_debug_;
   bool no_inv_delay_calc_;
   bool strip_escaped_bus_;
+  bool enable_collections_;
 };
 
 } // namespace

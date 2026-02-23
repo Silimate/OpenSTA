@@ -38,6 +38,10 @@ StringSet *
 tclListSetConstChar(Tcl_Obj *const source,
 		    Tcl_Interp *interp);
 
+int
+tclListSeqConstCharCheck(Tcl_Obj *const source,
+		 	 Tcl_Interp *interp);
+
 StringSeq *
 tclListSeqConstChar(Tcl_Obj *const source,
 		    Tcl_Interp *interp);

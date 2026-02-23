@@ -1357,6 +1357,9 @@ public:
   // TCL variable sta_strip_escaped_bus.
   bool stripEscapedBus() const;
   void setStripEscapedBus(bool enable);
+  // TCL variable sta_enable_collections
+  bool enableCollections() const;
+  void setEnableCollections(bool enable);
   ////////////////////////////////////////////////////////////////
 
   Properties &properties() { return properties_; }
