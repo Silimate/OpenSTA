@@ -3317,21 +3317,28 @@ LibertyReader::visitShifts(LibertyAttr *attr)
 {
   if (generated_clock_) {
     if (!attr->isComplex()) {
-      libError(1234, attr, "'shifts' attribute is not a complex attribute.");
+      libError(1234, attr, "'shifts' attribute must be a complex attribute.");
     }
     // Initialize edges sequence
     FloatSeq *shifts = new FloatSeq;
     LibertyAttrValueIterator value_iter(attr->values());
     while (value_iter.hasNext()) {
       LibertyAttrValue *value = value_iter.next();
-      if (!value->isFloat()) {
-        delete shifts;
-        libError(1234, attr, "shifts attribute must be a float.");
+      // Convert string to float if necessary
+      if (value->isFloat()) {
+        float float_value = value->floatValue();
+        shifts->push_back(float_value);
       }
-      float float_value = value->floatValue();
-      shifts->push_back(float_value);
+      else if (value->isString()) {
+        const char *string_value = value->stringValue();
+        float float_value = strtof(string_value, nullptr);
+        shifts->push_back(float_value);
+      }
+      else {
+        delete shifts;
+        libError(1234, attr, "shifts attribute must be a float or string.");
+      }
     }
-
     // Error checking, only size 3 is supported at the moment
     if (shifts->size() != 3) {
       delete shifts;
@@ -3350,22 +3357,30 @@ LibertyReader::visitEdges(LibertyAttr *attr)
 {
   if (generated_clock_) {
     if (!attr->isComplex()) {
-      libError(1234, attr, "'edges' attribute is not a complex attribute.");
+      libError(1234, attr, "'edges' attribute must be a complex attribute.");
     }
     // Initialize edges sequence
     IntSeq *edges = new IntSeq;
     LibertyAttrValueIterator value_iter(attr->values());
     while (value_iter.hasNext()) {
       LibertyAttrValue *value = value_iter.next();
-      if (!value->isFloat()) {
-        delete edges;
-        libError(1234, attr, "edges attribute must be a float.");
+      // Convert string to float if necessary
+      if (value->isFloat()) {
+        float float_value = value->floatValue();
+        int int_value = static_cast<int>(float_value);
+        edges->push_back(int_value);
       }
-      float float_value = value->floatValue();
-      int int_value = static_cast<int>(float_value);
-      edges->push_back(int_value);
+      else if (value->isString()) {
+        const char *string_value = value->stringValue();
+        float float_value = strtof(string_value, nullptr);
+        int int_value = static_cast<int>(float_value);
+        edges->push_back(int_value);
+      }
+      else {
+        delete edges;
+        libError(1234, attr, "edges attribute must be a float or string.");
+      }
     }
-
     // Error checking, only size 3 is supported at the moment
     if (edges->size() != 3) {
       delete edges;
