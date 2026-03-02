@@ -208,6 +208,14 @@ proc trace_strip_escaped_bus { name1 name2 op } {
     strip_escaped_bus set_strip_escaped_bus
 }
 
+trace variable ::sta_enable_collections "rw" \
+  sta::trace_enable_collections
+
+proc trace_enable_collections { name1 name2 op } {
+  trace_boolean_var $op ::sta_enable_collections \
+    enable_collections set_enable_collections
+}
+
 # Report path numeric field width is digits + extra.
 set report_path_field_width_extra 5
 

@@ -51,6 +51,9 @@
 #include "Sta.hh"
 #include "TclTypeHelpers.hh"
 
+#include <sstream>
+#include <iostream>
+
 namespace sta {
 
 typedef MinPulseWidthCheckSeq::Iterator MinPulseWidthCheckSeqIterator;
@@ -82,6 +85,29 @@ tclListSeqPtr(Tcl_Obj *const source,
   }
   else
     return nullptr;
+}
+
+template <class TYPE>
+int
+tclCheckListSeq(Tcl_Obj *const source,
+              swig_type_info *swig_type,
+              Tcl_Interp *interp)
+{
+  Tcl_Size argc;
+  Tcl_Obj **argv;
+
+  if (Tcl_ListObjGetElements(interp, source, &argc, &argv) == TCL_OK) {
+    for (int i = 0; i < argc; i++) {
+      void *obj;
+      int res = SWIG_ConvertPtr(argv[i], &obj, swig_type, false);
+      if (!SWIG_IsOK(res)) {
+        return 0;
+      }
+    }
+    return 1;
+  }
+  else
+    return 0;
 }
 
 template <class TYPE>
@@ -274,6 +300,7 @@ using namespace sta;
 // SWIG type definitions.
 //
 ////////////////////////////////////////////////////////////////
+%include "tcl/Collections.i"
 
 // String that is deleted after crossing over to tcland.
 %typemap(out) string {
@@ -296,6 +323,10 @@ using namespace sta;
 
 %typemap(in) StringSeq* {
   $1 = tclListSeqConstChar($input, interp);
+}
+
+%typemap(typecheck, precedence=SWIG_TYPECHECK_POINTER) StringSeq* {
+  $1 = tclListSeqConstCharCheck($input, interp);
 }
 
 %typemap(in) StdStringSet* {
@@ -352,33 +383,14 @@ using namespace sta;
   Tcl_SetObjResult(interp, obj);
 }
 
-%typemap(in) CellSeq* {
-  $1 = tclListSeqPtr<Cell*>($input, SWIGTYPE_p_Cell, interp);
-}
+COLLECTION_TYPEMAPS(CellSeq, Cell *, Cell);
+COLLECTION_HELPERS(CellSeq, Cell *, CellSeqIterator);
 
-%typemap(out) CellSeq {
-  seqTclList<CellSeq, Cell>($1, SWIGTYPE_p_Cell, interp);
-}
+COLLECTION_TYPEMAPS(LibertyCellSeq, LibertyCell *, LibertyCell);
+COLLECTION_HELPERS(LibertyCellSeq, LibertyCell *, LibertyCellSeqIterator);
 
-%typemap(in) LibertyCellSeq* {
-  $1 = tclListSeqPtr<LibertyCell*>($input, SWIGTYPE_p_LibertyCell, interp);
-}
-
-%typemap(out) LibertyCellSeq * {
-  seqPtrTclList<LibertyCellSeq, LibertyCell>($1, SWIGTYPE_p_LibertyCell, interp);
-}
-
-%typemap(out) LibertyCellSeq {
-  seqTclList<LibertyCellSeq, LibertyCell>($1, SWIGTYPE_p_LibertyCell, interp);
-}
-
-%typemap(in) LibertyPortSeq* {
-  $1 = tclListSeqPtr<LibertyPort*>($input, SWIGTYPE_p_LibertyPort, interp);
-}
-
-%typemap(out) LibertyPortSeq {
-  seqTclList<LibertyPortSeq, LibertyPort>($1, SWIGTYPE_p_LibertyPort, interp);
-}
+COLLECTION_TYPEMAPS(LibertyPortSeq, LibertyPort *, LibertyPort);
+COLLECTION_HELPERS(LibertyPortSeq, LibertyPort *, LibertyPortSeqIterator);
 
 %typemap(out) CellPortIterator* {
   Tcl_Obj *obj = SWIG_NewInstanceObj($1, $1_descriptor, false);
@@ -395,13 +407,8 @@ using namespace sta;
   Tcl_SetObjResult(interp, obj);
 }
 
-%typemap(in) PortSeq* {
-  $1 = tclListSeqPtr<const Port*>($input, SWIGTYPE_p_Port, interp);
-}
-
-%typemap(out) PortSeq {
-  seqTclList<PortSeq, Port>($1, SWIGTYPE_p_Port, interp);
-}
+COLLECTION_TYPEMAPS(PortSeq, const Port *, Port);
+COLLECTION_HELPERS(PortSeq, const Port *, PortSeqIterator);
 
 %typemap(out) PortMemberIterator* {
   Tcl_Obj *obj = SWIG_NewInstanceObj($1, $1_descriptor, false);
@@ -574,13 +581,8 @@ using namespace sta;
   Tcl_SetObjResult(interp, obj);
 }
 
-%typemap(in) InstanceSeq* {
-  $1 = tclListSeqPtr<const Instance*>($input, SWIGTYPE_p_Instance, interp);
-}
-
-%typemap(out) InstanceSeq {
-  seqTclList<InstanceSeq, Instance>($1, SWIGTYPE_p_Instance, interp);
-}
+COLLECTION_TYPEMAPS(InstanceSeq, const Instance *, Instance);
+COLLECTION_HELPERS(InstanceSeq, const Instance *, InstanceSeqIterator);
 
 %typemap(out) InstanceChildIterator* {
   Tcl_Obj *obj = SWIG_NewInstanceObj($1, $1_descriptor, false);
@@ -602,46 +604,27 @@ using namespace sta;
   Tcl_SetObjResult(interp, obj);
 }
 
-%typemap(in) LibertyLibrarySeq* {
-  $1 = tclListSeqPtr<LibertyLibrary*>($input, SWIGTYPE_p_LibertyLibrary, interp);
-}
-
-%typemap(out) LibertyLibrarySeq {
-  seqTclList<LibertyLibrarySeq, LibertyLibrary>($1, SWIGTYPE_p_LibertyLibrary, interp);
-}
+COLLECTION_TYPEMAPS(LibertyLibrarySeq, LibertyLibrary *, LibertyLibrary);
+COLLECTION_HELPERS(LibertyLibrarySeq, LibertyLibrary *, LibertyLibrarySeqIterator);
 
 %typemap(out) Pin* {
   Tcl_Obj *obj = SWIG_NewInstanceObj($1, $1_descriptor, false);
   Tcl_SetObjResult(interp, obj);
 }
 
-%typemap(out) PinSeq* {
-  seqPtrTclList<PinSeq, Pin>($1, SWIGTYPE_p_Pin, interp);
-}
-
-%typemap(out) PinSeq {
-  seqTclList<PinSeq, Pin>($1, SWIGTYPE_p_Pin, interp);
-}
+COLLECTION_TYPEMAPS(PinSeq, const Pin *, Pin);
+COLLECTION_HELPERS(PinSeq, const Pin *, PinSeqIterator);
 
 %typemap(out) Net* {
   Tcl_Obj *obj = SWIG_NewInstanceObj($1, $1_descriptor, false);
   Tcl_SetObjResult(interp, obj);
 }
 
-%typemap(in) NetSeq* {
-  $1 = tclListSeqPtr<const Net*>($input, SWIGTYPE_p_Net, interp);
-}
-
-%typemap(out) NetSeq* {
-  seqPtrTclList<NetSeq, Net>($1, SWIGTYPE_p_Net, interp);
-}
+COLLECTION_TYPEMAPS(NetSeq, const Net *, Net);
+COLLECTION_HELPERS(NetSeq, const Net *, NetSeqIterator);
 
 %typemap(in) ConstNetSeq {
   $1 = tclListSeq<const Net*>($input, SWIGTYPE_p_Net, interp);
-}
-
-%typemap(out) NetSeq {
-  seqTclList<NetSeq, Net>($1, SWIGTYPE_p_Net, interp);
 }
 
 %typemap(out) NetPinIterator* {
@@ -673,17 +656,8 @@ using namespace sta;
   $1 = tclListSeq<const Clock*>($input, SWIGTYPE_p_Clock, interp);
 }
 
-%typemap(in) ClockSeq* {
-  $1 = tclListSeqPtr<Clock*>($input, SWIGTYPE_p_Clock, interp);
-}
-
-%typemap(out) ClockSeq* {
-  seqPtrTclList<ClockSeq, Clock>($1, SWIGTYPE_p_Clock, interp);
-}
-
-%typemap(out) ClockSeq {
-  seqTclList<ClockSeq, Clock>($1, SWIGTYPE_p_Clock, interp);
-}
+COLLECTION_TYPEMAPS(ClockSeq, Clock *, Clock);
+COLLECTION_HELPERS(ClockSeq, Clock *, ClockSeqIterator);
 
 %typemap(out) ClockEdge* {
   Tcl_Obj *obj = SWIG_NewInstanceObj($1,$1_descriptor, false);

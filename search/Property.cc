@@ -79,8 +79,103 @@ PropertyTypeWrong::what() const noexcept
   return stringPrint("property accessor %s is only valid for %s properties.",
 		     accessor_, type_);
 }
+
+class PropertyTypeNotComparable : public Exception
+{
+public:
+  PropertyTypeNotComparable(const char *type);
+  virtual ~PropertyTypeNotComparable() {}
+  virtual const char *what() const noexcept;
+
+private:
+  const char *type_;
+};
+
+PropertyTypeNotComparable::PropertyTypeNotComparable(const char *type) :
+  Exception(),
+  type_(type)
+{
+}
+
+const char *
+PropertyTypeNotComparable::what() const noexcept
+{
+  return stringPrint("property type %s is not comparable.", type_);
+}
+
+class PropertiesNotComparable : public Exception
+{
+public:
+  PropertiesNotComparable(const char *type1, const char *type2);
+  virtual ~PropertiesNotComparable() {}
+  virtual const char *what() const noexcept;
+
+private:
+  const char *type1_, *type2_;
+};
+
+PropertiesNotComparable::PropertiesNotComparable(const char *type1,
+                                                 const char *type2) :
+  Exception(),
+  type1_(type1),
+  type2_(type2)
+{
+}
+
+const char *
+PropertiesNotComparable::what() const noexcept
+{
+  return stringPrint("properties of type %s and %s are not comparable",
+                     type1_,
+                     type2_);
+}
 ////////////////////////////////////////////////////////////////
 
+const char *PropertyValue::type_name(Type type) {
+  switch (type) {
+  case Type::type_none:
+    return "none";
+  case Type::type_string:
+    return "string";
+  case Type::type_float:
+    return "float";
+  case Type::type_bool:
+    return "bool";
+  case Type::type_library:
+    return "library";
+  case Type::type_cell:
+    return "cell";
+  case Type::type_port:
+    return "port";
+  case Type::type_liberty_library:
+    return "liberty_library";
+  case Type::type_liberty_cell:
+    return "liberty_cell";
+  case Type::type_liberty_port:
+    return "liberty_port";
+  case Type::type_instance:
+    return "instance";
+  case Type::type_pin:
+    return "pin";
+  case Type::type_pins:
+    return "pins";
+  case Type::type_net:
+    return "net";
+  case Type::type_clk:
+    return "clk";
+  case Type::type_clks:
+    return "clks";
+  case Type::type_paths:
+    return "paths";
+  case Type::type_pwr_activity:
+    return "type_pwr_activity";
+  default:
+    return "unknown";
+  }
+}
+
+
+////////////////////////////////////////////////////////////////
 PropertyValue::PropertyValue() :
   type_(type_none),
   unit_(nullptr)
@@ -531,6 +626,41 @@ PropertyValue::operator=(PropertyValue &&value)
   return *this;
 }
 
+int PropertyValue::compare(const PropertyValue &rhs, const Network *network) const {
+  if (type_ != rhs.type_) {
+    throw PropertiesNotComparable(type_name(type_), type_name(rhs.type_));
+  }
+  string lhs_s, rhs_s;
+  float diff;
+  switch (type_) {
+  case Type::type_none:
+    return 0;
+  case Type::type_string:
+    return strcmp(string_, rhs.string_);
+  case Type::type_float:
+    diff = float_ - rhs.float_;
+    return (diff > 0) - (diff < 0);
+  case Type::type_bool:
+    return int(bool_) - int(rhs.bool_);
+  case Type::type_library:
+  case Type::type_cell:
+  case Type::type_port:
+  case Type::type_liberty_library:
+  case Type::type_liberty_cell:
+  case Type::type_liberty_port:
+  case Type::type_instance:
+  case Type::type_pin:
+  case Type::type_net:
+  case Type::type_clk:
+    // compare by name
+    lhs_s = to_string(network);
+    rhs_s = rhs.to_string(network);
+    return strcmp(lhs_s.c_str(), rhs_s.c_str());
+  default:
+    throw PropertyTypeNotComparable(type_name(type_));
+  }
+}
+
 string
 PropertyValue::to_string(const Network *network) const
 {
@@ -591,7 +721,7 @@ bool
 PropertyValue::boolValue() const
 {
   if (type_ != Type::type_bool)
-    throw PropertyTypeWrong("boolValue", "boolt");
+    throw PropertyTypeWrong("boolValue", "bool");
   return bool_;
 }
 
