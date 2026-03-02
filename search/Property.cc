@@ -972,9 +972,11 @@ Properties::getProperty(const Instance *inst,
     return PropertyValue(network->cell(inst));
   else if (property == "is_hierarchical")
     return PropertyValue(network->isHierarchical(inst));
+  else if (property == "is_sequential")
+    return PropertyValue(liberty_cell && liberty_cell->hasSequentials());
   else if (property == "is_buffer")
     return PropertyValue(liberty_cell && liberty_cell->isBuffer());
-  else if (property == "is_clock_gate")
+  else if (property == "is_clock_gate" || property == "is_integrated_clock_gating_cell")
     return PropertyValue(liberty_cell && liberty_cell->isClockGate());
   else if (property == "is_inverter")
     return PropertyValue(liberty_cell && liberty_cell->isInverter());
