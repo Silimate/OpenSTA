@@ -2470,6 +2470,18 @@ Sta::setNoInvDelayCalc(bool enable)
 }
 
 bool
+Sta::noInvPowerCalc() const
+{
+  return variables_->noInvPowerCalc();
+}
+
+void
+Sta::setNoInvPowerCalc(bool enable)
+{
+  variables_->setNoInvPowerCalc(enable);
+}
+
+bool
 Sta::stripEscapedBus() const
 {
   return variables_->stripEscapedBus();

@@ -27,6 +27,7 @@
 #include <algorithm> // max
 #include <cmath>     // abs
 
+#include "Sta.hh"
 #include "cudd.h"
 #include "Stats.hh"
 #include "Debug.hh"
@@ -903,6 +904,12 @@ Power::power(const Instance *inst,
 {
   debugPrint(debug_, "power", 2, "find power %s", sdc_network_->pathName(inst));
   PowerResult result;
+
+  // Zero out inverter power if flag is enabled
+  if (Sta::sta()->noInvPowerCalc() && cell->isInverter()) {
+    return result;
+  }
+
   findInternalPower(inst, cell, corner, result);
   findSwitchingPower(inst, cell, corner, result);
   findLeakagePower(inst, cell, corner, result);
