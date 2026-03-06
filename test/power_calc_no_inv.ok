@@ -9,10 +9,10 @@
 ,
 {
   "name": "I2",
-  "internal": 1.18e-05,
-  "switching": 0.00e+00,
+  "internal": 3.89e-06,
+  "switching": 6.12e-05,
   "leakage": 5.12e-11,
-  "total": 1.18e-05
+  "total": 6.51e-05
 }
 ]
 [
