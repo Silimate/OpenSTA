@@ -8,11 +8,19 @@
 }
 ,
 {
-  "name": "I2",
-  "internal": 3.89e-06,
+  "name": "I3",
+  "internal": 4.03e-06,
   "switching": 6.12e-05,
   "leakage": 5.12e-11,
-  "total": 6.51e-05
+  "total": 6.53e-05
+}
+,
+{
+  "name": "I2",
+  "internal": 1.28e-05,
+  "switching": 2.92e-05,
+  "leakage": 5.12e-11,
+  "total": 4.20e-05
 }
 ]
 [
@@ -26,6 +34,14 @@
 ,
 {
   "name": "I2",
+  "internal": 0.00e+00,
+  "switching": 0.00e+00,
+  "leakage": 0.00e+00,
+  "total": 0.00e+00
+}
+,
+{
+  "name": "I3",
   "internal": 0.00e+00,
   "switching": 0.00e+00,
   "leakage": 0.00e+00,

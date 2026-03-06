@@ -3,7 +3,7 @@ module power_calc_no_inv (
   output out
 );
 
-  wire mid;
+  wire mid, mid2;
 
   BUFx2_ASAP7_75t_R I1 (
     .A(in),
@@ -12,6 +12,11 @@ module power_calc_no_inv (
 
   INVx2_ASAP7_75t_R I2 (
     .A(mid),
+    .Y(mid2)
+  );
+
+  INVx2_ASAP7_75t_R I3 (
+    .A(mid2),
     .Y(out)
   );
 
