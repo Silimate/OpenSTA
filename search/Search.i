@@ -1252,6 +1252,18 @@ set_no_inv_delay_calc(bool enable)
 }
 
 bool
+no_inv_power_calc()
+{
+  return Sta::sta()->noInvPowerCalc();
+}
+
+void
+set_no_inv_power_calc(bool enable)
+{
+  Sta::sta()->setNoInvPowerCalc(enable);
+}
+
+bool
 strip_escaped_bus()
 {
   return Sta::sta()->stripEscapedBus();

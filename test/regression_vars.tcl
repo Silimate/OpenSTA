@@ -174,6 +174,7 @@ record_public_tests {
   path_dedup_silimate
   path_dedup_worst
   pin_props
+  power_calc_no_inv
   power_json
   prima3
   report_checks_sorted

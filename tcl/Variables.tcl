@@ -200,6 +200,14 @@ proc trace_no_inv_delay_calc { name1 name2 op } {
     no_inv_delay_calc set_no_inv_delay_calc
 }
 
+trace variable ::sta_no_inv_power_calc "rw" \
+  sta::trace_no_inv_power_calc
+
+proc trace_no_inv_power_calc { name1 name2 op } {
+  trace_boolean_var $op ::sta_no_inv_power_calc \
+    no_inv_power_calc set_no_inv_power_calc
+}
+
 trace variable ::sta_strip_escaped_bus "rw" \
   sta::trace_strip_escaped_bus
 
