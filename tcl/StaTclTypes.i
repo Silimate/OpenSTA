@@ -660,7 +660,7 @@ COLLECTION_TYPEMAPS(ClockSeq, Clock *, Clock);
 COLLECTION_HELPERS(ClockSeq, Clock *, ClockSeqIterator);
 
 %typemap(out) ClockEdge* {
-  Tcl_Obj *obj = SWIG_NewInstanceObj($1,$1_descriptor, false);
+  Tcl_Obj *obj = SWIG_NewInstanceObj($1, $1_descriptor, false);
   Tcl_SetObjResult(interp, obj);
 }
 
