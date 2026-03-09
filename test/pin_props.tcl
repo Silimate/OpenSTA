@@ -8,7 +8,7 @@ proc test_property {property} {
     set property_is_inverted [string match "!*" $property]
     set objects [get_pins -filter $property]
     set object_names []
-    foreach object $objects {
+    foreach_in_collection object $objects {
         if { [$object [string map {! ""} $property]] == "$property_is_inverted" } {
             puts "$property method and $property property returning different values"
         }

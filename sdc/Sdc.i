@@ -264,18 +264,26 @@ set_wire_load_selection_group_cmd(WireloadSelection *selection,
 
 void
 make_clock(const char *name,
-	   PinSet *pins,
+	   PinSeq *pins,
 	   bool add_to_pins,
 	   float period,
 	   FloatSeq *waveform,
 	   char *comment)
 {
-  Sta::sta()->makeClock(name, pins, add_to_pins, period, waveform, comment);
+  Network *network = Sta::sta()->ensureLinked();
+  PinSet *set = nullptr;
+  if (pins) {
+    set = new PinSet(network);
+    for (auto *pin: *pins) {
+      set->insert(pin);
+    }
+  }
+  Sta::sta()->makeClock(name, set, add_to_pins, period, waveform, comment);
 }
 
 void
 make_generated_clock(const char *name,
-		     PinSet *pins,
+		     PinSeq *pins,
 		     bool add_to_pins,
 		     Pin *src_pin,
 		     Clock *master_clk,
@@ -288,7 +296,15 @@ make_generated_clock(const char *name,
 		     FloatSeq *edge_shifts,
 		     char *comment)
 {
-  Sta::sta()->makeGeneratedClock(name, pins, add_to_pins,
+  Network *network = Sta::sta()->ensureLinked();
+  PinSet *set = nullptr;
+  if (pins) {
+    set = new PinSet(network);
+    for (auto *pin: *pins) {
+      set->insert(pin);
+    }
+  }
+  Sta::sta()->makeGeneratedClock(name, set, add_to_pins,
 				 src_pin, master_clk,
 				 divide_by, multiply_by, duty_cycle, invert,
 				 combinational, edges, edge_shifts,

@@ -55,7 +55,7 @@ sta::define_cmd_args "set_dont_use" {lib_cell_name_pattern}
      
 proc set_dont_use {lib_cell_name_pattern} {
   set targets [get_lib_cells -filter "name=~$lib_cell_name_pattern"]
-  foreach target $targets {
+  foreach_in_collection target $targets {
     $target set_dont_use
   }
 }
@@ -64,7 +64,7 @@ sta::define_cmd_args "unset_dont_use" {lib_cell_name_pattern}
      
 proc unset_dont_use {lib_cell_name_pattern} {
   set targets [get_lib_cells -filter "name=~$lib_cell_name_pattern"]
-  foreach target $targets {
+  foreach_in_collection target $targets {
     $target unset_dont_use
   }
 }
