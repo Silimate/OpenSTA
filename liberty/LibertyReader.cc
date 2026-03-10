@@ -3383,8 +3383,8 @@ LibertyReader::visitEdges(LibertyAttr *attr)
     }
     // Error checking, only size 3 is supported at the moment
     if (edges->size() != 3) {
-      delete edges;
-      libError(1234, attr, "edges attribute must have 3 values.");
+      // delete edges;
+      libWarn(1234, attr, "edges attribute must have 3 values.");
     }
     generated_clock_->setEdges(edges);
   }
