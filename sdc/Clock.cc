@@ -450,7 +450,8 @@ Clock::generateEdgesClk(const Clock *src_clk)
 {
   // The create_generated_clock tcl cmd and Sta::makeClock
   // enforce this restriction.
-  if (edges_->size() == 3) {
+  // SILIMATE FIX: Allow more than 3 edges, just use first 3.
+  if (edges_->size() >= 3) {
     const FloatSeq *src_wave = src_clk->waveform();
     size_t src_size = src_wave->size();
     float src_period = src_clk->period();
@@ -476,7 +477,7 @@ Clock::generateEdgesClk(const Clock *src_clk)
       period_ += (*edge_shifts_)[2];
   }
   else
-    criticalError(244, "generated clock edges size is not three.");
+    libWarn(244, "generated clock edges size is not three.");
 }
 
 bool
