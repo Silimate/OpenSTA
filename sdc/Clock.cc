@@ -477,7 +477,7 @@ Clock::generateEdgesClk(const Clock *src_clk)
       period_ += (*edge_shifts_)[2];
   }
   else
-    libWarn(244, "generated clock edges size is not three.");
+    Sta::sta()->report()->warn(244, "generated clock edges size is not three.");
 }
 
 bool
