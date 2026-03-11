@@ -34,6 +34,7 @@
 #include "Network.hh"
 #include "Graph.hh"
 #include "Sdc.hh"
+#include "Sta.hh"
 
 namespace sta {
 
