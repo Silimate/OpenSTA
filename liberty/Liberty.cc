@@ -2884,6 +2884,26 @@ portLibertyToSta(const char *port_name)
   return sta_name;
 }
 
+string
+portStaToLiberty(const char *sta_name)
+{
+  string liberty_name;
+  for (const char *s = sta_name; *s; s++) {
+    char ch = *s;
+    if (ch == '\\') {
+      char next_ch = s[1];
+      if (next_ch == '\\') {
+        liberty_name += ch;
+        liberty_name += next_ch;
+        s++;
+      }
+    }
+    else
+      liberty_name += ch;
+  }
+  return liberty_name;
+}
+
 DriverWaveform *
 LibertyPort::driverWaveform(const RiseFall *rf) const
 {

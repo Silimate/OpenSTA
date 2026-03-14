@@ -1153,6 +1153,8 @@ private:
 
 std::string
 portLibertyToSta(const char *port_name);
+std::string
+portStaToLiberty(const char *sta_name);
 const char *
 scanSignalTypeName(ScanSignalType scan_type);
 const char *

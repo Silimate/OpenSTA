@@ -291,7 +291,7 @@ LibertyWriter::writeCells()
 void
 LibertyWriter::writeCell(const LibertyCell *cell)
 {
-  fprintf(stream_, "  cell (\"%s\") {\n", cell->name());
+  fprintf(stream_, "  cell (\"%s\") {\n", portStaToLiberty(cell->name()).c_str());
   float area = cell->area();
   if (area > 0.0)
     fprintf(stream_, "    area : %.3f \n", area);
@@ -331,7 +331,7 @@ LibertyWriter::writeCell(const LibertyCell *cell)
 void
 LibertyWriter::writeBusPort(const LibertyPort *port)
 {
-  fprintf(stream_, "    bus(\"%s\") {\n", port->name());
+  fprintf(stream_, "    bus(\"%s\") {\n", portStaToLiberty(port->name()).c_str());
   if (port->busDcl())
     fprintf(stream_, "      bus_type : %s;\n", port->busDcl()->name());
   writePortAttrs(port);
@@ -347,7 +347,7 @@ LibertyWriter::writeBusPort(const LibertyPort *port)
 void
 LibertyWriter::writePort(const LibertyPort *port)
 {
-  fprintf(stream_, "    pin(\"%s\") {\n", port->name());
+  fprintf(stream_, "    pin(\"%s\") {\n", portStaToLiberty(port->name()).c_str());
   writePortAttrs(port);
   fprintf(stream_, "    }\n");
 }
@@ -361,18 +361,19 @@ LibertyWriter::writePortAttrs(const LibertyPort *port)
       // cannot ref internal ports until sequentials are written
       && !(func->port()
            && func->port()->direction()->isInternal()))
-    fprintf(stream_, "      function : \"%s\";\n", func->to_string().c_str());
+    fprintf(stream_, "      function : \"%s\";\n",
+            portStaToLiberty(func->to_string().c_str()).c_str());
   auto tristate_enable = port->tristateEnable();
   if (tristate_enable) {
     if (tristate_enable->op() == FuncExpr::op_not) {
       FuncExpr *three_state = tristate_enable->left();
       fprintf(stream_, "      three_state : \"%s\";\n",
-              three_state->to_string().c_str());
+              portStaToLiberty(three_state->to_string().c_str()).c_str());
     }
     else {
       FuncExpr three_state(FuncExpr::op_not, tristate_enable, nullptr, nullptr);
       fprintf(stream_, "      three_state : \"%s\";\n",
-              three_state.to_string().c_str());
+              portStaToLiberty(three_state.to_string().c_str()).c_str());
     }
   }
   if (port->isClock())
@@ -400,7 +401,7 @@ LibertyWriter::writePortAttrs(const LibertyPort *port)
 void
 LibertyWriter::writePwrGndPort(const LibertyPort *port)
 {
-  fprintf(stream_, "    pg_pin(\"%s\") {\n", port->name());
+  fprintf(stream_, "    pg_pin(\"%s\") {\n", portStaToLiberty(port->name()).c_str());
   fprintf(stream_, "      pg_type : \"%s\";\n", pwrGndTypeName(port->pwrGndType()));
   fprintf(stream_, "      voltage_name : \"%s\";\n", port->voltageName());
   fprintf(stream_, "    }\n");
@@ -426,7 +427,8 @@ LibertyWriter::writeTimingArcSet(const TimingArcSet *arc_set)
 {
   fprintf(stream_, "      timing() {\n");
   if (arc_set->from())
-    fprintf(stream_, "        related_pin : \"%s\";\n", arc_set->from()->name());
+    fprintf(stream_, "        related_pin : \"%s\";\n",
+            portStaToLiberty(arc_set->from()->name()).c_str());
   TimingSense sense = arc_set->sense();
   if (sense != TimingSense::unknown
       && sense != TimingSense::non_unate)
