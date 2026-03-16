@@ -65,6 +65,7 @@ public:
   const PinSeq &pins() const { return pins_; }
 
 private:
+  VcdTime clippedIntervalStart() const;
   PinSeq pins_;
   VcdTime prev_time_;
   char prev_value_;
@@ -88,6 +89,14 @@ VcdCount::addPin(const Pin *pin)
   pins_.push_back(pin);
 }
 
+VcdTime
+VcdCount::clippedIntervalStart() const
+{
+  // Clip prev_time_ to filter_start in the case where the signal went high before the filter window started.
+  return (filter_start_ >= 0 && prev_time_ < filter_start_)
+          ? filter_start_ : prev_time_;
+}
+
 void
 VcdCount::incrCounts(VcdTime time,
                      char value,
@@ -105,12 +114,7 @@ VcdCount::incrCounts(VcdTime time,
   // Initial value does not contribute to transitions or high time.
   if (prev_time_ != -1 && count_interval) {
     if (prev_value_ == '1') {
-      // For accurate duty cycle calculation within a time window, clip the
-      // interval start to filter_start. This ensures we only count high time
-      // that actually falls within the filtered range, even if the signal
-      // went high before the window started.
-      VcdTime interval_start = (filter_start_ >= 0 && prev_time_ < filter_start_) 
-                                ? filter_start_ : prev_time_;
+      VcdTime interval_start = clippedIntervalStart();
       if (time > interval_start)
         high_time_ += time - interval_start;
     }
@@ -130,9 +134,7 @@ VcdTime
 VcdCount::highTime(VcdTime time_max) const
 {
   if (prev_value_ == '1') {
-    // Clip prev_time_ to filter_start if needed
-    VcdTime interval_start = (filter_start_ >= 0 && prev_time_ < filter_start_)
-                              ? filter_start_ : prev_time_;
+    VcdTime interval_start = clippedIntervalStart();
     if (time_max > interval_start)
       return high_time_ + time_max - interval_start;
     else
