@@ -94,22 +94,25 @@ VcdCount::incrCounts(VcdTime time,
 {
   // Initial value does not contribute to transitions or high time.
   if (prev_time_ != -1) {
-
-    // Update should_count based on the filter window (outside window == no counting)
-    bool should_count = true;
-    if (filter_start >= 0 || filter_end >= 0) { // checks if filtering is enabled (both -1 == no filtering)
-      if (filter_start >= 0 && prev_time_ < filter_start) { // if timestamp is before the window start, no counting
-        should_count = false;
-      }
-      if (filter_end >= 0 && time >= filter_end) { // if timestamp is at or after the window end, no counting
-        should_count = false;
-      }
+    // Clip the time interval to the filter window boundaries
+    VcdTime interval_start = prev_time_;
+    VcdTime interval_end = time;
+    
+    bool filtering_enabled = (filter_start >= 0 || filter_end >= 0);
+    if (filtering_enabled) {
+      if (filter_start >= 0 && interval_start < filter_start)
+        interval_start = filter_start;
+      if (filter_end >= 0 && interval_end > filter_end)
+        interval_end = filter_end;
     }
-
-    if (should_count) {
+    
+    // Only count if there's a valid interval within the window
+    if (interval_start < interval_end) {
       if (prev_value_ == '1')
-        high_time_ += time - prev_time_;
-      if (value != prev_value_) {
+        high_time_ += interval_end - interval_start;
+      
+      // Count transition if it occurs within or at the start of the valid interval
+      if (value != prev_value_ && time >= interval_start) {
         transition_count_ += (value == 'X'
                               || value == 'Z'
                               || prev_value_ == 'X'
@@ -372,7 +375,7 @@ VcdCountReader::varAppendBusValue(const string &id,
       else
         bit_value = '0';
       VcdCount &vcd_count = vcd_counts[bit_idx];
-      vcd_count.incrCounts(time, bit_value);
+      vcd_count.incrCounts(time, bit_value, filter_start_time_, filter_end_time_);
       if (debug_->check("read_vcd", 3)) {
         for (const Pin *pin : vcd_count.pins()) {
           debugPrint(debug_, "read_vcd", 3, "%s time %" PRIu64 " value %c",
