@@ -57,8 +57,8 @@ public:
   VcdTime highTime(VcdTime time_max) const;
   void incrCounts(VcdTime time,
                   char value,
-                  bool count_interval,
-                  VcdTime filter_start = -1);
+                  VcdTime filter_start = -1,
+                  VcdTime filter_end = -1);
   void incrCounts(VcdTime time,
                   int64_t value);
   void addPin(const Pin *pin);
@@ -91,15 +91,19 @@ VcdCount::addPin(const Pin *pin)
 void
 VcdCount::incrCounts(VcdTime time,
                      char value,
-                     bool count_interval,
-                     VcdTime filter_start)
+                     VcdTime filter_start,
+                     VcdTime filter_end)
 {
   // Store filter_start for use in highTime()
   if (filter_start >= 0)
     filter_start_ = filter_start;
+  
+  // Determine if this interval should be counted (within filter window)
+  bool count_interval = (filter_start < 0 || time >= filter_start) &&
+                        (filter_end < 0 || time <= filter_end);
     
   // Initial value does not contribute to transitions or high time.
-  if (prev_time_ != -1 && count_interval) { // only count if the interval should be counted
+  if (prev_time_ != -1 && count_interval) {
     if (prev_value_ == '1') {
       // For accurate duty cycle calculation within a time window, clip the
       // interval start to filter_start. This ensures we only count high time
@@ -356,10 +360,7 @@ VcdCountReader::varAppendValue(const string &id,
     }
     for (size_t bit_idx = 0; bit_idx < vcd_counts.size(); bit_idx++) {
       VcdCount &vcd_count = vcd_counts[bit_idx];
-      // Determine if the interval should be counted
-      bool count_interval = (filter_start_time_ < 0 || time >= filter_start_time_) &&
-                           (filter_end_time_ < 0 || time <= filter_end_time_);
-      vcd_count.incrCounts(time, value, count_interval, filter_start_time_);
+      vcd_count.incrCounts(time, value, filter_start_time_, filter_end_time_);
     }
   }
 }
@@ -372,9 +373,6 @@ VcdCountReader::varAppendBusValue(const string &id,
   const auto &itr = vcd_count_map_.find(id);
   if (itr != vcd_count_map_.end()) {
     VcdCounts &vcd_counts = itr->second;
-    // Determine if the interval should be counted
-    bool count_interval = (filter_start_time_ < 0 || time >= filter_start_time_) &&
-                         (filter_end_time_ < 0 || time <= filter_end_time_);
     for (size_t bit_idx = 0; bit_idx < vcd_counts.size(); bit_idx++) {
       char bit_value;
       if (bus_value.size() == 1)
@@ -384,7 +382,7 @@ VcdCountReader::varAppendBusValue(const string &id,
       else
         bit_value = '0';
       VcdCount &vcd_count = vcd_counts[bit_idx];
-      vcd_count.incrCounts(time, bit_value, count_interval, filter_start_time_);
+      vcd_count.incrCounts(time, bit_value, filter_start_time_, filter_end_time_);
       if (debug_->check("read_vcd", 3)) {
         for (const Pin *pin : vcd_count.pins()) {
           debugPrint(debug_, "read_vcd", 3, "%s time %" PRIu64 " value %c",
