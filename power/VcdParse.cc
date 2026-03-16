@@ -239,8 +239,8 @@ VcdParse::parseVarValues()
     if (char0 == '#' && token.size() > 1) {
       VcdTime time = stoll(token.substr(1));
       
-      // Stop parsing if we've passed the end time
-      if (end_time_ >= 0 && time > end_time_) {
+      // Stop parsing if we've reached end time
+      if (end_time_ >= 0 && time >= end_time_) {
         break;
       }
       
