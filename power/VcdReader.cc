@@ -56,7 +56,9 @@ public:
   double transitionCount() const { return transition_count_; }
   VcdTime highTime(VcdTime time_max) const;
   void incrCounts(VcdTime time,
-                  char value);
+                  char value,
+                  bool count_this_interval = true,
+                  VcdTime filter_start = -1);
   void incrCounts(VcdTime time,
                   int64_t value);
   void addPin(const Pin *pin);
@@ -68,13 +70,15 @@ private:
   char prev_value_;
   VcdTime high_time_;
   double transition_count_;
+  VcdTime filter_start_;
 };
 
 VcdCount::VcdCount() :
   prev_time_(-1),
   prev_value_('\0'),
   high_time_(0),
-  transition_count_(0)
+  transition_count_(0),
+  filter_start_(-1)
 {
 }
 
@@ -86,12 +90,23 @@ VcdCount::addPin(const Pin *pin)
 
 void
 VcdCount::incrCounts(VcdTime time,
-                     char value)
+                     char value,
+                     bool count_this_interval,
+                     VcdTime filter_start)
 {
+  // Store filter_start for use in highTime()
+  if (filter_start >= 0)
+    filter_start_ = filter_start;
+    
   // Initial value does not contribute to transitions or high time.
-  if (prev_time_ != -1) {
-    if (prev_value_ == '1')
-      high_time_ += time - prev_time_;
+  if (prev_time_ != -1 && count_this_interval) {
+    if (prev_value_ == '1') {
+      // Clip the interval to filter_start if needed
+      VcdTime interval_start = (filter_start_ >= 0 && prev_time_ < filter_start_) 
+                                ? filter_start_ : prev_time_;
+      if (time > interval_start)
+        high_time_ += time - interval_start;
+    }
     if (value != prev_value_)
       transition_count_ += (value == 'X'
                             || value == 'Z'
@@ -107,8 +122,15 @@ VcdCount::incrCounts(VcdTime time,
 VcdTime
 VcdCount::highTime(VcdTime time_max) const
 {
-  if (prev_value_ == '1')
-    return high_time_ + time_max - prev_time_;
+  if (prev_value_ == '1') {
+    // Clip prev_time_ to filter_start if needed
+    VcdTime interval_start = (filter_start_ >= 0 && prev_time_ < filter_start_)
+                              ? filter_start_ : prev_time_;
+    if (time_max > interval_start)
+      return high_time_ + time_max - interval_start;
+    else
+      return high_time_;
+  }
   else
     return high_time_;
 }
@@ -329,13 +351,12 @@ VcdCountReader::varAppendValue(const string &id,
         }
       }
     }
-    // Only process values within the filter window
-    if ((filter_start_time_ < 0 || time >= filter_start_time_) &&
-        (filter_end_time_ < 0 || time <= filter_end_time_)) {
-      for (size_t bit_idx = 0; bit_idx < vcd_counts.size(); bit_idx++) {
-        VcdCount &vcd_count = vcd_counts[bit_idx];
-        vcd_count.incrCounts(time, value);
-      }
+    // Always process values to maintain state, but filter what gets counted
+    for (size_t bit_idx = 0; bit_idx < vcd_counts.size(); bit_idx++) {
+      VcdCount &vcd_count = vcd_counts[bit_idx];
+      bool within_window = (filter_start_time_ < 0 || time >= filter_start_time_) &&
+                           (filter_end_time_ < 0 || time <= filter_end_time_);
+      vcd_count.incrCounts(time, value, within_window, filter_start_time_);
     }
   }
 }
@@ -348,26 +369,25 @@ VcdCountReader::varAppendBusValue(const string &id,
   const auto &itr = vcd_count_map_.find(id);
   if (itr != vcd_count_map_.end()) {
     VcdCounts &vcd_counts = itr->second;
-    // Only process values within the filter window
-    if ((filter_start_time_ < 0 || time >= filter_start_time_) &&
-        (filter_end_time_ < 0 || time <= filter_end_time_)) {
-      for (size_t bit_idx = 0; bit_idx < vcd_counts.size(); bit_idx++) {
-        char bit_value;
-        if (bus_value.size() == 1)
-          bit_value = bus_value[0];
-        else if  (bit_idx < bus_value.size())
-          bit_value = bus_value[bit_idx];
-        else
-          bit_value = '0';
-        VcdCount &vcd_count = vcd_counts[bit_idx];
-        vcd_count.incrCounts(time, bit_value);
-        if (debug_->check("read_vcd", 3)) {
-          for (const Pin *pin : vcd_count.pins()) {
-            debugPrint(debug_, "read_vcd", 3, "%s time %" PRIu64 " value %c",
-                       sdc_network_->pathName(pin),
-                       time,
-                       bit_value);
-          }
+    // Always process values to maintain state, but filter what gets counted
+    bool within_window = (filter_start_time_ < 0 || time >= filter_start_time_) &&
+                         (filter_end_time_ < 0 || time <= filter_end_time_);
+    for (size_t bit_idx = 0; bit_idx < vcd_counts.size(); bit_idx++) {
+      char bit_value;
+      if (bus_value.size() == 1)
+        bit_value = bus_value[0];
+      else if  (bit_idx < bus_value.size())
+        bit_value = bus_value[bit_idx];
+      else
+        bit_value = '0';
+      VcdCount &vcd_count = vcd_counts[bit_idx];
+      vcd_count.incrCounts(time, bit_value, within_window, filter_start_time_);
+      if (debug_->check("read_vcd", 3)) {
+        for (const Pin *pin : vcd_count.pins()) {
+          debugPrint(debug_, "read_vcd", 3, "%s time %" PRIu64 " value %c",
+                     sdc_network_->pathName(pin),
+                     time,
+                     bit_value);
         }
       }
     }
