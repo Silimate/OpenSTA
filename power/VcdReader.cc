@@ -92,7 +92,7 @@ VcdCount::incrCounts(VcdTime time,
                      VcdTime filter_start,
                      VcdTime filter_end)
 {
-  // Always update state
+  // Initial value does not contribute to transitions or high time.
   if (prev_time_ != -1) {
 
     // Update should_count based on the filter window (outside window == no counting)
