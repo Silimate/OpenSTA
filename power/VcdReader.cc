@@ -108,8 +108,8 @@ VcdCount::incrCounts(VcdTime time,
     filter_start_ = filter_start;
   
   // Determine if this interval should be counted (within filter window)
-  bool count_interval = (filter_start < 0 || time >= filter_start) &&
-                        (filter_end < 0 || time <= filter_end);
+  bool count_interval = (filter_start < 0 || time > filter_start) &&
+                        (filter_end < 0 || time < filter_end);
     
   // Initial value does not contribute to transitions or high time.
   if (prev_time_ != -1 && count_interval) {
