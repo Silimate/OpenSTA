@@ -93,7 +93,6 @@ private:
 
   VcdTime start_time_;
   VcdTime end_time_;
-  bool seeded_;
 
   Report *report_;
   Debug *debug_;

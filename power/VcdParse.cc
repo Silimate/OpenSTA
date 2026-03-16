@@ -52,7 +52,6 @@ VcdParse::read(const char *filename,
 {
   start_time_ = start_time;
   end_time_ = end_time;
-  seeded_ = false;
   
   stream_ = gzopen(filename, "r");
   if (stream_) {
@@ -125,7 +124,6 @@ VcdParse::VcdParse(Report *report,
   prev_time_(0),
   start_time_(-1),
   end_time_(-1),
-  seeded_(false),
   report_(report),
   debug_(debug)
 {
@@ -244,9 +242,8 @@ VcdParse::parseVarValues()
       }
       
       // Override setTimeMin if we have a start_time
-      if (start_time_ >= 0 && !seeded_ && time >= start_time_) {
+      if (start_time_ >= 0 && time >= start_time_) {
         reader_->setTimeMin(start_time_);
-        seeded_ = true;
       }
       
       prev_time_ = time_;
