@@ -24,7 +24,7 @@ create_clock -name vclk -period 10
 
 # Full VCD reading works (normal behavior)
 read_vcd vcd_timestamp.vcd -scope top
-report_activitie
+report_activities
 
 # Read VCD from start to halfway point
 sta::clear_power
