@@ -276,7 +276,7 @@ proc report_power_line { type pwr digits } {
 
 proc report_power_insts { insts corner digits {report_format "text"} } {
   set inst_pwrs {}
-  foreach inst $insts {
+  foreach_in_collection inst $insts {
     set power_result [instance_power $inst $corner]
     lappend inst_pwrs [list $inst $power_result]
   }
@@ -306,7 +306,7 @@ proc report_power_insts { insts corner digits {report_format "text"} } {
 
 proc report_power_insts_json { insts corner digits } {
   set inst_pwrs {}
-  foreach inst $insts {
+  foreach_in_collection inst $insts {
     set power_result [instance_power $inst $corner]
     lappend inst_pwrs [list $inst $power_result]
   }

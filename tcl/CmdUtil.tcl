@@ -276,11 +276,11 @@ proc get_name { object } {
 }
 
 proc get_full_name { object } {
+  set full_names [list]
   if { [sta::is_collection $object] } {
-    set it [sta::get_iterator $object]
+    set it [sta::collection_get_iterator $object]
     while {[$it has_next]} {
-      # TODO: StringSeq as collection?
-      lappend full_names [$it next]
+      lappend full_names [get_full_name [$it next]]
     }
     $it finish
     return $full_names
@@ -346,7 +346,7 @@ proc get_object_type { obj } {
 
 proc is_collection {object} {
   set object_type [sta::object_type $object]
-  return [expr [lsearch {PortSeq} $object_type] != -1]
+  return [expr [lsearch {ClockSeq CellSeq PortSeq InstanceSeq PinSeq NetSeq LibertyLibrarySeq LibertyCellSeq LibertyPortSeq} $object_type] != -1]
 }
 
 # sta namespace end.

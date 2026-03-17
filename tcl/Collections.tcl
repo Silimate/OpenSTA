@@ -13,7 +13,7 @@
 # https://docs.altera.com/r/docs/683432/25.3.1/quartus-prime-pro-edition-user-guide-scripting/add_to_collection-quartus-sta
 proc add_to_collection {collection objects} {
   if {[sta::is_collection $collection]} {
-    return [sta::concat_collection $collection $objects]
+    return [sta::collection_plus $collection $objects]
   } else {
     if {[sta::is_collection $objects]} {
       foreach_in_collection element $objects {
@@ -35,11 +35,25 @@ interp alias {} copy_collection {} index_collection
 # https://docs.altera.com/r/docs/683432/25.3.1/quartus-prime-pro-edition-user-guide-scripting/foreach_in_collection-quartus-misc
 proc foreach_in_collection {variable_name collection body} {
   if {[sta::is_collection $collection]} {
-    set it [sta::get_iterator $collection]
+    set it [sta::collection_get_iterator $collection]
+    set rc 0
     while {[$it has_next]} {
       set current [$it next]
       uplevel 1 set $variable_name $current
-      uplevel 1 $body
+      set rc [catch {uplevel 1 $body} result options]
+      if {$rc == 1} {
+        # error - finish iterator, then re-throw
+        $it finish
+        return -options $options $result
+      } elseif {$rc == 3} {
+        # break
+        break
+      } elseif {$rc == 4} {
+        # continue - do nothing, loop continues
+      } elseif {$rc != 0} {
+        $it finish
+        return -options $options $result
+      }
     }
     $it finish
   } else {
@@ -54,7 +68,7 @@ proc foreach_in_collection {variable_name collection body} {
 # https://docs.altera.com/r/docs/683432/25.3.1/quartus-prime-pro-edition-user-guide-scripting/get_collection_size-quartus-misc
 proc get_collection_size {collection} {
   if {[sta::is_collection $collection]} {
-    return [sta::count_collection $collection]
+    return [sta::collection_count $collection]
   } else {
     return [llength $collection]
   }
@@ -74,9 +88,17 @@ proc index_collection {collection {index1 ""} {index2 ""}} {
     }
   }
   if {[sta::is_collection $collection]} {
-    return [sta::slice_collection $collection $index1 $index2]
+    return [sta::collection_slice $collection $index1 $index2]
   } else {
     return [lrange $collection $index1 $index2]
+  }
+}
+
+proc collection_at_index {collection index} {
+  if {[sta::is_collection $collection]} {
+    return [sta::collection_element_at $collection $index]
+  } else {
+    return [lindex $collection $index]
   }
 }
 
@@ -110,7 +132,7 @@ proc sort_collection { args } {
     lappend list_format_arg -list_format
   }
 
-  set result [sta::collection_sorted_by_properties $collection $criteria [info exists flags(-descending)]]
+  set result [sta::collection_sorted $collection $criteria [info exists flags(-descending)]]
 
   return [query_collection $result -limit $limit {*}$list_format_arg]
 }
@@ -167,10 +189,10 @@ proc append_to_collection { args } {
   upvar 1 $collection coll
 
   if { [sta::is_collection $coll] } {
-    sta::append_to_collection_inplace $coll $objects [info exists flags(-unique)]
+    sta::collection_append_inplace $coll $objects [info exists flags(-unique)]
   } else {
-    # tcl list cannot be modified in-place, use concat_collection
-    set coll [sta::concat_collection $coll $objects [info exists flags(-unique)]]
+    # tcl list cannot be modified in-place, use collection_plus
+    set coll [sta::collection_plus $coll $objects [info exists flags(-unique)]]
   }
 }
 
@@ -179,7 +201,7 @@ proc append_to_collection { args } {
 # https://docs.altera.com/r/docs/683432/25.3.1/quartus-prime-pro-edition-user-guide-scripting/remove_from_collection-quartus-sta
 proc remove_from_collection { collection objects } {
   if {[sta::is_collection $collection]} {
-    sta::new_collection_removing $collection $objects
+    sta::collection_minus $collection $objects
   } else {
     foreach_in_collection object $objects {
       set idx [lsearch -exact $collection $object]

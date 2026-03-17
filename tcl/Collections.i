@@ -43,8 +43,13 @@
 
 %typemap(out) CollectionType {
   if (Sta::sta()->enableCollections()) {
-    auto *copy = new CollectionType($1);
-    Tcl_Obj *obj = SWIG_NewInstanceObj(copy, $descriptor(CollectionType *), true);
+    Tcl_Obj *obj;
+    if ($1.size()) {
+        auto *copy = new CollectionType($1);
+        obj = SWIG_NewInstanceObj(copy, $descriptor(CollectionType *), true);
+    } else {
+        obj = Tcl_NewStringObj("", 0);
+    }
     Tcl_SetObjResult(interp, obj);
   } else {
     seqTclList<CollectionType, ElementBaseType>($1, $descriptor(ElementType), interp);
@@ -53,7 +58,13 @@
 
 %typemap(out) CollectionType* {
   if (Sta::sta()->enableCollections()) {
-    Tcl_Obj *obj = SWIG_NewInstanceObj($1, $descriptor(CollectionType *), true);
+    Tcl_Obj *obj;
+    if ($1->size()) {
+        obj = SWIG_NewInstanceObj($1, $descriptor(CollectionType *), true);
+    } else {
+        // backwards compatibility
+        obj = Tcl_NewStringObj("", 0);
+    }
     Tcl_SetObjResult(interp, obj);
   } else {
     seqPtrTclList<CollectionType, ElementBaseType>($1, $descriptor(ElementType), interp);
@@ -71,12 +82,12 @@ private:
 };
 
 %inline {
-    IteratorType *get_iterator(const CollectionType *v) {
+    IteratorType *collection_get_iterator(const CollectionType *v) {
         return new IteratorType(v);
     }
-    void sort_collection_by_properties(CollectionType *v, StringSeq *property_names, bool descending = false) {
+    void collection_sort_inplace(CollectionType *v, StringSeq *property_names, bool descending = false) {
         auto network = Sta::sta()->network();
-        auto properties = Sta::sta()->properties();
+        auto &properties = Sta::sta()->properties();
         sta::sort(
             v,
             [&](ElementType A, ElementType B) {
@@ -94,13 +105,22 @@ private:
         );
     }
 
-    CollectionType *collection_sorted_by_properties(const CollectionType *v, StringSeq *property_names, bool descending = false) {
-        auto result = new CollectionType(*v);
-        sort_collection_by_properties(result, property_names, descending);
+    CollectionType *collection_sorted(const CollectionType *v, StringSeq *property_names, bool descending = false) {
+        CollectionType *result;
+        if (v != nullptr) {
+            result = new CollectionType(*v);
+        } else {
+            result = new CollectionType();
+        }
+        collection_sort_inplace(result, property_names, descending);
         return result;
     }
 
-    void append_to_collection_inplace(CollectionType *v, const CollectionType *q, bool unique = false) {
+    void collection_append_inplace(CollectionType *v, const CollectionType *q, bool unique = false) {
+        assert(v != nullptr); // collection_plus should be used if v isn't already a collection
+        if (q == nullptr) {
+            return;
+        }
         v->reserve(v->size() + q->size());
         if (unique) {
             std::unordered_set<ElementType> unique_elements;
@@ -122,16 +142,21 @@ private:
         }
     }
 
-    CollectionType *concat_collection(const CollectionType *v, const CollectionType *q, bool unique = false) {
-        auto result = new CollectionType(*v);
-        append_to_collection_inplace(result, q, unique);
+    CollectionType *collection_plus(const CollectionType *v, const CollectionType *q, bool unique = false) {
+        CollectionType *result;
+        if (v != nullptr) {
+            result = new CollectionType(*v);
+        } else {
+            result = new CollectionType();
+        }
+        collection_append_inplace(result, q, unique);
         return result;
     }
 
-    CollectionType *slice_collection(const CollectionType *v, const char *index1, const char *index2) {
+    CollectionType *collection_slice(const CollectionType *v, const char *index1, const char *index2) {
+        auto result = new CollectionType();
         size_t index1_resolved = resolve_index(index1, v->size());
         size_t index2_resolved = resolve_index(index2, v->size());
-        auto result = new CollectionType();
         if (index2_resolved < index1_resolved) {
             return result; // empty slice
         }
@@ -142,15 +167,18 @@ private:
         return result;
     }
 
-    ElementType collection_at_index(const CollectionType *v, const char *index) {
+    ElementType collection_element_at(const CollectionType *v, const char *index) {
         return v->at(resolve_index(index, v->size()));
     }
 
-    size_t count_collection(const CollectionType *v) {
+    size_t collection_count(const CollectionType *v) {
         return v->size();
     }
 
-    CollectionType *new_collection_removing(const CollectionType *v, const CollectionType *q) {
+    CollectionType *collection_minus(const CollectionType *v, const CollectionType *q) {
+        if (q == nullptr) {
+            return new CollectionType(*v);
+        }
         std::unordered_set<ElementType> to_delete;
         for (ElementType e: *q) {
             to_delete.insert(e);
@@ -174,6 +202,27 @@ private:
 %typemap(out) IteratorType* {
   Tcl_Obj *obj = SWIG_NewInstanceObj($1, $1_descriptor, false);
   Tcl_SetObjResult(interp, obj);
+}
+
+%enddef
+
+%define NETWORK_SET_HELPERS(SetType, ElementBaseType)
+%typemap(in) SetType {
+  Network *network = Sta::sta()->ensureLinked();
+  $1 = tclListNetworkSet1<SetType, ElementBaseType>($input, SWIGTYPE_p_Pin, interp, network);
+}
+
+%typemap(in) SetType* {
+  Network *network = Sta::sta()->ensureLinked();
+  $1 = tclListNetworkSet<SetType, ElementBaseType>($input, $descriptor(ElementBaseType), interp, network);
+}
+
+%typemap(out) SetType* {
+  setPtrTclList<SetType, ElementBaseType>($1, $descriptor(ElementBaseType), interp);
+}
+
+%typemap(out) SetType {
+  setTclList<SetType, ElementBaseType>($1, $descriptor(ElementBaseType), interp);
 }
 
 %enddef

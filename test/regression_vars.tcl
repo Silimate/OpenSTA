@@ -144,7 +144,7 @@ record_example_tests {
 }
 
 record_public_tests {
-  collections
+  collections_vs_lists
   delay_calc_no_inv
   disconnect_mcp_pin
   extras
