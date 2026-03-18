@@ -1095,8 +1095,17 @@ void Sdc::createLibertyGeneratedClocks(Clock *clk) {
               clkPins->insert(clkOutPin);
             }
 
-            // Create generated clock using the existing
-            // makeGeneratedClock function
+            // Deep copy edges and edge_shifts since makeGeneratedClock
+            // takes ownership, but GeneratedClock retains its own copies.
+            IntSeq *edgesCopy = nullptr;
+            if (generatedClock->edges()) {
+              edgesCopy = new IntSeq(*generatedClock->edges());
+            }
+            FloatSeq *edgeShiftsCopy = nullptr;
+            if (generatedClock->edgeShifts()) {
+              edgeShiftsCopy = new FloatSeq(*generatedClock->edgeShifts());
+            }
+
             makeGeneratedClock(
               generatedClockName,
               clkPins, 
@@ -1108,8 +1117,8 @@ void Sdc::createLibertyGeneratedClocks(Clock *clk) {
               generatedClock->dutyCycle(),
               generatedClock->invert(),
               false,
-              generatedClock->edges(),
-              generatedClock->edgeShifts(),
+              edgesCopy,
+              edgeShiftsCopy,
               nullptr);
           }
         }
