@@ -1,0 +1,36 @@
+Annotated 2 pin activities.
+Pin Name                       Activity        Duty Cycle     
+------------------------------------------------------------
+u_inv/Y                        0.050000        0.500000       
+u_inv/A                        0.050000        0.500000       
+
+Annotated 2 pin activities.
+Pin Name                       Activity        Duty Cycle     
+------------------------------------------------------------
+u_inv/Y                        0.000000        1.000000       
+u_inv/A                        0.000000        0.000000       
+
+Annotated 2 pin activities.
+Pin Name                       Activity        Duty Cycle     
+------------------------------------------------------------
+u_inv/Y                        0.000000        0.000000       
+u_inv/A                        0.000000        1.000000       
+
+Annotated 2 pin activities.
+Pin Name                       Activity        Duty Cycle     
+------------------------------------------------------------
+u_inv/Y                        0.250000        0.500000       
+u_inv/A                        0.250000        0.500000       
+
+Annotated 2 pin activities.
+Pin Name                       Activity        Duty Cycle     
+------------------------------------------------------------
+u_inv/Y                        0.125000        0.750000       
+u_inv/A                        0.125000        0.250000       
+
+Annotated 2 pin activities.
+Pin Name                       Activity        Duty Cycle     
+------------------------------------------------------------
+u_inv/Y                        0.125000        0.250000       
+u_inv/A                        0.125000        0.750000       
+

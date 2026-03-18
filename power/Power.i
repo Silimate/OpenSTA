@@ -174,11 +174,13 @@ highest_power_instances(size_t count,
 
 void
 read_vcd_file(const char *filename,
-              const char *scope)
+              const char *scope,
+              long long start_time,
+              long long end_time)
 {
   Sta *sta = Sta::sta();
   sta->ensureLibLinked();
-  readVcdActivities(filename, scope, sta);
+  readVcdActivities(filename, scope, start_time, end_time, sta);
 }
 
 ////////////////////////////////////////////////////////////////

@@ -513,11 +513,11 @@ proc read_power_activities { args } {
 
 ################################################################
 
-define_cmd_args "read_vcd" { [-scope scope] filename }
+define_cmd_args "read_vcd" { [-scope scope] [-start_time time] [-end_time time] filename }
 
 proc read_vcd { args } {
   parse_key_args "read_vcd" args \
-    keys {-scope} flags {}
+    keys {-scope -start_time -end_time} flags {}
 
   check_argc_eq1 "read_vcd" $args
   set filename [file nativename [lindex $args 0]]
@@ -525,7 +525,15 @@ proc read_vcd { args } {
   if { [info exists keys(-scope)] } {
     set scope $keys(-scope)
   }
-  read_vcd_file $filename $scope
+  set start_time -1
+  if { [info exists keys(-start_time)] } {
+    set start_time $keys(-start_time)
+  }
+  set end_time -1
+  if { [info exists keys(-end_time)] } {
+    set end_time $keys(-end_time)
+  }
+  read_vcd_file $filename $scope $start_time $end_time
 }
 
 ################################################################

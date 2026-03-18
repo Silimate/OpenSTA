@@ -46,8 +46,13 @@ using std::isspace;
 
 void
 VcdParse::read(const char *filename,
-               VcdReader *reader)
+               VcdReader *reader,
+               VcdTime start_time,
+               VcdTime end_time)
 {
+  start_time_ = start_time;
+  end_time_ = end_time;
+  
   stream_ = gzopen(filename, "r");
   if (stream_) {
     Stats stats(debug_, report_);
@@ -117,6 +122,8 @@ VcdParse::VcdParse(Report *report,
   stmt_line_(0),
   time_(0),
   prev_time_(0),
+  start_time_(-1),
+  end_time_(-1),
   report_(report),
   debug_(debug)
 {
@@ -224,10 +231,19 @@ void
 VcdParse::parseVarValues()
 {
   string token = getToken();
+  // Override setTimeMin if we have a start_time
+  if (start_time_ >= 0)
+    reader_->setTimeMin(start_time_);
   while (!token.empty()) {
     char char0 = toupper(token[0]);
     if (char0 == '#' && token.size() > 1) {
       VcdTime time = stoll(token.substr(1));
+      
+      // Stop parsing if we've reached end time
+      if (end_time_ >= 0 && time >= end_time_) {
+        break;
+      }
+      
       prev_time_ = time_;
       time_ = time;
       if (time_ > prev_time_)
@@ -258,7 +274,13 @@ VcdParse::parseVarValues()
     }
     token = getToken();
   }
-  reader_->setTimeMax(time_);
+  
+  // Set time_max
+  VcdTime final_time = time_;
+  if (end_time_ >= 0) {
+    final_time = end_time_;
+  }
+  reader_->setTimeMax(final_time);
 }
 
 string
