@@ -1,0 +1,45 @@
+diff --git a/sdc/Clock.cc b/sdc/Clock.cc
+index b6e56cb4..4ecd9674 100644
+--- a/sdc/Clock.cc
++++ b/sdc/Clock.cc
+@@ -346,20 +346,22 @@ Clock::initGeneratedClk(PinSet *pins,
+   setComment(comment);
+ 
+   delete edges_;
+-  if (edges
+-      && edges->empty()) {
++  if (edges && edges->empty()) {
+     delete edges;
+-    edges = nullptr;
++    edges_ = nullptr;
++  }
++  else {
++    edges_ = edges;
+   }
+-  edges_ = edges;
+ 
+   delete edge_shifts_;
+-  if (edge_shifts
+-      && edge_shifts->empty()) {
++  if (edge_shifts && edge_shifts->empty()) {
+     delete edge_shifts;
+-    edge_shifts = nullptr;
++    edge_shifts_ = nullptr;
++  }
++  else {
++    edge_shifts_ = edge_shifts;
+   }
+-  edge_shifts_ = edge_shifts;
+ }
+ 
+ void
+@@ -490,6 +492,9 @@ isPowerOfTwo(int i)
+ const RiseFall *
+ Clock::masterClkEdgeTr(const RiseFall *rf) const
+ {
++  if (!edges_ || edges_->size() < 2) {
++    return rf;
++  }
+   int edge_index = (rf == RiseFall::rise()) ? 0 : 1;
+   return ((*edges_)[edge_index] - 1) % 2 
+     ? RiseFall::fall()
