@@ -449,36 +449,35 @@ Clock::generateScaledClk(const Clock *src_clk,
 void
 Clock::generateEdgesClk(const Clock *src_clk)
 {
-  // The create_generated_clock tcl cmd and Sta::makeClock
-  // enforce this restriction.
-  // SILIMATE FIX: Allow more than 3 edges, just use first 3.
-  if (edges_->size() >= 3) {
-    const FloatSeq *src_wave = src_clk->waveform();
-    size_t src_size = src_wave->size();
-    float src_period = src_clk->period();
-
-    int edge0_1 = (*edges_)[0] - 1;
-    float rise = (*src_wave)[edge0_1 % src_size]
-      + (edge0_1 / src_size) * src_period;
-    if (edge_shifts_)
-      rise += (*edge_shifts_)[0];
-    waveform_->push_back(rise);
-
-    int edge1_1 = (*edges_)[1] - 1;
-    float fall = (*src_wave)[edge1_1 % src_size]
-      + (edge1_1 / src_size) * src_period;
-    if (edge_shifts_)
-      fall += (*edge_shifts_)[1];
-    waveform_->push_back(fall);
-
-    int edge2_1 = (*edges_)[2] - 1;
-    period_ = (*src_wave)[edge2_1 % src_size]
-      + (edge2_1 / src_size) * src_period - rise;
-    if (edge_shifts_)
-      period_ += (*edge_shifts_)[2];
-  }
-  else
+  if (edges_->size() < 3) {
     Sta::sta()->report()->warn(244, "generated clock edges size is not three.");
+    return;
+  }
+
+  const FloatSeq *src_wave = src_clk->waveform();
+  size_t src_size = src_wave->size();
+  float src_period = src_clk->period();
+  bool has_shifts = edge_shifts_ && edge_shifts_->size() >= 3;
+
+  int edge0_1 = (*edges_)[0] - 1;
+  float rise = (*src_wave)[edge0_1 % src_size]
+    + (edge0_1 / src_size) * src_period;
+  if (has_shifts)
+    rise += (*edge_shifts_)[0];
+  waveform_->push_back(rise);
+
+  int edge1_1 = (*edges_)[1] - 1;
+  float fall = (*src_wave)[edge1_1 % src_size]
+    + (edge1_1 / src_size) * src_period;
+  if (has_shifts)
+    fall += (*edge_shifts_)[1];
+  waveform_->push_back(fall);
+
+  int edge2_1 = (*edges_)[2] - 1;
+  period_ = (*src_wave)[edge2_1 % src_size]
+    + (edge2_1 / src_size) * src_period - rise;
+  if (has_shifts)
+    period_ += (*edge_shifts_)[2];
 }
 
 bool
@@ -491,6 +490,8 @@ const RiseFall *
 Clock::masterClkEdgeTr(const RiseFall *rf) const
 {
   int edge_index = (rf == RiseFall::rise()) ? 0 : 1;
+  if (edges_ == nullptr || static_cast<int>(edges_->size()) <= edge_index)
+    return rf;
   return ((*edges_)[edge_index] - 1) % 2 
     ? RiseFall::fall()
     : RiseFall::rise();
