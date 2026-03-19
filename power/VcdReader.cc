@@ -233,12 +233,14 @@ VcdCountReader::setTimeUnit(const string &,
 void
 VcdCountReader::setTimeMin(VcdTime time)
 {
+  debugPrint(debug_, "read_vcd", 1, "VcdCountReader::setTimeMin to %lld", time);
   time_min_ = time;
 }
 
 void
 VcdCountReader::setTimeMax(VcdTime time)
 {
+  debugPrint(debug_, "read_vcd", 1, "VcdCountReader::setTimeMax to %lld", time);
   time_max_ = time;
 }
 

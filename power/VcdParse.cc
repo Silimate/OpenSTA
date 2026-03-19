@@ -52,6 +52,7 @@ VcdParse::read(const char *filename,
 {
   start_time_ = start_time;
   end_time_ = end_time;
+  bool seeded = false;
   
   stream_ = gzopen(filename, "r");
   if (stream_) {
@@ -60,6 +61,13 @@ VcdParse::read(const char *filename,
     reader_ = reader;
     file_line_ = 0;
     stmt_line_ = 0;
+
+    // Set start time if provided
+    if (start_time_ >= 0) {
+      reader_->setTimeMin(start_time_);
+      seeded = true;
+    }
+
     std::string token = getToken();
     while (!token.empty()) {
       if (token == "$date")
@@ -98,7 +106,10 @@ VcdParse::read(const char *filename,
           report_->fileError(806, filename_, file_line_, "time out of range %s",
                              token.substr(1).c_str());
         }
-	reader_->setTimeMin(time_);
+        // Sets time_min to first time token if not seeded
+        if (!seeded) {
+          reader_->setTimeMin(time_);
+        }
         prev_time_ = time_;
       }
       else if (token[0] == '$')
@@ -231,9 +242,6 @@ void
 VcdParse::parseVarValues()
 {
   string token = getToken();
-  // Override setTimeMin if we have a start_time
-  if (start_time_ >= 0)
-    reader_->setTimeMin(start_time_);
   while (!token.empty()) {
     char char0 = toupper(token[0]);
     if (char0 == '#' && token.size() > 1) {
