@@ -57,7 +57,8 @@ public:
   VcdTime highTime(VcdTime time_max) const;
   void incrCounts(VcdTime time,
                   char value,
-                  VcdTime filter_start = -1);
+                  VcdTime filter_start = -1,
+                  VcdTime filter_end = -1);
   void addPin(const Pin *pin);
   const PinSeq &pins() const { return pins_; }
 
@@ -97,14 +98,15 @@ VcdCount::clippedIntervalStart() const
 void
 VcdCount::incrCounts(VcdTime time,
                      char value,
-                     VcdTime filter_start)
+                     VcdTime filter_start,
+                     VcdTime filter_end)
 {
   // Store filter_start for use in highTime()
   if (filter_start >= 0)
     filter_start_ = filter_start;
   
   // Determine if this interval should be counted
-  bool count_interval = (filter_start < 0 || time > filter_start);
+  bool count_interval = ((filter_start < 0 || time > filter_start) && (filter_end < 0 || time < filter_end));
     
   // Initial value does not contribute to transitions or high time.
   if (prev_time_ != -1 && count_interval) {
@@ -227,6 +229,7 @@ VcdCountReader::setTimeUnit(const string &,
                             double time_unit_scale,
                             double time_scale)
 {
+  debugPrint(debug_, "read_vcd", 1, "VcdCountReader::setTimeUnit time_unit_scale %12g time_scale %f", time_unit_scale, time_scale);
   time_scale_ = time_scale * time_unit_scale;
 }
 
@@ -359,7 +362,7 @@ VcdCountReader::varAppendValue(const string &id,
     }
     for (size_t bit_idx = 0; bit_idx < vcd_counts.size(); bit_idx++) {
       VcdCount &vcd_count = vcd_counts[bit_idx];
-      vcd_count.incrCounts(time, value, filter_start_time_);
+      vcd_count.incrCounts(time, value, filter_start_time_, filter_end_time_);
     }
   }
 }
@@ -381,7 +384,7 @@ VcdCountReader::varAppendBusValue(const string &id,
       else
         bit_value = '0';
       VcdCount &vcd_count = vcd_counts[bit_idx];
-      vcd_count.incrCounts(time, bit_value, filter_start_time_);
+      vcd_count.incrCounts(time, bit_value, filter_start_time_, filter_end_time_);
       if (debug_->check("read_vcd", 3)) {
         for (const Pin *pin : vcd_count.pins()) {
           debugPrint(debug_, "read_vcd", 3, "%s time %" PRIu64 " value %c",
@@ -493,7 +496,7 @@ ReadVcdActivities::setActivities()
       }
       for (const Pin *pin : vcd_count.pins()) {
         power_->setUserActivity(pin, density, duty, PwrActivityOrigin::vcd);
-        if (sdc_->isLeafPinClock(pin))
+        if (sdc_->isLeafPinClock(pin) && network_->isRegClkPin(pin))
           checkClkPeriod(pin, transition_count);
         annotated_pins_.insert(pin);
       }
@@ -511,7 +514,14 @@ ReadVcdActivities::checkClkPeriod(const Pin *pin,
     VcdTime time_min = vcd_reader_.timeMin();
     double time_scale = vcd_reader_.timeScale();
     double sim_period = (time_max - time_min) * time_scale / (transition_count / 2.0);
+    debugPrint(debug_, "read_vcd", 1, "===== CHECKING CLOCK PERIODS =====");
+    debugPrint(debug_, "read_vcd", 1, "time_max %.0f time_min %.0f time_scale %.12g sim period %s",
+               (double)time_max,
+               (double)time_min,
+               time_scale,
+               delayAsString(sim_period, this));
     for (Clock *clk : *clks) {
+      debugPrint(debug_, "read_vcd", 1, "clock %s transition count %f", clk->name(), transition_count);
       if (transition_count == 0)
         report_->warn(1452, "clock %s pin %s has no vcd transitions.",
                       clk->name(),
