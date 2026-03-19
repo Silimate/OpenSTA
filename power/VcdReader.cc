@@ -496,7 +496,7 @@ ReadVcdActivities::setActivities()
       }
       for (const Pin *pin : vcd_count.pins()) {
         power_->setUserActivity(pin, density, duty, PwrActivityOrigin::vcd);
-        if (sdc_->isLeafPinClock(pin) && network_->isRegClkPin(pin))
+        if (sdc_->isLeafPinClock(pin))
           checkClkPeriod(pin, transition_count);
         annotated_pins_.insert(pin);
       }
