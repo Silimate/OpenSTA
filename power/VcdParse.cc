@@ -244,14 +244,14 @@ VcdParse::parseVarValues()
   string token = getToken();
   while (!token.empty()) {
     char char0 = toupper(token[0]);
-    if (char0 == '#' && token.size() > 1) {
+    if (char0 == '#' && token.size() > 1) { // # time
       VcdTime time = stoll(token.substr(1));
       prev_time_ = time_;
       time_ = time;
       if (time_ > prev_time_)
         reader_->varMinDeltaTime(time_ - prev_time_);
     }
-    else if (char0 == '0'
+    else if (char0 == '0' // scalar (single-bit value) handling
              || char0 == '1'
              || char0 == 'X'
              || char0 == 'U'
@@ -262,7 +262,7 @@ VcdParse::parseVarValues()
                            "unknown variable %s", id.c_str());
       reader_->varAppendValue(id, time_, char0);
     }
-    else if (char0 == 'B') {
+    else if (char0 == 'B') { // bus (multi-bit value) handling
       string bus_value = token.substr(1);
       string id = getToken();
       if (!reader_->varIdValid(id))
