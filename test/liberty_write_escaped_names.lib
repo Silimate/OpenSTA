@@ -21,12 +21,21 @@ library (liberty_write_escaped_names) {
   nom_temperature : 85.0;
   nom_voltage : 0.75;
 
+  type ("div\/u_div\/QInv") {
+    base_type : array;
+    data_type : bit;
+    bit_width : 2;
+    bit_from : 1;
+    bit_to : 0;
+  }
+
   cell (my_buf) {
     pin ("u_sub\/data[0]") {
       capacitance : 1;
       direction : "input";
     }
-    pin ("u_sub\/out[0]") {
+    bus ("div\/u_div\/QInv") {
+      bus_type : "div\/u_div\/QInv";
       direction : "output";
       timing () {
         related_pin : "u_sub\/data[0]";
@@ -44,6 +53,12 @@ library (liberty_write_escaped_names) {
         fall_transition (scalar) {
           values ("1");
         }
+      }
+      pin ("div\/u_div\/QInv[0]") {
+        direction : "output";
+      }
+      pin ("div\/u_div\/QInv[1]") {
+        direction : "output";
       }
     }
   }

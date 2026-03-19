@@ -268,7 +268,7 @@ LibertyWriter::writeBusDcls()
 {
   BusDclSeq dcls = library_->busDcls();
   for (BusDcl *dcl : dcls) {
-    fprintf(stream_, "  type (\"%s\") {\n", dcl->name());
+    fprintf(stream_, "  type (\"%s\") {\n", portStaToLiberty(dcl->name()).c_str());
     fprintf(stream_, "    base_type : array;\n");
     fprintf(stream_, "    data_type : bit;\n");
     fprintf(stream_, "    bit_width : %d;\n", abs(dcl->from() - dcl->to() + 1));
@@ -333,7 +333,7 @@ LibertyWriter::writeBusPort(const LibertyPort *port)
 {
   fprintf(stream_, "    bus(\"%s\") {\n", portStaToLiberty(port->name()).c_str());
   if (port->busDcl())
-    fprintf(stream_, "      bus_type : %s;\n", port->busDcl()->name());
+    fprintf(stream_, "      bus_type : %s;\n", portStaToLiberty(port->busDcl()->name()).c_str());
   writePortAttrs(port);
 
   LibertyPortMemberIterator member_iter(port);
