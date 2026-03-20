@@ -46,7 +46,9 @@ using std::isspace;
 
 void
 VcdParse::read(const char *filename,
-               VcdReader *reader)
+               VcdReader *reader,
+               int64_t start_time,
+               int64_t end_time)
 {
   stream_ = gzopen(filename, "r");
   if (stream_) {
@@ -55,6 +57,11 @@ VcdParse::read(const char *filename,
     reader_ = reader;
     file_line_ = 0;
     stmt_line_ = 0;
+
+    // If user specified a start time, set it now.
+    if (start_time != -1) {
+      reader_->setTimeMin(start_time);
+    }
     std::string token = getToken();
     while (!token.empty()) {
       if (token == "$date")
@@ -93,7 +100,10 @@ VcdParse::read(const char *filename,
           report_->fileError(806, filename_, file_line_, "time out of range %s",
                              token.substr(1).c_str());
         }
-	reader_->setTimeMin(time_);
+        // Set time min to start time if it is not set at beginning (should always be 0)
+	      if (start_time == -1) {
+	        reader_->setTimeMin(time_);
+	      }
         prev_time_ = time_;
       }
       else if (token[0] == '$')

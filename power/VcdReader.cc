@@ -57,8 +57,8 @@ public:
   VcdTime highTime(VcdTime time_max) const;
   void incrCounts(VcdTime time,
                   char value);
-  void incrCounts(VcdTime time,
-                  int64_t value);
+  void setFilterStart(VcdTime filter_start) { filter_start_ = filter_start; }
+  void setFilterEnd(VcdTime filter_end) { filter_end_ = filter_end; }
   void addPin(const Pin *pin);
   const PinSeq &pins() const { return pins_; }
 
@@ -68,13 +68,17 @@ private:
   char prev_value_;
   VcdTime high_time_;
   double transition_count_;
+  VcdTime filter_start_;
+  VcdTime filter_end_;
 };
 
 VcdCount::VcdCount() :
   prev_time_(-1),
   prev_value_('\0'),
   high_time_(0),
-  transition_count_(0)
+  transition_count_(0),
+  filter_start_(-1),
+  filter_end_(-1)
 {
 }
 
@@ -131,6 +135,12 @@ public:
   VcdTime timeMin() const { return time_min_; }
   const VcdIdCountsMap &countMap() const { return vcd_count_map_; }
   double timeScale() const { return time_scale_; }
+  
+  // Set time window for filtering transitions
+  void setTimeWindow(VcdTime start_time, VcdTime end_time) {
+    filter_start_time_ = start_time;
+    filter_end_time_ = end_time;
+  }
 
   // VcdParse callbacks.
   void setDate(const string &) override {}
@@ -169,6 +179,8 @@ private:
   double time_scale_;
   VcdTime time_min_;
   VcdTime time_max_;
+  VcdTime filter_start_time_;
+  VcdTime filter_end_time_;
   VcdIdCountsMap vcd_count_map_;
 };
 
@@ -182,7 +194,9 @@ VcdCountReader::VcdCountReader(const char *scope,
   debug_(debug),
   time_scale_(1.0),
   time_min_(0),
-  time_max_(0)
+  time_max_(0),
+  filter_start_time_(-1),
+  filter_end_time_(-1)
 {
 }
 
@@ -197,12 +211,14 @@ VcdCountReader::setTimeUnit(const string &,
 void
 VcdCountReader::setTimeMin(VcdTime time)
 {
+  debugPrint(debug_, "read_vcd", 1, "setTimeMin called with time %" PRIu64, time);
   time_min_ = time;
 }
 
 void
 VcdCountReader::setTimeMax(VcdTime time)
 {
+  debugPrint(debug_, "read_vcd", 1, "setTimeMax called with time %" PRIu64, time);
   time_max_ = time;
 }
 
@@ -321,6 +337,10 @@ VcdCountReader::varAppendValue(const string &id,
     }
     for (size_t bit_idx = 0; bit_idx < vcd_counts.size(); bit_idx++) {
       VcdCount &vcd_count = vcd_counts[bit_idx];
+      if (filter_start_time_ >= 0)
+        vcd_count.setFilterStart(filter_start_time_);
+      if (filter_end_time_ >= 0)
+        vcd_count.setFilterEnd(filter_end_time_);
       vcd_count.incrCounts(time, value);
     }
   }
@@ -343,6 +363,10 @@ VcdCountReader::varAppendBusValue(const string &id,
       else
         bit_value = '0';
       VcdCount &vcd_count = vcd_counts[bit_idx];
+      if (filter_start_time_ >= 0)
+        vcd_count.setFilterStart(filter_start_time_);
+      if (filter_end_time_ >= 0)
+        vcd_count.setFilterEnd(filter_end_time_);
       vcd_count.incrCounts(time, bit_value);
       if (debug_->check("read_vcd", 3)) {
         for (const Pin *pin : vcd_count.pins()) {
@@ -418,7 +442,7 @@ ReadVcdActivities::readActivities()
   if (clks->empty())
     report_->error(820, "No clocks have been defined.");
 
-  vcd_parse_.read(filename_, &vcd_reader_);
+  vcd_parse_.read(filename_, &vcd_reader_, start_time_, end_time_);
 
   if (vcd_reader_.timeMax() > 0)
     setActivities();
