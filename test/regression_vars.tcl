@@ -185,7 +185,6 @@ record_public_tests {
   report_json2
   sdc_strip_escaped_bus
   suppress_msg
-  vcd_timestamp
   verilog_attribute
   verilog_specify
   write_timing_model_scalar
