@@ -89,6 +89,10 @@ private:
 
   VcdTime time_;
   VcdTime prev_time_;
+
+  // Arguments to VcdParse
+  VcdTime start_time_;
+  VcdTime end_time_;
   VcdScope scope_;
 
   Report *report_;

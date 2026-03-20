@@ -50,6 +50,9 @@ VcdParse::read(const char *filename,
                int64_t start_time,
                int64_t end_time)
 {
+  start_time_ = start_time;
+  end_time_ = end_time;
+  
   stream_ = gzopen(filename, "r");
   if (stream_) {
     Stats stats(debug_, report_);
@@ -127,6 +130,8 @@ VcdParse::VcdParse(Report *report,
   stmt_line_(0),
   time_(0),
   prev_time_(0),
+  start_time_(-1),
+  end_time_(-1),
   report_(report),
   debug_(debug)
 {
@@ -268,7 +273,14 @@ VcdParse::parseVarValues()
     }
     token = getToken();
   }
-  reader_->setTimeMax(time_);
+  
+  // Set time_max to end_time if specified, otherwise use actual parsed time
+  if (end_time_ >= 0) {
+    reader_->setTimeMax(end_time_);
+  }
+  else {
+    reader_->setTimeMax(time_);
+  }
 }
 
 string
