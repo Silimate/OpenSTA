@@ -88,7 +88,7 @@ void
 VcdCount::incrCounts(VcdTime time,
                      char value)
 {
-  // Initial value does not coontribute to transitions or high time.
+  // Initial value does not contribute to transitions or high time.
   if (prev_time_ != -1) {
     if (prev_value_ == '1')
       high_time_ += time - prev_time_;
