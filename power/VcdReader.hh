@@ -24,8 +24,6 @@
 
 #pragma once
 
-#include <cstdint>
-
 namespace sta {
 
 class Sta;
@@ -33,8 +31,6 @@ class Sta;
 void
 readVcdActivities(const char *filename,
                   const char *scope,
-                  int64_t start_time,
-                  int64_t end_time,
                   Sta *sta);
 
 } // namespace

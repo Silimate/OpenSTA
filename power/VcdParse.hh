@@ -64,9 +64,7 @@ public:
   VcdParse(Report *report,
            Debug *debug);
   void read(const char *filename,
-            VcdReader *reader,
-            VcdTime start_time = -1,
-            VcdTime end_time = -1);
+            VcdReader *reader);
 
 private:
   void parseTimescale();
@@ -90,9 +88,6 @@ private:
   VcdTime time_;
   VcdTime prev_time_;
   VcdScope scope_;
-
-  VcdTime start_time_;
-  VcdTime end_time_;
 
   Report *report_;
   Debug *debug_;
