@@ -363,6 +363,8 @@ class ReadVcdActivities : public StaState
 public:
   ReadVcdActivities(const char *filename,
                     const char *scope,
+                    int64_t start_time,
+                    int64_t end_time,
                     Sta *sta);
   void readActivities();
 
@@ -372,6 +374,8 @@ private:
                       double transition_count);
 
   const char *filename_;
+  int64_t start_time_;
+  int64_t end_time_;
   VcdCountReader vcd_reader_;
   VcdParse vcd_parse_;
 
@@ -384,17 +388,23 @@ private:
 void
 readVcdActivities(const char *filename,
                   const char *scope,
+                  int64_t start_time,
+                  int64_t end_time,
                   Sta *sta)
 {
-  ReadVcdActivities reader(filename, scope, sta);
+  ReadVcdActivities reader(filename, scope, start_time, end_time, sta);
   reader.readActivities();
 }
 
 ReadVcdActivities::ReadVcdActivities(const char *filename,
                                      const char *scope,
+                                     int64_t start_time,
+                                     int64_t end_time,
                                      Sta *sta) :
   StaState(sta),
   filename_(filename),
+  start_time_(start_time),
+  end_time_(end_time),
   vcd_reader_(scope, sdc_network_, report_, debug_),
   vcd_parse_(report_, debug_),
   power_(sta->power())
