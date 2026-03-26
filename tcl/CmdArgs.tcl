@@ -779,7 +779,7 @@ proc get_port_pin_arg { arg_name arg warn_error } {
       set pin $arg
     } elseif { $object_type == "Port" } {
       # Explicit port arg - convert to pin.
-      set pin [find_pin [get_name $arg]]
+      set pin [get_port_pin $arg]
     } else {
       sta_warn_error 129 $warn_error "$arg_name type '$object_type' is not a pin or port."
     }
@@ -790,7 +790,7 @@ proc get_port_pin_arg { arg_name arg warn_error } {
     if { $port == "NULL" } {
       set pin [find_pin $arg]
     } else {
-      set pin [$top_instance find_pin [get_name $port]]
+      set pin [get_port_pin $port]
     }
     if { $pin == "NULL" } {
       sta_warn_error 130 $warn_error "pin $arg not found."
