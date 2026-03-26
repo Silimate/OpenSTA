@@ -184,6 +184,7 @@ record_public_tests {
   report_json1
   report_json2
   sdc_strip_escaped_bus
+  slash_port_test
   suppress_msg
   verilog_attribute
   verilog_specify
