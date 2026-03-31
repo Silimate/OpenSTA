@@ -4,7 +4,7 @@ read_verilog inst_props.v
 link inst_props
 
 proc test_property {property} {
-    puts "== $property =="
+    puts "-- $property --"
     set property_is_inverted [string match "!*" $property]
     set objects [get_cells -filter $property]
     set object_names []
@@ -14,7 +14,7 @@ proc test_property {property} {
     foreach name [lsort $object_names] {
         puts "$name"
     }
-    puts "===="
+    puts "----"
 }
 
 test_property is_memory

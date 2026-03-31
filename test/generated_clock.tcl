@@ -5,7 +5,7 @@ create_clock -name clk -period 10 [get_ports CLK_IN_1]
 create_clock -name clk2 -period 100 [get_ports CLK_IN_2] 
 
 # Should see 9 clocks
-puts "Number of clocks: [ llength [get_clocks]]"
+puts "Number of clocks: [sizeof_collection [get_clocks]]"
 
 # Report all clock periods
 foreach_in_collection clk [get_clocks] {
@@ -30,7 +30,7 @@ create_generated_clock \
   [get_ports CLK_OUT_3]
 
 # Should see 11 clocks
-puts "Number of clocks: [ llength [get_clocks]]"
+puts "Number of clocks: [sizeof_collection [get_clocks]]"
 
 # Use command to validate waveforms
 report_clock_properties

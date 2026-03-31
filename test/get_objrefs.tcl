@@ -8,7 +8,7 @@ create_clock -name clk -period 500 {clk1 clk2 clk3}
 create_clock -name vclk -period 1000
 
 # Test that set_driving_cell works with an object reference
-set_driving_cell [all_inputs] -lib_cell [lindex [get_lib_cells] 0]
+set_driving_cell [all_inputs] -lib_cell [collection_at_index [get_lib_cells] 0]
 
 # Test each SDC get_* command on object references
 puts {[get_cells [all_registers -cells]]}

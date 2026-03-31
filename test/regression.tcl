@@ -30,7 +30,7 @@
 # 
 # This notice may not be removed or altered from any source distribution.
 
-# Usage: regression -help | [-threads threads] [-j jobs] [-valgrind] [-report_stats]
+# Usage: regression -help | [-threads threads] [-j jobs] [-valgrind] [-collections] [-report_stats]
 #                   test1 [test2...]
 
 proc regression_main {} {
@@ -44,9 +44,11 @@ proc regression_main {} {
 proc setup {} {
   global result_dir diff_file failure_file errors failed_tests
   global use_valgrind valgrind_shared_lib_failure
+  global enable_collections
   global report_stats max_jobs app_path
 
   set use_valgrind 0
+  set enable_collections 0
   set report_stats 0
   set max_jobs 1
 
@@ -75,15 +77,17 @@ proc setup {} {
 proc parse_args {} {
   global argv app_options tests test_groups cmd_paths
   global use_valgrind
+  global enable_collections
   global result_dir tests
   global report_stats max_jobs
 
   while { $argv != {} } {
     set arg [lindex $argv 0]
     if { $arg == "help" || $arg == "-help" } {
-      puts {Usage: regression [-help] [-threads threads] [-j jobs] [-valgrind] [-report_stats] tests...}
+      puts {Usage: regression [-help] [-threads threads] [-j jobs] [-collections] [-valgrind] [-report_stats]  tests...}
       puts "  -threads max|integer - number of threads to use"
       puts "  -j jobs - number of parallel jobs (processes) to run"
+      puts "  -collections - run opensta with collections support (beta)"
       puts "  -valgrind - run valgrind (linux memory checker)"
       puts "  -report_stats - report run time and memory"
       puts "  Wildcarding for test names is supported (enclose in \"'s)"
@@ -108,6 +112,9 @@ proc parse_args {} {
       }
       set max_jobs $jobs
       set argv [lrange $argv 2 end]
+    } elseif { $arg == "-collections" } {
+      set enable_collections 1
+      set argv [lrange $argv 1 end]
     } elseif { $arg == "-valgrind" } {
       if { ![find_valgrind] } {
         error "valgrind not found."
@@ -272,7 +279,7 @@ proc run_tests_parallel {} {
 }
 
 proc make_cmd_file { test } {
-  global app_path app_options result_dir use_valgrind report_stats
+  global app_path app_options result_dir use_valgrind report_stats enable_collections
 
   foreach file [glob -nocomplain [file join $result_dir $test.*]] {
     file delete -force $file
@@ -285,6 +292,9 @@ proc make_cmd_file { test } {
   set run_file [test_run_file $test]
   set run_stream [open $run_file "w"]
   puts $run_stream "cd [file dirname $cmd_file]"
+  if { $enable_collections } {
+    puts $run_stream "set ::sta_enable_collections 1"
+  }
   puts $run_stream "include [file tail $cmd_file]"
   if { $use_valgrind } {
     puts $run_stream "sta::delete_all_memory"

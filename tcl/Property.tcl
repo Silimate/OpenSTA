@@ -39,12 +39,17 @@ proc get_property_cmd { cmd type_key cmd_args } {
   set prop [lindex $cmd_args 1]
   if { $object == "" } {
     sta_error 2200 "get_property object is null."
-  } elseif { [llength $object] > 1 } {
+  } elseif { [sta::is_collection $object] || [sizeof_collection $object] > 1 } {
     set results {}
-    foreach obj $object {
-      lappend results [get_property_cmd $cmd $type_key "$obj $prop"]
+    foreach_in_collection element $object {
+      lappend results [get_object_property $element $prop]
     }
-    return $results
+    if {[sizeof_collection $object] == 1} {
+      # so a one-element list doesnt get printed as {element} for backcompat
+      return [lindex $results 0]
+    } else {
+      return $results
+    }
   } elseif { ![is_object $object] } {
     if [info exists keys(-object_type)] {
       set object_type $keys(-object_type)
@@ -128,7 +133,7 @@ proc get_property_object_type { object_type object_name quiet } {
   if { $object == "NULL" && !$quiet } {
     sta_error 2206 "$object_type '$object_name' not found."
   }
-  return [lindex $object 0]
+  return [collection_at_index $object 0]
 }
 
 # sta namespace end.
