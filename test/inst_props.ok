@@ -1,9 +1,9 @@
-== is_memory ==
+-- is_memory --
 sram_inst
-====
-== design_type==module ==
+----
+-- design_type==module --
 verilog_module_inst
-====
-== is_buffer ==
+----
+-- is_buffer --
 buf_inst
-====
+----

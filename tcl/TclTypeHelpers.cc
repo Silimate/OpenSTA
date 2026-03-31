@@ -50,6 +50,20 @@ tclListSetConstChar(Tcl_Obj *const source,
     return nullptr;
 }
 
+int
+tclListSeqConstCharCheck(Tcl_Obj *const source,
+			 Tcl_Interp *interp)
+{
+  Tcl_Size argc;
+  Tcl_Obj **argv;
+
+  if (Tcl_ListObjGetElements(interp, source, &argc, &argv) == TCL_OK) {
+    return 1;
+  }
+  else
+    return 0;
+}
+
 StringSeq *
 tclListSeqConstChar(Tcl_Obj *const source,
 		    Tcl_Interp *interp)

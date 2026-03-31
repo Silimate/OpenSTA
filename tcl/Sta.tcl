@@ -46,7 +46,7 @@ proc get_fanin { args } {
     cmd_usage_error "get_fanin"
   }
   parse_port_pin_net_arg $keys(-to) pins nets
-  foreach net $nets {
+  foreach_in_collection net $nets {
     set net_pins [net_pins $net]
     if { $net_pins != {} } {
       lappend pins $net_pins
@@ -107,8 +107,8 @@ proc get_fanout { args } {
     cmd_usage_error "get_fanout"
   }
   parse_port_pin_net_arg $keys(-from) pins nets
-  foreach net $nets {
-    lappend pins [net_load_pins $net]
+  foreach_in_collection net $nets {
+    append_to_collection pins [net_load_pins $net]
   }
   set flat [info exists flags(-flat)]
   set only_insts [info exists flags(-only_cells)]
@@ -193,13 +193,13 @@ proc get_timing_arcs_objects { object_arg } {
   parse_libcell_inst_arg $object_arg libcells insts
   if { $insts != {} } {
     set edges {}
-    foreach inst $insts {
+    foreach_in_collection inst $insts {
       lappend edges [instance_edges $inst]
     }
     return $edges
   } elseif { $libcells != {} } {
     set arc_sets {}
-    foreach libcell $libcells {
+    foreach_in_collection libcell $libcells {
       lappend arc_sets [$libcell timing_arc_sets]
     }
     return $arc_sets
@@ -283,11 +283,11 @@ proc_redirect report_clock_properties {
   report_line "Clock                   Period          Waveform"
   report_line "----------------------------------------------------"
   if { [llength $args] == 0 } {
-    foreach clk [all_clocks] {
+    foreach_in_collection clk [all_clocks] {
       report_clock1 $clk
     }
   } else {
-    foreach clk [get_clocks_warn "clock_name" [lindex $args 0]] {
+    foreach_in_collection clk [get_clocks_warn "clock_name" [lindex $args 0]] {
       report_clock1 $clk
     }
   }

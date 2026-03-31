@@ -143,7 +143,10 @@ make_equiv_cells(LibertyLibrary *lib)
 LibertyCellSeq *
 find_equiv_cells(LibertyCell *cell)
 {
-  return Sta::sta()->equivCells(cell);
+  LibertyCellSeq *equivs = Sta::sta()->equivCells(cell);
+  if (equivs)
+    return new LibertyCellSeq(*equivs);
+  return new LibertyCellSeq();
 }
 
 bool
@@ -170,7 +173,10 @@ equiv_cell_timing_arcs(LibertyCell *cell1,
 LibertyCellSeq *
 find_library_buffers(LibertyLibrary *library)
 {
-  return library->buffers();
+  LibertyCellSeq *buffers = library->buffers();
+  if (buffers)
+    return new LibertyCellSeq(*buffers);
+  return new LibertyCellSeq();
 }
 
 const char *
