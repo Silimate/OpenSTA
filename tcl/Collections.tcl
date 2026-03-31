@@ -28,7 +28,57 @@ interp alias {} index_collection {} lindex
 interp alias {} sizeof_collection {} llength
 
 # Sorts a collection based on one or more attributes, resulting in a new, sorted collection. The sort is ascending by default. (Link 2)
-interp alias {} sort_collection {} lsort
+proc sort_collection { args } {
+  set descending 0
+  set idx [lsearch -exact $args "-descending"]
+  if {$idx != -1} {
+    set descending 1
+    set args [lreplace $args $idx $idx]
+  }
+  set idx [lsearch -exact $args "-ascending"]
+  if {$idx != -1} {
+    set args [lreplace $args $idx $idx]
+  }
+
+  set collection [lindex $args 0]
+  set sort_by [lindex $args 1]
+
+  if {[llength $collection] == 0} {
+    return $collection
+  }
+
+  set decorated {}
+  foreach obj $collection {
+    set key [sta::get_object_property $obj $sort_by]
+    lappend decorated [list $key $obj]
+  }
+
+  set is_numeric 1
+  foreach pair $decorated {
+    if {![string is double -strict [lindex $pair 0]]} {
+      set is_numeric 0
+      break
+    }
+  }
+
+  if {$is_numeric} {
+    set sort_type "-real"
+  } else {
+    set sort_type "-dictionary"
+  }
+
+  if {$descending} {
+    set decorated [lsort $sort_type -decreasing -index 0 $decorated]
+  } else {
+    set decorated [lsort $sort_type -increasing -index 0 $decorated]
+  }
+
+  set result {}
+  foreach pair $decorated {
+    lappend result [lindex $pair 1]
+  }
+  return $result
+}
 
 # Query collection objects. (Link 3)
 interp alias {} query_collection {} return -level 0
@@ -60,14 +110,35 @@ proc append_to_collection { args } {
 }
 
 # Remove objects from a collection, resulting in a new collection. The base collection remains unchanged. (Link 2)
-proc remove_from_collection { collection objects } {
-  foreach object $objects {
-    set idx [lsearch -exact $collection $object]
-    if { $idx != -1 } {
-      set collection [lreplace $collection $idx $idx]
-    }
+# With -intersect, removes objects NOT found in object_spec (keeps the intersection).
+# Without -intersect, removes objects found in object_spec.
+proc remove_from_collection { args } {
+  set idx [lsearch -exact $args "-intersect"]
+  set intersect [expr {$idx != -1}]
+  if {$intersect} {
+    set args [lreplace $args $idx $idx]
   }
-  return $collection
+
+  set collection [lindex $args 0]
+  set objects [lindex $args 1]
+
+  if {$intersect} {
+    set result {}
+    foreach item $collection {
+      if {[lsearch -exact $objects $item] != -1} {
+        lappend result $item
+      }
+    }
+    return $result
+  } else {
+    foreach object $objects {
+      set idx [lsearch -exact $collection $object]
+      if { $idx != -1 } {
+        set collection [lreplace $collection $idx $idx]
+      }
+    }
+    return $collection
+  }
 }
 
 # Filters an existing collection, resulting in a new collection. The base collection remains unchanged. (Link 2)
