@@ -55,7 +55,7 @@ sta::define_cmd_args "set_dont_use" {lib_cell_name_pattern}
      
 proc set_dont_use {lib_cell_name_pattern} {
   set targets [get_lib_cells -filter "name=~$lib_cell_name_pattern"]
-  foreach target $targets {
+  foreach_in_collection target $targets {
     $target set_dont_use
   }
 }
@@ -64,7 +64,7 @@ sta::define_cmd_args "unset_dont_use" {lib_cell_name_pattern}
      
 proc unset_dont_use {lib_cell_name_pattern} {
   set targets [get_lib_cells -filter "name=~$lib_cell_name_pattern"]
-  foreach target $targets {
+  foreach_in_collection target $targets {
     $target unset_dont_use
   }
 }
@@ -159,8 +159,14 @@ proc get_attribute {args} {
     suppress_msg 9000
   }
   if { [sta::is_object $arg1] } {
+    if { [sta::is_collection $arg1] } {
+      set arg1 [collection_at_index $arg1 0]
+    }
     set result [get_property $arg1 $arg2]
   } elseif { [sta::is_object $arg2] } {
+    if { [sta::is_collection $arg2] } {
+      set arg2 [collection_at_index $arg2 0]
+    }
     set result [get_property $arg2 $arg1]
   } else {
     if { $quiet } {

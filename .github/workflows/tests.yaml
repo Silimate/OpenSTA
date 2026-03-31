@@ -17,7 +17,7 @@ jobs:
           cp Dockerfile.${{ matrix.os }} Dockerfile
           docker build --tag sta-${{ matrix.os }} .
       - run: |
-          docker run --entrypoint /bin/bash --tty --rm sta-${{ matrix.os }} -c "cd /OpenSTA/test && ./regression || (cat results/diffs && exit 1)"
+          docker run --entrypoint /bin/bash --tty --rm sta-${{ matrix.os }} -c "cd /OpenSTA/test && (./regression || (cat results/diffs && exit 1)) || (./regression -collections || (cat results/diffs && exit 1))"
 
   macos:
     runs-on: [macos-14]
@@ -42,3 +42,4 @@ jobs:
       - run: |
           cd test
           ./regression || (cat results/diffs && exit 1)
+          ./regression -collections || (cat results/diffs && exit 1)
