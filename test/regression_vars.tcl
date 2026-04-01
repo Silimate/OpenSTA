@@ -152,6 +152,7 @@ record_public_tests {
   filter_expr_to_postfix
   generated_clock
   generated_clock_edges_redefine
+  generated_clock_timing
   get_cell_hierarchy
   get_cells_crash
   get_filter
