@@ -3324,7 +3324,7 @@ LibertyReader::visitShifts(LibertyAttr *attr)
     LibertyAttrValueIterator value_iter(attr->values());
     while (value_iter.hasNext()) {
       LibertyAttrValue *value = value_iter.next();
-      // Convert string to float if necessary
+      // Convert string to float if necessary and scale by OpenSTA internal time units.
       if (value->isFloat()) {
         float float_value = value->floatValue();
         shifts->push_back(float_value * time_scale_);
