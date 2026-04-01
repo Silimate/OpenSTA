@@ -473,21 +473,19 @@ Clock::generateEdgesClk(const Clock *src_clk)
     has_shifts = false;
   }
 
-  /* First edge determines first rising edge of the new clock.
-   * Subsequent edges determine the corresponding falling/rising
-   * edges in alternating order.
-   */
-   float first_edge_time = 0.0;
-   float last_edge_time = 0.0;
-   for (size_t i = 0; i < num_edges; i++) {
+  float first_edge_time = 0.0;
+  float last_edge_time = 0.0;
+  for (size_t i = 0; i < num_edges; i++) {
     int edge_idx = (*edges_)[i] - 1;  // Convert to 0-based
     float edge_time = (*src_wave)[edge_idx % src_size]
       + (edge_idx / src_size) * src_period;
+
     // Apply corresponding shift
     if (has_shifts) {
       edge_time += (*edge_shifts_)[i];
     }
-    
+  
+    // First edge determines first rising edge of the new clock.
     if (i == 0)
       first_edge_time = edge_time;
 
