@@ -11,9 +11,12 @@ module generated_clock (
   output wire slow_clk_out3,
   output wire fast_clk_out3,
 
-  // Test edges/shifts (shifts not supported)
+  // Test edges/shifts
   input wire CLK_IN_2,
-  output wire CLK_OUT_2
+  output wire CLK_OUT_2,
+  
+  // Test TCL edges/shifts command
+  output wire CLK_OUT_3
 );
 
   // Give one more level of hierarchy to test names
