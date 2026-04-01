@@ -473,12 +473,13 @@ Clock::generateEdgesClk(const Clock *src_clk)
     has_shifts = false;
   }
 
-  /* Edge 1 determines first rising edge of the new clock.
+  /* First edge determines first rising edge of the new clock.
    * Subsequent edges determine the corresponding falling/rising
    * edges in alternating order.
    */
    float first_edge_time = 0.0;
-   for (size_t i = 0; i < num_edges - 1; i++) {
+   float last_edge_time = 0.0;
+   for (size_t i = 0; i < num_edges; i++) {
     int edge_idx = (*edges_)[i] - 1;  // Convert to 0-based
     float edge_time = (*src_wave)[edge_idx % src_size]
       + (edge_idx / src_size) * src_period;
@@ -486,19 +487,18 @@ Clock::generateEdgesClk(const Clock *src_clk)
     if (has_shifts) {
       edge_time += (*edge_shifts_)[i];
     }
-    waveform_->push_back(edge_time);
     
     if (i == 0)
       first_edge_time = edge_time;
+
+    // Do not add last edge to the waveform
+    if (i < num_edges - 1)
+      waveform_->push_back(edge_time);
+    else
+      last_edge_time = edge_time;
   }
 
-  // Last edge defines the period
-  int last_edge_idx = (*edges_)[num_edges - 1] - 1;
-  float last_edge_time = (*src_wave)[last_edge_idx % src_size]
-    + (last_edge_idx / src_size) * src_period;  
-  if (has_shifts && (num_edges - 1) < edge_shifts_->size())
-    last_edge_time += (*edge_shifts_)[num_edges - 1];
-
+  // The period is the time between the first and last edges.
   period_ = last_edge_time - first_edge_time;
 }
 

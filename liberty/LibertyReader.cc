@@ -3339,7 +3339,7 @@ LibertyReader::visitShifts(LibertyAttr *attr)
         libError(1234, attr, "shifts attribute must be a float or string.");
       }
     }
-    // Check the number of edges is odd and greater than or equal to 3.
+    // Check the number of shifts is odd and greater than or equal to 3.
     if (shifts->size() < 3 || shifts->size() % 2 == 0) {
       libWarn(1234, attr, "invalid shifts size.");
     }
