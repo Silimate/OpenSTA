@@ -3327,12 +3327,12 @@ LibertyReader::visitShifts(LibertyAttr *attr)
       // Convert string to float if necessary
       if (value->isFloat()) {
         float float_value = value->floatValue();
-        shifts->push_back(float_value);
+        shifts->push_back(float_value * time_scale_);
       }
       else if (value->isString()) {
         const char *string_value = value->stringValue();
         float float_value = strtof(string_value, nullptr);
-        shifts->push_back(float_value);
+        shifts->push_back(float_value * time_scale_);
       }
       else {
         delete shifts;

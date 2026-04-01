@@ -482,10 +482,10 @@ Clock::generateEdgesClk(const Clock *src_clk)
     int edge_idx = (*edges_)[i] - 1;  // Convert to 0-based
     float edge_time = (*src_wave)[edge_idx % src_size]
       + (edge_idx / src_size) * src_period;
-    
-    if (has_shifts && i < edge_shifts_->size())
+    // Apply corresponding shift
+    if (has_shifts) {
       edge_time += (*edge_shifts_)[i];
-    
+    }
     waveform_->push_back(edge_time);
     
     if (i == 0)
