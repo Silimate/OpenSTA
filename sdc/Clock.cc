@@ -452,11 +452,13 @@ Clock::generateEdgesClk(const Clock *src_clk)
   // Edges must be an odd number greater than or equal to 3.
   size_t num_edges = edges_->size();
   if (num_edges < 3) {
-    Sta::sta()->report()->warn(244, "clock %s edges size is not three.", name_);
+    Sta::sta()->report()->warn(244,
+      "clock %s edges size must be at least 3.", name_);
     return;
   }
   if (num_edges % 2 == 0) {
-    Sta::sta()->report()->warn(244, "clock %s edges size is not odd.", name_);
+    Sta::sta()->report()->warn(244,
+      "clock %s edges size must be odd.", name_);
     return;
   }
 
@@ -469,7 +471,7 @@ Clock::generateEdgesClk(const Clock *src_clk)
   // Edge shifts size must be equal to the edges size.
   if (has_shifts && edge_shifts_->size() != num_edges) {
     Sta::sta()->report()->warn(244, 
-      "clock %s edge shifts size isn't equal to edges size.", name_);
+      "clock %s edge shifts size must be equal to edges size.", name_);
     has_shifts = false;
   }
 
