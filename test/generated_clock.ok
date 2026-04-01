@@ -1,4 +1,3 @@
-Warning: generated_clock.lib line 59, shifts are not supported yet, may cause malformed waveforms.
 Number of clocks: 9
 clk period: 10.000000
 u_second_hierarchy/clk_gen/CLK_OUT_DIV period: 20.000000

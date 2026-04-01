@@ -3339,15 +3339,10 @@ LibertyReader::visitShifts(LibertyAttr *attr)
         libError(1234, attr, "shifts attribute must be a float or string.");
       }
     }
-    // Error checking, only size 3 is supported at the moment
-    if (shifts->size() != 3) {
-      delete shifts;
-      libError(1234, attr, "shifts attribute must have 3 values.");
+    // Check the number of edges is odd and greater than or equal to 3.
+    if (shifts->size() < 3 || shifts->size() % 2 == 0) {
+      libWarn(1234, attr, "invalid shifts size.");
     }
-    libWarn(
-      1234,
-      attr,
-      "shifts are not supported yet, may cause malformed waveforms.");
     generated_clock_->setEdgeShifts(shifts);
   }
 }
@@ -3381,10 +3376,9 @@ LibertyReader::visitEdges(LibertyAttr *attr)
         libError(1234, attr, "edges attribute must be a float or string.");
       }
     }
-    // Error checking, only size 3 is supported at the moment
-    if (edges->size() != 3) {
-      // delete edges;
-      libWarn(1234, attr, "edges attribute must have 3 values.");
+    // Check the number of edges is odd and greater than or equal to 3.
+    if (edges->size() < 3 || edges->size() % 2 == 0) {
+      libWarn(1234, attr, "invalid edges size.");
     }
     generated_clock_->setEdges(edges);
   }
