@@ -1105,9 +1105,6 @@ proc create_generated_clock { args } {
     }
   } elseif {[info exists keys(-edges)]} {
     set edges $keys(-edges)
-    if { [llength $edges] != 3 } {
-      sta_error 385 "-edges only supported for three edges."
-    }
     set prev_edge [expr [lindex $edges 0] - 1]
     foreach edge $edges {
       check_cardinal "-edges" $edge
