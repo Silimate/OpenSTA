@@ -24,6 +24,8 @@
 
 %module power
 
+%include "stdint.i"
+
 %{
 #include "Sta.hh"
 #include "Sdc.hh"
