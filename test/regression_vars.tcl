@@ -152,6 +152,7 @@ record_public_tests {
   filter_expr_to_postfix
   generated_clock
   generated_clock_edges_redefine
+  generated_clock_timing
   get_cell_hierarchy
   get_cells_crash
   get_filter
@@ -184,6 +185,7 @@ record_public_tests {
   report_json1
   report_json2
   sdc_strip_escaped_bus
+  slash_port_test
   suppress_msg
   verilog_attribute
   verilog_specify

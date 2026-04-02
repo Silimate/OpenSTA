@@ -449,35 +449,57 @@ Clock::generateScaledClk(const Clock *src_clk,
 void
 Clock::generateEdgesClk(const Clock *src_clk)
 {
-  if (edges_->size() < 3) {
-    Sta::sta()->report()->warn(244, "generated clock edges size is not three.");
+  // Edges must be an odd number greater than or equal to 3.
+  size_t num_edges = edges_->size();
+  if (num_edges < 3) {
+    Sta::sta()->report()->warn(244,
+      "clock %s edges size must be at least 3.", name_);
+    return;
+  }
+  if (num_edges % 2 == 0) {
+    Sta::sta()->report()->warn(244,
+      "clock %s edges size must be odd.", name_);
     return;
   }
 
+  // Retrieve source clock waveform and shift information.
   const FloatSeq *src_wave = src_clk->waveform();
   size_t src_size = src_wave->size();
   float src_period = src_clk->period();
   bool has_shifts = edge_shifts_ && edge_shifts_->size() >= 3;
 
-  int edge0_1 = (*edges_)[0] - 1;
-  float rise = (*src_wave)[edge0_1 % src_size]
-    + (edge0_1 / src_size) * src_period;
-  if (has_shifts)
-    rise += (*edge_shifts_)[0];
-  waveform_->push_back(rise);
+  // Edge shifts size must be equal to the edges size.
+  if (has_shifts && edge_shifts_->size() != num_edges) {
+    Sta::sta()->report()->warn(244, 
+      "clock %s edge shifts size must be equal to edges size.", name_);
+    has_shifts = false;
+  }
 
-  int edge1_1 = (*edges_)[1] - 1;
-  float fall = (*src_wave)[edge1_1 % src_size]
-    + (edge1_1 / src_size) * src_period;
-  if (has_shifts)
-    fall += (*edge_shifts_)[1];
-  waveform_->push_back(fall);
+  float first_edge_time = 0.0;
+  float last_edge_time = 0.0;
+  for (size_t i = 0; i < num_edges; i++) {
+    int edge_idx = (*edges_)[i] - 1;  // Convert to 0-based
+    float edge_time = (*src_wave)[edge_idx % src_size]
+      + (edge_idx / src_size) * src_period;
 
-  int edge2_1 = (*edges_)[2] - 1;
-  period_ = (*src_wave)[edge2_1 % src_size]
-    + (edge2_1 / src_size) * src_period - rise;
-  if (has_shifts)
-    period_ += (*edge_shifts_)[2];
+    // Apply corresponding shift
+    if (has_shifts) {
+      edge_time += (*edge_shifts_)[i];
+    }
+  
+    // First edge determines first rising edge of the new clock.
+    if (i == 0)
+      first_edge_time = edge_time;
+
+    // Do not add last edge to the waveform
+    if (i < num_edges - 1)
+      waveform_->push_back(edge_time);
+    else
+      last_edge_time = edge_time;
+  }
+
+  // The period is the time between the first and last edges.
+  period_ = last_edge_time - first_edge_time;
 }
 
 bool
