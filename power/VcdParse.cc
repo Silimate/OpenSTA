@@ -103,7 +103,7 @@ VcdParse::read(const char *filename,
           report_->fileError(806, filename_, file_line_, "time out of range %s",
                              token.substr(1).c_str());
         }
-        // Set time min to start time if it is not set at beginning (should always be 0)
+        // Set time min to start time if it is not set at beginning
 	      if (start_time == -1) {
 	        reader_->setTimeMin(time_);
 	      }
