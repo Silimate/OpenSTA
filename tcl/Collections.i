@@ -130,7 +130,7 @@ private:
                     }
                 }
                 // all properties equal, thus A is not less than B
-                return descending;
+                return false;
             }
         );
     }

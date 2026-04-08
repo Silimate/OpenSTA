@@ -31,7 +31,7 @@
 #include "PortDelay.hh"
 #include "Property.hh"
 #include "Sta.hh"
-#include "FilterExpr.hh"
+#include "FindObjects.hh"
 
 #include <stack>
 
@@ -1144,6 +1144,8 @@ default_arrival_clock()
   return Sta::sta()->sdc()->defaultArrivalClock();
 }
 
+const char clock_typename[] = "clock";
+
 ClockSeq *
 find_clocks_complete(ClockSeq *collection,
 		     StringSeq *patterns,
@@ -1156,29 +1158,17 @@ find_clocks_complete(ClockSeq *collection,
   collection = collection ? new ClockSeq(*collection) : new ClockSeq();
   Sta *sta = Sta::sta();
   Sdc *sdc = sta->sdc();
-  for (const char *pattern: *patterns) {
-    PatternMatch matcher(pattern, regexp, nocase, sta->tclInterp());
-    ClockSeq matches = sdc->findClocksMatching(&matcher);
-    if (matches.size() == 0) {
-      if (!quiet) {
-        Sta::sta()->report()->warn(351, "clock '%s' not found.", pattern);
-      }
-    } else {
-      auto entries = collection->size();
-      collection->resize(entries + matches.size());
-      std::move(
-        matches.begin(),
-        matches.end(),
-        collection->begin() + entries
-      );
-    }
-  }
-  if (filter_expression != nullptr) {
-    auto filtered = filter_objects<Clock>(filter_expression, collection, sta->booleanPropsAsInt());
-    delete collection;
-    collection = new ClockSeq(filtered);
-  }
-  return collection;
+
+  return find_objects_complete<ClockSeq, Clock, 351, clock_typename>(
+    collection,
+    patterns,
+    regexp,
+    nocase,
+    quiet,
+    filter_expression,
+    [&](PatternMatch *m) {
+      return sdc->findClocksMatching(m);
+  });
 }
 
 ClockSeq
