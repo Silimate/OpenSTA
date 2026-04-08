@@ -644,7 +644,7 @@ int strcmpnat(const char *lhs, const char *rhs) {
   std::string_view l_tok = strcmpnat_tok_r(&l_rem);
   std::string_view r_tok = strcmpnat_tok_r(&r_rem);
   while (l_tok.size() || r_tok.size()) {
-    int64_t l_value, r_value;
+    int64_t l_value = 0, r_value = 0;
     auto l_res = std::from_chars(l_tok.data(), l_tok.data() + l_tok.size(), l_value);
     auto r_res = std::from_chars(r_tok.data(), r_tok.data() + r_tok.size(), r_value);
     if (l_res.ec != std::errc{} && r_res.ec != std::errc{}) {
