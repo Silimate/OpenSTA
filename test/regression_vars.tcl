@@ -187,6 +187,7 @@ record_public_tests {
   sdc_strip_escaped_bus
   slash_port_test
   suppress_msg
+  vcd_timestamp
   verilog_attribute
   verilog_specify
   write_timing_model_scalar
