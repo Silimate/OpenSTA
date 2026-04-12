@@ -104,9 +104,9 @@ VcdParse::read(const char *filename,
                              token.substr(1).c_str());
         }
         // Set time min to start time if it is not set at beginning
-	      if (start_time == -1) {
-	        reader_->setTimeMin(time_);
-	      }
+        if (start_time == -1) {
+          reader_->setTimeMin(time_);
+        }
         prev_time_ = time_;
       }
       else if (token[0] == '$')
