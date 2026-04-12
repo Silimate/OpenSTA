@@ -7,9 +7,11 @@ proc report_activities { } {
   foreach pin $pins {
     set prop [get_property $pin activity]
     set transitions_per_sec [lindex $prop 0]
-    set activity [expr double($transitions_per_sec) / [expr $clk_freq * 2]]
     set duty [lindex $prop 1]
-    puts [format "%-30s %-15.6f %-15.6f" [get_full_name $pin] $activity $duty]
+    if {[scan $transitions_per_sec "%g" trans_num] == 1 && [scan $duty "%g" duty_num] == 1} {
+      set activity [expr double($trans_num) / [expr $clk_freq * 2]]
+      puts [format "%-30s %-15.6f %-15.6f" [get_full_name $pin] $activity $duty_num]
+    }
   }
   puts ""
 }
