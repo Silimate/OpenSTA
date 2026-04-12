@@ -1,155 +1,257 @@
 ################################################################
 #
-# Collection commands from Intel Quartus (links below).
-# This script applies collection commands to simple TCL lists.
-# Link 1: https://www.intel.com/content/www/us/en/docs/programmable/683432/24-2/collection-commands.html
-# Link 2: https://www.intel.com/content/www/us/en/docs/programmable/683432/24-2/tcl_pkg_dcmd_dni_ver_1-0.html
-# Link 3: https://www.intel.com/content/www/us/en/docs/programmable/683432/24-2/tcl_pkg_sta_ver_1-0_cmd_query_collection.html
+# Collection commands from Altera Quartus
+#
+# This script applies collection commands to both simple Tcl lists
+# and Sequences marked with COLLECTION_HELPERS in .i files.
 #
 ################################################################
 
-# Add objects to a collection, resulting in a new collection. The base collection remains unchanged. (Link 2)
-interp alias {} add_to_collection {} concat
-
-# Duplicates the contents of a collection, resulting in a new collection. The base collection remains unchanged. (Link 2)
-interp alias {} copy_collection {} return -level 0
-
-# The foreach_in_collection command is similar to the foreach Tcl command. Use it to iterate through all elements in a collection. (Link 1)
-interp alias {} foreach_in_collection {} foreach
-
-# Use the get_collection_size command to get the number of elements in a collection. (Link 1)
-interp alias {} get_collection_size {} llength
-
-# Given a collection and an index, if the index is in range, create a new collection containing only the single object. (Link 2)
-# Optionally a second index can be passed to create a new collection with the objects between the two indices in the base collection.
-interp alias {} index_collection {} lindex
-
-# Returns the number of objects in a collection. (Link 2)
-interp alias {} sizeof_collection {} llength
-
-# Sorts a collection based on one or more attributes, resulting in a new, sorted collection. The sort is ascending by default. (Link 2)
-proc sort_collection { args } {
-  set descending 0
-  set idx [lsearch -exact $args "-descending"]
-  if {$idx != -1} {
-    set descending 1
-    set args [lreplace $args $idx $idx]
-  }
-  set idx [lsearch -exact $args "-ascending"]
-  if {$idx != -1} {
-    set args [lreplace $args $idx $idx]
-  }
-
-  set collection [lindex $args 0]
-  set sort_by [lindex $args 1]
-
-  if {[llength $collection] == 0} {
-    return $collection
-  }
-
-  set decorated {}
-  foreach obj $collection {
-    set key [sta::get_object_property $obj $sort_by]
-    lappend decorated [list $key $obj]
-  }
-
-  set is_numeric 1
-  foreach pair $decorated {
-    if {![string is double -strict [lindex $pair 0]]} {
-      set is_numeric 0
-      break
+# Add objects to a collection, resulting in a new collection. The base
+# collection remains unchanged. The return type depends on whether the
+# collection is a Tcl list or otherwise.
+# https://docs.altera.com/r/docs/683432/25.3.1/quartus-prime-pro-edition-user-guide-scripting/add_to_collection-quartus-sta
+proc add_to_collection {collection objects} {
+  if {[sta::is_collection $collection]} {
+    return [sta::collection_plus $collection $objects]
+  } else {
+    if {[sta::is_collection $objects]} {
+      foreach_in_collection element $objects {
+        lappend collection $element
+      }
+      return $collection
+    } else {
+      return [concat $collection $objects]
     }
   }
+}
 
-  if {$is_numeric} {
-    set sort_type "-real"
+
+# Duplicates the contents of a collection, resulting in a new collection. The base collection remains unchanged.
+# https://docs.altera.com/r/docs/683432/25.3.1/quartus-prime-pro-edition-user-guide-scripting/dni-copy_collection-quartus-dcmd_dni
+interp alias {} copy_collection {} index_collection  
+
+# The foreach_in_collection command is similar to the foreach Tcl command. Use it to iterate through all elements in a collection.
+# https://docs.altera.com/r/docs/683432/25.3.1/quartus-prime-pro-edition-user-guide-scripting/foreach_in_collection-quartus-misc
+proc foreach_in_collection {variable_name collection body} {
+  if {[sta::is_collection $collection]} {
+    set it [sta::collection_get_iterator $collection]
+    set rc 0
+    while {[$it has_next]} {
+      set current [$it next]
+      uplevel 1 set $variable_name $current
+      set rc [catch {uplevel 1 $body} result options]
+      if {$rc == 1} {
+        # error - finish iterator, then re-throw
+        $it finish
+        return -options $options $result
+      } elseif {$rc == 3} {
+        # break
+        break
+      } elseif {$rc == 4} {
+        # continue - do nothing, loop continues
+      } elseif {$rc != 0} {
+        $it finish
+        return -options $options $result
+      }
+    }
+    $it finish
   } else {
-    set sort_type "-dictionary"
+    foreach current $collection {
+      uplevel 1 set $variable_name $current
+      uplevel 1 $body
+    }
   }
+}
 
-  if {$descending} {
-    set decorated [lsort $sort_type -decreasing -index 0 $decorated]
+# Use the get_collection_size command to get the number of elements in a collection.
+# https://docs.altera.com/r/docs/683432/25.3.1/quartus-prime-pro-edition-user-guide-scripting/get_collection_size-quartus-misc
+proc get_collection_size {collection} {
+  if {[sta::is_collection $collection]} {
+    return [sta::collection_count $collection]
   } else {
-    set decorated [lsort $sort_type -increasing -index 0 $decorated]
+    return [llength $collection]
+  }
+}
+
+# Given a collection and an index, if the index is in range, create a new collection containing only the single object.
+# Optionally a second index can be passed to create a new collection with the objects between the two indices in the base collection (inclusive).
+# As a custom extension to the spec, passing neither index simply creates a copy.
+# https://docs.altera.com/r/docs/683432/25.3.1/quartus-prime-pro-edition-user-guide-scripting/dni-index_collection-quartus-dcmd_dni
+proc index_collection {collection {index1 ""} {index2 ""}} {
+  if { "$index2" == "" } {
+    if { "$index1" == "" } {
+      set index1 "0"
+      set index2 "end"
+    } else {
+      set index2 "$index1"
+    }
+  }
+  if {[sta::is_collection $collection]} {
+    return [sta::collection_slice $collection $index1 $index2]
+  } else {
+    return [lrange $collection $index1 $index2]
+  }
+}
+
+proc collection_at_index {collection index} {
+  if {[sta::is_collection $collection]} {
+    return [sta::collection_element_at $collection $index]
+  } else {
+    return [lindex $collection $index]
+  }
+}
+
+# Returns the number of objects in a collection.
+interp alias {} sizeof_collection {} get_collection_size
+
+# Sorts a collection based on one or more attributes, resulting in a new,
+# sorted collection. The sort is ascending by default.
+# https://docs.altera.com/r/docs/683432/25.3.1/quartus-prime-pro-edition-user-guide-scripting/dni-sort_collection-quartus-dcmd_dni
+proc sort_collection { args } {
+  sta::parse_key_args "sort_collection" args \
+    keys {-limit} \
+    flags {-ascending -descending -dictionary -real}
+
+  sta::check_argc_eq2 "sort_collection" $args
+
+  set collection [lindex $args 0]
+  set criteria [lindex $args 1]
+
+  if { [info exists flags(-real)] && [info exists flags(-dictionary)]} {
+    sta::sta_error 150 "sort_collection -real and -dictionary are mutually exclusive"
+  }
+  if { [info exists flags(-ascending)] && [info exists flags(-descending)] } {
+    sta::sta_error 151 "sort_collection -ascending and -descending are mutually exclusive"
   }
 
-  set result {}
-  foreach pair $decorated {
-    lappend result [lindex $pair 1]
+  set limit "end"
+  if { [info exists keys(-limit)] } {
+    set limit $keys(-limit)
   }
+
+  set list_format_arg [list]
+  if { [sta::is_collection $collection] } {
+    lappend list_format_arg -list_format
+  }
+
+  set result [sta::collection_sorted $collection $criteria [info exists flags(-descending)] [expr ![info exists flags(-dictionary)]]]
+
+  return [query_collection $result -limit $limit {*}$list_format_arg]
+}
+
+# Returns a part of the collection.
+# https://docs.altera.com/r/docs/683432/25.3.1/quartus-prime-pro-edition-user-guide-scripting/query_collection-quartus-sta
+proc query_collection { args } {
+  sta::parse_key_args "query_collection" args \
+    keys {-limit} \
+    flags {-all -list_format -report_format}
+
+  sta::check_argc_eq1 "query_collection" $args
+
+  set collection [lindex $args 0]
+  set limit 20
+
+  if { [info exists keys(-limit)] } {
+    set limit $keys(-limit)
+  }
+
+  if { [info exists flags(-all)] } {
+    set limit "end"
+  }
+
+  if { [info exists flags(-report_format)] } {
+    sta::sta_warn 152 "query_collection flag -report_format is currently unsupported and will be ignored."
+  }
+
+  set result [index_collection $collection 0 $limit]
+
+  if { [info exists flags(-list_format)] } {
+    set result_list ""
+    foreach_in_collection element $result {
+      lappend result_list $element
+    }
+    return $result_list
+  }
+
   return $result
 }
 
-# Query collection objects. (Link 3)
-interp alias {} query_collection {} return -level 0
-
-# Append objects to a collection and modifies a variable. (Link 2)
+# Append objects to a collection
+# https://docs.altera.com/r/docs/683432/25.3.1/quartus-prime-pro-edition-user-guide-scripting/dni-append_to_collection-quartus-dcmd_dni
 proc append_to_collection { args } {
+  sta::parse_key_args "append_to_collection" args \
+    keys {} \
+    flags {-unique}
 
-  # Extract and remove -unique flag if set
-  set idx [lsearch -exact $args "-unique"]
-  set unique [expr {$idx != -1}]
-  if {$unique} {
-    set args [lreplace $args $idx $idx]
-  }
+  sta::check_argc_eq2 "append_to_collection" $args
 
-  # Extract collection and objects from args
   set collection [lindex $args 0]
   set objects [lindex $args 1]
 
-  upvar $collection coll
-  if {$unique} { # don't add duplicates
-    foreach object $objects {
-      if {![lsearch -exact $coll $object]} {
-        lappend coll $object
-      }
-    }
+  upvar 1 $collection coll
+
+  if { [sta::is_collection $coll] } {
+    sta::collection_append_inplace $coll $objects [info exists flags(-unique)]
   } else {
-    lappend coll {*}$objects
+    # tcl list cannot be modified in-place, use collection_plus
+    set coll [sta::collection_plus $coll $objects [info exists flags(-unique)]]
   }
 }
 
-# Remove objects from a collection, resulting in a new collection. The base collection remains unchanged. (Link 2)
-# With -intersect, removes objects NOT found in object_spec (keeps the intersection).
-# Without -intersect, removes objects found in object_spec.
+# Remove objects from a collection, resulting in a new collection.
+# The base collection remains unchanged.
+# https://docs.altera.com/r/docs/683432/25.3.1/quartus-prime-pro-edition-user-guide-scripting/remove_from_collection-quartus-sta
 proc remove_from_collection { args } {
-  set idx [lsearch -exact $args "-intersect"]
-  set intersect [expr {$idx != -1}]
-  if {$intersect} {
-    set args [lreplace $args $idx $idx]
-  }
+  sta::parse_key_args "remove_from_collection" args \
+    keys {} \
+    flags {-intersect}
+
+  sta::check_argc_eq2 "remove_from_collection" $args
 
   set collection [lindex $args 0]
   set objects [lindex $args 1]
+  set intersect [info exists flags(-intersect)]
 
-  if {$intersect} {
+  if {[sta::is_collection $collection]} {
+    return [sta::collection_minus $collection $objects $intersect]
+  } else {
     set result {}
     foreach item $collection {
-      if {[lsearch -exact $objects $item] != -1} {
+      if { $intersect != ([lsearch -exact $objects $item] == -1)} {
         lappend result $item
       }
     }
     return $result
-  } else {
-    foreach object $objects {
-      set idx [lsearch -exact $collection $object]
-      if { $idx != -1 } {
-        set collection [lreplace $collection $idx $idx]
-      }
-    }
-    return $collection
   }
 }
 
-# Filters an existing collection, resulting in a new collection. The base collection remains unchanged. (Link 2)
+# Filters an existing collection, resulting in a new collection.
+# The base collection remains unchanged.
+# https://docs.altera.com/r/docs/683432/25.3.1/quartus-prime-pro-edition-user-guide-scripting/dni-filter_collection-quartus-dcmd_dni
 proc filter_collection { args } {
-  set args [remove_from_collection $args [list "-quiet"]]
+  sta::parse_key_args "filter_collection" args \
+    keys {} \
+    flags {-nocase -regexp -quiet}
+  # SILIMATE: -quiet is silently ignored for reasons currently unclear
+
+  sta::check_argc_eq2 "filter_collection" $args
+
+  if { [info exists flags(-nocase)] || [info exists flags(-regexp)] } {
+    sta::sta_warn 153 "filter_collection flags -nocase and -regexp are currently unsupported and will be ignored."
+  }
+
   set collection [lindex $args 0]
   set filter [lindex $args 1]
-  if { [llength $collection] == 0 } {
+  
+  if { [sizeof_collection $collection] == 0 } {
     return $collection
   } else {
-    set object_type [sta::object_type [lindex $collection 0]]
+    set object_type ""
+    foreach_in_collection item $collection {
+      set object_type [sta::object_type $item]
+      break
+    }
     if { $object_type == "Pin" } {
       return [sta::filter_objs $filter $collection filter_pins "pin"]
     } elseif { $object_type == "Instance" } {
@@ -171,7 +273,7 @@ proc filter_collection { args } {
     } elseif { $object_type == "TimingArcSet" } {
       return [sta::filter_objs $filter $collection filter_timing_arcs "timing arc"]
     } else {
-      sta_error 100 "unsupported object type $object_type."
+      sta::sta_error 154 "unsupported object type $object_type."
     }
   }
 }

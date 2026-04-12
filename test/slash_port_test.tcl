@@ -36,7 +36,7 @@ puts {set_input_delay -clock clk 0 [all_inputs]}
 set_input_delay -clock clk 0 [all_inputs]
 
 # get_port_pins_error: individual Port objects
-foreach port [all_inputs] {
+foreach_in_collection port [all_inputs] {
   puts "set_input_delay -clock clk 0 <Port '[get_name $port]'>"
   set_input_delay -clock clk 0 $port
 }
@@ -48,13 +48,13 @@ set_false_path -from [all_inputs] -to [all_outputs]
 # get_port_pin_error (singular): set_data_check with Port objects
 # Exercises get_port_pin_arg line 780-782
 set input_ports [all_inputs]
-set from_port [lindex $input_ports 0]
-set to_port [lindex $input_ports 1]
+set from_port [collection_at_index $input_ports 0]
+set to_port [collection_at_index $input_ports 1]
 puts "set_data_check -from <Port '[get_name $from_port]'> -to <Port '[get_name $to_port]'> 0"
 set_data_check -from $from_port -to $to_port 0
 
 # get_port_pin_error (singular): set_case_analysis with Port objects
-foreach port [all_inputs] {
+foreach_in_collection port [all_inputs] {
   puts "set_case_analysis 0 <Port '[get_name $port]'>"
   set_case_analysis 0 $port
 }

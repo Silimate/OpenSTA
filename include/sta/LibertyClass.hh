@@ -69,11 +69,14 @@ class Statetable;
 class StatetableRow;
 
 typedef Vector<LibertyLibrary*> LibertyLibrarySeq;
+typedef LibertyLibrarySeq::ConstIterator LibertyLibrarySeqIterator;
 typedef Vector<LibertyCell*> LibertyCellSeq;
+typedef LibertyCellSeq::ConstIterator LibertyCellSeqIterator;
 typedef Vector<Sequential*> SequentialSeq;
 typedef Vector<GeneratedClock*> GeneratedClockSeq;
 typedef Map<LibertyCell*, LibertyCellSeq*> LibertyCellEquivMap;
 typedef Vector<LibertyPort*> LibertyPortSeq;
+typedef LibertyPortSeq::ConstIterator LibertyPortSeqIterator;
 typedef Set<LibertyPort*> LibertyPortSet;
 typedef std::pair<const LibertyPort*,const LibertyPort*> LibertyPortPair;
 typedef Set<LibertyCell*> LibertyCellSet;

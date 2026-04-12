@@ -432,6 +432,7 @@ set(SWIG_FILES
   ${STA_HOME}/search/Search.i
   ${STA_HOME}/spice/WriteSpice.i
   ${STA_HOME}/tcl/Exception.i
+  ${STA_HOME}/tcl/Collections.i
   ${STA_HOME}/tcl/StaTclTypes.i
   ${STA_HOME}/util/Util.i
   ${STA_HOME}/verilog/Verilog.i

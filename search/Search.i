@@ -576,7 +576,6 @@ min_pulse_width_check_pins(PinSeq *pins,
 {
   Sta *sta = Sta::sta();
   MinPulseWidthCheckSeq &checks = sta->minPulseWidthChecks(pins, corner);
-  delete pins;
   return checks;
 }
 
@@ -941,7 +940,6 @@ find_fanin_pins(PinSeq *to,
   PinSet fanin = sta->findFaninPins(to, flat, startpoints_only,
                                     inst_levels, pin_levels,
                                     thru_disabled, thru_constants);
-  delete to;
   return fanin;
 }
 
@@ -958,7 +956,6 @@ find_fanin_insts(PinSeq *to,
   InstanceSet fanin = sta->findFaninInstances(to, flat, startpoints_only,
                                               inst_levels, pin_levels,
                                               thru_disabled, thru_constants);
-  delete to;
   return fanin;
 }
 
@@ -975,7 +972,6 @@ find_fanout_pins(PinSeq *from,
   PinSet fanout = sta->findFanoutPins(from, flat, endpoints_only,
                                       inst_levels, pin_levels,
                                       thru_disabled, thru_constants);
-  delete from;
   return fanout;
 }
 
@@ -992,7 +988,6 @@ find_fanout_insts(PinSeq *from,
   InstanceSet fanout = sta->findFanoutInstances(from, flat, endpoints_only,
                                                 inst_levels, pin_levels,
                                                 thru_disabled, thru_constants);
-  delete from;
   return fanout;
 }
 
@@ -1273,6 +1268,18 @@ void
 set_strip_escaped_bus(bool enable)
 {
   Sta::sta()->setStripEscapedBus(enable);
+}
+
+bool
+enable_collections()
+{
+  return Sta::sta()->enableCollections();
+}
+
+void
+set_enable_collections(bool enable)
+{
+  Sta::sta()->setEnableCollections(enable);
 }
 
 %} // inline

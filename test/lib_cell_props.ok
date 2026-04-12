@@ -1,4 +1,4 @@
-== dont_use ==
+-- dont_use --
 gf180mcu_fd_ip_sram__sram128x8m8wm1__ff_125C_1v98/gf180mcu_fd_ip_sram__sram128x8m8wm1
 sky130_fd_sc_hd__tt_025C_1v80/sky130_fd_sc_hd__sdfbbn_1
 sky130_fd_sc_hd__tt_025C_1v80/sky130_fd_sc_hd__sdfbbn_2
@@ -19,8 +19,8 @@ sky130_fd_sc_hd__tt_025C_1v80/sky130_fd_sc_hd__sdfxbp_2
 sky130_fd_sc_hd__tt_025C_1v80/sky130_fd_sc_hd__sdfxtp_1
 sky130_fd_sc_hd__tt_025C_1v80/sky130_fd_sc_hd__sdfxtp_2
 sky130_fd_sc_hd__tt_025C_1v80/sky130_fd_sc_hd__sdfxtp_4
-====
-== !has_timing_model ==
+----
+-- !has_timing_model --
 sky130_fd_sc_hd__tt_025C_1v80/sky130_fd_sc_hd__conb_1
 sky130_fd_sc_hd__tt_025C_1v80/sky130_fd_sc_hd__decap_12
 sky130_fd_sc_hd__tt_025C_1v80/sky130_fd_sc_hd__decap_3
@@ -35,16 +35,16 @@ sky130_fd_sc_hd__tt_025C_1v80/sky130_fd_sc_hd__lpflow_decapkapwr_4
 sky130_fd_sc_hd__tt_025C_1v80/sky130_fd_sc_hd__lpflow_decapkapwr_6
 sky130_fd_sc_hd__tt_025C_1v80/sky130_fd_sc_hd__lpflow_decapkapwr_8
 sky130_fd_sc_hd__tt_025C_1v80/sky130_fd_sc_hd__macro_sparecell
-====
-== is_integrated_clock_gating_cell ==
+----
+-- is_integrated_clock_gating_cell --
 sky130_fd_sc_hd__tt_025C_1v80/sky130_fd_sc_hd__dlclkp_1
 sky130_fd_sc_hd__tt_025C_1v80/sky130_fd_sc_hd__dlclkp_2
 sky130_fd_sc_hd__tt_025C_1v80/sky130_fd_sc_hd__dlclkp_4
 sky130_fd_sc_hd__tt_025C_1v80/sky130_fd_sc_hd__sdlclkp_1
 sky130_fd_sc_hd__tt_025C_1v80/sky130_fd_sc_hd__sdlclkp_2
 sky130_fd_sc_hd__tt_025C_1v80/sky130_fd_sc_hd__sdlclkp_4
-====
-== is_sequential ==
+----
+-- is_sequential --
 sky130_fd_sc_hd__tt_025C_1v80/sky130_fd_sc_hd__dfbbn_1
 sky130_fd_sc_hd__tt_025C_1v80/sky130_fd_sc_hd__dfbbn_2
 sky130_fd_sc_hd__tt_025C_1v80/sky130_fd_sc_hd__dfbbp_1
@@ -114,11 +114,11 @@ sky130_fd_sc_hd__tt_025C_1v80/sky130_fd_sc_hd__sedfxbp_2
 sky130_fd_sc_hd__tt_025C_1v80/sky130_fd_sc_hd__sedfxtp_1
 sky130_fd_sc_hd__tt_025C_1v80/sky130_fd_sc_hd__sedfxtp_2
 sky130_fd_sc_hd__tt_025C_1v80/sky130_fd_sc_hd__sedfxtp_4
-====
-== is_memory ==
+----
+-- is_memory --
 gf180mcu_fd_ip_sram__sram128x8m8wm1__ff_125C_1v98/gf180mcu_fd_ip_sram__sram128x8m8wm1
-====
-== is_physical_only ==
+----
+-- is_physical_only --
 sky130_fd_sc_hd__tt_025C_1v80/sky130_fd_sc_hd__decap_12
 sky130_fd_sc_hd__tt_025C_1v80/sky130_fd_sc_hd__decap_3
 sky130_fd_sc_hd__tt_025C_1v80/sky130_fd_sc_hd__decap_4
@@ -129,7 +129,7 @@ sky130_fd_sc_hd__tt_025C_1v80/sky130_fd_sc_hd__lpflow_decapkapwr_3
 sky130_fd_sc_hd__tt_025C_1v80/sky130_fd_sc_hd__lpflow_decapkapwr_4
 sky130_fd_sc_hd__tt_025C_1v80/sky130_fd_sc_hd__lpflow_decapkapwr_6
 sky130_fd_sc_hd__tt_025C_1v80/sky130_fd_sc_hd__lpflow_decapkapwr_8
-====
-== dont_use ==
+----
+-- dont_use --
 gf180mcu_fd_ip_sram__sram128x8m8wm1__ff_125C_1v98/gf180mcu_fd_ip_sram__sram128x8m8wm1
-====
+----

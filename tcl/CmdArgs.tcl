@@ -83,8 +83,8 @@ proc get_object_args { objects clks_var libcells_var libports_var \
 
   # Copy backslashes that will be removed by foreach.
   set objects [string map {\\ \\\\} $objects]
-  foreach obj $objects {
-    if { [llength $obj] > 1 } {
+  foreach_in_collection obj $objects {
+    if { [sizeof_collection $obj] > 1 || [sta::is_collection $obj] } {
       # List arg. Recursive call without initing objects.
       get_object_args $obj $clks_var $libcells_var $libports_var $cells_var $insts_var \
 	$ports_var $pins_var $nets_var $edges_var $timing_arc_sets_var
@@ -122,53 +122,53 @@ proc get_object_args { objects clks_var libcells_var libports_var \
       if { $clks_var != {} } {
 	set matches [get_clocks -quiet $obj]
       }
-      if { $matches != {} } {
-	set clks [concat $clks $matches]
+      if { [sizeof_collection $matches] > 0 } {
+	set clks [add_to_collection $clks $matches]
       } else {
 	if { $libcells_var != {} } {
 	  set matches [get_lib_cells -quiet $obj]
 	}
-	if { $matches != {} } {
-	  set libcells [concat $libcells $matches]
+	if { [sizeof_collection $matches] > 0 } {
+	  set libcells [add_to_collection $libcells $matches]
 	} else {
 	  
 	  if { $libports_var != {} } {
 	    set matches [get_lib_pins -quiet $obj]
 	  }
-	  if { $matches != {} } {
-	    set libports [concat $libports $matches]
+	  if { [sizeof_collection $matches] > 0 } {
+	    set libports [add_to_collection $libports $matches]
 	  } else {
 	    
 	    if { $cells_var != {} } {
 	      set matches [find_cells_matching $obj 0 0]
 	    }
-	    if { $matches != {} } {
-	      set cells [concat $cells $matches]
+	    if { [sizeof_collection $matches] > 0 } {
+	      set cells [add_to_collection $cells $matches]
 	    } else {
 	      
 	      if { $insts_var != {} } {
 		set matches [get_cells -quiet $obj]
 	      }
-	      if { $matches != {} } {
-		set insts [concat $insts $matches]
+	      if { [sizeof_collection $matches] > 0 } {
+		set insts [add_to_collection $insts $matches]
 	      } else {
 		if { $ports_var != {} } {
 		  set matches [get_ports -quiet $obj]
 		}
-		if { $matches != {} }  {
-		  set ports [concat $ports $matches]
+		if { [sizeof_collection $matches] > 0 }  {
+		  set ports [add_to_collection $ports $matches]
 		} else {
 		  if { $pins_var != {} } {
 		    set matches [get_pins -quiet $obj]
 		  }
-		  if { $matches != {} } {
-		    set pins [concat $pins $matches]
+		  if { [sizeof_collection $matches] > 0 } {
+		    set pins [add_to_collection $pins $matches]
 		  } else {
 		    if { $nets_var != {} } {
 		      set matches [get_nets -quiet $obj]
 		    }
-		    if { $matches != {} } {
-		      set nets [concat $nets $matches]
+		    if { [sizeof_collection $matches] > 0 } {
+		      set nets [add_to_collection $nets $matches]
 		    } else {
 		      sta_warn 101 "object '$obj' not found."
 		    }
@@ -225,8 +225,8 @@ proc parse_clk_inst_port_pin_arg { objects clks_var insts_var pins_var } {
   set pins {}
   set ports {}
   get_object_args $objects clks {} {} {} insts ports pins {} {} {}
-  foreach port $ports {
-    lappend pins [get_port_pin $port]
+  foreach_in_collection port $ports {
+    lappend pins [[top_instance] find_pin [get_name $port]]
   }
 }
 
@@ -237,8 +237,8 @@ proc parse_clk_port_pin_arg { objects clks_var pins_var } {
   set pins {}
   set ports {}
   get_object_args $objects clks {} {} {} {} ports pins {} {} {}
-  foreach port $ports {
-    lappend pins [get_port_pin $port]
+  foreach_in_collection port $ports {
+    lappend pins [[top_instance] find_pin [get_name $port]]
   }
 }
 
@@ -324,8 +324,8 @@ proc parse_inst_port_pin_arg { objects insts_var pins_var } {
   set pins {}
   set ports {}
   get_object_args $objects {} {} {} {} insts ports pins {} {} {}
-  foreach port $ports {
-    lappend pins [get_port_pin $port]
+  foreach_in_collection port $ports {
+    lappend pins [[top_instance] find_pin [get_name $port]]
   }
 }
 
@@ -346,8 +346,8 @@ proc parse_inst_port_pin_net_arg { objects insts_var pins_var nets_var } {
   set pins {}
   set nets {}
   get_object_args $objects {} {} {} {} insts ports pins nets {} {}
-  foreach port $ports {
-    lappend pins [get_port_pin $port]
+  foreach_in_collection port $ports {
+    lappend pins [[top_instance] find_pin [get_name $port]]
   }
 }
 
@@ -367,8 +367,8 @@ proc parse_port_pin_net_arg { objects pins_var nets_var } {
   set nets {}
   get_object_args $objects {} {} {} {} {} ports pins nets {} {}
 
-  foreach port $ports {
-    lappend pins [get_port_pin $port]
+  foreach_in_collection port $ports {
+    lappend pins [[top_instance] find_pin [get_name $port]]
   }
 }
 
@@ -390,7 +390,7 @@ proc parse_pin_net_args { objects pins_var nets_var } {
 
 proc get_ports_or_pins { pattern } {
   set matches [find_port_pins_matching $pattern 0 0]
-  if { $matches != {} } {
+  if { [sizeof_collection $matches] } {
     return $matches
   } else {
     return [find_pins_matching $pattern 0 0]
@@ -574,12 +574,14 @@ proc parse_early_late_all_flags { flags_var } {
 
 proc get_liberty_error { arg_name arg } {
   set lib "NULL"
-  if {[llength $arg] > 1} {
+  if {[sizeof_collection $arg] > 1} {
     sta_error 113 "$arg_name must be a single library."
   } elseif { [is_object $arg] } {
     set object_type [object_type $arg]
     if { $object_type == "LibertyLibrary" } {
       set lib $arg
+    } elseif { $object_type == "LibertyLibrarySeq" } {
+      set lib [collection_at_index $arg 0]
     } else {
       sta_error 114 "$arg_name type '$object_type' is not a library."
     }
@@ -602,13 +604,15 @@ proc get_lib_cell_error { arg_name arg } {
 
 proc get_lib_cell_arg { arg_name arg error_proc } {
   set lib_cell "NULL"
-  if { [llength $arg] > 1 } {
+  if { [sizeof_collection $arg] > 1 } {
     sta_error 116 "$arg_name must be a single lib cell."
   } elseif { [is_object $arg] } {
     set object_type [object_type $arg]
     if { $object_type == "LibertyCell" } {
       set lib_cell $arg
-    } else {
+    } elseif { $object_type == "LibertyCellSeq" } {
+      set lib_cell [collection_at_index $object_type 0]
+    }else {
       $error_proc 116 "$arg_name type '$object_type' is not a liberty cell."
     }
     # Parse library_name/cell_name.
@@ -634,23 +638,23 @@ proc get_lib_cell_arg { arg_name arg error_proc } {
 # Not used by OpenSTA
 proc get_lib_cells_arg { arg_name arglist error_proc } {
   set lib_cells {}
-  # Copy backslashes that will be removed by foreach.
+  # Copy backslashes that will be removed by foreach_in_collection.
   set arglist [string map {\\ \\\\} $arglist]
-  foreach arg $arglist {
-    if {[llength $arg] > 1} {
+  foreach_in_collection arg $arglist {
+    if {[sizeof_collection $arg] > 1} {
       # Embedded list.
-      set lib_cells [concat $lib_cells [get_lib_cells_arg $arg_name $arg $error_proc]]
+      set lib_cells [add_to_collection $lib_cells [get_lib_cells_arg $arg_name $arg $error_proc]]
     } elseif { [is_object $arg] } {
       set object_type [object_type $arg]
-      if { $object_type == "LibertyCell" } {
-	lappend lib_cells $arg
+      if { $object_type == "LibertyCell" || $object_type == "LibertyCellSeq" } {
+        append_to_collection lib_cells $arg
       } else {
 	$error_proc 120 "unsupported object type $object_type."
       }
     } elseif { $arg != {} } {
       set arg_lib_cells [get_lib_cells1 $arg $error_proc]
-      if { $arg_lib_cells != {} } {
-	set lib_cells [concat $lib_cells $arg_lib_cells]
+      if { [sizeof_collection $arg_lib_cells] > 0 } {
+	set lib_cells [add_to_collection $lib_cells $arg_lib_cells]
       }
     }
   }
@@ -663,23 +667,21 @@ proc get_lib_cells1 { patterns error_proc } {
 
   set cells {}
   set cell_regexp [cell_regexp_hsc $hierarchy_separator]
-  foreach pattern $patterns {
+  foreach_in_collection pattern $patterns {
     if { ![regexp $cell_regexp $pattern ignore lib_name cell_pattern]} {
       set lib_name "*"
       set cell_pattern $pattern
     }
     # Allow wildcards in the library name (incompatible).
     set libs [get_libs -quiet $lib_name]
-    if { $libs == {} } {
+    if { [sizeof_collection $libs] == 0 } {
       $error_proc 121 "library '$lib_name' not found."
     } else {
-      foreach lib $libs {
+      foreach_in_collection lib $libs {
         set matches [$lib find_liberty_cells_matching $cell_pattern 0 0]
-        if {$matches != {}} {
-          set cells [concat $cells $matches]
-        }
+        append_to_collection cells $matches
       }
-      if { $cells == {} } {
+      if { [sizeof_collection $cells] == 0 } {
         $error_proc 122 "cell '$cell_pattern' not found."
       }
     }
@@ -689,12 +691,14 @@ proc get_lib_cells1 { patterns error_proc } {
 
 proc get_instance_error { arg_name arg } {
   set inst "NULL"
-  if {[llength $arg] > 1} {
+  if {[sizeof_collection $arg] > 1} {
     sta_error 123 "$arg_name must be a single instance."
   } elseif { [is_object $arg] } {
     set object_type [object_type $arg]
     if { $object_type == "Instance" } {
       set inst $arg
+    } elseif { $object_type == "InstanceSeq" } {
+      set inst [collection_at_index $inst 0]
     } else {
       sta_error 124 "$arg_name type '$object_type' is not an instance."
     }
@@ -709,23 +713,23 @@ proc get_instance_error { arg_name arg } {
 
 proc get_instances_error { arg_name arglist } {
   set insts {}
-  # Copy backslashes that will be removed by foreach.
+  # Copy backslashes that will be removed by foreach_in_collection.
   set arglist [string map {\\ \\\\} $arglist]
-  foreach arg $arglist {
-    if {[llength $arg] > 1} {
+  foreach_in_collection arg $arglist {
+    if {[sizeof_collection $arg] > 1} {
       # Embedded list.
-      set insts [concat $insts [get_instances_error $arg_name $arg]]
+      append_to_collection insts [get_instances_error $arg_name $arg]
     } elseif { [is_object $arg] } {
       set object_type [object_type $arg]
-      if { $object_type == "Instance" } {
-        lappend insts $arg
+      if { $object_type == "Instance" || $object_type == "InstanceSeq" } {
+        append_to_collection insts $arg
       } else {
         sta_error 126 "$arg_name type '$object_type' is not an instance."
       }
     } elseif { $arg != {} } {
       set arg_insts [get_cells -quiet $arg]
-      if { $arg_insts != {} } {
-        set insts [concat $insts $arg_insts]
+      if { [sizeof_collection $arg_insts] > 0 } {
+        append_to_collection insts $arg_insts
       } else {
         sta_error 127 "instance '$arg' not found."
       }
@@ -736,23 +740,23 @@ proc get_instances_error { arg_name arglist } {
 
 proc get_libcells_error { arg_name arglist } {
   set libcells {}
-  # Copy backslashes that will be removed by foreach.
+  # Copy backslashes that will be removed by foreach_in_collection.
   set arglist [string map {\\ \\\\} $arglist]
-  foreach arg $arglist {
-    if {[llength $arg] > 1} {
+  foreach_in_collection arg $arglist {
+    if {[sizeof_collection $arg] > 1} {
       # Embedded list.
-      set libcells [concat $libcells [get_libcells_error $arg_name $arg]]
+      set libcells [add_to_collection $libcells [get_libcells_error $arg_name $arg]]
     } elseif { [is_object $arg] } {
       set object_type [object_type $arg]
-      if { $object_type == "LibertyCell" } {
-        lappend libcells $arg
+      if { $object_type == "LibertyCell" || $object_type == "LibertyCellSeq" } {
+        append_to_collection libcells $arg
       } else {
         sta_error 128 "$arg_name type '$object_type' is not a liberty cell."
       }
     } elseif { $arg != {} } {
       set arg_libcells [get_lib_cells -quiet $arg]
-      if { $arg_libcells != {} } {
-        set libcells [concat $libcells $arg_libcells]
+      if { [sizeof_collection $arg_libcells] > 0 } {
+        set libcells [add_to_collection $libcells $arg_libcells]
       } else {
         sta_error 129 "liberty cell '$arg' not found."
       }
@@ -771,9 +775,15 @@ proc get_port_pin_error { arg_name arg } {
 
 proc get_port_pin_arg { arg_name arg warn_error } {
   set pin "NULL"
-  if {[llength $arg] > 1} {
+
+  if {[sizeof_collection $arg] > 1} {
     sta_warn_error 128 $warn_error "$arg_name must be a single port or pin."
-  } elseif { [is_object $arg] } {
+    return $pin
+  }
+
+  set arg [collection_at_index $arg 0]
+
+  if { [is_object $arg] } {
     set object_type [object_type $arg]
     if { $object_type == "Pin" } {
       set pin $arg
@@ -801,12 +811,12 @@ proc get_port_pin_arg { arg_name arg warn_error } {
 
 proc get_port_pins_error { arg_name arglist } {
   set pins {}
-  # Copy backslashes that will be removed by foreach.
+  # Copy backslashes that will be removed by foreach_in_collection.
   set arglist [string map {\\ \\\\} $arglist]
-  foreach arg $arglist {
-    if {[llength $arg] > 1} {
+  foreach_in_collection arg $arglist {
+    if {[sizeof_collection $arg] > 1} {
       # Embedded list.
-      set pins [concat $pins [get_port_pins_error $arg_name $arg]]
+      set pins [add_to_collection $pins [get_port_pins_error $arg_name $arg]]
     } elseif { [is_object $arg] } {
       set object_type [object_type $arg]
       if { $object_type == "Pin" } {
@@ -819,8 +829,8 @@ proc get_port_pins_error { arg_name arglist } {
       }
     } elseif { $arg != {} } {
       set arg_pins [get_ports_or_pins $arg]
-      if { $arg_pins != {} } {
-        set pins [concat $pins $arg_pins]
+      if { [sizeof_collection $arg_pins] > 0 } {
+        set pins [add_to_collection $pins $arg_pins]
       } else {
         sta_error 132 "pin '$arg' not found."
       }
@@ -831,12 +841,12 @@ proc get_port_pins_error { arg_name arglist } {
 
 proc get_ports_error { arg_name arglist } {
   set ports {}
-  # Copy backslashes that will be removed by foreach.
+  # Copy backslashes that will be removed by foreach_in_collection.
   set arglist [string map {\\ \\\\} $arglist]
-  foreach arg $arglist {
-    if {[llength $arg] > 1} {
+  foreach_in_collection arg $arglist {
+    if {[sizeof_collection $arg] > 1} {
       # Embedded list.
-      set ports [concat $ports [get_ports_error $arg_name $arg]]
+      set ports [add_to_collection $ports [get_ports_error $arg_name $arg]]
     } elseif { [is_object $arg] } {
       set object_type [object_type $arg]
       if { $object_type == "Port" } {
@@ -846,8 +856,8 @@ proc get_ports_error { arg_name arglist } {
       }
     } elseif { $arg != {} } {
       set arg_ports [get_ports $arg]
-      if { $arg_ports != {} } {
-        set ports [concat $ports $arg_ports]
+      if { [sizeof_collection $arg_ports] > 0 } {
+        set ports [add_to_collection $ports $arg_ports]
       }
     }
   }
@@ -864,7 +874,7 @@ proc get_pin_warn { arg_name arg } {
 
 proc get_pin_arg { arg_name arg warn_error } {
   set pin "NULL"
-  if {[llength $arg] > 1} {
+  if {[sizeof_collection $arg] > 1} {
     sta_warn_error 134 $warn_error "$arg_name must be a single pin."
   } elseif { [is_object $arg] } {
     set object_type [object_type $arg]
@@ -892,12 +902,14 @@ proc get_clock_error { arg_name arg } {
 
 proc get_clock_arg { arg_name arg error_proc } {
   set clk "NULL"
-  if {[llength $arg] > 1} {
+  if {[sizeof_collection $arg] > 1} {
     $error_proc 137 "$arg_name arg must be a single clock, not a list."
   } elseif { [is_object $arg] } {
     set object_type [object_type $arg]
     if { $object_type == "Clock" } {
       set clk $arg
+    } elseif { $object_type == "ClockSeq" } {
+      set clk [collection_at_index $arg 0]
     } else {
       $error_proc 138 "$arg_name arg value is a $object_type, not a clock."
     }
@@ -912,24 +924,22 @@ proc get_clock_arg { arg_name arg error_proc } {
 
 proc get_clocks_warn { arg_name arglist } {
   set clks {}
-  # Copy backslashes that will be removed by foreach.
+  # Copy backslashes that will be removed by foreach_in_collection.
   set arglist [string map {\\ \\\\} $arglist]
-  foreach arg $arglist {
-    if {[llength $arg] > 1} {
-      # Embedded list.
-      set clks [concat $clks [get_clocks_warn $arg_name $arg]]
+  foreach_in_collection arg $arglist {
+    if {[sizeof_collection $arg] > 1} {
+      # Embedded list
+      append_to_collection clks [get_clocks_warn $arg_name $arg]
     } elseif { [is_object $arg] } {
       set object_type [object_type $arg]
-      if { $object_type == "Clock" } {
-        lappend clks $arg
+      if { $object_type == "Clock" || $object_type == "ClockSeq" } {
+        append_to_collection clks $arg
       } else {
         sta_warn 139 "unsupported object type $object_type."
       }
     } elseif { $arg != {} } {
       set arg_clocks [get_clocks $arg]
-      if { $arg_clocks != {} } {
-        set clks [concat $clks $arg_clocks]
-      }
+      append_to_collection clks $arg_clocks
     }
   }
   return $clks
@@ -937,12 +947,14 @@ proc get_clocks_warn { arg_name arglist } {
 
 proc get_net_arg { arg_name arg } {
   set net "NULL"
-  if {[llength $arg] > 1} {
+  if {[sizeof_collection $arg] > 1} {
     sta_warn  140 "$arg_name must be a single net."
   } elseif { [is_object $arg] } {
     set object_type [object_type $arg]
     if { $object_type == "Net" } {
       set net $arg
+    } elseif { $object_type == "NetSeq" } {
+      set net [collection_at_index $arg 0]
     } else {
       sta_warn 141 "$arg_name '$object_type' is not a net."
     }
@@ -957,24 +969,22 @@ proc get_net_arg { arg_name arg } {
 
 proc get_nets_arg { arg_name arglist } {
   set nets {}
-  # Copy backslashes that will be removed by foreach.
+  # Copy backslashes that will be removed by foreach_in_collection.
   set arglist [string map {\\ \\\\} $arglist]
-  foreach arg $arglist {
-    if {[llength $arg] > 1} {
+  foreach_in_collection arg $arglist {
+    if {[sizeof_collection $arg] > 1} {
       # Embedded list.
-      set nets [concat $nets [get_nets_arg $arg_name $arg]]
+      append_to_collection nets [get_nets_arg $arg_name $arg]
     } elseif { [is_object $arg] } {
       set object_type [object_type $arg]
-      if { $object_type == "Net" } {
-        lappend nets $arg
+      if { $object_type == "Net" || $object_type == "NetSeq"} {
+        append_to_collection nets $arg
       } else {
         sta_warn 142 "unsupported object type $object_type."
       }
     } elseif { $arg != {} } {
       set arg_nets [get_nets $arg]
-      if { $arg_nets != {} } {
-        set nets [concat $nets $arg_nets]
-      }
+      append_to_collection nets $arg_nets 
     }
   }
   return $nets
