@@ -55,12 +55,11 @@ public:
   VcdCount();
   double transitionCount() const { return transition_count_; }
   VcdTime highTime(VcdTime time_max) const;
-  void incrCounts(VcdTime time,
-                  char value,
-                  VcdTime filter_start = -1,
-                  VcdTime filter_end = -1);
+  void incrCounts(VcdTime time, char value);
   void addPin(const Pin *pin);
   const PinSeq &pins() const { return pins_; }
+
+  static void setFilter(VcdTime start, VcdTime end);
 
 private:
   VcdTime clippedIntervalStart() const;
@@ -69,17 +68,20 @@ private:
   char prev_value_;
   VcdTime high_time_;
   double transition_count_;
-  VcdTime filter_start_;
-  VcdTime filter_end_;
+  
+  static VcdTime filter_start_;
+  static VcdTime filter_end_;
 };
+
+// Define static members
+VcdTime VcdCount::filter_start_ = -1;
+VcdTime VcdCount::filter_end_ = -1;
 
 VcdCount::VcdCount() :
   prev_time_(-1),
   prev_value_('\0'),
   high_time_(0),
-  transition_count_(0),
-  filter_start_(-1),
-  filter_end_(-1)
+  transition_count_(0)
 {
 }
 
@@ -98,17 +100,15 @@ VcdCount::clippedIntervalStart() const
 }
 
 void
-VcdCount::incrCounts(VcdTime time,
-                     char value,
-                     VcdTime filter_start,
-                     VcdTime filter_end)
+VcdCount::setFilter(VcdTime start, VcdTime end)
 {
-  // Store filters if provided
-  if (filter_start >= 0)
-    filter_start_ = filter_start;
-  if (filter_end >= 0)
-    filter_end_ = filter_end;
-  
+  filter_start_ = start;
+  filter_end_ = end;
+}
+
+void
+VcdCount::incrCounts(VcdTime time, char value)
+{
   // Determine if this time point is within the filter window
   bool in_window = (filter_start_ < 0 || time >= filter_start_) 
                    && (filter_end_ < 0 || time <= filter_end_);
@@ -164,12 +164,6 @@ public:
   VcdTime timeMin() const { return time_min_; }
   const VcdIdCountsMap &countMap() const { return vcd_count_map_; }
   double timeScale() const { return time_scale_; }
-  
-  // Set time window for filtering transitions
-  void setTimeWindow(VcdTime start_time, VcdTime end_time) {
-    filter_start_time_ = start_time;
-    filter_end_time_ = end_time;
-  }
 
   // VcdParse callbacks.
   void setDate(const string &) override {}
@@ -208,8 +202,6 @@ private:
   double time_scale_;
   VcdTime time_min_;
   VcdTime time_max_;
-  VcdTime filter_start_time_;
-  VcdTime filter_end_time_;
   VcdIdCountsMap vcd_count_map_;
 };
 
@@ -223,9 +215,7 @@ VcdCountReader::VcdCountReader(const char *scope,
   debug_(debug),
   time_scale_(1.0),
   time_min_(0),
-  time_max_(0),
-  filter_start_time_(-1),
-  filter_end_time_(-1)
+  time_max_(0)
 {
 }
 
@@ -366,7 +356,7 @@ VcdCountReader::varAppendValue(const string &id,
     }
     for (size_t bit_idx = 0; bit_idx < vcd_counts.size(); bit_idx++) {
       VcdCount &vcd_count = vcd_counts[bit_idx];
-      vcd_count.incrCounts(time, value, filter_start_time_, filter_end_time_);
+      vcd_count.incrCounts(time, value);
     }
   }
 }
@@ -388,7 +378,7 @@ VcdCountReader::varAppendBusValue(const string &id,
       else
         bit_value = '0';
       VcdCount &vcd_count = vcd_counts[bit_idx];
-      vcd_count.incrCounts(time, bit_value, filter_start_time_, filter_end_time_);
+      vcd_count.incrCounts(time, bit_value);
       if (debug_->check("read_vcd", 3)) {
         for (const Pin *pin : vcd_count.pins()) {
           debugPrint(debug_, "read_vcd", 3, "%s time %" PRIu64 " value %c",
@@ -463,8 +453,8 @@ ReadVcdActivities::readActivities()
   if (clks->empty())
     report_->error(820, "No clocks have been defined.");
 
-  // Set the time window filter in the reader
-  vcd_reader_.setTimeWindow(start_time_, end_time_);
+  // Set the time window filter once globally
+  VcdCount::setFilter(start_time_, end_time_);
   vcd_parse_.read(filename_, &vcd_reader_, start_time_, end_time_);
 
   if (vcd_reader_.timeMax() > 0)
