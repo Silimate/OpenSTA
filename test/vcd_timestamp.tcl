@@ -6,8 +6,7 @@ proc report_activities { } {
   puts "--------------------------------------------------------"
   foreach pin $pins {
     set prop [get_property $pin activity]
-    set transitions_per_sec [lindex $prop 0]
-    set duty [lindex $prop 1]
+    lassign $prop transitions_per_sec duty
     set activity [expr double($transitions_per_sec) / [expr $clk_freq * 2]]
     puts "[get_full_name $pin] $activity $duty"
   }
