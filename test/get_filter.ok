@@ -98,18 +98,18 @@ in2
 [get_ports -filter "direction==output" *]
 out
 [get_nets -filter "(name=~*q" *]
-Error: get_filter.tcl line 56, unsupported net -filter expression: Error: unmatched ( in expression.
+Error: unmatched ( in expression
 [get_nets -filter "name=~*q)))" *]
-Error: get_filter.tcl line 57, unsupported net -filter expression: Error: extraneous ) in expression.
+Error: extraneous ) in expression
 [get_nets -filter "" *]
-Error: get_filter.tcl line 58, unsupported net -filter expression: Error: filter expression is empty.
+Error: filter expression is empty
 [get_nets -filter "name=~*q name=~*v" *]
-Error: get_filter.tcl line 59, unsupported net -filter expression: Error: filter expression evaluated to multiple sets.
+Error: filter expression evaluated to multiple sets
 [get_nets -filter "name=~*q+name=~*v" *]
-Error: get_filter.tcl line 60, unsupported net -filter expression: Error: unexpected character starting at: '+name=~*v'.
+Error: unexpected character starting at: '+name=~*v'
 [get_nets -filter "&&" *]
-Error: get_filter.tcl line 61, unsupported net -filter expression: Error: attempted to run a logical and on less than two predicates.
+Error: attempted to run a logical and on less than two predicates
 [get_nets -filter "name=~*q ||" *]
-Error: get_filter.tcl line 62, unsupported net -filter expression: Error: attempted to run a logical or on less than two predicates.
+Error: attempted to run a logical or on less than two predicates
 [get_nets -filter "!&&" *]
-Error: get_filter.tcl line 63, unsupported net -filter expression: Error: attempted to run an inversion on no predicates.
+Error: attempted to run an inversion on no predicates

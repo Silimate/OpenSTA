@@ -2,11 +2,11 @@ read_liberty ../examples/sky130hd_tt.lib.gz
 read_liberty gf180mcu_sram.lib.gz
 
 proc test_property {property} {
-    puts "== $property =="
+    puts "-- $property --"
     set property_is_inverted [string match "!*" $property]
     set objects [get_lib_cell -filter $property]
     set object_names []
-    foreach object $objects {
+    foreach_in_collection object $objects {
         if { [$object [string map {! ""} $property]] == "$property_is_inverted" } {
             puts "$property method and $property property returning different values"
         }
@@ -15,7 +15,7 @@ proc test_property {property} {
     foreach name [lsort $object_names] {
         puts "$name"
     }
-    puts "===="
+    puts "----"
 }
 
 set_dont_use sky130_fd_sc_hd__sdf*
