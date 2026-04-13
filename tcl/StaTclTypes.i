@@ -325,6 +325,7 @@ using namespace sta;
 // SWIG type definitions.
 //
 ////////////////////////////////////////////////////////////////
+%include "tcl/Collections.i"
 
 // String that is deleted after crossing over to tcland.
 %typemap(out) string {
@@ -1438,8 +1439,6 @@ COLLECTION_HELPERS(ClockSeq, Clock *, ClockSeqIterator);
     return TCL_ERROR;
   }
 }
-
-%include "tcl/Collections.i"
 
 %typemap(in) ArcDcalcArg {
   Tcl_Obj *const source = $input;
