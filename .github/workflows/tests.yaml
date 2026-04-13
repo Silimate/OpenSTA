@@ -41,7 +41,7 @@ jobs:
           make -j`sysctl -n hw.ncpu`
       - run: |
           echo "=== TCL Object Representation Debug ==="
-          ./build/app/sta -no_splash -exit <<'EOF'
+          build/app/sta -no_splash -exit <<'EOF'
           read_liberty test/asap7_invbuf.lib.gz
           read_verilog test/vcd_timestamp.v  
           link_design top
