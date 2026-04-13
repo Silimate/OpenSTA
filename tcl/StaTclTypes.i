@@ -1408,13 +1408,11 @@ COLLECTION_HELPERS(ClockSeq, Clock *, ClockSeqIterator);
     const char *str;
 
     str = stringPrintTmp("%.5e", activity.density());
-    double density = atof(str);
-    obj = Tcl_NewDoubleObj(density);
+    obj = Tcl_NewStringObj(str, strlen(str));
     Tcl_ListObjAppendElement(interp, list, obj);
 
     str = stringPrintTmp("%.3f", activity.duty());
-    double duty = atof(str);
-    obj = Tcl_NewDoubleObj(duty);
+    obj = Tcl_NewStringObj(str, strlen(str));
     Tcl_ListObjAppendElement(interp, list, obj);
 
     str = activity.originName();
