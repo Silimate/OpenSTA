@@ -40,11 +40,6 @@ jobs:
           cd build
           make -j`sysctl -n hw.ncpu`
       - run: |
-          echo "=== SWIG Version ==="
-          swig -version
-          echo "=== Generated Wrapper Check ==="
-          grep -A20 "type_pwr_activity" build/CMakeFiles/sta_swig.dir/StaAppTCL_wrap.cxx | head -25
-      - run: |
           cd test
           ./regression || (cat results/diffs && exit 1)
           ./regression -collections || (cat results/diffs && exit 1)
