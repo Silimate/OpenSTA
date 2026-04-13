@@ -4,7 +4,7 @@ proc report_activities { } {
   set clk_freq [expr 1.0 / (10 * 1e-12)]
   puts "Pin Name Activity Duty Cycle"
   puts "--------------------------------------------------------"
-  foreach pin $pins {
+  foreach_in_collection pin $pins {
     set prop [get_property $pin activity]
     set transitions_per_sec [lindex $prop 0]
     set duty [lindex $prop 1]
