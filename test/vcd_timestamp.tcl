@@ -6,10 +6,13 @@ proc report_activities { } {
   puts "--------------------------------------------------------"
   foreach pin $pins {
     set prop [get_property $pin activity]
-    set transitions_per_sec [lindex $prop 0]
-    set duty [lindex $prop 1]
-    if {[scan $transitions_per_sec "%g" trans_num] == 1 && [scan $duty "%g" duty_num] == 1} {
-      set activity [expr double($trans_num) / [expr $clk_freq * 2]]
+    # Split string into proper list if needed
+    set prop_list [split $prop]
+    set trans_str [lindex $prop_list 0]
+    set duty_str [lindex $prop_list 1]
+    # Extract numeric values
+    if {[scan $trans_str "%g" trans_num] == 1 && [scan $duty_str "%g" duty_num] == 1} {
+      set activity [expr {double($trans_num) / ($clk_freq * 2.0)}]
       puts "[get_full_name $pin] $activity $duty_num"
     }
   }
