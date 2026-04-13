@@ -20,7 +20,7 @@ jobs:
           docker run --entrypoint /bin/bash --tty --rm sta-${{ matrix.os }} -c "cd /OpenSTA/test && (./regression || (cat results/diffs && exit 1)) || (./regression -collections || (cat results/diffs && exit 1))"
 
   macos:
-    runs-on: [macos-14]
+    runs-on: [macos-15]
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
