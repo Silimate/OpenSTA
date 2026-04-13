@@ -26,8 +26,8 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
+      - run: grep -A20 "type_pwr_activity" build/CMakeFiles/sta_swig.dir/StaAppTCL_wrap.cxx | head -25
       - run: brew bundle
-      - run: rm -rf build
       - run: |
           eval "$(/opt/homebrew/bin/brew shellenv)"
           export PATH="$(brew --prefix flex)/bin:$PATH"
