@@ -40,10 +40,6 @@ jobs:
           cd build
           make -j`sysctl -n hw.ncpu`
       - run: |
-          cd test
-          ./regression || (cat results/diffs && exit 1)
-          ./regression -collections || (cat results/diffs && exit 1)
-      - run: |
           echo "=== TCL Object Representation Debug ==="
           ./build/app/sta -no_splash -exit <<'EOF'
           read_liberty test/asap7_invbuf.lib.gz
@@ -58,3 +54,7 @@ jobs:
           puts "llength: [llength $prop]"
           puts "lindex 0: [lindex $prop 0]"
           EOF
+      - run: |
+          cd test
+          ./regression || (cat results/diffs && exit 1)
+          ./regression -collections || (cat results/diffs && exit 1)
