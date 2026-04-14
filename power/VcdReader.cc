@@ -55,7 +55,8 @@ public:
   VcdCount();
   double transitionCount() const { return transition_count_; }
   VcdTime highTime(VcdTime time_max) const;
-  void incrCounts(VcdTime time, char value);
+  void incrCounts(VcdTime time,
+                  char value);
   void addPin(const Pin *pin);
   const PinSeq &pins() const { return pins_; }
 
