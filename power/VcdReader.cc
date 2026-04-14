@@ -107,7 +107,8 @@ VcdCount::setFilter(VcdTime start, VcdTime end)
 }
 
 void
-VcdCount::incrCounts(VcdTime time, char value)
+VcdCount::incrCounts(VcdTime time,
+                     char value)
 {
   // Determine if this time point is within the filter window
   bool in_window = (filter_start_ < 0 || time >= filter_start_) 
