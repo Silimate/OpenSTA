@@ -95,8 +95,11 @@ VcdTime
 VcdCount::clippedIntervalStart() const
 {
   // Clip prev_time_ to filter_start if signal went high before the filter window
-  return (filter_start_ >= 0 && prev_time_ < filter_start_)
-          ? filter_start_ : prev_time_;
+  VcdTime result = (filter_start_ >= 0 && prev_time_ < filter_start_)
+                   ? filter_start_ : prev_time_;
+  printf("clippedIntervalStart: prev_time_=%lu, filter_start_=%ld, result=%lu\n",
+         prev_time_, filter_start_, result);
+  return result;
 }
 
 void
@@ -110,16 +113,16 @@ void
 VcdCount::incrCounts(VcdTime time, char value)
 {
   // Determine if this time point is within the filter window
-  // NOTE: Does not count transitions right at the window boundaries.
-  bool in_window = (filter_start_ < 0 || time > filter_start_) 
-                   && (filter_end_ < 0 || time < filter_end_);
+  bool in_window = (filter_start_ < 0 || time >= filter_start_) 
+                   && (filter_end_ < 0 || time <= filter_end_);
 
   // Initial value does not contribute to transitions or high time.
   if (prev_time_ != -1 && in_window) {
     if (prev_value_ == '1') {
       VcdTime interval_start = clippedIntervalStart();
-      if (time > interval_start)
+      if (time > interval_start) {
         high_time_ += time - interval_start;
+      }
     }
     if (value != prev_value_)
       transition_count_ += (value == 'X'
@@ -129,22 +132,32 @@ VcdCount::incrCounts(VcdTime time, char value)
         ? .5
         : 1.0;
   }
-  prev_time_ = time;
-  prev_value_ = value;
+  // Update state for transitions before or within the window.
+  // This prevents values after window boundaries corrupting high time.
+  if (filter_end_ < 0 || time <= filter_end_) {
+    prev_time_ = time;
+    prev_value_ = value;
+  }
 }
 
 VcdTime
 VcdCount::highTime(VcdTime time_max) const
 {
+  VcdTime result;
+  printf("highTime called: time_max=%lu, prev_value_=%c, high_time_=%lu\n", 
+    time_max, prev_value_, high_time_);
   if (prev_value_ == '1') {
     VcdTime interval_start = clippedIntervalStart();
     if (time_max > interval_start)
-      return high_time_ + time_max - interval_start;
+      result = high_time_ + time_max - interval_start;
     else
-      return high_time_;
+      result = high_time_;
   }
   else
-    return high_time_;
+    result = high_time_;
+
+  printf("highTime result: %lu\n", result);
+  return result;
 }
 
 ////////////////////////////////////////////////////////////////

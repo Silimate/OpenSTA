@@ -277,8 +277,7 @@ VcdParse::parseVarValues()
   // Set time_max to end_time if specified, otherwise use actual parsed time
   if (end_time_ >= 0) {
     reader_->setTimeMax(end_time_);
-  }
-  else {
+  } else {
     reader_->setTimeMax(time_);
   }
 }

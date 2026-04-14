@@ -23,20 +23,22 @@ link_design top
 create_clock -name vclk -period 10
 
 # Full VCD reading works (normal behavior)
+# VCD changes at time 50 and 100 (inverter)
+sta::clear_power
 read_vcd vcd_timestamp.vcd -scope top
 report_activities
 
-# Read VCD from start to halfway point
+# Read VCD from start to first transition point
 sta::clear_power
 read_vcd vcd_timestamp.vcd -scope top -end_time 50
 report_activities
 
-# Read VCD from halfway point to end
+# Read VCD from first transition point to second transition point
 sta::clear_power
-read_vcd vcd_timestamp.vcd -scope top -start_time 50
+read_vcd vcd_timestamp.vcd -scope top -start_time 50 -end_time 100
 report_activities
 
-# Read VCD around the input change at time 50
+# Read VCD around the first transition point
 sta::clear_power
 read_vcd vcd_timestamp.vcd -scope top -start_time 40 -end_time 60
 report_activities
