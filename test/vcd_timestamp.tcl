@@ -38,6 +38,11 @@ sta::clear_power
 read_vcd vcd_timestamp.vcd -scope top -start_time 50 -end_time 100
 report_activities
 
+# Read VCD from second transition point to end
+sta::clear_power
+read_vcd vcd_timestamp.vcd -scope top -start_time 100
+report_activities
+
 # Read VCD around the first transition point
 sta::clear_power
 read_vcd vcd_timestamp.vcd -scope top -start_time 40 -end_time 60
@@ -49,4 +54,17 @@ report_activities
 
 sta::clear_power
 read_vcd vcd_timestamp.vcd -scope top -start_time 40 -end_time 80
+report_activities
+
+# Read VCD around the second transition point (should mirror the first)
+sta::clear_power
+read_vcd vcd_timestamp.vcd -scope top -start_time 90 -end_time 110
+report_activities
+
+sta::clear_power
+read_vcd vcd_timestamp.vcd -scope top -start_time 70 -end_time 110
+report_activities
+
+sta::clear_power
+read_vcd vcd_timestamp.vcd -scope top -start_time 90 -end_time 130
 report_activities
