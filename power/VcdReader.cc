@@ -95,11 +95,8 @@ VcdTime
 VcdCount::clippedIntervalStart() const
 {
   // Clip prev_time_ to filter_start if signal went high before the filter window
-  VcdTime result = (filter_start_ >= 0 && prev_time_ < filter_start_)
-                   ? filter_start_ : prev_time_;
-  printf("clippedIntervalStart: prev_time_=%lu, filter_start_=%ld, result=%lu\n",
-         prev_time_, filter_start_, result);
-  return result;
+  return (filter_start_ >= 0 && prev_time_ < filter_start_)
+          ? filter_start_ : prev_time_;
 }
 
 void
@@ -120,9 +117,8 @@ VcdCount::incrCounts(VcdTime time, char value)
   if (prev_time_ != -1 && in_window) {
     if (prev_value_ == '1') {
       VcdTime interval_start = clippedIntervalStart();
-      if (time > interval_start) {
+      if (time > interval_start)
         high_time_ += time - interval_start;
-      }
     }
     if (value != prev_value_)
       transition_count_ += (value == 'X'
@@ -143,21 +139,15 @@ VcdCount::incrCounts(VcdTime time, char value)
 VcdTime
 VcdCount::highTime(VcdTime time_max) const
 {
-  VcdTime result;
-  printf("highTime called: time_max=%lu, prev_value_=%c, high_time_=%lu\n", 
-    time_max, prev_value_, high_time_);
   if (prev_value_ == '1') {
     VcdTime interval_start = clippedIntervalStart();
     if (time_max > interval_start)
-      result = high_time_ + time_max - interval_start;
+      return high_time_ + time_max - interval_start;
     else
-      result = high_time_;
+      return high_time_;
   }
   else
-    result = high_time_;
-
-  printf("highTime result: %lu\n", result);
-  return result;
+    return high_time_;
 }
 
 ////////////////////////////////////////////////////////////////
