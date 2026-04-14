@@ -110,9 +110,10 @@ void
 VcdCount::incrCounts(VcdTime time, char value)
 {
   // Determine if this time point is within the filter window
-  bool in_window = (filter_start_ < 0 || time >= filter_start_) 
-                   && (filter_end_ < 0 || time <= filter_end_);
-    
+  // NOTE: Does not count transitions right at the window boundaries.
+  bool in_window = (filter_start_ < 0 || time > filter_start_) 
+                   && (filter_end_ < 0 || time < filter_end_);
+
   // Initial value does not contribute to transitions or high time.
   if (prev_time_ != -1 && in_window) {
     if (prev_value_ == '1') {

@@ -7,14 +7,14 @@ u_inv/A 0.05 0.500
 Annotated 2 pin activities.
 Pin Name Activity Duty Cycle
 --------------------------------------------------------
-u_inv/Y 0.1 1.000
-u_inv/A 0.1 0.000
+u_inv/Y 0.0 1.000
+u_inv/A 0.0 0.000
 
 Annotated 2 pin activities.
 Pin Name Activity Duty Cycle
 --------------------------------------------------------
-u_inv/Y 0.1 0.000
-u_inv/A 0.1 1.000
+u_inv/Y 0.0 0.000
+u_inv/A 0.0 1.000
 
 Annotated 2 pin activities.
 Pin Name Activity Duty Cycle
