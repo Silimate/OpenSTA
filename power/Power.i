@@ -24,6 +24,8 @@
 
 %module power
 
+%include "stdint.i"
+
 %{
 #include "Sta.hh"
 #include "Sdc.hh"
@@ -174,11 +176,13 @@ highest_power_instances(size_t count,
 
 void
 read_vcd_file(const char *filename,
-              const char *scope)
+              const char *scope,
+              int64_t start_time,
+              int64_t end_time)
 {
   Sta *sta = Sta::sta();
   sta->ensureLibLinked();
-  readVcdActivities(filename, scope, sta);
+  readVcdActivities(filename, scope, start_time, end_time, sta);
 }
 
 ////////////////////////////////////////////////////////////////

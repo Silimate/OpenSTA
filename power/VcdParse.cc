@@ -46,8 +46,13 @@ using std::isspace;
 
 void
 VcdParse::read(const char *filename,
-               VcdReader *reader)
+               VcdReader *reader,
+               int64_t start_time,
+               int64_t end_time)
 {
+  start_time_ = start_time;
+  end_time_ = end_time;
+  
   stream_ = gzopen(filename, "r");
   if (stream_) {
     Stats stats(debug_, report_);
@@ -55,6 +60,11 @@ VcdParse::read(const char *filename,
     reader_ = reader;
     file_line_ = 0;
     stmt_line_ = 0;
+
+    // If user specified a start time, set it now.
+    if (start_time != -1) {
+      reader_->setTimeMin(start_time);
+    }
     std::string token = getToken();
     while (!token.empty()) {
       if (token == "$date")
@@ -93,7 +103,10 @@ VcdParse::read(const char *filename,
           report_->fileError(806, filename_, file_line_, "time out of range %s",
                              token.substr(1).c_str());
         }
-	reader_->setTimeMin(time_);
+        // Set time min to start time if it is not set at beginning
+        if (start_time == -1) {
+          reader_->setTimeMin(time_);
+        }
         prev_time_ = time_;
       }
       else if (token[0] == '$')
@@ -117,6 +130,8 @@ VcdParse::VcdParse(Report *report,
   stmt_line_(0),
   time_(0),
   prev_time_(0),
+  start_time_(-1),
+  end_time_(-1),
   report_(report),
   debug_(debug)
 {
@@ -258,7 +273,13 @@ VcdParse::parseVarValues()
     }
     token = getToken();
   }
-  reader_->setTimeMax(time_);
+  
+  // Set time_max to end_time if specified, otherwise use actual parsed time
+  if (end_time_ >= 0) {
+    reader_->setTimeMax(end_time_);
+  } else {
+    reader_->setTimeMax(time_);
+  }
 }
 
 string
