@@ -5366,7 +5366,7 @@ InstanceSeq Sta::clockGatedRegisters() {
     // If no output pin, skip (shouldn't happen)
     if (from.empty()) continue;
 
-    // Find all pins that are a derivative of the ICG outut pin
+    // Find all pins that are a derivative of the ICG output pin
     PinSet fanout = findFanoutPins(
         &from, true, false, 0, 0, false, false);
     for (const Pin* p : fanout) {
@@ -5394,8 +5394,9 @@ InstanceSeq Sta::clockGatedRegisters() {
 
       // Search if the pin is a derivative of an ICG output pin
       auto it = pin_to_icg.find(clk_pin);
-      if (it == pin_to_icg.end()) continue;;
+      if (it == pin_to_icg.end()) continue;
       result.push_back(reg);
+      break; // avoid duplicates
     }
   }
   return result;
