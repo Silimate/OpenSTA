@@ -24,6 +24,9 @@
 
 #include "Sta.hh"
 
+#include <memory>
+#include <unordered_map>
+
 #include "Machine.hh"
 #include "DispatchQueue.hh"
 #include "ReportTcl.hh"
@@ -5332,6 +5335,70 @@ pinInstances(PinSet &pins,
   for (const Pin *pin : pins)
     insts.insert(network->instance(pin));
   return insts;
+}
+
+InstanceSeq Sta::clockGatedRegisters() {
+  Network* network = this->network();
+  InstanceSeq result;
+
+  // Map of pins that are a derivative of icg instances
+  std::unordered_map<const Pin*, Instance*> pin_to_icg;
+  std::unique_ptr<LeafInstanceIterator> insts(
+      network->leafInstanceIterator());
+
+  // Iterate over all leaf instances
+  while (insts->hasNext()) {
+    Instance* icg = insts->next();
+
+    // Skip any non-ICG cells
+    LibertyCell* lc = network->libertyCell(network->cell(icg));
+    if (!lc || !lc->isClockGate()) continue;
+
+    // Get clock gate output pin
+    PinSeq from;
+    std::unique_ptr<InstancePinIterator> pit(network->pinIterator(icg));
+    while (pit->hasNext()) {
+      Pin* p = pit->next();
+      LibertyPort* lp = network->libertyPort(p);
+      if (lp && lp->isClockGateOut()) from.push_back(p);
+    }
+
+    // If no output pin, skip (shouldn't happen)
+    if (from.empty()) continue;
+
+    // Find all pins that are a derivative of the ICG outut pin
+    PinSet fanout = findFanoutPins(
+        &from, true, false, 0, 0, false, false);
+    for (const Pin* p : fanout) {
+      if (network->isRegClkPin(p)) { // filter for register clock pins only
+        pin_to_icg.emplace(p, icg);
+      }
+    }
+  }
+
+  // Reverse lookup from registers to determine if they are gated by an ICG
+  std::unique_ptr<LeafInstanceIterator> rit(
+      network->leafInstanceIterator());
+  while (rit->hasNext()) {
+
+    // Skip any non-registers
+    Instance* reg = rit->next();
+    LibertyCell* lc = network->libertyCell(network->cell(reg));
+    if (!lc || !lc->hasSequentials()) continue;
+    std::unique_ptr<InstancePinIterator> pit(network->pinIterator(reg));
+
+    // Iterate over all pins
+    while (pit->hasNext()) {
+      Pin* clk_pin = pit->next();
+      if (!network->isRegClkPin(clk_pin)) continue;
+
+      // Search if the pin is a derivative of an ICG output pin
+      auto it = pin_to_icg.find(clk_pin);
+      if (it == pin_to_icg.end()) continue;;
+      result.push_back(reg);
+    }
+  }
+  return result;
 }
 
 bool
