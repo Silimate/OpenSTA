@@ -5368,7 +5368,7 @@ InstanceSeq Sta::clockGatedRegisters() {
 
     // Find all pins that are a derivative of the ICG output pin
     PinSet fanout = findFanoutPins(
-        &from, true, false, 0, 0, false, false);
+        &from, true, true, 0, 0, false, false);
     for (const Pin* p : fanout) {
       if (network->isRegClkPin(p)) { // filter for register clock pins only
         pin_to_icg.emplace(p, icg);
