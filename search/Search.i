@@ -991,6 +991,12 @@ find_fanout_insts(PinSeq *from,
   return fanout;
 }
 
+InstanceSeq
+clock_gated_registers()
+{
+  return Sta::sta()->clockGatedRegisters();
+}
+
 ////////////////////////////////////////////////////////////////
 //
 // Variables

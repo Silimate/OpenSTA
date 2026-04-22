@@ -605,6 +605,9 @@ public:
 		      bool thru_disabled,
 		      bool thru_constants);
 
+  // Registers whose clock pin is in the fanout of an ICG cell
+  InstanceSeq clockGatedRegisters();
+
   // The set of clocks that arrive at vertex in the clock network.
   ClockSet clocks(const Pin *pin);
   // Clock domains for a pin.
