@@ -213,6 +213,7 @@ Sdc::clear()
 
   disabled_clk_gating_checks_inst_.clear();
   disabled_clk_gating_checks_pin_.clear();
+  disabled_clk_gating_checks_lib_cell_.clear();
 
   input_drive_map_.clear();
   logic_value_map_.clear();
@@ -3861,6 +3862,12 @@ Sdc::disableClockGatingCheck(Pin *pin)
 }
 
 void
+Sdc::disableClockGatingCheck(LibertyCell *cell)
+{
+  disabled_clk_gating_checks_lib_cell_.insert(cell);
+}
+
+void
 Sdc::removeDisableClockGatingCheck(Instance *inst)
 {
   disabled_clk_gating_checks_inst_.erase(inst);
@@ -3872,16 +3879,31 @@ Sdc::removeDisableClockGatingCheck(Pin *pin)
   disabled_clk_gating_checks_pin_.erase(pin);
 }
 
+void
+Sdc::removeDisableClockGatingCheck(LibertyCell *cell)
+{
+  disabled_clk_gating_checks_lib_cell_.erase(cell);
+}
+
 bool
 Sdc::isDisableClockGatingCheck(const Instance *inst)
 {
-  return disabled_clk_gating_checks_inst_.hasKey(inst);
+  if (disabled_clk_gating_checks_inst_.hasKey(inst))
+    return true;
+  LibertyCell *cell = network_->libertyCell(inst);
+  return cell && disabled_clk_gating_checks_lib_cell_.hasKey(cell);
 }
 
 bool
 Sdc::isDisableClockGatingCheck(const Pin *pin)
 {
   return disabled_clk_gating_checks_pin_.hasKey(pin);
+}
+
+bool
+Sdc::isDisableClockGatingCheck(const LibertyCell *cell)
+{
+  return disabled_clk_gating_checks_lib_cell_.hasKey(const_cast<LibertyCell *>(cell));
 }
 
 ////////////////////////////////////////////////////////////////
