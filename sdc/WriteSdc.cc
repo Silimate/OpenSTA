@@ -996,6 +996,7 @@ WriteSdc::writeDisables() const
   writeDisabledInstances();
   writeDisabledPins();
   writeDisabledEdges();
+  writeDisabledClockGatingChecks();
 }
 
 void
@@ -1124,6 +1125,47 @@ WriteSdc::writeDisabledPins() const
     gzprintf(stream_, "set_disable_timing ");
     writeGetPin(pin, false);
     gzprintf(stream_, "\n");
+  }
+}
+
+void
+WriteSdc::writeDisabledClockGatingChecks() const
+{
+  const LibertyCellSet *lib_cells = sdc_->disabledClockGatingChecksLibCell();
+  if (!lib_cells->empty()) {
+    LibertyCellSeq sorted;
+    for (LibertyCell *cell : *lib_cells)
+      sorted.push_back(cell);
+    std::sort(sorted.begin(), sorted.end(),
+              [] (const LibertyCell *a, const LibertyCell *b) {
+                return strcmp(a->name(), b->name()) < 0;
+              });
+    for (const LibertyCell *cell : sorted) {
+      gzprintf(stream_, "set_disable_clock_gating_check ");
+      writeGetLibCell(cell);
+      gzprintf(stream_, "\n");
+    }
+  }
+  const InstanceSet *insts = sdc_->disabledClockGatingChecksInst();
+  if (!insts->empty()) {
+    InstanceSeq sorted_insts;
+    for (const Instance *inst : *insts)
+      sorted_insts.push_back(inst);
+    sort(sorted_insts, InstancePathNameLess(sdc_network_));
+    for (const Instance *inst : sorted_insts) {
+      gzprintf(stream_, "set_disable_clock_gating_check ");
+      writeGetInstance(inst);
+      gzprintf(stream_, "\n");
+    }
+  }
+  const PinSet *pins_set = sdc_->disabledClockGatingChecksPin();
+  if (!pins_set->empty()) {
+    PinSeq sorted_pins = sortByPathName(pins_set, sdc_network_);
+    for (const Pin *pin : sorted_pins) {
+      gzprintf(stream_, "set_disable_clock_gating_check ");
+      writeGetPin(pin, false);
+      gzprintf(stream_, "\n");
+    }
   }
 }
 
