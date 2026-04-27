@@ -973,9 +973,8 @@ Search::isClkGateInstance(Vertex *vertex)
 void
 Search::updateClkGates(Vertex *vertex)
 {
-  // Clear existing clock gates for recomputation.
-  VertexId vid = graph_->id(vertex);
-  if (vid >= clk_gated_.size())
+  VertexId id = graph_->id(vertex);
+  if (id >= clk_gated_.size())
     return;
 
   // Return if the cell is a clock gate based on liberty cell attributes.
@@ -983,8 +982,6 @@ Search::updateClkGates(Vertex *vertex)
 
   // If the cell is not a clock gate, check if any of the predecessors are clock gates.
   if (!gated) {
-    bool any_pred = false;
-    bool all_gated = true;
 
     // All paths through the vertex must pass through at least one clock gate.
     VertexInEdgeIterator edge_iter(vertex, graph_);
@@ -992,17 +989,21 @@ Search::updateClkGates(Vertex *vertex)
 
       // Loop through all clock-tagged predecessors.
       Vertex *from = edge_iter.next()->from(graph_);
-      if (from == nullptr || !isClock(from))
+      if (from == nullptr || !isClock(from)) {
+        debugPrint(debug_, "search", 1, "from edge %s is not a clock",
+          network_->pathName(from->pin()));
         continue;
-      any_pred = true;
-      if (!clk_gated_[graph_->id(from)]) {
-        all_gated = false;
+      }
+
+      // If one predecessor is gated, the vertex is gated.
+      if (clk_gated_[graph_->id(from)]) {
+        gated = true;
         break;
       }
     }
-    gated = any_pred && all_gated;
   }
-  clk_gated_[vid] = gated ? 1 : 0;
+  // Update the node gated state
+  clk_gated_[id] = gated;
 }
 
 void
