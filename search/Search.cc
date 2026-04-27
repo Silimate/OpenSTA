@@ -815,7 +815,7 @@ Search::arrivalsInvalid()
     requireds_exist_ = false;
     requireds_seeded_ = false;
     clk_arrivals_valid_ = false;
-    clock_gates_.clear();
+    clk_gated_.clear();
     arrival_iter_->clear();
     required_iter_->clear();
     // No need to keep track of incremental updates any more.
@@ -943,7 +943,7 @@ Search::findClkArrivals()
     Stats stats(debug_, report_);
     debugPrint(debug_, "search", 1, "find clk arrivals");
     arrival_iter_->clear();
-    clock_gates_.assign(graph_->vertexCount() + 1, InstanceSet(network_));
+    clk_gated_.assign(graph_->vertexCount() + 1, 0);
     seedClkVertexArrivals();
     ClkArrivalSearchPred search_clk(this);
     arrival_visitor_->init(false, &search_clk);
@@ -955,13 +955,11 @@ Search::findClkArrivals()
   clk_arrivals_valid_ = true;
 }
 
-const InstanceSet *
-Search::clkGatesAt(const Vertex *vertex) const
+bool
+Search::isClkGated(const Vertex *vertex) const
 {
   VertexId idx = graph_->id(vertex);
-  if (idx >= clock_gates_.size())
-    return nullptr;
-  return &clock_gates_[idx];
+  return idx < clk_gated_.size() && clk_gated_[idx] != 0;
 }
 
 bool
@@ -972,48 +970,39 @@ Search::isClkGateInstance(Vertex *vertex)
   return cell != nullptr && cell->isClockGate();
 }
 
-static void
-intersect(InstanceSet &clk_gates, const InstanceSet &from_clk_gates)
-{
-  // In-place intersection of clk_gates and from_clk_gates that results in clk_gates.
-  for (auto it = clk_gates.begin(); it != clk_gates.end(); )
-    it = from_clk_gates.count(*it) ? std::next(it) : clk_gates.erase(it);
-}
-
 void
 Search::updateClkGates(Vertex *vertex)
 {
   // Clear existing clock gates for recomputation.
   VertexId vid = graph_->id(vertex);
-  if (vid >= clock_gates_.size())
+  if (vid >= clk_gated_.size())
     return;
-  InstanceSet &clk_gates = clock_gates_[vid];
-  clk_gates.clear();
 
-  // Loop through all clock-tagged predecessors.
-  bool first = true;
-  VertexInEdgeIterator edge_iter(vertex, graph_);
-  while (edge_iter.hasNext()) {
-    Vertex *from = edge_iter.next()->from(graph_);
-    if (from == nullptr || !isClock(from))
-      continue;
+  // Return if the cell is a clock gate based on liberty cell attributes.
+  bool gated = isClkGateInstance(vertex);
 
-    // Get all clock gates from the predecessor.
-    const InstanceSet &from_clk_gates = clock_gates_[graph_->id(from)];
-    if (first) { // covers the first predecessor
-      clk_gates = from_clk_gates;
-      first = false;
-    } else {
-      // Intersect current clock gates with predecessor clock gates.
-      intersect(clk_gates, from_clk_gates);
-      if (clk_gates.empty()) // no common gates, no need to continue
+  // If the cell is not a clock gate, check if any of the predecessors are clock gates.
+  if (!gated) {
+    bool any_pred = false;
+    bool all_gated = true;
+
+    // All paths through the vertex must pass through at least one clock gate.
+    VertexInEdgeIterator edge_iter(vertex, graph_);
+    while (edge_iter.hasNext()) {
+
+      // Loop through all clock-tagged predecessors.
+      Vertex *from = edge_iter.next()->from(graph_);
+      if (from == nullptr || !isClock(from))
+        continue;
+      any_pred = true;
+      if (!clk_gated_[graph_->id(from)]) {
+        all_gated = false;
         break;
+      }
     }
+    gated = any_pred && all_gated;
   }
-
-  // If the vertex itself is a clock gate, add it to the set.
-  if (isClkGateInstance(vertex))
-    clk_gates.insert(network_->instance(vertex->pin()));
+  clk_gated_[vid] = gated ? 1 : 0;
 }
 
 void
@@ -1211,8 +1200,8 @@ Search::findArrivalsSeed()
     arrival_iter_->ensureSize();
     required_iter_->ensureSize();
   }
-  if (clock_gates_.size() < graph_->vertexCount() + 1)
-    clock_gates_.assign(graph_->vertexCount() + 1, InstanceSet(network_));
+  if (clk_gated_.size() < graph_->vertexCount() + 1)
+    clk_gated_.assign(graph_->vertexCount() + 1, 0);
   seedInvalidArrivals();
 }
 

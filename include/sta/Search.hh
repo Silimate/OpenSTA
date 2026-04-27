@@ -227,7 +227,7 @@ public:
 
   // Find arrivals for the clock tree.
   void findClkArrivals();
-  const InstanceSet *clkGatesAt(const Vertex *vertex) const;
+  bool isClkGated(const Vertex *vertex) const;
   void updateClkGates(Vertex *vertex);
   void seedArrival(Vertex *vertex);
   EvalPred *evalPred() const { return eval_pred_; }
@@ -612,8 +612,9 @@ protected:
   ArrivalVisitor *arrival_visitor_;
   // Clock arrivals are known.
   bool clk_arrivals_valid_;
-  // Per-vertex set of clock-gating cells
-  std::vector<InstanceSet> clock_gates_;
+  // Per-vertex cache of whether the vertex is clock gated.
+  // Give each element its own distinct memory locations.
+  std::vector<char> clk_gated_;
   // Some arrivals exist.
   bool arrivals_exist_;
   // Arrivals at end points exist (but may be invalid).

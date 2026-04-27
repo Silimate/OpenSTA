@@ -5375,9 +5375,7 @@ Sta::isClkGatedRegister(const Instance *inst)
     if (vertex == nullptr)
       continue;
 
-    // If the vertex has a clock gate, the register is gated
-    const InstanceSet *gates = search_->clkGatesAt(vertex);
-    if (gates != nullptr && !gates->empty())
+    if (search_->isClkGated(vertex))
       return true;
   }
   return false;
