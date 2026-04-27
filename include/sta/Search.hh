@@ -613,7 +613,6 @@ protected:
   // Clock arrivals are known.
   bool clk_arrivals_valid_;
   // Per-vertex cache of whether the vertex is clock gated.
-  // Give each element its own distinct memory locations.
   std::vector<char> clk_gated_;
   // Some arrivals exist.
   bool arrivals_exist_;
