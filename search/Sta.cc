@@ -5341,7 +5341,6 @@ pinInstances(PinSet &pins,
 InstanceSeq
 Sta::clockGatedRegisters()
 {
-  ensureClkArrivals();
   InstanceSeq result;
 
   // Find all leaf registers
@@ -5364,7 +5363,6 @@ Sta::clockGatedRegisters()
 bool
 Sta::isClkGatedRegister(const Instance *inst)
 {
-  ensureClkArrivals();
   std::unique_ptr<InstancePinIterator>
       pins(network_->pinIterator(inst));
   while (pins->hasNext()) {
