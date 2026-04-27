@@ -65,6 +65,7 @@
 #include "PathAnalysisPt.hh"
 #include "Corner.hh"
 #include "Search.hh"
+#include "GatedClk.hh"
 #include "Latches.hh"
 #include "PathGroup.hh"
 #include "CheckTiming.hh"
@@ -5337,70 +5338,73 @@ pinInstances(PinSet &pins,
   return insts;
 }
 
-InstanceSeq Sta::clockGatedRegisters() {
-  Network* network = this->network();
-  InstanceSeq result;
+// For each register, walk back along its clock arrival path(s) and check
+// every cell on the way for clock gating.  This mirrors what
+// `report_path` does internally to print the target clock path
+// (VertexPathIterator + Path::prevPath), and uses the same two
+// predicates the path-end machinery uses to recognize gating:
+//   1. LibertyCell::isClockGate()              -- explicit ICG cells
+//   2. GatedClk::gatedClkEnables()             -- inferred clk*en gates
+// Scan muxes do not pattern-match (2) and are not classified as gates.
+// set_case_analysis / set_disable_timing are honored because the
+// arrival paths returned by VertexPathIterator are the same paths
+// findClkArrivals built (which already pruned inactive legs).
+InstanceSeq
+Sta::clockGatedRegisters()
+{
+  ensureGraph();
+  ensureLevelized();
+  search_->findClkArrivals();
 
-  // Map of pins that are a derivative of icg instances
-  std::unordered_map<const Pin*, Instance*> pin_to_icg;
-  std::unique_ptr<LeafInstanceIterator> insts(
-      network->leafInstanceIterator());
+  GatedClk *gated_clk = search_->gatedClk();
+  std::set<const Instance *> result;
 
-  // Iterate over all leaf instances
+  std::unique_ptr<LeafInstanceIterator> insts(network_->leafInstanceIterator());
   while (insts->hasNext()) {
-    Instance* icg = insts->next();
+    Instance *reg = insts->next();
+    LibertyCell *lc = network_->libertyCell(reg);
+    if (!lc || !lc->hasSequentials() || lc->isClockGate())
+      continue;
 
-    // Skip any non-ICG cells
-    LibertyCell* lc = network->libertyCell(network->cell(icg));
-    if (!lc || !lc->isClockGate()) continue;
+    bool found = false;
+    std::unique_ptr<InstancePinIterator> pins(network_->pinIterator(reg));
+    while (pins->hasNext() && !found) {
+      Pin *ck = pins->next();
+      if (!network_->isRegClkPin(ck)) continue;
+      Vertex *v = graph_->pinLoadVertex(ck);
+      if (!v) continue;
 
-    // Get clock gate output pin
-    PinSeq from;
-    std::unique_ptr<InstancePinIterator> pit(network->pinIterator(icg));
-    while (pit->hasNext()) {
-      Pin* p = pit->next();
-      LibertyPort* lp = network->libertyPort(p);
-      if (lp && lp->isClockGateOut()) from.push_back(p);
-    }
-
-    // If no output pin, skip (shouldn't happen)
-    if (from.empty()) continue;
-
-    // Find all pins that are a derivative of the ICG output pin
-    PinSet fanout = findFanoutPins(
-        &from, true, true, 0, 0, false, false);
-    for (const Pin* p : fanout) {
-      if (network->isRegClkPin(p)) { // filter for register clock pins only
-        pin_to_icg.emplace(p, icg);
+      VertexPathIterator path_iter(v, this);
+      while (path_iter.hasNext() && !found) {
+        Path *path = path_iter.next();
+        if (!path->isClock(this)) continue;
+        for (Path *p = path; p && !found; p = p->prevPath()) {
+          Vertex *pv = p->vertex(this);
+          if (!pv) continue;
+          const Instance *inst = network_->instance(pv->pin());
+          LibertyCell *clc = network_->libertyCell(inst);
+          if (clc && clc->isClockGate()) {
+            found = true;
+            break;
+          }
+          PinSet enables(network_);
+          gated_clk->gatedClkEnables(pv, enables);
+          if (!enables.empty()) {
+            found = true;
+            break;
+          }
+        }
       }
     }
+    if (found) result.insert(reg);
   }
 
-  // Reverse lookup from registers to determine if they are gated by an ICG
-  std::unique_ptr<LeafInstanceIterator> rit(
-      network->leafInstanceIterator());
-  while (rit->hasNext()) {
-
-    // Skip any non-registers
-    Instance* reg = rit->next();
-    LibertyCell* lc = network->libertyCell(network->cell(reg));
-    if (!lc || !lc->hasSequentials()) continue;
-    std::unique_ptr<InstancePinIterator> pit(network->pinIterator(reg));
-
-    // Iterate over all pins
-    while (pit->hasNext()) {
-      Pin* clk_pin = pit->next();
-      if (!network->isRegClkPin(clk_pin)) continue;
-
-      // Search if the pin is a derivative of an ICG output pin
-      auto it = pin_to_icg.find(clk_pin);
-      if (it == pin_to_icg.end()) continue;
-      result.push_back(reg);
-      break; // avoid duplicates
-    }
-  }
-  return result;
+  InstanceSeq out;
+  out.reserve(result.size());
+  for (auto i : result) out.push_back(const_cast<Instance *>(i));
+  return out;
 }
+
 
 bool
 Sta::crossesHierarchy(Edge *edge) const
