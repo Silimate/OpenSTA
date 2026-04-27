@@ -26,6 +26,7 @@
 
 #include <mutex>
 #include <atomic>
+#include <vector>
 
 #include "MinMax.hh"
 #include "UnorderedSet.hh"
@@ -226,6 +227,8 @@ public:
 
   // Find arrivals for the clock tree.
   void findClkArrivals();
+  const InstanceSet *clkGatesAt(const Vertex *vertex) const;
+  void updateClkGates(Vertex *vertex);
   void seedArrival(Vertex *vertex);
   EvalPred *evalPred() const { return eval_pred_; }
   SearchPred *searchAdj() const { return search_adj_; }
@@ -519,6 +522,7 @@ protected:
   void seedClkVertexArrivals(const Pin *pin,
 			     Vertex *vertex);
   void findClkArrivals1();
+  bool isClkGateInstance(Vertex *vertex);
 
   void findAllArrivals(bool thru_latches);
   void findArrivals1(Level level);
@@ -608,6 +612,8 @@ protected:
   ArrivalVisitor *arrival_visitor_;
   // Clock arrivals are known.
   bool clk_arrivals_valid_;
+  // Per-vertex set of clock-gating cells
+  std::vector<InstanceSet> clock_gates_;
   // Some arrivals exist.
   bool arrivals_exist_;
   // Arrivals at end points exist (but may be invalid).

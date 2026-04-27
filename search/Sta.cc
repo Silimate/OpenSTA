@@ -5338,73 +5338,50 @@ pinInstances(PinSet &pins,
   return insts;
 }
 
-// For each register, walk back along its clock arrival path(s) and check
-// every cell on the way for clock gating.  This mirrors what
-// `report_path` does internally to print the target clock path
-// (VertexPathIterator + Path::prevPath), and uses the same two
-// predicates the path-end machinery uses to recognize gating:
-//   1. LibertyCell::isClockGate()              -- explicit ICG cells
-//   2. GatedClk::gatedClkEnables()             -- inferred clk*en gates
-// Scan muxes do not pattern-match (2) and are not classified as gates.
-// set_case_analysis / set_disable_timing are honored because the
-// arrival paths returned by VertexPathIterator are the same paths
-// findClkArrivals built (which already pruned inactive legs).
 InstanceSeq
 Sta::clockGatedRegisters()
 {
-  ensureGraph();
-  ensureLevelized();
-  search_->findClkArrivals();
+  InstanceSeq result;
 
-  GatedClk *gated_clk = search_->gatedClk();
-  std::set<const Instance *> result;
-
+  // Find all leaf registers
   std::unique_ptr<LeafInstanceIterator> insts(network_->leafInstanceIterator());
   while (insts->hasNext()) {
-    Instance *reg = insts->next();
-    LibertyCell *lc = network_->libertyCell(reg);
-    if (!lc || !lc->hasSequentials() || lc->isClockGate())
+    Instance *inst = insts->next();
+    LibertyCell *cell = network_->libertyCell(inst);
+
+    // Skip if the cell is not a register or a clock gate.
+    if (cell == nullptr || !cell->hasSequentials() || cell->isClockGate())
       continue;
 
-    bool found = false;
-    std::unique_ptr<InstancePinIterator> pins(network_->pinIterator(reg));
-    while (pins->hasNext() && !found) {
-      Pin *ck = pins->next();
-      if (!network_->isRegClkPin(ck)) continue;
-      Vertex *v = graph_->pinLoadVertex(ck);
-      if (!v) continue;
-
-      VertexPathIterator path_iter(v, this);
-      while (path_iter.hasNext() && !found) {
-        Path *path = path_iter.next();
-        if (!path->isClock(this)) continue;
-        for (Path *p = path; p && !found; p = p->prevPath()) {
-          Vertex *pv = p->vertex(this);
-          if (!pv) continue;
-          const Instance *inst = network_->instance(pv->pin());
-          LibertyCell *clc = network_->libertyCell(inst);
-          if (clc && clc->isClockGate()) {
-            found = true;
-            break;
-          }
-          PinSet enables(network_);
-          gated_clk->gatedClkEnables(pv, enables);
-          if (!enables.empty()) {
-            found = true;
-            break;
-          }
-        }
-      }
-    }
-    if (found) result.insert(reg);
+    // Check if the register is clock gated based on previous graph traversal.
+    if (isClkGatedRegister(inst))
+      result.push_back(inst);
   }
-
-  InstanceSeq out;
-  out.reserve(result.size());
-  for (auto i : result) out.push_back(const_cast<Instance *>(i));
-  return out;
+  return result;
 }
 
+bool
+Sta::isClkGatedRegister(const Instance *inst)
+{
+  std::unique_ptr<InstancePinIterator>
+      pins(network_->pinIterator(inst));
+  while (pins->hasNext()) {
+    const Pin *pin = pins->next();
+
+    // Skip if the pin is not a register clock pin.
+    if (pin == nullptr || !network_->isRegClkPin(pin))
+      continue;
+    Vertex *vertex = graph_->pinLoadVertex(pin);
+    if (vertex == nullptr)
+      continue;
+
+    // If the vertex has a clock gate, the register is gated
+    const InstanceSet *gates = search_->clkGatesAt(vertex);
+    if (gates != nullptr && !gates->empty())
+      return true;
+  }
+  return false;
+}
 
 bool
 Sta::crossesHierarchy(Edge *edge) const
