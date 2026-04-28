@@ -463,7 +463,6 @@ public:
   bool isClockGate() const;
   void setClockGateType(ClockGateType type);
   void setHasClkGateClkPin() { has_clk_gate_clk_pin_ = true; }
-  void incrementClkPinCount() { clk_pin_count_++; }
   void setHasClkGateEnablePin() { has_clk_gate_enable_pin_ = true; }
   const char *getDesignType() const;
   const TimingArcSetSeq &timingArcSets() const { return timing_arc_sets_; }
@@ -630,7 +629,6 @@ protected:
   bool interface_timing_;
   ClockGateType clock_gate_type_;
   bool has_clk_gate_clk_pin_;
-  uint8_t clk_pin_count_;
   bool has_clk_gate_enable_pin_;
   TimingArcSetSeq timing_arc_sets_;
   TimingArcSetMap timing_arc_set_map_;
