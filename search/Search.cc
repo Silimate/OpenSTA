@@ -815,6 +815,7 @@ Search::arrivalsInvalid()
     requireds_exist_ = false;
     requireds_seeded_ = false;
     clk_arrivals_valid_ = false;
+    clk_gated_.clear();
     arrival_iter_->clear();
     required_iter_->clear();
     // No need to keep track of incremental updates any more.
@@ -942,6 +943,7 @@ Search::findClkArrivals()
     Stats stats(debug_, report_);
     debugPrint(debug_, "search", 1, "find clk arrivals");
     arrival_iter_->clear();
+    clk_gated_.assign(graph_->vertexCount() + 1, 0);
     seedClkVertexArrivals();
     ClkArrivalSearchPred search_clk(this);
     arrival_visitor_->init(false, &search_clk);
@@ -951,6 +953,90 @@ Search::findClkArrivals()
     stats.report("Find clk arrivals");
   }
   clk_arrivals_valid_ = true;
+}
+
+bool
+Search::isClkGated(const Vertex *vertex) const
+{
+  VertexId idx = graph_->id(vertex);
+  return idx < clk_gated_.size() && clk_gated_[idx] != 0;
+}
+
+bool
+Search::isClkGateInstance(Vertex *vertex)
+{
+  // Return if the cell is a clock gate based on liberty cell attributes.
+  Pin *pin = vertex->pin();
+  if (pin != nullptr) {
+    Instance *inst = network_->instance(pin);
+    if (inst != nullptr) {
+      LibertyCell *cell = network_->libertyCell(inst);
+      return cell != nullptr && cell->isClockGate();
+    }
+  }
+  return false;
+}
+
+void
+Search::updateClkGates(Vertex *vertex)
+{
+  VertexId id = graph_->id(vertex);
+  if (id >= clk_gated_.size())
+    return;
+
+  Instance *inst = network_->instance(vertex->pin());
+  if (inst != nullptr) {
+    debugPrint(debug_, "clkgates", 1, "updating clk gates for %s (cell %s)",
+               network_->pathName(vertex->pin()),
+               network_->cellName(inst));
+  }
+
+  // Return if the cell is a clock gate based on liberty cell attributes.
+  bool gated = isClkGateInstance(vertex);
+  if (gated)
+    debugPrint(debug_, "clkgates", 1, "  pin %s is a clock gate",
+      network_->pathName(vertex->pin()));
+
+  // If the cell is not a clock gate, check if any of the predecessors are clock gates.
+  if (!gated) {
+
+    // All paths through the vertex must pass through at least one clock gate.
+    VertexInEdgeIterator edge_iter(vertex, graph_);
+    while (edge_iter.hasNext()) {
+
+      // Loop through all clock-tagged predecessors.
+      Vertex *from = edge_iter.next()->from(graph_);
+      if (from == nullptr) {
+        debugPrint(debug_, "clkgates", 1, "  from edge is undefined");
+        continue;
+      }
+
+      // Debug print the predecessor cell name.
+      Instance *from_inst = network_->instance(from->pin());
+      std::string from_cell_name = from_inst != nullptr ? network_->cellName(from_inst) : "unknown";
+      debugPrint(debug_, "clkgates", 1, "  checking edge %s (cell %s)",
+        network_->pathName(from->pin()), from_cell_name.c_str());
+
+      if (!isClock(from)) {
+        debugPrint(debug_, "clkgates", 1, "  from edge %s is not a clock (cell %s)",
+          network_->pathName(from->pin()), from_cell_name.c_str());
+        continue;
+      }
+
+      // If one predecessor is gated, the vertex is gated.
+      if (clk_gated_[graph_->id(from)]) {
+        debugPrint(debug_, "clkgates", 1, "  from edge %s is gated",
+          network_->pathName(from->pin()));
+        gated = true;
+        break;
+      }
+    }
+  }
+  debugPrint(debug_, "clkgates", 1,
+    "  final verdict: %s", gated ? "gated" : "not gated");
+
+  // Update the node gated state
+  clk_gated_[id] = gated;
 }
 
 void
@@ -1148,6 +1234,8 @@ Search::findArrivalsSeed()
     arrival_iter_->ensureSize();
     required_iter_->ensureSize();
   }
+  if (clk_gated_.size() < graph_->vertexCount() + 1)
+    clk_gated_.assign(graph_->vertexCount() + 1, 0);
   seedInvalidArrivals();
 }
 
@@ -1279,6 +1367,10 @@ ArrivalVisitor::visit(Vertex *vertex)
     constrainedRequiredsInvalid(vertex, is_clk);
   }
   enqueueRefPinInputDelays(pin);
+
+  // Update the clock gate set if it is a clock vertex.
+  if (search_->isClock(vertex))
+    search_->updateClkGates(vertex);
 }
 
 // When a clock arrival changes, the required time changes for any
