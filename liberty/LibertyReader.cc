@@ -3741,6 +3741,8 @@ LibertyReader::visitClock(LibertyAttr *attr)
     if (exists) {
       for (LibertyPort *port : *ports_)
 	port->setIsClock(is_clk);
+      if (is_clk && cell_)
+	cell_->incrementClkPinCount();
     }
   }
 }
@@ -4049,12 +4051,14 @@ void
 LibertyReader::visitClockGateClockPin(LibertyAttr *attr)
 {
   visitPortBoolAttr(attr, &LibertyPort::setIsClockGateClock);
+  if (cell_) cell_->setHasClkGateClkPin();
 }
 
 void
 LibertyReader::visitClockGateEnablePin(LibertyAttr *attr)
 {
   visitPortBoolAttr(attr, &LibertyPort::setIsClockGateEnable);
+  if (cell_) cell_->setHasClkGateEnablePin();
 }
 
 void
