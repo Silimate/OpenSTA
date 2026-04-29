@@ -458,8 +458,10 @@ public:
   EdgeSeq disabledEdgesSorted();
   void disableClockGatingCheck(Instance *inst);
   void disableClockGatingCheck(Pin *pin);
+  void disableClockGatingCheck(LibertyCell *cell);
   void removeDisableClockGatingCheck(Instance *inst);
   void removeDisableClockGatingCheck(Pin *pin);
+  void removeDisableClockGatingCheck(LibertyCell *cell);
   void setLogicValue(Pin *pin,
 		     LogicValue value);
   void setCaseAnalysis(Pin *pin,

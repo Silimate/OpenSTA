@@ -146,6 +146,7 @@ record_example_tests {
 record_public_tests {
   collections
   delay_calc_no_inv
+  disable_clock_gating_check
   disconnect_mcp_pin
   extras
   filter_expr_defined
