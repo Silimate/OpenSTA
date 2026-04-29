@@ -1039,10 +1039,14 @@ Search::updateClkGates(Vertex *vertex)
       }
 
       // Debug print the predecessor cell name.
-      Instance *from_inst = network_->instance(from->pin());
+      Pin *from_pin = from->pin();
+      if (from_pin == nullptr) {
+        continue;
+      }
+      Instance *from_inst = network_->instance(from_pin);
       std::string from_cell_name = from_inst != nullptr ? network_->cellName(from_inst) : "unknown";
       debugPrint(debug_, "clkgates", 1, "  checking edge %s (cell %s)",
-        network_->pathName(from->pin()), from_cell_name.c_str());
+        network_->pathName(from_pin), from_cell_name.c_str());
 
       if (!isClock(from)) {
         debugPrint(debug_, "clkgates", 1, "  from edge %s is not a clock (cell %s)",
