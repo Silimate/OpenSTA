@@ -4049,12 +4049,24 @@ void
 LibertyReader::visitClockGateClockPin(LibertyAttr *attr)
 {
   visitPortBoolAttr(attr, &LibertyPort::setIsClockGateClock);
+  if (cell_) {
+    bool value, exists;
+    getAttrBool(attr, value, exists);
+    if (exists && value)
+      cell_->setHasClkGateClkPin();
+  }
 }
 
 void
 LibertyReader::visitClockGateEnablePin(LibertyAttr *attr)
 {
   visitPortBoolAttr(attr, &LibertyPort::setIsClockGateEnable);
+  if (cell_) {
+    bool value, exists;
+    getAttrBool(attr, value, exists);
+    if (exists && value)
+      cell_->setHasClkGateEnablePin();
+  }
 }
 
 void

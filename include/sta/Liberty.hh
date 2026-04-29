@@ -462,6 +462,8 @@ public:
   bool isClockGateOther() const;
   bool isClockGate() const;
   void setClockGateType(ClockGateType type);
+  void setHasClkGateClkPin() { has_clk_gate_clk_pin_ = true; }
+  void setHasClkGateEnablePin() { has_clk_gate_enable_pin_ = true; }
   const char *getDesignType() const;
   const TimingArcSetSeq &timingArcSets() const { return timing_arc_sets_; }
   // from or to may be nullptr to wildcard.
@@ -626,6 +628,8 @@ protected:
   SwitchCellType switch_cell_type_;
   bool interface_timing_;
   ClockGateType clock_gate_type_;
+  bool has_clk_gate_clk_pin_;
+  bool has_clk_gate_enable_pin_;
   TimingArcSetSeq timing_arc_sets_;
   TimingArcSetMap timing_arc_set_map_;
   LibertyPortPairTimingArcMap port_timing_arc_set_map_;

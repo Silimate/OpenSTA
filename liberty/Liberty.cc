@@ -940,6 +940,8 @@ LibertyCell::LibertyCell(LibertyLibrary *library,
   switch_cell_type_(SwitchCellType::fine_grain),
   interface_timing_(false),
   clock_gate_type_(ClockGateType::none),
+  has_clk_gate_clk_pin_(false),
+  has_clk_gate_enable_pin_(false),
   has_infered_reg_timing_arcs_(false),
   statetable_(nullptr),
   scale_factors_(nullptr),
@@ -1167,7 +1169,9 @@ LibertyCell::isClockGateOther() const
 bool
 LibertyCell::isClockGate() const
 {
-  return clock_gate_type_ != ClockGateType::none;
+  return clock_gate_type_ != ClockGateType::none
+    && has_clk_gate_clk_pin_
+    && has_clk_gate_enable_pin_;
 }
 
 void
