@@ -967,13 +967,40 @@ Search::isClkGateInstance(Vertex *vertex)
 {
   // Return if the cell is a clock gate based on liberty cell attributes.
   Pin *pin = vertex->pin();
-  if (pin != nullptr) {
-    Instance *inst = network_->instance(pin);
-    if (inst != nullptr) {
-      LibertyCell *cell = network_->libertyCell(inst);
-      return cell != nullptr && cell->isClockGate();
+  if (pin == nullptr)
+    return false;
+  Instance *inst = network_->instance(pin);
+  if (inst == nullptr)
+    return false;
+  LibertyCell *cell = network_->libertyCell(inst);
+  if (cell == nullptr || !cell->isClockGate())
+    return false;
+
+  // Locate functional enable pin on the clock gate.
+  const Pin *enable_pin = nullptr;
+  InstancePinIterator *pin_iter = network_->pinIterator(inst);
+  while (pin_iter->hasNext()) {
+    const Pin *inst_pin = pin_iter->next();
+    const LibertyPort *port = network_->libertyPort(inst_pin);
+    if (port != nullptr && port->isClockGateEnable()) {
+      enable_pin = inst_pin;
+      break;
     }
   }
+  delete pin_iter;
+  if (enable_pin == nullptr)
+    return false;
+
+  // Check if the enable pin is tied to a constant to invalidate the gate.
+  sim_->ensureConstantsPropagated();
+  LogicValue value = sim_->logicValue(enable_pin);
+  if (value != LogicValue::zero && value != LogicValue::one)
+    return true;
+
+  // Debug message
+  debugPrint(debug_, "clkgates", 1,
+             "  enable pin %s tied to constant; not considered gated",
+             network_->pathName(enable_pin));
   return false;
 }
 
@@ -1000,7 +1027,7 @@ Search::updateClkGates(Vertex *vertex)
   // If the cell is not a clock gate, check if any of the predecessors are clock gates.
   if (!gated) {
 
-    // All paths through the vertex must pass through at least one clock gate.
+    // At least one path through the vertex must be considered gated.
     VertexInEdgeIterator edge_iter(vertex, graph_);
     while (edge_iter.hasNext()) {
 
