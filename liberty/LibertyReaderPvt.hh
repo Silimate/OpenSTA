@@ -207,6 +207,14 @@ public:
   virtual void makeTimingArcs(LibertyPort *to_port,
                               LibertyPort *related_out_port,
 			      TimingGroup *timing);
+  
+  // Helper functions for makeTimingArcs()
+  bool sameArcIdentity(TimingGroup *pin_t,
+                       TimingGroup *bus_timing,
+                       const char *from_port_name);
+  bool hasBitPinTimingOverride(LibertyPort *to_port_bit,
+                               const char *from_port_name,
+                               TimingGroup *bus_timing);
 
   virtual void visitClockGatingIntegratedCell(LibertyAttr *attr);
   virtual void visitArea(LibertyAttr *attr);
