@@ -2527,13 +2527,15 @@ LibertyReader::sameArcIdentity(TimingGroup *pin_t,
                                TimingGroup *bus_timing,
                                const char *from_port_name)
 {
-  // Check timing type, conditions, and related port names for overriding bus bit pins.
+  // Check timing types are equivalent.
   if (pin_t->attrs()->timingType() != bus_timing->attrs()->timingType())
     return false;
+  // Check conditions are equivalent.
   if (!FuncExpr::equiv(pin_t->attrs()->cond(), bus_timing->attrs()->cond()))
     return false;
   if (pin_t->relatedPortNames() == nullptr)
     return false;
+  // Check if the from port name is in the related port names.
   for (const char *n : *pin_t->relatedPortNames()) {
     if (stringEq(n, from_port_name))
       return true;
