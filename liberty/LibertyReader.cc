@@ -2596,7 +2596,6 @@ LibertyReader::makeTimingArcs(const char *from_port_name,
 			      LibertyPort *related_out_port,
 			      TimingGroup *timing)
 {
-  printf("from_port_name: %s\n", from_port_name);
   if (from_port_iter.size() == 1 && !to_port->hasMembers()) {
     // one -> one
     if (from_port_iter.hasNext()) {
