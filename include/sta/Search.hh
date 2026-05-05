@@ -230,6 +230,7 @@ public:
   bool isClkGated(const Vertex *vertex) const;
   void updateClkGates(Vertex *vertex);
   void computeClkGates();
+  bool isClkGateVertex(Vertex *vertex);
   void seedArrival(Vertex *vertex);
   EvalPred *evalPred() const { return eval_pred_; }
   SearchPred *searchAdj() const { return search_adj_; }
@@ -523,7 +524,6 @@ protected:
   void seedClkVertexArrivals(const Pin *pin,
 			     Vertex *vertex);
   void findClkArrivals1();
-  bool isClkGateInstance(Vertex *vertex);
 
   void findAllArrivals(bool thru_latches);
   void findArrivals1(Level level);

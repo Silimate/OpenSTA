@@ -963,7 +963,7 @@ Search::isClkGated(const Vertex *vertex) const
 }
 
 bool
-Search::isClkGateInstance(Vertex *vertex)
+Search::isClkGateVertex(Vertex *vertex)
 {
   Pin *pin = vertex->pin();
   if (pin == nullptr)
@@ -974,7 +974,7 @@ Search::isClkGateInstance(Vertex *vertex)
   LibertyCell *cell = network_->libertyCell(inst);
   if (cell == nullptr || !cell->isClockGate())
     return false;
-  const LibertyPort *port = network_->libertyPort(pin);
+  LibertyPort *port = network_->libertyPort(pin);
   return port != nullptr && port->isClockGateOut();
 }
 
