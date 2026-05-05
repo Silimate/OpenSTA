@@ -1047,7 +1047,7 @@ Search::updateClkGates(Vertex *vertex)
     break;
   }
 
-  // Determine if the vertex is gated based on cell type. and input edges
+  // Determine if the vertex is gated based on cell type and input edges.
   bool gated = any_live && (is_gate || all_gated);
   debugPrint(debug_, "clkgates", 1, "  final verdict: %s",
              gated ? "gated" : "not gated");
