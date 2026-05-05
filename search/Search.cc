@@ -965,7 +965,6 @@ Search::isClkGated(const Vertex *vertex) const
 bool
 Search::isClkGateInstance(Vertex *vertex)
 {
-  // Return if the cell is a clock gate based on liberty cell attributes.
   Pin *pin = vertex->pin();
   if (pin == nullptr)
     return false;
@@ -975,33 +974,8 @@ Search::isClkGateInstance(Vertex *vertex)
   LibertyCell *cell = network_->libertyCell(inst);
   if (cell == nullptr || !cell->isClockGate())
     return false;
-
-  // Locate functional enable pin on the clock gate.
-  const Pin *enable_pin = nullptr;
-  InstancePinIterator *pin_iter = network_->pinIterator(inst);
-  while (pin_iter->hasNext()) {
-    const Pin *inst_pin = pin_iter->next();
-    const LibertyPort *port = network_->libertyPort(inst_pin);
-    if (port != nullptr && port->isClockGateEnable()) {
-      enable_pin = inst_pin;
-      break;
-    }
-  }
-  delete pin_iter;
-  if (enable_pin == nullptr)
-    return false;
-
-  // Check if the enable pin is tied to a constant to invalidate the gate.
-  sim_->ensureConstantsPropagated();
-  LogicValue value = sim_->logicValue(enable_pin);
-  if (value != LogicValue::zero && value != LogicValue::one)
-    return true;
-
-  // Debug message
-  debugPrint(debug_, "clkgates", 1,
-             "  enable pin %s tied to constant; not considered gated",
-             network_->pathName(enable_pin));
-  return false;
+  const LibertyPort *port = network_->libertyPort(pin);
+  return port != nullptr && port->isClockGateOut();
 }
 
 void
@@ -1011,62 +985,72 @@ Search::updateClkGates(Vertex *vertex)
   if (id >= clk_gated_.size())
     return;
 
+  // Find and log instance name being evaluated.
   Instance *inst = network_->instance(vertex->pin());
-  if (inst != nullptr) {
-    debugPrint(debug_, "clkgates", 1, "updating clk gates for %s (cell %s)",
-               network_->pathName(vertex->pin()),
-               network_->cellName(inst));
-  }
+  const char *inst_name = inst != nullptr
+      ? network_->cellName(inst) : "unknown";
+  debugPrint(debug_, "clkgates", 1, "updating clk gates for %s (cell %s)",
+             network_->pathName(vertex->pin()), inst_name);
 
-  // Return if the cell is a clock gate based on liberty cell attributes.
-  bool gated = isClkGateInstance(vertex);
-  if (gated)
-    debugPrint(debug_, "clkgates", 1, "  pin %s is a clock gate",
-      network_->pathName(vertex->pin()));
+  // Check for clock-gate instance and initialize booleans for evaluation.
+  const bool is_gate = isClkGateInstance(vertex);
+  bool any_live = false;
+  bool all_gated = true;
 
-  // If the cell is not a clock gate, check if any of the predecessors are clock gates.
-  if (!gated) {
+  // Loop through all input edges.
+  VertexInEdgeIterator edge_iter(vertex, graph_);
+  ClkTreeSearchPred clk_tree_pred(this);
+  while (edge_iter.hasNext()) {
+    
+    // Get the pin to evaluate.
+    Edge *edge = edge_iter.next();
+    Vertex *from = edge->from(graph_);
+    if (from == nullptr)
+      continue;
+    Pin *from_pin = from->pin();
+    if (from_pin == nullptr)
+      continue;
 
-    // At least one path through the vertex must be considered gated.
-    VertexInEdgeIterator edge_iter(vertex, graph_);
-    while (edge_iter.hasNext()) {
+    // Log source cell name.
+    Instance *from_inst = network_->instance(from_pin);
+    const char *from_cell_name = from_inst != nullptr
+        ? network_->cellName(from_inst) : "unknown";
+    debugPrint(debug_, "clkgates", 1, "  checking edge %s (cell %s)",
+               network_->pathName(from_pin), from_cell_name);
 
-      // Loop through all clock-tagged predecessors.
-      Vertex *from = edge_iter.next()->from(graph_);
-      if (from == nullptr) {
-        debugPrint(debug_, "clkgates", 1, "  from edge is undefined");
-        continue;
-      }
-
-      // Debug print the predecessor cell name.
-      Pin *from_pin = from->pin();
-      if (from_pin == nullptr) {
-        continue;
-      }
-      Instance *from_inst = network_->instance(from_pin);
-      std::string from_cell_name = from_inst != nullptr ? network_->cellName(from_inst) : "unknown";
-      debugPrint(debug_, "clkgates", 1, "  checking edge %s (cell %s)",
-        network_->pathName(from_pin), from_cell_name.c_str());
-
-      if (!isClock(from)) {
-        debugPrint(debug_, "clkgates", 1, "  from edge %s is not a clock (cell %s)",
-          network_->pathName(from->pin()), from_cell_name.c_str());
-        continue;
-      }
-
-      // If one predecessor is gated, the vertex is gated.
-      if (clk_gated_[graph_->id(from)]) {
-        debugPrint(debug_, "clkgates", 1, "  from edge %s is gated",
-          network_->pathName(from->pin()));
-        gated = true;
-        break;
-      }
+    // Do not consider any non-clock edges or invalid timing arcs.
+    if (!isClock(from)) {
+      debugPrint(debug_, "clkgates", 1,
+                 "    edge %s is not a clock - skipped",
+                 network_->pathName(from_pin));
+      continue;
     }
-  }
-  debugPrint(debug_, "clkgates", 1,
-    "  final verdict: %s", gated ? "gated" : "not gated");
+    if (!clk_tree_pred.searchThru(edge)) {
+      debugPrint(debug_, "clkgates", 1, "  edge %s skipped (not a live arc)",
+                 network_->pathName(from_pin));
+      continue;
+    }
+    any_live = true; // encountered a live clock timing arc
 
-  // Update the node gated state
+    // Check if the vertex itself is gated or if the input edge is gated.
+    if (is_gate || clk_gated_[graph_->id(from)]) {
+      debugPrint(debug_, "clkgates", 1, "  edge %s live, %s",
+                 network_->pathName(from_pin),
+                 is_gate ? "cell gates" : "source gated");
+      continue;
+    }
+
+    // If the input edge is not gated, all_gated is now false.
+    debugPrint(debug_, "clkgates", 1, "  edge %s live, source NOT gated",
+               network_->pathName(from_pin));
+    all_gated = false;
+    break;
+  }
+
+  // Determine if the vertex is gated based on cell type. and input edges
+  bool gated = any_live && (is_gate || all_gated);
+  debugPrint(debug_, "clkgates", 1, "  final verdict: %s",
+             gated ? "gated" : "not gated");
   clk_gated_[id] = gated;
 }
 
@@ -1232,6 +1216,33 @@ Search::findArrivals(Level level)
 }
 
 void
+Search::computeClkGates()
+{
+  // Reset the clock gated set.
+  clk_gated_.assign(graph_->vertexCount() + 1, 0);
+  const Level max_level = levelize_->maxLevel();
+  if (max_level < 0)
+    return;
+
+  // Gather every clock-tagged vertex by level.
+  std::vector<std::vector<Vertex*>> by_level(max_level + 1);
+  VertexIterator vertex_iter(graph_);
+  while (vertex_iter.hasNext()) {
+    Vertex *vertex = vertex_iter.next();
+    if (isClock(vertex)) {
+      Level level = vertex->level();
+      if (level >= 0)
+        by_level[level].push_back(vertex);
+    }
+  }
+
+  // Update clock gated state for every vertex in each ascending level.
+  for (auto &bucket : by_level)
+    for (Vertex *v : bucket)
+      updateClkGates(v);
+}
+
+void
 Search::findArrivals1(Level level)
 {
   debugPrint(debug_, "search", 1, "find arrivals to level %d", level);
@@ -1249,6 +1260,10 @@ Search::findArrivals1(Level level)
   }
   arrivals_exist_ = true;
   debugPrint(debug_, "search", 1, "found %d arrivals", arrival_count);
+
+  // Compute clock gated registers after all arrivals are found.
+  if (arrival_count > 0)
+    computeClkGates();
 }
 
 void
@@ -1265,8 +1280,6 @@ Search::findArrivalsSeed()
     arrival_iter_->ensureSize();
     required_iter_->ensureSize();
   }
-  if (clk_gated_.size() < graph_->vertexCount() + 1)
-    clk_gated_.assign(graph_->vertexCount() + 1, 0);
   seedInvalidArrivals();
 }
 
@@ -1398,10 +1411,6 @@ ArrivalVisitor::visit(Vertex *vertex)
     constrainedRequiredsInvalid(vertex, is_clk);
   }
   enqueueRefPinInputDelays(pin);
-
-  // Update the clock gate set if it is a clock vertex.
-  if (search_->isClock(vertex))
-    search_->updateClkGates(vertex);
 }
 
 // When a clock arrival changes, the required time changes for any

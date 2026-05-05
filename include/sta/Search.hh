@@ -229,6 +229,7 @@ public:
   void findClkArrivals();
   bool isClkGated(const Vertex *vertex) const;
   void updateClkGates(Vertex *vertex);
+  void computeClkGates();
   void seedArrival(Vertex *vertex);
   EvalPred *evalPred() const { return eval_pred_; }
   SearchPred *searchAdj() const { return search_adj_; }
