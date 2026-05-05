@@ -360,7 +360,6 @@ CycleAccting::setDefaultSetupAccting(int src_cycle,
   setSetupAccting(src_cycle, tgt_cycle, delay, req);
   setAccting(TimingRole::latchSetup(), src_cycle, tgt_cycle, delay, req);
   setAccting(TimingRole::dataCheckSetup(), src_cycle, tgt_cycle, delay, req);
-  setAccting(TimingRole::nonSeqSetup(), src_cycle, tgt_cycle, delay, req);
 }
 
 void
@@ -371,7 +370,6 @@ CycleAccting::setDefaultHoldAccting(int src_cycle,
 {
   setHoldAccting(src_cycle, tgt_cycle, delay, req);
   setAccting(TimingRole::dataCheckHold(), src_cycle, tgt_cycle, delay, req);
-  setAccting(TimingRole::nonSeqHold(), src_cycle, tgt_cycle, delay, req);
 }
 
 float
