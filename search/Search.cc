@@ -993,7 +993,7 @@ Search::updateClkGates(Vertex *vertex)
              network_->pathName(vertex->pin()), inst_name);
 
   // Check for clock-gate instance and initialize booleans for evaluation.
-  const bool is_gate = isClkGateInstance(vertex);
+  const bool is_gate = isClkGateVertex(vertex);
   bool any_live = false;
   bool all_gated = true;
 
