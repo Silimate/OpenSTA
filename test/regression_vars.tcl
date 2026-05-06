@@ -171,6 +171,7 @@ record_public_tests {
   liberty_float_as_str
   liberty_latch3
   liberty_write_escaped_names
+  non_seq_timing
   lib_cell_props
   package_require
   path_group_names
