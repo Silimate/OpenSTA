@@ -501,11 +501,10 @@ PropActivityVisitor::visit(Vertex *vertex)
               func = port->function();
           }
         }
-	if (func) {
-          PwrActivity activity = power_->evalActivity(func, inst);
-	  changed = setActivityCheck(pin, activity);
-	}
-        if (port->isClockGateOut()) {
+        if (func) {
+                PwrActivity activity = power_->evalActivity(func, inst);
+          changed = setActivityCheck(pin, activity);
+        } else if (port->isClockGateOut()) {
           const Pin *enable, *clk, *gclk;
           power_->clockGatePins(inst, enable, clk, gclk);
           if (enable && clk && gclk) {
@@ -514,14 +513,20 @@ PropActivityVisitor::visit(Vertex *vertex)
             float p1 = activity1.duty();
             float p2 = activity2.duty();
             PwrActivity activity(activity1.density() * p2 + activity2.density() * p1,
-                                 p1 * p2,
-                                 PwrActivityOrigin::propagated);
+                                p1 * p2,
+                                PwrActivityOrigin::propagated);
             changed = setActivityCheck(gclk, activity);
             debugPrint(debug_, "power_activity", 3, "gated_clk %s %.2e %.2f",
-                       network_->pathName(gclk),
-                       activity.density(),
-                       activity.duty());
+                      network_->pathName(gclk),
+                      activity.density(),
+                      activity.duty());
           }
+        } else {
+                PwrActivity default_act = power_->inputActivity();
+                PwrActivity activity(default_act.density(),
+                                    default_act.duty(),
+                                    PwrActivityOrigin::defaulted);
+          changed = setActivityCheck(pin, activity);
         }
       }
     }
