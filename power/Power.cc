@@ -501,9 +501,11 @@ PropActivityVisitor::visit(Vertex *vertex)
               func = port->function();
           }
         }
+  bool annotated = false;
 	if (func) {
           PwrActivity activity = power_->evalActivity(func, inst);
 	  changed = setActivityCheck(pin, activity);
+    annotated = true;
 	}
         if (port->isClockGateOut()) {
           const Pin *enable, *clk, *gclk;
@@ -521,8 +523,16 @@ PropActivityVisitor::visit(Vertex *vertex)
                        network_->pathName(gclk),
                        activity.density(),
                        activity.duty());
+            annotated = true;
           }
         }
+  if (!annotated) {
+          PwrActivity default_act = power_->inputActivity();
+          PwrActivity activity(default_act.density(),
+                              default_act.duty(),
+                              PwrActivityOrigin::defaulted);
+    changed = setActivityCheck(pin, activity);
+  }
       }
     }
   }

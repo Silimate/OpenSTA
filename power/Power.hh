@@ -109,6 +109,7 @@ public:
   InstanceSeq highestPowerInstances(size_t count,
                                     const Corner *corner);
   void powerInvalid();
+  PwrActivity inputActivity() const { return input_activity_; }
 
 protected:
   PwrActivity &activity(const Pin *pin);
