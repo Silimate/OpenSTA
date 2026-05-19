@@ -1453,6 +1453,8 @@ Power::findActivity(const Pin *pin)
     if (activity.origin() != PwrActivityOrigin::unknown)
       return activity;
   }
+  if (user_activity_map_.hasKey(pin))
+    return user_activity_map_[pin];
   return PwrActivity(0.0, 0.0, PwrActivityOrigin::unknown);
 }
 
