@@ -4086,9 +4086,23 @@ Sdc::makePathDelay(ExceptionFrom *from,
 		   const char *comment)
 {
   checkFromThrusTo(from, thrus, to);
-  PathDelay *exception = new PathDelay(from, thrus, to, min_max, 
+  PathDelay *exception = new PathDelay(from, thrus, to, min_max,
 				       ignore_clk_latency, break_path,
                                        delay, true, comment);
+  addException(exception);
+}
+
+void
+Sdc::makePathMargin(ExceptionFrom *from,
+		    ExceptionThruSeq *thrus,
+		    ExceptionTo *to,
+		    const MinMaxAll *min_max,
+		    float margin,
+		    const char *comment)
+{
+  checkFromThrusTo(from, thrus, to);
+  PathMargin *exception = new PathMargin(from, thrus, to, min_max,
+					 margin, true, comment);
   addException(exception);
 }
 
@@ -4499,7 +4513,8 @@ Sdc::addException1(ExceptionPath *exception)
 void
 Sdc::addException2(ExceptionPath *exception)
 {
-  if (exception->isMultiCycle() || exception->isPathDelay())
+  if (exception->isMultiCycle() || exception->isPathDelay()
+      || exception->isPathMargin())
     deleteMatchingExceptions(exception);
   recordException(exception);
   mergeException(exception);

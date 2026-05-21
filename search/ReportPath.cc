@@ -2653,6 +2653,10 @@ ReportPath::reportClkUncertainty(const PathEnd *end,
   if (inter_uncertainty != 0.0)
     reportLine("inter-clock uncertainty", inter_uncertainty,
                clk_arrival, early_late);
+  float margin = end->targetClkPathMargin(this);
+  clk_arrival += margin;
+  if (margin != 0.0)
+    reportLine("path margin", margin, clk_arrival, early_late);
 }
 
 ////////////////////////////////////////////////////////////////

@@ -517,6 +517,12 @@ public:
                      bool break_path,
 		     float delay,
 		     const char *comment);
+  void makePathMargin(ExceptionFrom *from,
+		      ExceptionThruSeq *thrus,
+		      ExceptionTo *to,
+		      const MinMaxAll *min_max,
+		      float margin,
+		      const char *comment);
   void makeGroupPath(const char *name,
 		     bool is_default,
 		     ExceptionFrom *from,

@@ -564,6 +564,64 @@ PathDelay::overrides(ExceptionPath *exception) const
 
 ////////////////////////////////////////////////////////////////
 
+PathMargin::PathMargin(ExceptionFrom *from,
+		       ExceptionThruSeq *thrus,
+		       ExceptionTo *to,
+		       const MinMaxAll *min_max,
+		       float margin,
+		       bool own_pts,
+		       const char *comment) :
+  ExceptionPath(from, thrus, to, min_max, own_pts,
+		pathMarginPriority() + fromThruToPriority(from, thrus, to),
+		comment),
+  margin_(margin)
+{
+}
+
+ExceptionPath *
+PathMargin::clone(ExceptionFrom *from,
+		  ExceptionThruSeq *thrus,
+		  ExceptionTo *to,
+		  bool own_pts)
+{
+  return new PathMargin(from, thrus, to, min_max_, margin_, own_pts, comment_);
+}
+
+int
+PathMargin::typePriority() const
+{
+  return pathMarginPriority();
+}
+
+bool
+PathMargin::tighterThan(ExceptionPath *) const
+{
+  return false;
+}
+
+const char *
+PathMargin::typeString() const
+{
+  return "Margin";
+}
+
+bool
+PathMargin::mergeable(ExceptionPath *) const
+{
+  return false;
+}
+
+bool
+PathMargin::overrides(ExceptionPath *exception) const
+{
+  // A later set_path_margin with the same scope replaces the earlier one.
+  return exception->isPathMargin()
+    && exception->priority() == priority_
+    && exception->minMax() == min_max_;
+}
+
+////////////////////////////////////////////////////////////////
+
 FalsePath::FalsePath(ExceptionFrom *from,
 		     ExceptionThruSeq *thrus,
 		     ExceptionTo *to,
@@ -624,6 +682,7 @@ FalsePath::mergeable(ExceptionPath *exception) const
 bool
 FalsePath::overrides(ExceptionPath *exception) const
 {
+  // Most recent definition overrides earlier ones.
   return exception->priority() == priority()
     && exception->minMax() == min_max_;
 }

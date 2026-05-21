@@ -2000,10 +2000,22 @@ Sta::makePathDelay(ExceptionFrom *from,
 		   float delay,
 		   const char *comment)
 {
-  sdc_->makePathDelay(from, thrus, to, min_max, 
+  sdc_->makePathDelay(from, thrus, to, min_max,
 		      ignore_clk_latency, break_path,
                       delay, comment);
   search_->endpointsInvalid();
+  search_->arrivalsInvalid();
+}
+
+void
+Sta::makePathMargin(ExceptionFrom *from,
+		    ExceptionThruSeq *thrus,
+		    ExceptionTo *to,
+		    const MinMaxAll *min_max,
+		    float margin,
+		    const char *comment)
+{
+  sdc_->makePathMargin(from, thrus, to, min_max, margin, comment);
   search_->arrivalsInvalid();
 }
 

@@ -178,12 +178,12 @@ VisitPathEnds::visitCheckEnd(const Pin *pin,
                     && tgt_clk != sdc_->defaultArrivalClock()
                     && sdc_->sameClockGroup(src_clk, tgt_clk)
                     && !sdc_->clkStopPropagation(tgt_pin, tgt_clk)
-                    // False paths and path delays override
-                    // paths.
+                    // False paths, path delays, and path margins override
                     && (exception == nullptr
                         || exception->isFilter()
                         || exception->isGroupPath()
-                        || exception->isMultiCycle())) {
+                        || exception->isMultiCycle()
+                        || exception->isPathMargin())) {
                   MultiCyclePath *mcp=dynamic_cast<MultiCyclePath*>(exception);
                   if (network_->isLatchData(pin)
                       && check_role == TimingRole::setup()) {
@@ -359,11 +359,12 @@ VisitPathEnds::visitOutputDelayEnd1(OutputDelay *output_delay,
   else if (src_clk_edge
            && tgt_clk_edge
 	   && sdc_->sameClockGroup(path->clock(this), tgt_clk_edge->clock())
-	   // False paths and path delays override.
+	   // False paths, path delays, and path margins override.
 	   && (exception == nullptr
 	       || exception->isFilter()
 	       || exception->isGroupPath()
-	       || exception->isMultiCycle())) {
+	       || exception->isMultiCycle()
+	       || exception->isPathMargin())) {
     MultiCyclePath *mcp = dynamic_cast<MultiCyclePath*>(exception);
     PathEndOutputDelay path_end(output_delay, path, ref_path, mcp, this);
     visitor->visit(&path_end);
@@ -426,11 +427,12 @@ VisitPathEnds::visitGatedClkEnd(const Pin *pin,
 	  ExceptionPath *exception = exceptionTo(path, pin, end_rf,
 						 clk_edge, min_max);
 	  if (sdc_->sameClockGroup(src_clk, clk)
-	      // False paths and path delays override.
+	      // False paths, path delays, and path margins override.
 	      && (exception == nullptr
 		  || exception->isFilter()
 		  || exception->isGroupPath()
-		  || exception->isMultiCycle())
+		  || exception->isMultiCycle()
+		  || exception->isPathMargin())
 	      && (!filtered
 		  || search_->matchesFilter(path, clk_edge))) {
 	    MultiCyclePath *mcp =
@@ -548,11 +550,12 @@ VisitPathEnds::visitDataCheckEnd1(DataCheck *check,
                                              tgt_clk_edge, min_max);
       if (sdc_->sameClockGroup(src_clk, tgt_clk)
 	  && !sdc_->clkStopPropagation(from_pin, tgt_clk)
-	  // False paths and path delays override.
+	  // False paths, path delays, and path margins override.
 	  && (exception == 0
 	      || exception->isFilter()
 	      || exception->isGroupPath()
-	      || exception->isMultiCycle())
+	      || exception->isMultiCycle()
+	      || exception->isPathMargin())
 	  && (!filtered
 	      || search_->matchesFilter(path, tgt_clk_edge))) {
 	MultiCyclePath *mcp=dynamic_cast<MultiCyclePath*>(exception);

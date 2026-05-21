@@ -231,6 +231,12 @@ PathEnd::targetClkMcpAdjustment(const StaState *) const
   return 0.0;
 }
 
+float
+PathEnd::targetClkPathMargin(const StaState *) const
+{
+  return 0.0;
+}
+
 const TimingRole *
 PathEnd::checkRole(const StaState *) const
 {
@@ -641,7 +647,8 @@ PathEndClkConstrained::targetClkArrivalNoCrpr(const StaState *sta) const
  			  targetClkEdge(sta),
  			  targetClkPath(),
  			  checkRole(sta), sta)
-    + targetClkMcpAdjustment(sta);
+    + targetClkMcpAdjustment(sta)
+    + targetClkPathMargin(sta);
 }
 
 Delay
@@ -697,6 +704,30 @@ PathEndClkConstrained::targetClkUncertainty(const StaState *sta) const
 {
   return checkClkUncertainty(sourceClkEdge(sta), targetClkEdge(sta),
 			     targetClkPath(), checkRole(sta), sta);
+}
+
+float
+PathEndClkConstrained::targetClkPathMargin(const StaState *sta) const
+{
+  const Sdc *sdc = sta->sdc();
+  const TimingRole *role = checkRole(sta);
+  ExceptionPath *exception = nullptr;
+  int hi_priority_exception = -1;
+  // Look up a path margin for the target
+  sdc->exceptionTo(ExceptionPathType::path_margin,
+                   path_->pin(sta),
+                   path_->transition(sta),
+                   targetClkEdge(sta),
+                   role->pathMinMax(),
+                   false,
+                   exception, hi_priority_exception);
+  if (!exception) // no path margin found
+    return 0.0;
+  float margin = exception->margin();
+  // Setup time margin is sign-flipped
+  if (role->genericRole() == TimingRole::setup())
+    margin = -margin;
+  return margin;
 }
 
 Crpr
@@ -1426,7 +1457,8 @@ PathEndOutputDelay::targetClkArrivalNoCrpr(const StaState *sta) const
     return targetClkTime(sta)
       + tgtClkDelay(tgt_clk_edge, check_role, sta)
       + targetClkUncertainty(sta)
-      + checkMcpAdjustment(path_, tgt_clk_edge, sta);
+      + checkMcpAdjustment(path_, tgt_clk_edge, sta)
+      + targetClkPathMargin(sta);
   }
 }
 
@@ -1967,7 +1999,8 @@ PathEndPathDelay::targetClkArrivalNoCrpr(const StaState *sta) const
   const ClockEdge *tgt_clk_edge = targetClkEdge(sta);
   if (tgt_clk_edge)
     return targetClkDelay(sta)
-      + targetClkUncertainty(sta);
+      + targetClkUncertainty(sta)
+      + targetClkPathMargin(sta);
   else if (clk_path_)
     return clk_path_->arrival();
   else
