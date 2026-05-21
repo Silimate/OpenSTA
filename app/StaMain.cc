@@ -1,5 +1,5 @@
 // OpenSTA, Static Timing Analyzer
-// Copyright (c) 2025, Parallax Software, Inc.
+// Copyright (c) 2026, Parallax Software, Inc.
 // 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -24,27 +24,28 @@
 
 #include "StaMain.hh"
 
+#include <string>
+#include <string_view>
 #include <tcl.h>
 #include <cstdlib>
 #include <sys/stat.h>
 
 #include "Machine.hh"
 #include "StringUtil.hh"
-#include "Vector.hh"
 #include "Sta.hh"
 
 namespace sta {
 
 int
 parseThreadsArg(int &argc,
-		char *argv[])
+                char *argv[])
 {
   char *thread_arg = findCmdLineKey(argc, argv, "-threads");
   if (thread_arg) {
     if (stringEqual(thread_arg, "max"))
       return processorCount();
     else if (isDigits(thread_arg))
-      return atoi(thread_arg);
+      return std::stoi(thread_arg);
     else
       fprintf(stderr,"Warning: -threads must be max or a positive integer.\n");
   }
@@ -53,15 +54,15 @@ parseThreadsArg(int &argc,
 
 bool
 findCmdLineFlag(int &argc,
-		char *argv[],
-		const char *flag)
+                char *argv[],
+                std::string_view flag)
 {
   for (int i = 1; i < argc; i++) {
     char *arg = argv[i];
-    if (stringEq(arg, flag)) {
+    if (std::string_view(arg) == flag) {
       // Remove flag from argv.
       for (int j = i + 1; j < argc; j++, i++)
-	argv[i] = argv[j];
+        argv[i] = argv[j];
       argc--;
       argv[argc] = nullptr;
       return true;
@@ -72,16 +73,16 @@ findCmdLineFlag(int &argc,
 
 char *
 findCmdLineKey(int &argc,
-	       char *argv[],
-	       const char *key)
+               char *argv[],
+               std::string_view key)
 {
   for (int i = 1; i < argc; i++) {
     char *arg = argv[i];
-    if (stringEq(arg, key) && i + 1 < argc) {
+    if (std::string_view(arg) == key && i + 1 < argc) {
       char *value = argv[i + 1];
       // Remove key and value from argv.
       for (int j = i + 2; j < argc; j++, i++)
-	argv[i] = argv[j];
+        argv[i] = argv[j];
       argc -= 2;
       argv[argc] = nullptr;
       return value;
@@ -93,15 +94,14 @@ findCmdLineKey(int &argc,
 // Use overridden version of source to echo cmds and results.
 int
 sourceTclFile(const char *filename,
-	      bool echo,
-	      bool verbose,
-	      Tcl_Interp *interp)
+              bool echo,
+              bool verbose,
+              Tcl_Interp *interp)
 {
-  std::string cmd;
-  stringPrint(cmd, "sta::include_file %s %s %s",
-	      filename,
-	      echo ? "1" : "0",
-	      verbose ? "1" : "0");
+  std::string cmd = sta::format("sta::include_file {} {} {}",
+                                filename,
+                                echo ? "1" : "0",
+                                verbose ? "1" : "0");
   int code = Tcl_Eval(interp, cmd.c_str());
   const char *result = Tcl_GetStringResult(interp);
   if (result[0] != '\0')
@@ -111,7 +111,7 @@ sourceTclFile(const char *filename,
 
 void
 evalTclInit(Tcl_Interp *interp,
-	    const char *inits[])
+            const char *inits[])
 {
   char *unencoded = unencode(inits);
   if (Tcl_Eval(interp, unencoded) != TCL_OK) {
@@ -148,12 +148,4 @@ unencode(const char *inits[])
   return unencoded;
 }
 
-// Hack until c++17 filesystem is better supported.
-bool
-is_regular_file(const char *filename)
-{
-  struct stat sb;
-  return stat(filename, &sb) == 0 && S_ISREG(sb.st_mode);
-}
-
-} // namespace
+} // namespace sta

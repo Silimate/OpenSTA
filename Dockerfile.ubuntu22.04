@@ -6,17 +6,20 @@ LABEL maintainer="James Cherry <cherry@parallaxsw.com>"
 ARG DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && \
     apt-get install -y \
+    git \
     wget \
     cmake \
     gcc \
+    gdb \
     tcl-dev \
     tcl-tclreadline \
-    libeigen3-dev \
     swig \
     bison \
     flex \
     automake \
-    autotools-dev
+    autotools-dev \
+    libeigen3-dev \
+    libfmt-dev
 
 # Download CUDD
 RUN wget https://raw.githubusercontent.com/davidkebo/cudd/main/cudd_versions/cudd-3.0.0.tar.gz && \

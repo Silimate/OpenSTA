@@ -1,5 +1,5 @@
 // OpenSTA, Static Timing Analyzer
-// Copyright (c) 2025, Parallax Software, Inc.
+// Copyright (c) 2026, Parallax Software, Inc.
 // 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -25,60 +25,44 @@
 #include "Clock.hh"
 
 #include <algorithm>
+#include <cstdlib>
 
+#include "ContainerHelpers.hh"
 #include "Error.hh"
-#include "StringUtil.hh"
-#include "MinMax.hh"
-#include "Transition.hh"
-#include "TimingRole.hh"
-#include "Network.hh"
+#include "Format.hh"
 #include "Graph.hh"
+#include "MinMax.hh"
+#include "Network.hh"
 #include "Sdc.hh"
 #include "Sta.hh"
+#include "StringUtil.hh"
+#include "TimingRole.hh"
+#include "Transition.hh"
 
 namespace sta {
 
-Clock::Clock(const char *name,
-	     int index,
+Clock::Clock(std::string_view name,
+             int index,
              const Network *network) :
-  name_(stringCopy(name)),
+  name_(name),
   pins_(network),
-  add_to_pins_(false),
   leaf_pins_(network),
-  period_(0.0),
-  waveform_(nullptr),
-  waveform_valid_(false),
-  index_(index),
-  clk_edges_(nullptr),
-  is_propagated_(false),
-  uncertainties_(nullptr),
-  is_generated_(false),
-  src_pin_(nullptr),
-  master_clk_(nullptr),
-  master_clk_infered_(false),
-  divide_by_(0),
-  multiply_by_(0),
-  duty_cycle_(0),
-  invert_(false),
-  combinational_(false),
-  edges_(nullptr),
-  edge_shifts_(nullptr)
+  index_(index)
 {
   makeClkEdges();
 }
 
 void
-Clock::initClk(PinSet *pins,
-	       bool add_to_pins,
-	       float period,
-	       FloatSeq *waveform,
-	       const char *comment,
-	       const Network *network)
+Clock::initClk(const PinSet &pins,
+               bool add_to_pins,
+               float period,
+               const FloatSeq &waveform,
+               std::string_view comment,
+               const Network *network)
 {
   is_generated_ = false;
   setPins(pins, network);
   add_to_pins_ = add_to_pins;
-  delete waveform_;
   waveform_ = waveform;
   waveform_valid_ = true;
   period_ = period;
@@ -93,12 +77,10 @@ Clock::isVirtual() const
 }
 
 void
-Clock::setPins(PinSet *pins,
-	       const Network *network)
+Clock::setPins(const PinSet &pins,
+               const Network *network)
 {
-  if (pins)
-    pins_ = *pins;
-  delete pins;
+  pins_ = pins;
   makeLeafPins(network);
 }
 
@@ -106,11 +88,8 @@ void
 Clock::makeLeafPins(const Network *network)
 {
   leaf_pins_.clear();
-  PinSet::Iterator pin_iter(pins_);
-  while (pin_iter.hasNext()) {
-    const Pin *pin = pin_iter.next();
+  for (const Pin *pin : pins_)
     findLeafDriverPins(pin, network, &leaf_pins_);
-  }
 }
 
 void
@@ -123,24 +102,15 @@ Clock::setMasterClk(Clock *master)
 void
 Clock::makeClkEdges()
 {
-  clk_edges_ = new ClockEdge*[RiseFall::index_count];
-  for (auto rf : RiseFall::range()) {
+  for (const RiseFall *rf : RiseFall::range()) {
     clk_edges_[rf->index()] = new ClockEdge(this, rf);
   }
 }
 
 Clock::~Clock()
 {
-  stringDelete(name_);
-  if (clk_edges_) {
-    delete clk_edges_[RiseFall::riseIndex()];
-    delete clk_edges_[RiseFall::fallIndex()];
-    delete [] clk_edges_;
-  }
-  delete waveform_;
-  delete edges_;
-  delete edge_shifts_;
-  delete uncertainties_;
+  for (size_t rf_index : RiseFall::rangeIndex())
+    delete clk_edges_[rf_index];
 }
 
 void
@@ -172,16 +142,16 @@ Clock::setClkEdgeTimes()
 void
 Clock::setClkEdgeTime(const RiseFall *rf)
 {
-  float time = (rf == RiseFall::rise()) ? (*waveform_)[0]:(*waveform_)[1];
+  float time = waveform_[rf->index()];
   clk_edges_[rf->index()]->setTime(time);
 }
 
 const Pin *
 Clock::defaultPin() const
 {
-  PinSet::ConstIterator pin_iter(leaf_pins_);
-  if (pin_iter.hasNext())
-    return pin_iter.next();
+  auto itr = leaf_pins_.begin();
+  if (itr != leaf_pins_.end())
+    return *itr;
   else
     return nullptr;
 }
@@ -200,17 +170,17 @@ Clock::setIsPropagated(bool propagated)
 
 void
 Clock::slew(const RiseFall *rf,
-	    const MinMax *min_max,
-	    // Return values.
-	    float &slew,
-	    bool &exists) const
+            const MinMax *min_max,
+            // Return values.
+            float &slew,
+            bool &exists) const
 {
   slews_.value(rf, min_max, slew, exists);
 }
 
 float
 Clock::slew(const RiseFall *rf,
-	    const MinMax *min_max) const
+            const MinMax *min_max) const
 {
   float slew;
   bool exists;
@@ -222,16 +192,16 @@ Clock::slew(const RiseFall *rf,
 
 void
 Clock::setSlew(const RiseFallBoth *rf,
-	       const MinMaxAll *min_max,
-	       float slew)
+               const MinMaxAll *min_max,
+               float slew)
 {
   slews_.setValue(rf, min_max, slew);
 }
 
 void
 Clock::setSlew(const RiseFall *rf,
-	       const MinMax *min_max,
-	       float slew)
+               const MinMax *min_max,
+               float slew)
 {
   slews_.setValue(rf, min_max, slew);
 }
@@ -244,66 +214,51 @@ Clock::removeSlew()
 
 void
 Clock::setSlewLimit(const RiseFallBoth *rf,
-		    const PathClkOrData clk_data,
-		    const MinMax *min_max,
-		    float slew)
+                    PathClkOrData clk_data,
+                    const MinMax *min_max,
+                    float slew)
 {
-  slew_limits_[int(clk_data)].setValue(rf, min_max, slew);
+  slew_limits_[static_cast<size_t>(clk_data)].setValue(rf, min_max, slew);
 }
 
 void
 Clock::slewLimit(const RiseFall *rf,
-		 const PathClkOrData clk_data,
-		 const MinMax *min_max,
-		 // Return values.
-		 float &slew,
-		 bool &exists) const
+                 PathClkOrData clk_data,
+                 const MinMax *min_max,
+                 // Return values.
+                 float &slew,
+                 bool &exists) const
 {
-  slew_limits_[int(clk_data)].value(rf, min_max, slew, exists);
+  slew_limits_[static_cast<size_t>(clk_data)].value(rf, min_max, slew, exists);
 }
 
 void
 Clock::uncertainty(const SetupHold *setup_hold,
-		   // Return values.
-		   float &uncertainty,
-		   bool &exists) const
+                   // Return values.
+                   float &uncertainty,
+                   bool &exists) const
 {
-  if (uncertainties_)
-    uncertainties_->value(setup_hold, uncertainty, exists);
-  else {
-    uncertainty = 0.0F;
-    exists = false;
-  }
+  uncertainties_.value(setup_hold, uncertainty, exists);
 }
 
 void
 Clock::setUncertainty(const SetupHoldAll *setup_hold,
-		      float uncertainty)
+                      float uncertainty)
 {
-  if (uncertainties_ == nullptr)
-    uncertainties_ = new ClockUncertainties;
-  uncertainties_->setValue(setup_hold, uncertainty);
+  uncertainties_.setValue(setup_hold, uncertainty);
 }
 
 void
 Clock::setUncertainty(const SetupHold *setup_hold,
-		      float uncertainty)
+                      float uncertainty)
 {
-  if (uncertainties_ == nullptr)
-    uncertainties_ = new ClockUncertainties;
-  uncertainties_->setValue(setup_hold, uncertainty);
+  uncertainties_.setValue(setup_hold, uncertainty);
 }
 
 void
 Clock::removeUncertainty(const SetupHoldAll *setup_hold)
 {
-  if (uncertainties_) {
-    uncertainties_->removeValue(setup_hold);
-    if (uncertainties_->empty()) {
-      delete uncertainties_;
-      uncertainties_ = nullptr;
-    }
-  }
+  uncertainties_.removeValue(setup_hold);
 }
 
 void
@@ -315,20 +270,20 @@ Clock::waveformInvalid()
 ////////////////////////////////////////////////////////////////
 
 void
-Clock::initGeneratedClk(PinSet *pins,
-			bool add_to_pins,
-			Pin *src_pin,
-			Clock *master_clk,
-			int divide_by,
-			int multiply_by,
-			float duty_cycle,
-			bool invert,
-			bool combinational,
-			IntSeq *edges,
-			FloatSeq *edge_shifts,
-			bool is_propagated,
-			const char *comment,
-			const Network *network)
+Clock::initGeneratedClk(const PinSet &pins,
+                        bool add_to_pins,
+                        Pin *src_pin,
+                        Clock *master_clk,
+                        int divide_by,
+                        int multiply_by,
+                        float duty_cycle,
+                        bool invert,
+                        bool combinational,
+                        const IntSeq &edges,
+                        const FloatSeq &edge_shifts,
+                        bool is_propagated,
+                        std::string_view comment,
+                        const Network *network)
 {
   is_generated_ = true;
   setPins(pins, network);
@@ -345,20 +300,7 @@ Clock::initGeneratedClk(PinSet *pins,
   is_propagated_ = is_propagated;
   setComment(comment);
 
-  delete edges_;
-  if (edges
-      && edges->empty()) {
-    delete edges;
-    edges = nullptr;
-  }
   edges_ = edges;
-
-  delete edge_shifts_;
-  if (edge_shifts
-      && edge_shifts->empty()) {
-    delete edge_shifts;
-    edge_shifts = nullptr;
-  }
   edge_shifts_ = edge_shifts;
 }
 
@@ -388,40 +330,36 @@ Clock::isGeneratedWithPropagatedMaster() const
 void
 Clock::generate(const Clock *src_clk)
 {
-  if (waveform_ == nullptr)
-    waveform_ = new FloatSeq;
-  else
-    waveform_->clear();
-
+  waveform_.clear();
   if (divide_by_ == 1.0) {
     period_ = src_clk->period();
-    const FloatSeq *src_wave = src_clk->waveform();
-    waveform_->push_back((*src_wave)[0]);
-    waveform_->push_back((*src_wave)[1]);
+    const FloatSeq &src_wave = src_clk->waveform();
+    waveform_.push_back(src_wave[0]);
+    waveform_.push_back(src_wave[1]);
   }
   else if (divide_by_ > 1) {
     if (isPowerOfTwo(divide_by_)) {
       period_ = src_clk->period() * divide_by_;
-      const FloatSeq *src_wave = src_clk->waveform();
-      float rise = (*src_wave)[0];
-      waveform_->push_back(rise);
-      waveform_->push_back(rise + period_ / 2);
+      const FloatSeq &src_wave = src_clk->waveform();
+      float rise = src_wave[0];
+      waveform_.push_back(rise);
+      waveform_.push_back(rise + period_ / 2);
     }
     else
       generateScaledClk(src_clk, static_cast<float>(divide_by_));
   }
   else if (multiply_by_ >= 1)
     generateScaledClk(src_clk, 1.0F / multiply_by_);
-  else if (edges_)
+  else if (!edges_.empty())
     generateEdgesClk(src_clk);
 
   if (invert_) {
-    float first_time = (*waveform_)[0];
+    float first_time = waveform_[0];
     float offset = (first_time >= period_) ? period_ : 0.0F;
-    size_t edge_count = waveform_->size();
+    size_t edge_count = waveform_.size();
     for (size_t i = 0; i < edge_count - 1; i++)
-      (*waveform_)[i] = (*waveform_)[i + 1] - offset;
-    (*waveform_)[edge_count - 1] = first_time - offset + period_;
+      waveform_[i] = waveform_[i + 1] - offset;
+    waveform_[edge_count - 1] = first_time - offset + period_;
   }
   setClkEdgeTimes();
   waveform_valid_ = true;
@@ -429,28 +367,25 @@ Clock::generate(const Clock *src_clk)
 
 void
 Clock::generateScaledClk(const Clock *src_clk,
-			 float scale)
+                         float scale)
 {
   period_ = src_clk->period() * scale;
   if (duty_cycle_ != 0.0) {
-    float rise = (*src_clk->waveform())[0] * scale;
-    waveform_->push_back(rise);
-    waveform_->push_back(rise + period_ * duty_cycle_ / 100.0F);
+    float rise = src_clk->waveform()[0] * scale;
+    waveform_.push_back(rise);
+    waveform_.push_back(rise + period_ * duty_cycle_ / 100.0F);
   }
   else {
-    FloatSeq::ConstIterator wave_iter(src_clk->waveform());
-    while (wave_iter.hasNext()) {
-      float time = wave_iter.next();
-      waveform_->push_back(time * scale);
-    }
+    for (float time : src_clk->waveform())
+      waveform_.push_back(time * scale);
   }
 }
 
 void
 Clock::generateEdgesClk(const Clock *src_clk)
 {
-  // Edges must be an odd number greater than or equal to 3.
-  size_t num_edges = edges_->size();
+  // Edges must be an odd number >= 3 (Silimate: warn rather than error for != 3).
+  const size_t num_edges = edges_.size();
   if (num_edges < 3) {
     Sta::sta()->report()->warn(244,
       "clock %s edges size must be at least 3.", name_);
@@ -462,43 +397,27 @@ Clock::generateEdgesClk(const Clock *src_clk)
     return;
   }
 
-  // Retrieve source clock waveform and shift information.
-  const FloatSeq *src_wave = src_clk->waveform();
-  size_t src_size = src_wave->size();
-  float src_period = src_clk->period();
-  bool has_shifts = edge_shifts_ && edge_shifts_->size() >= 3;
-
-  // Edge shifts size must be equal to the edges size.
-  if (has_shifts && edge_shifts_->size() != num_edges) {
-    Sta::sta()->report()->warn(244, 
-      "clock %s edge shifts size must be equal to edges size.", name_);
-    has_shifts = false;
-  }
+  const FloatSeq &src_wave = src_clk->waveform();
+  const int src_size = static_cast<int>(src_wave.size());
+  const float src_period = src_clk->period();
 
   float first_edge_time = 0.0;
   float last_edge_time = 0.0;
   for (size_t i = 0; i < num_edges; i++) {
-    int edge_idx = (*edges_)[i] - 1;  // Convert to 0-based
-    float edge_time = (*src_wave)[edge_idx % src_size]
-      + (edge_idx / src_size) * src_period;
+    const int edge_1 = edges_[i] - 1;
+    div_t edge_div = std::div(edge_1, src_size);
+    float edge_time = src_wave[edge_div.rem]
+      + static_cast<float>(edge_div.quot) * src_period;
+    if (!edge_shifts_.empty() && i < edge_shifts_.size())
+      edge_time += edge_shifts_[i];
 
-    // Apply corresponding shift
-    if (has_shifts) {
-      edge_time += (*edge_shifts_)[i];
-    }
-  
-    // First edge determines first rising edge of the new clock.
     if (i == 0)
       first_edge_time = edge_time;
-
-    // Do not add last edge to the waveform
     if (i < num_edges - 1)
-      waveform_->push_back(edge_time);
+      waveform_.push_back(edge_time);
     else
       last_edge_time = edge_time;
   }
-
-  // The period is the time between the first and last edges.
   period_ = last_edge_time - first_edge_time;
 }
 
@@ -512,31 +431,29 @@ const RiseFall *
 Clock::masterClkEdgeTr(const RiseFall *rf) const
 {
   int edge_index = (rf == RiseFall::rise()) ? 0 : 1;
-  if (edges_ == nullptr || static_cast<int>(edges_->size()) <= edge_index)
+  if (static_cast<int>(edges_.size()) <= edge_index)
     return rf;
-  return ((*edges_)[edge_index] - 1) % 2 
+  return (edges_[edge_index] - 1) % 2
     ? RiseFall::fall()
     : RiseFall::rise();
 }
 
 void
 Clock::srcPinVertices(VertexSet &src_vertices,
-		      const Network *network,
-		      Graph *graph)
+                      const Network *network,
+                      Graph *graph)
 {
   if (network->isHierarchical(src_pin_)) {
     // Use the clocks on a non-hierarchical pin on the same net.
     PinSet leaf_pins(network);
     findLeafDriverPins(src_pin_, network, &leaf_pins);
-    PinSet::Iterator pin_iter(leaf_pins);
-    while (pin_iter.hasNext()) {
-      const Pin *pin = pin_iter.next();
+    for (const Pin *pin : leaf_pins) {
       Vertex *vertex, *bidirect_drvr_vertex;
       graph->pinVertices(pin, vertex, bidirect_drvr_vertex);
       if (vertex)
-	src_vertices.insert(vertex);
+        src_vertices.insert(vertex);
       if (bidirect_drvr_vertex)
-	src_vertices.insert(bidirect_drvr_vertex);
+        src_vertices.insert(bidirect_drvr_vertex);
     }
   }
   else {
@@ -551,24 +468,18 @@ Clock::isDivideByOneCombinational() const
   return combinational_
     && divide_by_ == 1
     && multiply_by_ == 0
-    && edge_shifts_ == 0;
+    && edge_shifts_.empty();
 }
 
 ////////////////////////////////////////////////////////////////
 
 ClockEdge::ClockEdge(Clock *clock,
-		     const RiseFall *rf) :
+                     const RiseFall *rf) :
   clock_(clock),
   rf_(rf),
-  name_(stringPrint("%s %s", clock_->name(), rf_->to_string().c_str())),
-  time_(0.0),
+  name_(sta::format("{} {}", clock_->name(), rf_->shortName())),
   index_(clock_->index() * RiseFall::index_count + rf_->index())
 {
-}
-
-ClockEdge::~ClockEdge()
-{
-  stringDelete(name_);
 }
 
 void
@@ -619,7 +530,7 @@ clkCmp(const Clock *clk1,
 
 int
 clkEdgeCmp(const ClockEdge *clk_edge1,
-	   const ClockEdge *clk_edge2)
+           const ClockEdge *clk_edge2)
 {
   if (clk_edge1 == nullptr && clk_edge2)
     return -1;
@@ -641,7 +552,7 @@ clkEdgeCmp(const ClockEdge *clk_edge1,
 
 bool
 clkEdgeLess(const ClockEdge *clk_edge1,
-	    const ClockEdge *clk_edge2)
+            const ClockEdge *clk_edge2)
 {
   return clkEdgeCmp(clk_edge1, clk_edge2) < 0;
 }
@@ -649,7 +560,7 @@ clkEdgeLess(const ClockEdge *clk_edge1,
 ////////////////////////////////////////////////////////////////
 
 InterClockUncertainty::InterClockUncertainty(const Clock *src,
-					     const Clock *target) :
+                                             const Clock *target) :
   src_(src),
   target_(target)
 {
@@ -664,20 +575,20 @@ InterClockUncertainty::empty() const
 
 void
 InterClockUncertainty::uncertainty(const RiseFall *src_rf,
-				   const RiseFall *tgt_rf,
-				   const SetupHold *setup_hold,
-				   float &uncertainty,
-				   bool &exists) const
+                                   const RiseFall *tgt_rf,
+                                   const SetupHold *setup_hold,
+                                   float &uncertainty,
+                                   bool &exists) const
 {
   uncertainties_[src_rf->index()].value(tgt_rf, setup_hold,
-					uncertainty, exists);
+                                        uncertainty, exists);
 }
 
 void
 InterClockUncertainty::setUncertainty(const RiseFallBoth *src_rf,
-				      const RiseFallBoth *tgt_rf,
-				      const SetupHoldAll *setup_hold,
-				      float uncertainty)
+                                      const RiseFallBoth *tgt_rf,
+                                      const SetupHoldAll *setup_hold,
+                                      float uncertainty)
 {
   for (auto src_rf_index : src_rf->rangeIndex())
     uncertainties_[src_rf_index].setValue(tgt_rf, setup_hold, uncertainty);
@@ -685,8 +596,8 @@ InterClockUncertainty::setUncertainty(const RiseFallBoth *src_rf,
 
 void
 InterClockUncertainty::removeUncertainty(const RiseFallBoth *src_rf,
-					 const RiseFallBoth *tgt_rf,
-					 const SetupHoldAll *setup_hold)
+                                         const RiseFallBoth *tgt_rf,
+                                         const SetupHoldAll *setup_hold)
 {
   for (auto src_rf_index : src_rf->rangeIndex())
     uncertainties_[src_rf_index].removeValue(tgt_rf, setup_hold);
@@ -700,22 +611,14 @@ InterClockUncertainty::uncertainties(const RiseFall *src_rf) const
 
 bool
 InterClockUncertaintyLess::operator()(const InterClockUncertainty *inter1,
-				      const InterClockUncertainty *inter2)const
+                                      const InterClockUncertainty *inter2)const
 {
   return inter1->src()->index() < inter2->src()->index()
     || (inter1->src() == inter2->src()
-	&& inter1->target()->index() < inter2->target()->index());
+        && inter1->target()->index() < inter2->target()->index());
 }
 
 ////////////////////////////////////////////////////////////////
-
-bool
-ClockNameLess::operator()(const Clock *clk1,
-			  const Clock *clk2)
-{
-  return stringLess(clk1->name(), clk2->name());
-}
-
 
 bool
 ClockIndexLess::operator()(const Clock *clk1,
@@ -749,26 +652,7 @@ int
 compare(const ClockSet *set1,
         const ClockSet *set2)
 {
-  size_t size1 = set1 ? set1->size() : 0;
-  size_t size2 = set2 ? set2->size() : 0;
-  if (size1 == size2) {
-    ClockSet::ConstIterator iter1(set1);
-    ClockSet::ConstIterator iter2(set2);
-    while (iter1.hasNext() && iter2.hasNext()) {
-      Clock *clk1 = iter1.next();
-      Clock *clk2 = iter2.next();
-      int id1 = clk1->index();
-      int id2 = clk2->index();
-      if (id1 < id2)
-        return -1;
-      else if (id1 > id2)
-        return 1;
-    }
-    // Sets are equal.
-    return 0;
-  }
-  else
-    return (size1 > size2) ? 1 : -1;
+  return sta::compare(set1, set2, ClockIndexLess());
 }
 
-} // namespace
+} // namespace sta

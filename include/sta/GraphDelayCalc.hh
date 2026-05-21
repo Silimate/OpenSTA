@@ -1,5 +1,5 @@
 // OpenSTA, Static Timing Analyzer
-// Copyright (c) 2025, Parallax Software, Inc.
+// Copyright (c) 2026, Parallax Software, Inc.
 // 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -24,17 +24,17 @@
 
 #pragma once
 
-#include <vector>
-#include <mutex>
 #include <array>
+#include <map>
+#include <mutex>
+#include <vector>
 
-#include "Map.hh"
-#include "NetworkClass.hh"
-#include "GraphClass.hh"
-#include "SearchClass.hh"
-#include "DcalcAnalysisPt.hh"
-#include "StaState.hh"
 #include "ArcDelayCalc.hh"
+#include "GraphClass.hh"
+#include "NetworkClass.hh"
+#include "SdcClass.hh"
+#include "SearchClass.hh"
+#include "StaState.hh"
 
 namespace sta {
 
@@ -42,9 +42,10 @@ class DelayCalcObserver;
 class MultiDrvrNet;
 class FindVertexDelays;
 class NetCaps;
+class SearchPred;
 
-typedef Map<const Vertex*, MultiDrvrNet*> MultiDrvrNetMap;
-typedef std::vector<SlewSeq> DrvrLoadSlews;
+using MultiDrvrNetMap = std::map<const Vertex*, MultiDrvrNet*>;
+using DrvrLoadSlews = std::vector<SlewSeq>;
 
 // This class traverses the graph calling the arc delay calculator and
 // annotating delays on graph edges.
@@ -52,8 +53,8 @@ class GraphDelayCalc : public StaState
 {
 public:
   GraphDelayCalc(StaState *sta);
-  virtual ~GraphDelayCalc();
-  virtual void copyState(const StaState *sta);
+  ~GraphDelayCalc() override;
+  void copyState(const StaState *sta) override;
   // Set the observer for edge delay changes.
   virtual void setObserver(DelayCalcObserver *observer);
   // Invalidate all delays/slews.
@@ -73,7 +74,7 @@ public:
   // Returned string is owned by the caller.
   virtual std::string reportDelayCalc(const Edge *edge,
                                       const TimingArc *arc,
-                                      const Corner *corner,
+                                      const Scene *scene,
                                       const MinMax *min_max,
                                       int digits);
   // Percentage (0.0:1.0) change in delay that causes downstream
@@ -82,27 +83,32 @@ public:
   virtual void setIncrementalDelayTolerance(float tol);
 
   float loadCap(const Pin *drvr_pin,
-                const DcalcAnalysisPt *dcalc_ap) const;
+                const Scene *scene,
+                const MinMax *min_max) const;
   float loadCap(const Pin *drvr_pin,
                 const RiseFall *rf,
-                const DcalcAnalysisPt *dcalc_ap) const;
+                const Scene *scene,
+                const MinMax *min_max) const;
   void loadCap(const Pin *drvr_pin,
                const RiseFall *rf,
-               const DcalcAnalysisPt *dcalc_ap,
+               const Scene *scene,
+                const MinMax *min_max,
                // Return values.
                float &pin_cap,
                float &wire_cap) const;
   void netCaps(const Pin *drvr_pin,
                const RiseFall *rf,
-               const DcalcAnalysisPt *dcalc_ap,
+               const Scene *scene,
+               const MinMax *min_max,
                // Return values.
                float &pin_cap,
                float &wire_cap,
                float &fanout,
-               bool &has_set_load) const;
+               bool &has_net_load) const;
   void parasiticLoad(const Pin *drvr_pin,
                      const RiseFall *rf,
-                     const DcalcAnalysisPt *dcalc_ap,
+                     const Scene *scene,
+                     const MinMax *min_max,
                      const MultiDrvrNet *multi_drvr,
                      ArcDelayCalc *arc_delay_calc,
                      // Return values.
@@ -112,14 +118,15 @@ public:
   void findDriverArcDelays(Vertex *drvr_vertex,
                            Edge *edge,
                            const TimingArc *arc,
-                           const DcalcAnalysisPt *dcalc_ap,
+                           const Scene *scene,
+                           const MinMax *min_max,
                            ArcDelayCalc *arc_delay_calc);
   // Precedence:
   //  SDF annotation
   //  Liberty port timing group timing_type minimum_period.
   //  Liberty port min_period attribute.
   void minPeriod(const Pin *pin,
-		 const Corner *corner,
+                 const Scene *scene,
 		 // Return values.
 		 float &min_period,
 		 bool &exists);
@@ -127,11 +134,13 @@ public:
   Slew edgeFromSlew(const Vertex *from_vertex,
 		    const RiseFall *from_rf,
 		    const Edge *edge,
-		    const DcalcAnalysisPt *dcalc_ap);
+                    const Scene *scene,
+                    const MinMax *min_max);
   Slew edgeFromSlew(const Vertex *from_vertex,
 		    const RiseFall *from_rf,
                     const TimingRole *role,
-		    const DcalcAnalysisPt *dcalc_ap);
+                    const Scene *scene,
+                    const MinMax *min_max);
   bool bidirectDrvrSlewFromLoad(const Pin *pin) const;
 
 protected:
@@ -145,13 +154,15 @@ protected:
   void seedNoDrvrSlew(Vertex *drvr_vertex,
 		      const Pin *drvr_pin,
 		      const RiseFall *rf,
-		      const DcalcAnalysisPt *dcalc_ap,
+                      const Scene *scene,
+                      const MinMax *min_max,
 		      ArcDelayCalc *arc_delay_calc);
   void seedNoDrvrCellSlew(Vertex *drvr_vertex,
 			  const Pin *drvr_pin,
 			  const RiseFall *rf,
 			  const InputDrive *drive,
-			  const DcalcAnalysisPt *dcalc_ap,
+                          const Scene *scene,
+                          const MinMax *min_max,
 			  ArcDelayCalc *arc_delay_calc);
   void seedLoadSlew(Vertex *vertex);
   void setInputPortWireDelays(Vertex *vertex);
@@ -160,9 +171,11 @@ protected:
 			    Vertex *drvr_vertex,
 			    const RiseFall *rf,
 			    const LibertyPort *from_port,
-			    float *from_slews,
+                            const DriveCellSlews *from_slews,
 			    const LibertyPort *to_port,
-			    const DcalcAnalysisPt *dcalc_ap);
+                            const Scene *scene,
+                            const MinMax *min_max,
+                            ArcDelayCalc *arc_delay_calc);
   LibertyPort *driveCellDefaultFromPort(const LibertyCell *cell,
 					const LibertyPort *to_port);
   int findPortIndex(const LibertyCell *cell,
@@ -171,12 +184,14 @@ protected:
 			 Vertex *drvr_vertex,
 			 const TimingArc *arc,
 			 float from_slew,
-			 const DcalcAnalysisPt *dcalc_ap);
+                         const Scene *scene,
+                         const MinMax *min_max,
+                         ArcDelayCalc *arc_delay_calc);
   void findDriverDelays(Vertex *drvr_vertex,
 			ArcDelayCalc *arc_delay_calc,
                         LoadPinIndexMap &load_pin_index_map);
   MultiDrvrNet *multiDrvrNet(const Vertex *drvr_vertex) const;
-  MultiDrvrNet *findMultiDrvrNet(Vertex *drvr_pin);
+  MultiDrvrNet *findMultiDrvrNet(Vertex *drvr_vertex);
   MultiDrvrNet *makeMultiDrvrNet(Vertex *drvr_vertex);
   bool hasMultiDrvrs(Vertex *drvr_vertex);
   Vertex *firstLoad(Vertex *drvr_vertex);
@@ -196,14 +211,16 @@ protected:
                            const MultiDrvrNet *multi_drvr,
                            Edge *edge,
                            const TimingArc *arc,
-                           const DcalcAnalysisPt *dcalc_ap,
+                           const Scene *scene,
+                           const MinMax *min_max,
                            ArcDelayCalc *arc_delay_calc,
                            LoadPinIndexMap &load_pin_index_map);
   ArcDcalcArgSeq makeArcDcalcArgs(Vertex *drvr_vertex,
                                   const MultiDrvrNet *multi_drvr,
                                   Edge *edge,
                                   const TimingArc *arc,
-                                  const DcalcAnalysisPt *dcalc_ap,
+                                  const Scene *scene,
+                                  const MinMax *min_max,
                                   ArcDelayCalc *arc_delay_calc);
   void findParallelEdge(Vertex *vertex,
                         const TimingArc *drvr_arc,
@@ -218,41 +235,47 @@ protected:
 		       ArcDelayCalc *arc_delay_calc,
 		       bool propagate);
   DrvrLoadSlews loadSlews(LoadPinIndexMap &load_pin_index_map);
-  bool loadSlewsChanged(DrvrLoadSlews &prev_load_slews,
+  bool loadSlewsChanged(DrvrLoadSlews &load_slews_prev,
                         LoadPinIndexMap &load_pin_index_map);
   void enqueueTimingChecksEdges(Vertex *vertex);
   bool annotateDelaysSlews(Edge *edge,
                            const TimingArc *arc,
                            ArcDcalcResult &dcalc_result,
                            LoadPinIndexMap &load_pin_index_map,
-                           const DcalcAnalysisPt *dcalc_ap);
+                           const Scene *scene,
+                           const MinMax *min_max);
 
   bool annotateDelaySlew(Edge *edge,
                          const TimingArc *arc,
-                         ArcDelay &gate_delay,
-                         Slew &gate_slew,
-                         const DcalcAnalysisPt *dcalc_ap);
+                         const ArcDelay &gate_delay,
+                         const Slew &gate_slew,
+                         const Scene *scene,
+                         const MinMax *min_max);
   bool annotateLoadDelays(Vertex *drvr_vertex,
                           const RiseFall *drvr_rf,
                           ArcDcalcResult &dcalc_result,
                           LoadPinIndexMap &load_pin_index_map,
                           const ArcDelay &extra_delay,
                           bool merge,
-                          const DcalcAnalysisPt *dcalc_ap);
+                          const Scene *scene,
+                          const MinMax *min_max);
   void findLatchEdgeDelays(Edge *edge);
   void findCheckEdgeDelays(Edge *edge,
 			   ArcDelayCalc *arc_delay_calc);
   void deleteMultiDrvrNets();
   Slew checkEdgeClkSlew(const Vertex *from_vertex,
 			const RiseFall *from_rf,
-			const DcalcAnalysisPt *dcalc_ap);
+                        const Scene *scene,
+                        const MinMax *min_max);
   float loadCap(const Pin *drvr_pin,
                 const RiseFall *rf,
-                const DcalcAnalysisPt *dcalc_ap,
+                const Scene *scene,
+                const MinMax *min_max,
                 ArcDelayCalc *arc_delay_calc) const;
   void parasiticLoad(const Pin *drvr_pin,
                      const RiseFall *rf,
-                     const DcalcAnalysisPt *dcalc_ap,
+                     const Scene *scene,
+                     const MinMax *min_max,
                      const MultiDrvrNet *multi_drvr,
                      ArcDelayCalc *arc_delay_calc,
                      // Return values.
@@ -261,7 +284,8 @@ protected:
                      const Parasitic *&parasitic) const;
   void netCaps(const Pin *drvr_pin,
                const RiseFall *rf,
-               const DcalcAnalysisPt *dcalc_ap,
+               const Scene *scene,
+               const MinMax *min_max,
                const MultiDrvrNet *multi_drvr,
                // Return values.
                float &pin_cap,
@@ -270,12 +294,12 @@ protected:
                bool &has_net_load) const;
 
   // Observer for edge delay changes.
-  DelayCalcObserver *observer_;
-  bool delays_seeded_;
-  bool incremental_;
-  bool delays_exist_;
+  DelayCalcObserver *observer_{nullptr};
+  bool delays_seeded_{false};
+  bool incremental_{false};
+  bool delays_exist_{false};
   // Vertices with invalid -to delays.
-  VertexSet *invalid_delays_;
+  VertexSet invalid_delays_;
   // Timing check edges with invalid delays.
   EdgeSet invalid_check_edges_;
   // Latch D->Q edges with invalid delays.
@@ -284,13 +308,12 @@ protected:
   std::mutex invalid_edge_lock_;
   SearchPred *search_pred_;
   SearchPred *search_non_latch_pred_;
-  SearchPred *clk_pred_;
   BfsFwdIterator *iter_;
   MultiDrvrNetMap multi_drvr_net_map_;
   std::mutex multi_drvr_lock_;
   // Percentage (0.0:1.0) change in delay that causes downstream
   // delays to be recomputed during incremental delay calculation.
-  float incremental_delay_tolerance_;
+  float incremental_delay_tolerance_{0.0};
 
   friend class FindVertexDelays;
   friend class MultiDrvrNet;
@@ -300,8 +323,7 @@ protected:
 class DelayCalcObserver
 {
 public:
-  DelayCalcObserver() {}
-  virtual ~DelayCalcObserver() {}
+  virtual ~DelayCalcObserver() = default;
   virtual void delayChangedFrom(Vertex *vertex) = 0;
   virtual void delayChangedTo(Vertex *vertex) = 0;
   virtual void checkDelayChangedTo(Vertex *vertex) = 0;
@@ -312,27 +334,27 @@ public:
 class MultiDrvrNet
 {
 public:
-  MultiDrvrNet();
   VertexSeq &drvrs() { return drvrs_; }
   const VertexSeq &drvrs() const { return drvrs_; }
   bool parallelGates(const Network *network) const;
   Vertex *dcalcDrvr() const { return dcalc_drvr_; }
   void setDcalcDrvr(Vertex *drvr);
   void netCaps(const RiseFall *rf,
-	       const DcalcAnalysisPt *dcalc_ap,
+               const Scene *scene,
+               const MinMax *min_max,
 	       // Return values.
 	       float &pin_cap,
 	       float &wire_cap,
 	       float &fanout,
 	       bool &has_net_load) const;
-  void findCaps(const Sdc *sdc);
+  void findCaps(const StaState *sta);
 
 private:
   // Driver that triggers delay calculation for all the drivers on the net.
-  Vertex *dcalc_drvr_;
+  Vertex *dcalc_drvr_{nullptr};
   VertexSeq drvrs_;
   // [drvr_rf->index][dcalc_ap->index]
   std::vector<NetCaps> net_caps_;
 };
 
-} // namespace
+} // namespace sta

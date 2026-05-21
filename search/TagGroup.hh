@@ -1,5 +1,5 @@
 // OpenSTA, Static Timing Analyzer
-// Copyright (c) 2025, Parallax Software, Inc.
+// Copyright (c) 2026, Parallax Software, Inc.
 // 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -25,14 +25,13 @@
 #pragma once
 
 #include <atomic>
+#include <vector>
 
-#include "Vector.hh"
-#include "Map.hh"
-#include "Iterator.hh"
-#include "MinMax.hh"
-#include "Transition.hh"
+#include "Delay.hh"
 #include "GraphClass.hh"
+#include "LibertyClass.hh"
 #include "SearchClass.hh"
+#include "StaState.hh"
 #include "Tag.hh"
 
 namespace sta {
@@ -43,15 +42,15 @@ class TagGroup
 {
 public:
   TagGroup(TagGroupIndex index,
-	   PathIndexMap *path_index_map,
-	   bool has_clk_tag,
-	   bool has_genclk_src_tag,
-	   bool has_filter_tag,
-	   bool has_loop_tag,
-	   const StaState *sta);
+           PathIndexMap *path_index_map,
+           bool has_clk_tag,
+           bool has_genclk_src_tag,
+           bool has_filter_tag,
+           bool has_loop_tag,
+           const StaState *sta);
   // For Search::findTagGroup to probe.
   TagGroup(TagGroupBldr *tag_bldr,
-	   const StaState *sta);
+           const StaState *sta);
   ~TagGroup();
   TagGroupIndex index() const { return index_; }
   size_t hash() const { return hash_; }
@@ -75,7 +74,7 @@ public:
 
 protected:
   static size_t hash(PathIndexMap *path_index_map,
-		     const StaState *sta);
+                     const StaState *sta);
 
   // tag -> path index
   PathIndexMap *path_index_map_;
@@ -92,14 +91,14 @@ protected:
 class TagGroupHash
 {
 public:
-  size_t operator()(const TagGroup *tag) const;
+  size_t operator()(const TagGroup *group) const;
 };
 
 class TagGroupEqual
 {
 public:
   bool operator()(const TagGroup *group1,
-		  const TagGroup *group2) const;
+                  const TagGroup *group2) const;
 };
 
 // Incremental tag group used to build tag group and associated
@@ -108,12 +107,12 @@ class TagGroupBldr
 {
 public:
   TagGroupBldr(bool match_crpr_clk_pin,
-	       const StaState *sta);
+               const StaState *sta);
   void init(Vertex *vertex);
   bool empty();
   void reportArrivalEntries() const;
   TagGroup *makeTagGroup(TagGroupIndex index,
-			 const StaState *sta);
+                         const StaState *sta);
   size_t pathCount() const { return path_index_map_.size();; }
   bool hasClkTag() const { return has_clk_tag_; }
   bool hasGenClkSrcTag() const { return has_genclk_src_tag_; }
@@ -128,7 +127,7 @@ public:
   Arrival arrival(size_t path_index) const;
   // prev_path == hull
   void setArrival(Tag *tag,
-		  const Arrival &arrival);
+                  const Arrival &arrival);
   void setMatchPath(Path *match,
                     size_t path_index,
                     Tag *tag,
@@ -154,11 +153,11 @@ protected:
   int default_path_count_;
   PathIndexMap path_index_map_;
   std::vector<Path>  paths_;
-  bool has_clk_tag_;
-  bool has_genclk_src_tag_;
-  bool has_filter_tag_;
-  bool has_loop_tag_;
-  bool has_propagated_clk_;
+  bool has_clk_tag_{false};
+  bool has_genclk_src_tag_{false};
+  bool has_filter_tag_{false};
+  bool has_loop_tag_{false};
+  bool has_propagated_clk_{false};
   const StaState *sta_;
 };
 
@@ -166,4 +165,4 @@ void
 pathIndexMapReport(const PathIndexMap *path_index_map,
                    const StaState *sta);
 
-} // namespace
+} // namespace sta

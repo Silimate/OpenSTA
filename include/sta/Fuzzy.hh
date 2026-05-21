@@ -1,5 +1,5 @@
 // OpenSTA, Static Timing Analyzer
-// Copyright (c) 2025, Parallax Software, Inc.
+// Copyright (c) 2026, Parallax Software, Inc.
 // 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -30,22 +30,22 @@ namespace sta {
 
 bool
 fuzzyEqual(float v1,
-	   float v2);
+           float v2);
 bool
 fuzzyZero(float v);
 bool
 fuzzyLess(float v1,
-	  float v2);
+          float v2);
 bool
 fuzzyLessEqual(float v1,
-	       float v2);
+               float v2);
 bool
 fuzzyGreater(float v1,
-	     float v2);
+             float v2);
 bool
 fuzzyGreaterEqual(float v1,
-		  float v2);
+                  float v2);
 bool
 fuzzyInf(float value);
 
-} // namespace
+} // namespace sta

@@ -1,5 +1,5 @@
 // OpenSTA, Static Timing Analyzer
-// Copyright (c) 2025, Parallax Software, Inc.
+// Copyright (c) 2026, Parallax Software, Inc.
 // 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -28,8 +28,6 @@
 
 namespace sta {
 
-using std::string;
-
 ArcDelayCalc *
 makeUnitDelayCalc(StaState *sta)
 {
@@ -49,8 +47,9 @@ UnitDelayCalc::copy()
 
 Parasitic *
 UnitDelayCalc::findParasitic(const Pin *,
-			     const RiseFall *,
-			     const DcalcAnalysisPt *)
+                             const RiseFall *,
+                             const Scene *,
+                             const MinMax *)
 {
   return nullptr;
 }
@@ -59,7 +58,8 @@ Parasitic *
 UnitDelayCalc::reduceParasitic(const Parasitic *,
                                const Pin *,
                                const RiseFall *,
-                               const DcalcAnalysisPt *)
+                               const Scene *,
+                               const MinMax *)
 {
   return nullptr;
 }
@@ -67,30 +67,33 @@ UnitDelayCalc::reduceParasitic(const Parasitic *,
 void
 UnitDelayCalc::reduceParasitic(const Parasitic *,
                                const Net *,
-                               const Corner *,
+                               const Scene *,
                                const MinMaxAll *)
 {
 }
 
 void
 UnitDelayCalc::setDcalcArgParasiticSlew(ArcDcalcArg &,
-                                        const DcalcAnalysisPt *)
+                                        const Scene *,
+                                        const MinMax *)
 {
 }
 
 void
 UnitDelayCalc::setDcalcArgParasiticSlew(ArcDcalcArgSeq &,
-                                        const DcalcAnalysisPt *)
+                                        const Scene *,
+                                        const MinMax *)
 {
 }
 
 ArcDcalcResult
 UnitDelayCalc::inputPortDelay(const Pin *,
-			      float,
-			      const RiseFall *,
-			      const Parasitic *,
+                              float,
+                              const RiseFall *,
+                              const Parasitic *,
                               const LoadPinIndexMap &load_pin_index_map,
-                              const DcalcAnalysisPt *)
+                              const Scene *,
+                              const MinMax *)
 {
   return unitDelayResult(load_pin_index_map);
 }
@@ -98,11 +101,12 @@ UnitDelayCalc::inputPortDelay(const Pin *,
 ArcDcalcResult
 UnitDelayCalc::gateDelay(const Pin *,
                          const TimingArc *,
-			 const Slew &,
-			 float,
-			 const Parasitic *,
+                         const Slew &,
+                         float,
+                         const Parasitic *,
                          const LoadPinIndexMap &load_pin_index_map,
-                         const DcalcAnalysisPt *)
+                         const Scene *,
+                         const MinMax *)
 {
   return unitDelayResult(load_pin_index_map);
 }
@@ -110,7 +114,8 @@ UnitDelayCalc::gateDelay(const Pin *,
 ArcDcalcResultSeq
 UnitDelayCalc::gateDelays(ArcDcalcArgSeq &dcalc_args,
                           const LoadPinIndexMap &load_pin_index_map,
-                          const DcalcAnalysisPt *)
+                          const Scene *,
+                          const MinMax *)
 {
   size_t drvr_count = dcalc_args.size();
   ArcDcalcResultSeq dcalc_results(drvr_count);
@@ -135,17 +140,18 @@ UnitDelayCalc::unitDelayResult(const LoadPinIndexMap &load_pin_index_map)
   return dcalc_result;
 }
 
-string
+std::string
 UnitDelayCalc::reportGateDelay(const Pin *,
                                const TimingArc *,
-			       const Slew &,
-			       float,
-			       const Parasitic *,
+                               const Slew &,
+                               float,
+                               const Parasitic *,
                                const LoadPinIndexMap &,
-			       const DcalcAnalysisPt *,
-			       int)
+                               const Scene *,
+                               const MinMax *,
+                               int)
 {
-  string result("Delay = 1.0\n");
+  std::string result("Delay = 1.0\n");
   result += "Slew = 0.0\n";
   return result;
 }
@@ -153,23 +159,25 @@ UnitDelayCalc::reportGateDelay(const Pin *,
 ArcDelay 
 UnitDelayCalc::checkDelay(const Pin *,
                           const TimingArc *,
-			  const Slew &,
-			  const Slew &,
-			  float,
-			  const DcalcAnalysisPt *)
+                          const Slew &,
+                          const Slew &,
+                          float,
+                          const Scene *,
+                          const MinMax *)
 {
   return units_->timeUnit()->scale();
 }
 
-string
+std::string
 UnitDelayCalc::reportCheckDelay(const Pin *,
                                 const TimingArc *,
-				const Slew &,
-				const char *,
-				const Slew &,
-				float,
-				const DcalcAnalysisPt *,
-				int)
+                                const Slew &,
+                                std::string_view,
+                                const Slew &,
+                                float,
+                                const Scene *,
+                                const MinMax *,
+                                int)
 {
   return "Check = 1.0\n";
 }
@@ -179,4 +187,4 @@ UnitDelayCalc::finishDrvrPin()
 {
 }
 
-} // namespace
+} // namespace sta

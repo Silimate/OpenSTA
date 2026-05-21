@@ -1,5 +1,5 @@
 // OpenSTA, Static Timing Analyzer
-// Copyright (c) 2025, Parallax Software, Inc.
+// Copyright (c) 2026, Parallax Software, Inc.
 // 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -24,8 +24,9 @@
 
 #pragma once
 
-#include <cstdint>
 #include <cstddef>
+#include <cstdint>
+#include <string_view>
 
 namespace sta {
 
@@ -34,7 +35,7 @@ const size_t hash_init_value = 5381;
 // Dan Bernstein, comp.lang.c.
 inline size_t
 hashSum(size_t hash,
-	size_t add)
+        size_t add)
 {
   // hash * 31 ^ add.
   return ((hash << 5) + hash) ^ add;
@@ -42,7 +43,7 @@ hashSum(size_t hash,
 
 inline void
 hashIncr(size_t &hash,
-	 size_t add)
+         size_t add)
 {
   // hash * 31 ^ add.
   hash = ((hash << 5) + hash) ^ add;
@@ -56,7 +57,7 @@ nextMersenne(size_t n)
 
 // Sadly necessary until c++ std::hash works for char *.
 size_t
-hashString(const char *str);
+hashString(std::string_view str);
 
 // Pointer hashing is strongly discouraged because it causes results to change
 // from run to run. Use Network::id functions instead.
@@ -66,4 +67,4 @@ hashString(const char *str);
   #define hashPtr(ptr) (reinterpret_cast<intptr_t>(ptr) >> 2)
 #endif
 
-} // namespace
+} // namespace sta

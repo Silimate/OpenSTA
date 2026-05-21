@@ -1,5 +1,5 @@
 # OpenSTA, Static Timing Analyzer
-# Copyright (c) 2025, Parallax Software, Inc.
+# Copyright (c) 2026, Parallax Software, Inc.
 # 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -22,17 +22,9 @@
 # 
 # This notice may not be removed or altered from any source distribution.
 
-cmake_minimum_required (VERSION 3.10)
-if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.13)
-# Use standard target names
-cmake_policy(SET CMP0078 NEW)
-endif()
-if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.14)
-# Allows SWIG_MODULE_NAME to be set
-cmake_policy(SET CMP0086 NEW)
-endif()
+cmake_minimum_required (VERSION 3.16)
 
-project(STA VERSION 2.7.0
+project(STA VERSION 3.1.0
   LANGUAGES CXX
 )
 
@@ -43,6 +35,9 @@ option(ENABLE_ASAN "Compile with address santizer enabled" OFF)
 
 # Turn on to debug compiler args.
 set(CMAKE_VERBOSE_MAKEFILE OFF)
+
+# Write compile_commands.json to the build directory for clang-tidy.
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 set(STA_HOME ${PROJECT_SOURCE_DIR})
 message(STATUS "STA version: ${PROJECT_VERSION}")
@@ -63,6 +58,16 @@ message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
 message(STATUS "Build CXX_FLAGS: ${CMAKE_CXX_FLAGS_${CMAKE_BUILD_TYPE}}")
 message(STATUS "Install prefix: ${CMAKE_INSTALL_PREFIX}")
 
+# Enable Link-Time Optimization (LTO) for Release builds.
+include(CheckIPOSupported)
+check_ipo_supported(RESULT ipo_supported OUTPUT ipo_error)
+if(ipo_supported)
+  set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE TRUE)
+  message(STATUS "IPO/LTO: enabled for Release builds")
+else()
+  message(STATUS "IPO/LTO: not supported - ${ipo_error}")
+endif()
+
 ################################################################
 #
 # Source files.
@@ -72,14 +77,17 @@ message(STATUS "Install prefix: ${CMAKE_INSTALL_PREFIX}")
 set(STA_SOURCE
   app/StaMain.cc
   
-  dcalc/ArcDelayCalc.cc
   dcalc/ArcDcalcWaveforms.cc
+  dcalc/ArcDelayCalc.cc
   dcalc/ArnoldiDelayCalc.cc
   dcalc/ArnoldiReduce.cc
   dcalc/CcsCeffDelayCalc.cc
-  dcalc/DcalcAnalysisPt.cc
+  dcalc/Delay.cc
   dcalc/DelayCalc.cc
   dcalc/DelayCalcBase.cc
+  dcalc/DelayNormal.cc
+  dcalc/DelayScalar.cc
+  dcalc/DelaySkewNormal.cc
   dcalc/DmpCeff.cc
   dcalc/DmpDelayCalc.cc
   dcalc/FindRoot.cc
@@ -90,9 +98,6 @@ set(STA_SOURCE
   dcalc/PrimaDelayCalc.cc
   dcalc/UnitDelayCalc.cc
   
-  graph/DelayFloat.cc
-  graph/DelayNormal1.cc
-  graph/DelayNormal2.cc
   graph/Graph.cc
   graph/GraphCmp.cc
   
@@ -136,6 +141,7 @@ set(STA_SOURCE
   parasitics/SpefReaderPvt.hh
 
   power/Power.cc
+  power/ReportPower.cc
   power/VcdReader.cc
   power/SaifReader.cc
   power/VcdParse.cc
@@ -150,13 +156,12 @@ set(STA_SOURCE
   sdc/DeratingFactors.cc
   sdc/DisabledPorts.cc
   sdc/ExceptionPath.cc
-  sdc/FilterExpr.cc
+  sdc/FilterObjects.cc
   sdc/InputDrive.cc
   sdc/PinPair.cc
   sdc/PortDelay.cc
   sdc/PortExtCap.cc
   sdc/Sdc.cc
-  sdc/SdcGraph.cc
   sdc/SdcCmdComment.cc
   sdc/Variables.cc
   sdc/WriteSdc.cc
@@ -170,15 +175,14 @@ set(STA_SOURCE
   search/CheckMaxSkews.cc
   search/CheckMinPeriods.cc
   search/CheckMinPulseWidths.cc
-  search/CheckCapacitanceLimits.cc
-  search/CheckFanoutLimits.cc
-  search/CheckSlewLimits.cc
+  search/CheckCapacitances.cc
+  search/CheckFanouts.cc
+  search/CheckSlews.cc
   search/CheckTiming.cc
   search/ClkInfo.cc
   search/ClkLatency.cc
   search/ClkNetwork.cc
   search/ClkSkew.cc
-  search/Corner.cc
   search/Crpr.cc
   search/FindRegister.cc
   search/GatedClk.cc
@@ -186,17 +190,19 @@ set(STA_SOURCE
   search/Latches.cc
   search/Levelize.cc
   search/MakeTimingModel.cc
+  search/Mode.cc
   search/Path.cc
-  search/PathAnalysisPt.cc
   search/Path.cc
   search/PathEnd.cc
   search/PathEnum.cc
   search/PathExpanded.cc
   search/PathGroup.cc
+  search/PocvMode.cc
   search/Property.cc
   search/ReportPath.cc
   search/Search.cc
   search/SearchPred.cc
+  search/Scene.cc
   search/Sim.cc
   search/Sta.cc
   search/StaState.cc
@@ -217,24 +223,31 @@ set(STA_SOURCE
   util/Error.cc
   util/Fuzzy.cc
   util/Hash.cc
-  util/Machine.cc
   util/MinMax.cc
   util/PatternMatch.cc
   util/Report.cc
   util/ReportStd.cc
   util/ReportTcl.cc
   util/RiseFallMinMax.cc
+  util/RiseFallMinMaxDelay.cc
   util/RiseFallValues.cc
   util/Stats.cc
-  util/StringSeq.cc
-  util/StringSet.cc
   util/StringUtil.cc
-  util/TokenParser.cc
   util/Transition.cc
   
   verilog/VerilogReader.cc
   verilog/VerilogWriter.cc
   )
+
+if(APPLE)
+  list(APPEND STA_SOURCE util/MachineApple.cc)
+elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+  list(APPEND STA_SOURCE util/MachineLinux.cc)
+elseif(WIN32)
+  list(APPEND STA_SOURCE util/MachineWin32.cc)
+else()
+  list(APPEND STA_SOURCE util/MachineUnknown.cc)
+endif()
 
 # Source files.
 set(STA_TCL_FILES
@@ -316,6 +329,20 @@ bison_target(SaifParse ${STA_HOME}/power/SaifParse.yy
   ${CMAKE_CURRENT_BINARY_DIR}/SaifParse.cc)
 add_flex_bison_dependency(SaifLex SaifParse)
 
+# Suppress -Wsign-compare in flex-generated code (yyleng vs int loop counter).
+# Only needed with older GCC (e.g. CentOS 7 stock 4.8.5); newer GCC/flex handle it.
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+  set_source_files_properties(
+    ${FLEX_VerilogLex_OUTPUTS}
+    ${FLEX_LibertyLex_OUTPUTS}
+    ${FLEX_LibExprLex_OUTPUTS}
+    ${FLEX_SdfLex_OUTPUTS}
+    ${FLEX_SpefLex_OUTPUTS}
+    ${FLEX_SaifLex_OUTPUTS}
+    PROPERTIES COMPILE_FLAGS "-Wno-sign-compare"
+  )
+endif()
+
 ################################################################
 
 set(STA_TCL_INIT ${CMAKE_CURRENT_BINARY_DIR}/StaTclInitVar.cc)
@@ -384,12 +411,47 @@ find_package(Threads)
 
 find_package(Eigen3 REQUIRED)
 
-include(cmake/FindCUDD.cmake)
-
-if("${SSTA}" STREQUAL "")
-  set(SSTA 0)
+# See if std::format is available and if nor install fmt.
+include(CheckCXXSourceCompiles)
+set(_sta_fmt_check_saved_flags "${CMAKE_REQUIRED_FLAGS}")
+if(MSVC)
+  string(APPEND CMAKE_REQUIRED_FLAGS " /std:c++20")
+else()
+  string(APPEND CMAKE_REQUIRED_FLAGS " -std=c++20")
 endif()
-message(STATUS "SSTA: ${SSTA}")
+check_cxx_source_compiles("
+#include <format>
+#include <string>
+int main() { (void)std::format(\"{}\", 42); return 0; }
+" HAVE_CXX_STD_FORMAT)
+set(CMAKE_REQUIRED_FLAGS "${_sta_fmt_check_saved_flags}")
+
+if(HAVE_CXX_STD_FORMAT)
+  message(STATUS "std::format: available")
+else()
+  # Set the fmt dir for the ubuntu/centos docker files.
+  if(EXISTS "/usr/local/lib/cmake/fmt/fmt-config.cmake")
+    set(fmt_DIR "/usr/local/lib/cmake/fmt")
+  elseif(EXISTS "/usr/lib/x86_64-linux-gnu/cmake/fmt/fmt-config.cmake")
+    set(fmt_DIR "/usr/lib/x86_64-linux-gnu/cmake/fmt")
+  elseif(EXISTS "/usr/lib/aarch64-linux-gnu/cmake/fmt/fmt-config.cmake")
+    set(fmt_DIR "/usr/lib/aarch64-linux-gnu/cmake/fmt")
+  endif()
+  find_package(fmt QUIET)
+  if(fmt_FOUND)
+    message(STATUS "std::format: using installed fmt library")
+  else()
+    message(STATUS "std::format: building fmt library")
+    include(FetchContent)
+    FetchContent_Declare(fmt
+      GIT_REPOSITORY https://github.com/fmtlib/fmt.git
+      GIT_TAG 10.2.1
+    )
+    FetchContent_MakeAvailable(fmt)
+  endif()
+endif()
+
+include(cmake/FindCUDD.cmake)
 
 # configure a header file to pass some of the CMake settings
 configure_file(${STA_HOME}/util/StaConfig.hh.cmake
@@ -401,6 +463,7 @@ configure_file(${STA_HOME}/util/StaConfig.hh.cmake
 ###########################################################
 
 find_package(SWIG 3.0 REQUIRED)
+message(STATUS "SWIG version: ${SWIG_VERSION}")
 include(UseSWIG)
 
 set(STA_SWIG_FILE app/StaApp.i)
@@ -408,14 +471,12 @@ set(STA_SWIG_FILE app/StaApp.i)
 set_property(SOURCE ${STA_SWIG_FILE}
   PROPERTY CPLUSPLUS ON
 )
-# Ubuntu 18.04 cmake version 3.10.2 does not support the
-# COMPILE_OPTIONS and INCLUDE_DIRECTORIES properties, so cram
-# them into SWIG_FLAGS for the time being.
+# SWIG flags (CMake UseSWIG).
 set_property(SOURCE ${STA_SWIG_FILE}
-  PROPERTY SWIG_FLAGS
+  PROPERTY COMPILE_OPTIONS
   -module sta
-  -namespace -prefix sta
-  -I${STA_HOME}
+  -namespace
+  -prefix sta
 )
 
 set(SWIG_FILES
@@ -473,6 +534,9 @@ target_include_directories(sta_swig
   ${CMAKE_CURRENT_BINARY_DIR}/include/sta
 )
 
+# Pass sta_swig include directories to SWIG as -I (same paths as the C++ build).
+set_property(TARGET sta_swig PROPERTY SWIG_USE_TARGET_INCLUDE_DIRECTORIES TRUE)
+
 ###########################################################
 # Library
 ###########################################################
@@ -510,6 +574,10 @@ target_link_libraries(OpenSTA
   ${CUDD_LIB}
   )
 
+if(NOT HAVE_CXX_STD_FORMAT)
+  target_link_libraries(OpenSTA fmt::fmt)
+endif()
+
 if (ZLIB_LIBRARIES)
   target_link_libraries(OpenSTA ${ZLIB_LIBRARIES})
 endif()
@@ -538,30 +606,30 @@ endif()
 
 # common to gcc/clang
 set(CXX_FLAGS -Wall -Wextra -pedantic -Wcast-qual -Wredundant-decls
-  -Wformat-security -Werror=misleading-indentation)
+  -Wformat-security -Werror=misleading-indentation -Wundef)
 
 if(ENABLE_TSAN)
   message(STATUS "Thread sanitizer: ${ENABLE_TSAN}")
   set(CXX_FLAGS "${CXX_FLAGS};-fsanitize=thread")
-  set(CMAKE_EXE_LINKER_FLAGS "-fsanitize=thread")
+  string(APPEND CMAKE_EXE_LINKER_FLAGS " -fsanitize=thread")
 endif()
 
 if(ENABLE_ASAN)
   message(STATUS "Address sanitizer: ${ENABLE_ASAN}")
   set(CXX_FLAGS "${CXX_FLAGS};-fsanitize=address")
-  set(CMAKE_EXE_LINKER_FLAGS "-fsanitize=address")
+  string(APPEND CMAKE_EXE_LINKER_FLAGS " -fsanitize=address")
 endif()
 
 target_compile_options(OpenSTA
   PRIVATE
-  $<$<CXX_COMPILER_ID:GNU>:${CXX_FLAGS}>
+  $<$<CXX_COMPILER_ID:GNU>:${CXX_FLAGS} -Wno-format-zero-length>
   $<$<CXX_COMPILER_ID:Clang>:${CXX_FLAGS} -Wno-gnu-zero-variadic-macro-arguments>
   $<$<CXX_COMPILER_ID:AppleClang>:${CXX_FLAGS} -Wno-gnu-zero-variadic-macro-arguments>
   )
 
 # Disable compiler specific extensions like gnu++11.
 set_target_properties(OpenSTA PROPERTIES CXX_EXTENSIONS OFF)
-target_compile_features(OpenSTA PUBLIC cxx_std_17)
+target_compile_features(OpenSTA PUBLIC cxx_std_20)
 
 message(STATUS "STA library: ${CMAKE_BINARY_DIR}/libOpenSTA.a")
 
@@ -575,6 +643,7 @@ message(STATUS "STA library: ${CMAKE_BINARY_DIR}/libOpenSTA.a")
 add_executable(sta app/Main.cc)
 
 target_link_libraries(sta
+  PRIVATE
   sta_swig
   OpenSTA
   )

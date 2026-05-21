@@ -1,57 +1,44 @@
 // OpenSTA, Static Timing Analyzer
-// Copyright (c) 2025, Parallax Software, Inc.
-// 
+// Copyright (c) 2026, Parallax Software, Inc.
+//
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
-// 
+//
 // This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
-// 
+//
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
-// 
+//
 // The origin of this software must not be misrepresented; you must not
 // claim that you wrote the original software.
-// 
+//
 // Altered source versions must be plainly marked as such, and must not be
 // misrepresented as being the original software.
-// 
+//
 // This notice may not be removed or altered from any source distribution.
 
 #include "Report.hh"
 
-#include <algorithm> // min
-#include <cstdlib>   // exit
-#include <cstring>   // strlen
-#include <csignal>   // signal
+#include <algorithm>  // min
+#include <cstdlib>    // exit
+#include <cstring>    // strlen
 
-#include "Machine.hh"
 #include "Error.hh"
+#include "Format.hh"
+#include "Machine.hh"
 
 namespace sta {
 
-using std::min;
-
 Report *Report::default_ = nullptr;
 
-Report::Report() :
-  log_stream_(nullptr),
-  redirect_stream_(nullptr),
-  redirect_to_string_(false),
-  buffer_size_(1000),
-  buffer_(new char[buffer_size_]),
-  buffer_length_(0)
+Report::Report()
 {
   default_ = this;
-}
-
-Report::~Report()
-{
-  delete [] buffer_;
 }
 
 size_t
@@ -79,24 +66,13 @@ Report::printString(const char *buffer,
     redirectStringPrint(buffer, length);
   else {
     if (redirect_stream_)
-      ret = min(ret, fwrite(buffer, sizeof(char), length, redirect_stream_));
+      ret = std::min(ret, fwrite(buffer, sizeof(char), length, redirect_stream_));
     else
-      ret = min(ret, printConsole(buffer, length));
+      ret = std::min(ret, printConsole(buffer, length));
     if (log_stream_)
-      ret = min(ret, fwrite(buffer, sizeof(char), length, log_stream_));
+      ret = std::min(ret, fwrite(buffer, sizeof(char), length, log_stream_));
   }
   return ret;
-}
-
-void
-Report::reportLine(const char *fmt, ...)
-{
-  va_list args;
-  va_start(args, fmt);
-  std::unique_lock<std::mutex> lock(buffer_lock_);
-  printToBuffer(fmt, args);
-  printBufferLine();
-  va_end(args);
 }
 
 void
@@ -106,13 +82,7 @@ Report::reportBlankLine()
 }
 
 void
-Report::reportLineString(const char *line)
-{
-  printLine(line, strlen(line));
-}
-
-void
-Report::reportLineString(const std::string &line)
+Report::reportLine(const std::string &line)
 {
   printLine(line.c_str(), line.length());
 }
@@ -120,208 +90,10 @@ Report::reportLineString(const std::string &line)
 ////////////////////////////////////////////////////////////////
 
 void
-Report::printToBuffer(const char *fmt,
-                      ...)
+reportThrowExceptionMsg(const std::string &msg,
+                        bool suppressed)
 {
-  va_list args;
-  va_start(args, fmt);
-  printToBuffer(fmt, args);
-  va_end(args);
-}
-
-void
-Report::printToBuffer(const char *fmt,
-                      va_list args)
-{
-  buffer_length_ = 0;
-  printToBufferAppend(fmt, args);
-}
-
-void
-Report::printToBufferAppend(const char *fmt,
-                            ...)
-{
-  va_list args;
-  va_start(args, fmt);
-  printToBufferAppend(fmt, args);
-  va_end(args);
-}
-
-void
-Report::printToBufferAppend(const char *fmt,
-                            va_list args)
-{
-  // Copy args in case we need to grow the buffer.
-  va_list args_copy;
-  va_copy(args_copy, args);
-  size_t length = vsnprint(buffer_ + buffer_length_, buffer_size_- buffer_length_,
-                           fmt, args);
-  if (length >= buffer_size_ - buffer_length_) {
-    buffer_size_ = buffer_length_ + length * 2;
-    char *new_buffer = new char[buffer_size_];
-    strncpy(new_buffer, buffer_, buffer_length_);
-    delete [] buffer_;
-    buffer_ = new_buffer;
-    length = vsnprint(buffer_ + buffer_length_, buffer_size_ - buffer_length_,
-                      fmt, args_copy);
-  }
-  buffer_length_ += length;
-  va_end(args_copy);
-}
-
-void
-Report::printBufferLine()
-{
-  printLine(buffer_, buffer_length_);
-}
-
-////////////////////////////////////////////////////////////////
-
-void
-Report::warn(int id,
-             const char *fmt,
-             ...)
-{
-  // Skip suppressed messages.
-  if (!isSuppressed(id)) {
-    va_list args;
-    va_start(args, fmt);
-    printToBuffer("Warning: ");
-    printToBufferAppend(fmt, args);
-    printBufferLine();
-    va_end(args);
-  }
-}
-
-void
-Report::vwarn(int id,
-              const char *fmt,
-              va_list args)
-{
-  // Skip suppressed messages.
-  if (!isSuppressed(id)) {
-    printToBuffer("Warning: ");
-    printToBufferAppend(fmt, args);
-    printBufferLine();
-  }
-}
-
-void
-Report::fileWarn(int id,
-                 const char *filename,
-                 int line,
-                 const char *fmt,
-                 ...)
-{
-  // Skip suppressed messages.
-  if (!isSuppressed(id)) {
-    va_list args;
-    va_start(args, fmt);
-    printToBuffer("Warning: %s line %d, ", filename, line);
-    printToBufferAppend(fmt, args);
-    printBufferLine();
-    va_end(args);
-  }
-}
-
-void
-Report::vfileWarn(int id,
-                  const char *filename,
-                  int line,
-                  const char *fmt,
-                  va_list args)
-{
-  // Skip suppressed messages.
-  if (!isSuppressed(id)) {
-    printToBuffer("Warning: %s line %d, ", filename, line);
-    printToBufferAppend(fmt, args);
-    printBufferLine();
-  }
-}
-
-////////////////////////////////////////////////////////////////
-
-void
-Report::error(int id,
-              const char *fmt, ...)
-{
-  va_list args;
-  va_start(args, fmt);
-  // No prefix msg, no \n.
-  printToBuffer(fmt, args);
-  va_end(args);
-  throw ExceptionMsg(buffer_, isSuppressed(id));
-}
-
-void
-Report::verror(int id,
-               const char *fmt,
-               va_list args)
-{
-  // No prefix msg, no \n.
-  printToBuffer(fmt, args);
-  throw ExceptionMsg(buffer_, isSuppressed(id));
-}
-
-void
-Report::fileError(int id,
-                  const char *filename,
-                  int line,
-                  const char *fmt,
-                  ...)
-{
-  va_list args;
-  va_start(args, fmt);
-  // No prefix msg, no \n.
-  printToBuffer("%s line %d, ", filename, line);
-  printToBufferAppend(fmt, args);
-  va_end(args);
-  throw ExceptionMsg(buffer_, isSuppressed(id));
-}
-
-void
-Report::vfileError(int id,
-                   const char *filename,
-                   int line,
-                   const char *fmt,
-                   va_list args)
-{
-  // No prefix msg, no \n.
-  printToBuffer("%s line %d, ", filename, line);
-  printToBufferAppend(fmt, args);
-  throw ExceptionMsg(buffer_, isSuppressed(id));
-} 
-
-////////////////////////////////////////////////////////////////
-
-void
-Report::critical(int /* id */,
-                 const char *fmt,
-                 ...)
-{
-  va_list args;
-  va_start(args, fmt);
-  printToBuffer("Critical: ");
-  printToBufferAppend(fmt, args);
-  printBufferLine();
-  va_end(args);
-  exit(1);
-}
-
-void
-Report::fileCritical(int /* id */,
-                     const char *filename,
-                     int line,
-                     const char *fmt,
-                     ...)
-{
-  va_list args;
-  va_start(args, fmt);
-  printToBuffer("Critical: %s line %d, ", filename, line);
-  printToBufferAppend(fmt, args);
-  printBufferLine();
-  va_end(args);
-  raise(SIGABRT);
+  throw ExceptionMsg(msg, suppressed);
 }
 
 ////////////////////////////////////////////////////////////////
@@ -341,15 +113,15 @@ Report::unsuppressMsgId(int id)
 bool
 Report::isSuppressed(int id)
 {
-  return suppressed_msg_ids_.find(id) != suppressed_msg_ids_.end();
+  return suppressed_msg_ids_.contains(id);
 }
 
 ////////////////////////////////////////////////////////////////
 
 void
-Report::logBegin(const char *filename)
+Report::logBegin(std::string_view filename)
 {
-  log_stream_ = fopen(filename, "w");
+  log_stream_ = fopen(std::string(filename).c_str(), "w");
   if (log_stream_ == nullptr)
     throw FileNotWritable(filename);
 }
@@ -363,17 +135,17 @@ Report::logEnd()
 }
 
 void
-Report::redirectFileBegin(const char *filename)
+Report::redirectFileBegin(std::string_view filename)
 {
-  redirect_stream_ = fopen(filename, "w");
+  redirect_stream_ = fopen(std::string(filename).c_str(), "w");
   if (redirect_stream_ == nullptr)
     throw FileNotWritable(filename);
 }
 
 void
-Report::redirectFileAppendBegin(const char *filename)
+Report::redirectFileAppendBegin(std::string_view filename)
 {
-  redirect_stream_ = fopen(filename, "a");
+  redirect_stream_ = fopen(std::string(filename).c_str(), "a");
   if (redirect_stream_ == nullptr)
     throw FileNotWritable(filename);
 }
@@ -407,4 +179,4 @@ Report::redirectStringPrint(const char *buffer,
   redirect_string_.append(buffer, length);
 }
 
-} // namespace
+}  // namespace sta

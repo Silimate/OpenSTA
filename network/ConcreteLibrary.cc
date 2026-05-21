@@ -1,5 +1,5 @@
 // OpenSTA, Static Timing Analyzer
-// Copyright (c) 2025, Parallax Software, Inc.
+// Copyright (c) 2026, Parallax Software, Inc.
 // 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -24,46 +24,39 @@
 
 #include "ConcreteLibrary.hh"
 
+#include <cmath>
 #include <cstdlib>
 #include <limits>
 
+#include "ConcreteNetwork.hh"
+#include "ContainerHelpers.hh"
+#include "ParseBus.hh"
 #include "PatternMatch.hh"
 #include "PortDirection.hh"
-#include "ParseBus.hh"
-#include "ConcreteNetwork.hh"
 
 namespace sta {
 
-using std::string;
-using std::map;
-using std::min;
-using std::max;
-using std::abs;
-using std::swap;
-
 static constexpr char escape_ = '\\';
 
-ConcreteLibrary::ConcreteLibrary(const char *name,
-				 const char *filename,
-				 bool is_liberty) :
+ConcreteLibrary::ConcreteLibrary(std::string_view name,
+                                 std::string_view filename,
+                                 bool is_liberty) :
   name_(name),
   id_(ConcreteNetwork::nextObjectId()),
-  filename_(filename ? filename : ""),
-  is_liberty_(is_liberty),
-  bus_brkt_left_('['),
-  bus_brkt_right_(']')
+  filename_(filename),
+  is_liberty_(is_liberty)
 {
 }
 
 ConcreteLibrary::~ConcreteLibrary()
 {
-  cell_map_.deleteContents();
+  deleteContents(cell_map_);
 }
 
 ConcreteCell *
-ConcreteLibrary::makeCell(const char *name,
-			  bool is_leaf,
-			  const char *filename)
+ConcreteLibrary::makeCell(std::string_view name,
+                          bool is_leaf,
+                          std::string_view filename)
 {
   ConcreteCell *cell = new ConcreteCell(name, filename, is_leaf, this);
   addCell(cell);
@@ -77,11 +70,9 @@ ConcreteLibrary::addCell(ConcreteCell *cell)
 }
 
 void
-ConcreteLibrary::renameCell(ConcreteCell *cell,
-			    const char *cell_name)
+ConcreteLibrary::removeCell(ConcreteCell *cell)
 {
   cell_map_.erase(cell->name());
-  cell_map_[cell_name] = cell;
 }
 
 void
@@ -98,19 +89,17 @@ ConcreteLibrary::cellIterator() const
 }
 
 ConcreteCell *
-ConcreteLibrary::findCell(const char *name) const
+ConcreteLibrary::findCell(std::string_view name) const
 {
-  return cell_map_.findKey(name);
+  return findStringKey(cell_map_, name);
 }
 
 CellSeq
 ConcreteLibrary::findCellsMatching(const PatternMatch *pattern) const
 {
   CellSeq matches;
-  ConcreteLibraryCellIterator cell_iter=ConcreteLibraryCellIterator(cell_map_);
-  while (cell_iter.hasNext()) {
-    ConcreteCell *cell = cell_iter.next();
-    if (pattern->match(cell->name()))
+  for (auto [name, cell] : cell_map_) {
+    if (pattern->match(name))
       matches.push_back(reinterpret_cast<Cell*>(cell));
   }
   return matches;
@@ -118,7 +107,7 @@ ConcreteLibrary::findCellsMatching(const PatternMatch *pattern) const
 
 void
 ConcreteLibrary::setBusBrkts(char left,
-			     char right)
+                             char right)
 {
   bus_brkt_left_ = left;
   bus_brkt_right_ = right;
@@ -126,31 +115,29 @@ ConcreteLibrary::setBusBrkts(char left,
 
 ////////////////////////////////////////////////////////////////
 
-ConcreteCell::ConcreteCell(const char *name,
-			   const char *filename,
-			   bool is_leaf,
+ConcreteCell::ConcreteCell(std::string_view name,
+                           std::string_view filename,
+                           bool is_leaf,
                            ConcreteLibrary *library) :
   name_(name),
   id_(ConcreteNetwork::nextObjectId()),
-  filename_(filename ? filename : ""),
+  filename_(filename),
   library_(library),
-  liberty_cell_(nullptr),
-  ext_cell_(nullptr),
-  port_bit_count_(0),
   is_leaf_(is_leaf)
 {
 }
 
 ConcreteCell::~ConcreteCell()
 {
-  ports_.deleteContents();
+  deleteContents(ports_);
 }
 
 void
-ConcreteCell::setName(const char *name)
+ConcreteCell::setName(std::string_view name)
 {
-  library_->renameCell(this, name);
+  library_->removeCell(this);
   name_ = name;
+  library_->addCell(this);
 }
 
 void
@@ -166,18 +153,20 @@ ConcreteCell::setExtCell(void *ext_cell)
 }
 
 ConcretePort *
-ConcreteCell::makePort(const char *name)
+ConcreteCell::makePort(std::string_view name)
 {
-  ConcretePort *port = new ConcretePort(name, false, -1, -1, false, nullptr, this);
+  ConcretePort *port = new ConcretePort(name, false, -1, -1,
+                                        false, nullptr, this);
   addPort(port);
   return port;
 }
 
 ConcretePort *
-ConcreteCell::makeBundlePort(const char *name,
-			     ConcretePortSeq *members)
+ConcreteCell::makeBundlePort(std::string_view name,
+                             ConcretePortSeq *members)
 {
-  ConcretePort *port = new ConcretePort(name, false, -1, -1, true, members, this);
+  ConcretePort *port = new ConcretePort(name, false, -1, -1, true,
+                                        members, this);
   addPort(port);
   for (ConcretePort *member : *members)
     member->setBundlePort(port);
@@ -185,67 +174,67 @@ ConcreteCell::makeBundlePort(const char *name,
 }
 
 ConcretePort *
-ConcreteCell::makeBusPort(const char *name,
-			  int from_index,
-			  int to_index)
+ConcreteCell::makeBusPort(std::string_view name,
+                          int from_index,
+                          int to_index)
 {
   ConcretePort *port = new ConcretePort(name, true, from_index, to_index,
-					false, new ConcretePortSeq, this);
+                                        false, new ConcretePortSeq, this);
   addPort(port);
-  makeBusPortBits(port, name, from_index, to_index);
+  makeBusPortBits(port, port->name(), from_index, to_index);
   return port;
 }
 
 ConcretePort *
-ConcreteCell::makeBusPort(const char *name,
-			  int from_index,
-			  int to_index,
-			  ConcretePortSeq *members)
+ConcreteCell::makeBusPort(std::string_view name,
+                          int from_index,
+                          int to_index,
+                          ConcretePortSeq *members)
 {
   ConcretePort *port = new ConcretePort(name, true, from_index, to_index,
-					false, members, this);
+                                        false, members, this);
   addPort(port);
   return port;
 }
 
 void
 ConcreteCell::makeBusPortBits(ConcretePort *bus_port,
-			      const char *name,
-			      int from_index,
-			      int to_index)
+                              std::string_view bus_name,
+                              int from_index,
+                              int to_index)
 {
   if (from_index < to_index) {
     for (int index = from_index; index <= to_index; index++)
-      makeBusPortBit(bus_port, name, index);
+      makeBusPortBit(bus_port, bus_name, index);
   }
   else {
     for (int index = from_index; index >= to_index; index--)
-      makeBusPortBit(bus_port, name, index);
+      makeBusPortBit(bus_port, bus_name, index);
   }
 }
 
 void
 ConcreteCell::makeBusPortBit(ConcretePort *bus_port,
-			     const char *bus_name,
-			     int bit_index)
+                             std::string_view bus_name,
+                             int bit_index)
 {
-  string bit_name;
-  stringPrint(bit_name, "%s%c%d%c",
-	      bus_name,
-	      library_->busBrktLeft(),
-	      bit_index,
-	      library_->busBrktRight());
-  ConcretePort *port = makePort(bit_name.c_str(), bit_index);
+  std::string bit_name;
+  bit_name.append(bus_name);
+  bit_name += library_->busBrktLeft();
+  bit_name += std::to_string(bit_index);
+  bit_name += library_->busBrktRight();
+  ConcretePort *port = makePort(bit_name, bit_index);
   bus_port->addPortBit(port);
   addPortBit(port);
 }
 
 ConcretePort *
-ConcreteCell::makePort(const char *bit_name,
-		       int bit_index)
+ConcreteCell::makePort(std::string_view bit_name,
+                       int bit_index)
 {
-  ConcretePort *port = new ConcretePort(bit_name, false, bit_index,
-					bit_index, false, nullptr, this);
+  ConcretePort *port = new ConcretePort(bit_name, false,
+                                        bit_index, bit_index, false,
+                                        nullptr, this);
   addPortBit(port);
   return port;
 }
@@ -273,14 +262,14 @@ ConcreteCell::setIsLeaf(bool is_leaf)
 }
 
 void
-ConcreteCell::setAttribute(const string &key,
-                           const string &value)
+ConcreteCell::setAttribute(std::string_view key,
+                           std::string_view value)
 {
-  attribute_map_[key] = value;
+  attribute_map_[std::string(key)] = value;
 }
 
-string
-ConcreteCell::getAttribute(const string &key) const 
+std::string
+ConcreteCell::getAttribute(std::string_view key) const
 {
   const auto &itr = attribute_map_.find(key);
   if (itr != attribute_map_.end())
@@ -289,9 +278,9 @@ ConcreteCell::getAttribute(const string &key) const
 }
 
 ConcretePort *
-ConcreteCell::findPort(const char *name) const
+ConcreteCell::findPort(std::string_view name) const
 {
-  return port_map_.findKey(name);
+  return findStringKey(port_map_, name);
 }
 
 size_t
@@ -351,19 +340,19 @@ void
 BusPort::addBusBit(ConcretePort *port,
                    int index)
 {
-  from_ = min(from_, index);
-  to_ = max(to_, index);
+  from_ = std::min(from_, index);
+  to_ = std::max(to_, index);
   members_.push_back(port);
 }
 
 void
-ConcreteCell::groupBusPorts(const char bus_brkt_left,
-			    const char bus_brkt_right,
-                            std::function<bool(const char*)> port_msb_first)
+ConcreteCell::groupBusPorts(char bus_brkt_left,
+                            char bus_brkt_right,
+                            const std::function<bool(std::string_view)> &port_msb_first)
 {
   const char bus_brkts_left[2]{bus_brkt_left, '\0'};
   const char bus_brkts_right[2]{bus_brkt_right, '\0'};
-  map<string, BusPort> bus_map;
+  std::map<std::string, BusPort> bus_map;
   // Find ungrouped bus ports.
   // Remove bus bit ports from the ports_ vector during the scan by
   // keeping an index to the next insertion index and skipping over
@@ -371,16 +360,15 @@ ConcreteCell::groupBusPorts(const char bus_brkt_left,
   ConcretePortSeq ports = ports_;
   ports_.clear();
   for (ConcretePort *port : ports) {
-    const char *port_name = port->name();
     bool is_bus;
-    string bus_name;
+    std::string bus_name;
     int index;
-    parseBusName(port_name, bus_brkts_left, bus_brkts_right, escape_,
-		 is_bus, bus_name, index);
+    parseBusName(port->name(), bus_brkts_left, bus_brkts_right, escape_,
+                 is_bus, bus_name, index);
     if (is_bus) {
       if (!port->isBusBit()) {
         BusPort &bus_port = bus_map[bus_name];
-	bus_port.addBusBit(port, index);
+        bus_port.addBusBit(port, index);
         port->setBusBitIndex(index);
         bus_port.setDirection(port->direction());
       }
@@ -394,7 +382,7 @@ ConcreteCell::groupBusPorts(const char bus_brkt_left,
     int from = bus_port.from();
     int to = bus_port.to();
     size_t size = to - from + 1;
-    bool msb_first = port_msb_first(bus_name.c_str());
+    bool msb_first = port_msb_first(bus_name);
     ConcretePortSeq *members = new ConcretePortSeq(size);
     // Index the bus bit ports.
     for (ConcretePort *bus_bit : bus_port.members()) {
@@ -403,34 +391,30 @@ ConcreteCell::groupBusPorts(const char bus_brkt_left,
       (*members)[member_index] = bus_bit;
     }
     if (msb_first)
-      swap(from, to);
-    ConcretePort *port = makeBusPort(bus_name.c_str(), from, to, members);
+      std::swap(from, to);
+    ConcretePort *port = makeBusPort(bus_name, from, to, members);
     port->setDirection(bus_port.direction());
   }
 }
 
 ////////////////////////////////////////////////////////////////
 
-ConcretePort::ConcretePort(const char *name,
-			   bool is_bus,
-			   int from_index,
-			   int to_index,
-			   bool is_bundle,
-			   ConcretePortSeq *member_ports,
+ConcretePort::ConcretePort(std::string_view name,
+                           bool is_bus,
+                           int from_index,
+                           int to_index,
+                           bool is_bundle,
+                           ConcretePortSeq *member_ports,
                            ConcreteCell *cell) :
   name_(name),
   id_(ConcreteNetwork::nextObjectId()),
   cell_(cell),
   direction_(PortDirection::unknown()),
-  liberty_port_(nullptr),
-  ext_port_(nullptr),
-  pin_index_(-1),
   is_bundle_(is_bundle),
   is_bus_(is_bus),
   from_index_(from_index),
   to_index_(to_index),
-  member_ports_(member_ports),
-  bundle_port_(nullptr)
+  member_ports_(member_ports)
 {
 }
 
@@ -439,7 +423,7 @@ ConcretePort::~ConcretePort()
   // The member ports of a bus are owned by the bus port.
   // The member ports of a bundle are NOT owned by the bus port.
   if (is_bus_)
-    member_ports_->deleteContents();
+    deleteContents(member_ports_);
   delete member_ports_;
 }
 
@@ -467,17 +451,17 @@ ConcretePort::setExtPort(void *port)
   ext_port_ = port;
 }
 
-const char *
+std::string
 ConcretePort::busName() const
 {
   if (is_bus_) {
     ConcreteLibrary *lib = cell_->library();
-    return stringPrintTmp("%s%c%d:%d%c",
-			  name(),
-			  lib->busBrktLeft(),
-			  from_index_,
-			  to_index_,
-			  lib->busBrktRight());
+    return sta::format("{}{}{}:{}{}",
+                       name(),
+                       lib->busBrktLeft(),
+                       from_index_,
+                       to_index_,
+                       lib->busBrktRight());
   }
   else
     return name();
@@ -506,7 +490,7 @@ int
 ConcretePort::size() const
 {
   if (is_bus_)
-    return abs(to_index_ - from_index_) + 1;
+    return std::abs(to_index_ - from_index_) + 1;
   else if (is_bundle_)
     return static_cast<int>(member_ports_->size());
   else
@@ -548,8 +532,8 @@ ConcretePort::findBusBit(int index) const
       && index >= from_index_)
     return (*member_ports_)[index - from_index_];
   else if (from_index_ >= to_index_
-	   && index >= to_index_
-	   && index <= from_index_)
+           && index >= to_index_
+           && index <= from_index_)
     return (*member_ports_)[from_index_ - index];
   else
     return nullptr;
@@ -559,11 +543,11 @@ bool
 ConcretePort::busIndexInRange(int index) const
 {
   return (from_index_ <= to_index_
-	  && index <= to_index_
-	  && index >= from_index_)
+          && index <= to_index_
+          && index >= from_index_)
     || (from_index_ > to_index_
-	&& index >= to_index_
-	&& index <= from_index_);
+        && index >= to_index_
+        && index <= from_index_);
 }
 
 bool
@@ -580,11 +564,9 @@ ConcretePort::memberIterator() const
 
 ////////////////////////////////////////////////////////////////
 
-ConcreteCellPortBitIterator::ConcreteCellPortBitIterator(const ConcreteCell*
-							 cell) :
-  port_iter_(cell->ports_),
-  member_iter_(nullptr),
-  next_(nullptr)
+ConcreteCellPortBitIterator::ConcreteCellPortBitIterator(const ConcreteCell* cell) :
+  ports_(cell->ports_),
+  port_iter_(ports_.begin())
 {
   findNext();
 }
@@ -616,8 +598,8 @@ ConcreteCellPortBitIterator::findNext()
       member_iter_ = nullptr;
     }
   }
-  while (port_iter_.hasNext()) {
-    ConcretePort *next = port_iter_.next();
+  while (port_iter_ != ports_.end()) {
+    ConcretePort *next = *port_iter_++;
     if (next->isBus()) {
       member_iter_ = next->memberIterator();
       next_ = member_iter_->next();
@@ -632,4 +614,4 @@ ConcreteCellPortBitIterator::findNext()
   next_ = nullptr;
 }
 
-} // namespace
+} // namespace sta

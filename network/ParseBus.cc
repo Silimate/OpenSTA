@@ -1,5 +1,5 @@
 // OpenSTA, Static Timing Analyzer
-// Copyright (c) 2025, Parallax Software, Inc.
+// Copyright (c) 2026, Parallax Software, Inc.
 // 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -24,112 +24,105 @@
 
 #include "ParseBus.hh"
 
-#include <cstring>
-#include <cstdlib>
 #include <string>
+#include <string_view>
 
 #include "StringUtil.hh"
 
 namespace sta {
 
-using std::string;
-
 bool
-isBusName(const char *name,
-	  const char brkt_left,
-	  const char brkt_right,
-	  char escape)
+isBusName(std::string_view name,
+          const char brkt_left,
+          const char brkt_right,
+          char escape)
 {
-  size_t len = strlen(name);
+  size_t len = name.size();
   // Shortest bus name is a[0].
   if (len >= 4
       // Escaped bus brackets are not buses.
       && name[len - 2] != escape
       && name[len - 1] == brkt_right) {
-    const char *left = strrchr(name, brkt_left);
-    return left != nullptr;
+    size_t left = name.rfind(brkt_left);
+    return left != std::string_view::npos;
   }
   else
     return false;
 }
 
 void
-parseBusName(const char *name,
-	     const char brkt_left,
-	     const char brkt_right,
-	     const char escape,
-	     // Return values.
-	     bool &is_bus,
-	     string &bus_name,
-	     int &index)
+parseBusName(std::string_view name,
+             const char brkt_left,
+             const char brkt_right,
+             const char escape,
+             // Return values.
+             bool &is_bus,
+             std::string &bus_name,
+             int &index)
 {
-  const char brkts_left[2] = {brkt_left, '\0'};
-  const char brkts_right[2] = {brkt_right, '\0'};
-  parseBusName(name, brkts_left, brkts_right, escape,
+  parseBusName(name, std::string_view(&brkt_left, 1),
+               std::string_view(&brkt_right, 1), escape,
                is_bus, bus_name, index);
 }
 
 void
-parseBusName(const char *name,
-	     const char *brkts_left,
-	     const char *brkts_right,
-	     char escape,
-	     // Return values.
-	     bool &is_bus,
-	     string &bus_name,
-	     int &index)
+parseBusName(std::string_view name,
+             std::string_view brkts_left,
+             std::string_view brkts_right,
+             char escape,
+             // Return values.
+             bool &is_bus,
+             std::string &bus_name,
+             int &index)
 {
   is_bus = false;
-  size_t len = strlen(name);
+  size_t len = name.size();
   // Shortest bus name is a[0].
   if (len >= 4
       // Escaped bus brackets are not buses.
       && name[len - 2] != escape) {
     char last_ch = name[len - 1];
-    const char *brkt_right_ptr = strchr(brkts_right, last_ch);
-    if (brkt_right_ptr) {
-      size_t brkt_index = brkt_right_ptr - brkts_right;
-      char brkt_left = brkts_left[brkt_index];
-      const char *left = strrchr(name, brkt_left);
-      if (left) {
+    size_t brkt_index = brkts_right.find(last_ch);
+    if (brkt_index != std::string_view::npos) {
+      char brkt_left_ch = brkts_left[brkt_index];
+      size_t left = name.rfind(brkt_left_ch);
+      if (left != std::string_view::npos) {
         is_bus = true;
-	size_t bus_name_len = left - name;
-	bus_name.append(name, bus_name_len);
-	// Simple bus subscript.
-	index = atoi(left + 1);
+        bus_name.append(name.substr(0, left));
+        // Simple bus subscript.
+        index = std::stoi(std::string(name.substr(left + 1)));
       }
     }
   }
 }
 
 void
-parseBusName(const char *name,
+parseBusName(std::string_view name,
              const char brkt_left,
              const char brkt_right,
              char escape,
              // Return values.
              bool &is_bus,
              bool &is_range,
-             string &bus_name,
+             std::string &bus_name,
              int &from,
              int &to,
              bool &subscript_wild)
 {
-  const char brkts_left[2] = {brkt_left, '\0'};
-  const char brkts_right[2] = {brkt_right, '\0'};
-  parseBusName(name, brkts_left, brkts_right, escape,
+  parseBusName(name, std::string_view(&brkt_left, 1),
+               std::string_view(&brkt_right, 1), escape,
                is_bus, is_range, bus_name, from, to, subscript_wild);
 }
 
 void
-parseBusName(const char *name,
-             const char *brkts_left,
-             const char *brkts_right,
+parseBusName(std::string_view name,
+             std::string_view brkts_left,
+             std::string_view brkts_right,
              char escape,
              // Return values.
              bool &is_bus,
              bool &is_range,
-             string &bus_name,
+             std::string &bus_name,
              int &from,
              int &to,
              bool &subscript_wild)
@@ -137,59 +130,55 @@ parseBusName(const char *name,
   is_bus = false;
   is_range = false;
   subscript_wild = false;
-  size_t len = strlen(name);
+  size_t len = name.size();
   // Shortest bus is a[0].
   if (len >= 4
       // Escaped bus brackets are not buses.
       && name[len - 2] != escape) {
     char last_ch = name[len - 1];
-    const char *brkt_right_ptr = strchr(brkts_right, last_ch);
-    if (brkt_right_ptr) {
-      size_t brkt_index = brkt_right_ptr - brkts_right;
-      char brkt_left = brkts_left[brkt_index];
-      const char *left = strrchr(name, brkt_left);
-      if (left) {
+    size_t brkt_index = brkts_right.find(last_ch);
+    if (brkt_index != std::string_view::npos) {
+      char brkt_left_ch = brkts_left[brkt_index];
+      size_t left = name.rfind(brkt_left_ch);
+      if (left != std::string_view::npos) {
         is_bus = true;
-	// Check for bus range.
-	const char range_sep = ':';
-	const char *range = strchr(name, range_sep);
-	if (range) {
+        bus_name.append(name.substr(0, left));
+        // Check for bus range.
+        size_t range = name.find(':', left);
+        if (range != std::string_view::npos) {
           is_range = true;
-          bus_name.append(name, left - name);
-	  // No need to terminate bus subscript because atoi stops
-	  // scanning at first non-digit character.
-	  from = atoi(left + 1);
-	  to = atoi(range + 1);
-	}
+          from = std::stoi(std::string(name.substr(left + 1)));
+          to = std::stoi(std::string(name.substr(range + 1)));
+        }
         else {
-          bus_name.append(name, left - name);
-	  if (left[1] == '*')
+          if (left + 1 < len && name[left + 1] == '*')
             subscript_wild = true;
           else
-            from = to = atoi(left + 1);
+            from = to = std::stoi(std::string(name.substr(left + 1)));
         }
       }
     }
   }
 }
 
-string
-escapeChars(const char *token,
-	    const char ch1,
-	    const char ch2,
-	    const char escape)
+std::string
+escapeChars(std::string_view token,
+            const char ch1,
+            const char ch2,
+            const char escape)
 {
-  string escaped;
-  for (const char *s = token; *s; s++) {
-    char ch = *s;
+  std::string escaped;
+  escaped.reserve(token.size());
+  for (size_t i = 0; i < token.size(); i++) {
+    char ch = token[i];
     if (ch == escape) {
-      char next_ch = s[1];
-      // Make sure we don't skip the null if escape is the last char.
-      if (next_ch != '\0') {
+      if (i + 1 < token.size()) {
         escaped += ch;
-        escaped += next_ch;
-        s++;
+        escaped += token[i + 1];
+        i++;
       }
+      else
+        escaped += ch;
     }
     else if (ch == ch1 || ch == ch2) {
       escaped += escape;
@@ -201,4 +190,4 @@ escapeChars(const char *token,
   return escaped;
 }
 
-} // namespace
+} // namespace sta

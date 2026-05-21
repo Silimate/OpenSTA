@@ -1,5 +1,5 @@
 // OpenSTA, Static Timing Analyzer
-// Copyright (c) 2025, Parallax Software, Inc.
+// Copyright (c) 2026, Parallax Software, Inc.
 // 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -24,10 +24,13 @@
 
 #pragma once
 
-#include <cstdarg>
+#include <map>
 #include <mutex>
+#include <string>
+#include <string_view>
 
-#include "Map.hh"
+#include "Format.hh"
+#include "Report.hh"
 #include "StringUtil.hh"
 
 namespace sta {
@@ -35,40 +38,42 @@ namespace sta {
 class Report;
 class Pin;
 
-typedef Map<const char *, int, CharPtrLess> DebugMap;
+using DebugMap = std::map<std::string, int, std::less<>>;
 
 class Debug
 {
 public:
-  explicit Debug(Report *report);
-  ~Debug();
-  int level(const char *what);
-  void setLevel(const char *what,
-		int level);
-  bool check(const char *what,
-	     int level) const;
+  Debug(Report *report);
+  int level(std::string_view what);
+  void setLevel(std::string_view what,
+                int level);
+  bool check(std::string_view what,
+             int level) const;
   int statsLevel() const { return stats_level_; }
-  void reportLine(const char *what,
-                  const char *fmt,
-                  ...)
-    __attribute__((format (printf, 3, 4)));
+  template <typename... Args>
+  void report(std::string_view what,
+              std::string_view fmt,
+              Args &&...args)
+  {
+    std::string msg = sta::format("{}: {}", what,
+                                 sta::formatRuntime(fmt, std::forward<Args>(args)...));
+    std::unique_lock<std::mutex> lock(buffer_lock_);
+    report_->reportLine(msg);
+  }
 
 protected:
   Report *report_;
   std::mutex buffer_lock_;
-  bool debug_on_;
-  DebugMap *debug_map_;
-  int stats_level_;
+  bool debug_on_{false};
+  DebugMap debug_map_;
+  int stats_level_{0};
 };
 
 // Inlining a varargs function would eval the args, which can
 // be expensive, so use a macro.
-// Note that "##__VA_ARGS__" is a gcc extension to support zero arguments (no comma).
-// clang -Wno-gnu-zero-variadic-macro-arguments suppresses the warning.
-// c++20 has "__VA_OPT__" to deal with the zero arg case so this is temporary.
-#define debugPrint(debug, what, level, ...) \
+#define debugPrint(debug, what, level, fmt, ...) \
   if (debug->check(what, level)) {  \
-    debug->reportLine(what, ##__VA_ARGS__); \
+    debug->report(what, fmt __VA_OPT__(,) __VA_ARGS__); \
   }
 
-} // namespace
+} // namespace sta

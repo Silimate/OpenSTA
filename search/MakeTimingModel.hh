@@ -1,5 +1,5 @@
 // OpenSTA, Static Timing Analyzer
-// Copyright (c) 2025, Parallax Software, Inc.
+// Copyright (c) 2026, Parallax Software, Inc.
 // 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -24,18 +24,20 @@
 
 #pragma once
 
+#include <string_view>
+
 namespace sta {
 
 class LibertyLibrary;
-class Corner;
+class Scene;
 class Sta;
 
 LibertyLibrary *
-makeTimingModel(const char *lib_name,
-                const char *cell_name,
-                const char *filename,
-                const Corner *corner,
+makeTimingModel(std::string_view lib_name,
+                std::string_view cell_name,
+                std::string_view filename,
+                const Scene *scene,
                 const bool scalar,
                 Sta *sta);
 
-} // namespace
+} // namespace sta

@@ -1,5 +1,5 @@
 // OpenSTA, Static Timing Analyzer
-// Copyright (c) 2025, Parallax Software, Inc.
+// Copyright (c) 2026, Parallax Software, Inc.
 // 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -24,22 +24,33 @@
 
 #include "Transition.hh"
 
-namespace sta {
+#include <algorithm>
 
-using std::max;
+#include "ContainerHelpers.hh"
+
+namespace sta {
 
 const RiseFall RiseFall::rise_("rise", "^", 0);
 const RiseFall RiseFall::fall_("fall", "v", 1);
 const std::array<const RiseFall*, 2> RiseFall::range_{&rise_, &fall_};
-const std::array<int, 2> RiseFall::range_index_{rise_.index(), fall_.index()};
+const std::array<size_t, 2> RiseFall::range_index_{rise_.index(), fall_.index()};
 
-RiseFall::RiseFall(const char *name,
-                   const char *short_name,
-                   int sdf_triple_index) :
+RiseFall::RiseFall(std::string_view name,
+                   std::string_view  short_name,
+                   size_t sdf_triple_index) :
   name_(name),
   short_name_(short_name),
   sdf_triple_index_(sdf_triple_index)
 {
+}
+
+const std::string&
+RiseFall::to_string(bool use_short) const
+{
+  if (use_short)
+    return short_name_;
+  else
+    return name_;
 }
 
 const RiseFall *
@@ -52,20 +63,17 @@ RiseFall::opposite() const
 }
 
 const RiseFall *
-RiseFall::find(const char *rf_str)
+RiseFall::find(std::string_view rf_name)
 {
-  if (stringEq(rf_str, rise_.name())
-      || stringEq(rf_str, rise_.shortName()))
+  if (rf_name == rise_.name() || rf_name == rise_.shortName())
     return &rise_;
-  else if (stringEq(rf_str, fall_.name())
-           || stringEq(rf_str, fall_.shortName()))
+  if (rf_name == fall_.name() || rf_name == fall_.shortName())
     return &fall_;
-  else
-    return nullptr;
+  return nullptr;
 }
 
 const RiseFall *
-RiseFall::find(int index)
+RiseFall::find(size_t index)
 {
   if (index == rise_.index())
     return &rise_;
@@ -117,12 +125,12 @@ const RiseFallBoth RiseFallBoth::rise_fall_("rise_fall", "rf", 2,
                                             {RiseFall::riseIndex(),
                                              RiseFall::fallIndex()});
 
-RiseFallBoth::RiseFallBoth(const char *name,
-                           const char *short_name,
-                           int sdf_triple_index,
+RiseFallBoth::RiseFallBoth(std::string_view name,
+                           std::string_view short_name,
+                           size_t sdf_triple_index,
                            const RiseFall *as_rise_fall,
-                           std::vector<const RiseFall*> range,
-                           std::vector<int> range_index) :
+                           const std::vector<const RiseFall*> &range,
+                           const std::vector<size_t> &range_index) :
   name_(name),
   short_name_(short_name),
   sdf_triple_index_(sdf_triple_index),
@@ -132,17 +140,25 @@ RiseFallBoth::RiseFallBoth(const char *name,
 {
 }
 
-const RiseFallBoth *
-RiseFallBoth::find(const char *tr_str)
+const std::string&
+RiseFallBoth::to_string(bool use_short) const
 {
-  if (stringEq(tr_str, rise_.name()))
-    return &rise_;
-  else if (stringEq(tr_str, fall_.name()))
-    return &fall_;
-  else if (stringEq(tr_str, rise_fall_.name()))
-    return &rise_fall_;
+  if (use_short)
+    return short_name_;
   else
-    return nullptr;
+    return name_;
+}
+
+const RiseFallBoth *
+RiseFallBoth::find(std::string_view rf_name)
+{
+  if (rf_name == rise_.name())
+    return &rise_;
+  if (rf_name == fall_.name())
+    return &fall_;
+  if (rf_name == rise_fall_.name())
+    return &rise_fall_;
+  return nullptr;
 }
 
 bool
@@ -157,15 +173,15 @@ RiseFallBoth::matches(const Transition *tr) const
 {
   return this == &rise_fall_
     || (this == &rise_
-	&& tr == Transition::rise())
+        && tr == Transition::rise())
     || (this == &fall_
-	&& tr == Transition::fall());
+        && tr == Transition::fall());
 }
 
 ////////////////////////////////////////////////////////////////
 
 TransitionMap Transition::transition_map_;
-int Transition::max_index_ = 0;
+size_t Transition::max_index_ = 0;
 
 // Sdf triple order defined on Sdf 3.0 spec, pg 3-17.
 const Transition Transition::rise_{  "^", "01", RiseFall::rise(),  0};
@@ -180,12 +196,12 @@ const Transition Transition::tr_1X_{"1X", "1X", RiseFall::fall(),  8};
 const Transition Transition::tr_X0_{"X0", "X0", RiseFall::fall(),  9};
 const Transition Transition::tr_XZ_{"XZ", "XZ", nullptr,          10};
 const Transition Transition::tr_ZX_{"ZX", "ZX", nullptr,          11};
-const Transition Transition::rise_fall_{"*", "**", nullptr,       -1};
+const Transition Transition::rise_fall_{"*", "**", nullptr,       12};
 
-Transition::Transition(const char *name,
-		       const char *init_final,
-		       const RiseFall *as_rise_fall,
-		       int sdf_triple_index) :
+Transition::Transition(std::string_view name,
+                       std::string_view init_final,
+                       const RiseFall *as_rise_fall,
+                       size_t sdf_triple_index) :
   name_(name),
   init_final_(init_final),
   as_rise_fall_(as_rise_fall),
@@ -193,7 +209,7 @@ Transition::Transition(const char *name,
 {
   transition_map_[name_] = this;
   transition_map_[init_final_] = this;
-  max_index_ = max(sdf_triple_index, max_index_);
+  max_index_ = std::max(sdf_triple_index, max_index_);
 }
 
 bool
@@ -203,9 +219,9 @@ Transition::matches(const Transition *tr) const
 }
 
 const Transition *
-Transition::find(const char *tr_str)
+Transition::find(std::string_view tr_name)
 {
-  return transition_map_.findKey(tr_str);
+  return findStringKey(transition_map_, tr_name);
 }
 
 const RiseFallBoth *
@@ -214,4 +230,4 @@ Transition::asRiseFallBoth() const
   return reinterpret_cast<const RiseFallBoth*>(as_rise_fall_);
 }
 
-} // namespace
+} // namespace sta

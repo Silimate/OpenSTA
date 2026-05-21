@@ -1,5 +1,5 @@
 // OpenSTA, Static Timing Analyzer
-// Copyright (c) 2025, Parallax Software, Inc.
+// Copyright (c) 2026, Parallax Software, Inc.
 // 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -24,33 +24,35 @@
 
 #pragma once
 
-#include "Zlib.hh"
+#include <string>
+#include <string_view>
+
 #include "MinMax.hh"
 #include "ParasiticsClass.hh"
+#include "Zlib.hh"
 
 namespace sta {
 
 class ParasiticAnalysisPt;
 class Instance;
-class Corner;
+class Scene;
 class OperatingConditions;
 class StaState;
 
 // Read a file single value parasitics into analysis point ap.
 // In a Spef file with triplet values the first value is used.
-// Constraint min/max cnst_min_max and operating condition op_cond
-// are used for parasitic network reduction.
+// Min/max and operating condition op_cond are used for parasitic network reduction.
 // Return true if successful.
 bool
-readSpefFile(const char *filename,
-	     Instance *instance,
-	     ParasiticAnalysisPt *ap,
-	     bool pin_cap_included,
-	     bool keep_coupling_caps,
-	     float coupling_cap_factor,
-	     bool reduce,
-	     const Corner *corner,
-	     const MinMaxAll *min_max,
-	     StaState *sta);
+readSpefFile(std::string_view filename,
+             Instance *instance,
+             bool pin_cap_included,
+             bool keep_coupling_caps,
+             float coupling_cap_factor,
+             bool reduce,
+             const Scene *scene,
+             const MinMaxAll *min_max,
+             Parasitics *parasitics,
+             StaState *sta);
 
-} // namespace
+} // namespace sta

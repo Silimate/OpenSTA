@@ -1,5 +1,5 @@
 // OpenSTA, Static Timing Analyzer
-// Copyright (c) 2025, Parallax Software, Inc.
+// Copyright (c) 2026, Parallax Software, Inc.
 // 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -44,10 +44,35 @@ void
 sta::VerilogParse::error(const location_type &loc,
                          const std::string &msg)
 {
-  reader->report()->fileError(164,reader->filename(),loc.begin.line,
-                              "%s",msg.c_str());
+  reader->report()->fileError(171,reader->filename(),loc.begin.line, "{}",msg);
 }
+
 %}
+
+%code requires {
+#include <string>
+#include <vector>
+
+namespace sta {
+class PortDirection;
+class VerilogAssign;
+class VerilogAttr;
+class VerilogAttrEntry;
+class VerilogAttrStmt;
+class VerilogDclArg;
+class VerilogNet;
+class VerilogReader;
+class VerilogScanner;
+class VerilogStmt;
+
+using VerilogAttrEntrySeq = std::vector<VerilogAttrEntry*>;
+using VerilogAttrSeq = std::vector<VerilogAttr*>;
+using VerilogAttrStmtSeq = std::vector<VerilogAttrStmt*>;
+using VerilogDclArgSeq = std::vector<VerilogDclArg*>;
+using VerilogNetSeq = std::vector<VerilogNet*>;
+using VerilogStmtSeq = std::vector<VerilogStmt*>;
+}
+}
 
 %require  "3.2"
 %skeleton "lalr1.cc"
@@ -59,30 +84,11 @@ sta::VerilogParse::error(const location_type &loc,
 %parse-param { VerilogScanner *scanner }
 %parse-param { VerilogReader *reader }
 %define api.parser.class {VerilogParse}
+%define api.value.type variant
 
-%union {
-  int ival;
-  std::string *string;
-  std::string *constant;
-  std::string *attr_spec_value;
-  sta::VerilogModule *module;
-  sta::VerilogStmt *stmt;
-  sta::VerilogStmtSeq *stmt_seq;
-  sta::PortDirection *port_type;
-  sta::VerilogDclArgSeq *dcl_arg_seq;
-  sta::VerilogDclArg *dcl_arg;
-  sta::VerilogAssign *assign;
-  sta::VerilogInst *inst;
-  sta::VerilogNet *net;
-  sta::VerilogNetBitSelect *net_bit;
-  sta::VerilogNetSeq *nets;
-  sta::VerilogAttrEntry *attr_entry;
-  sta::VerilogAttrEntrySeq *attr_seq;
-  sta::VerilogAttrStmt *attr_stmt;
-  sta::VerilogAttrStmtSeq *attr_stmt_seq;
-}
-
-%token INT CONSTANT ID STRING MODULE ENDMODULE ASSIGN PARAMETER DEFPARAM
+%token <int> INT
+%token <std::string> ID STRING CONSTANT
+%token MODULE ENDMODULE ASSIGN PARAMETER DEFPARAM
 %token SPECIFY ENDSPECIFY SPECPARAM
 %token WIRE WAND WOR TRI INPUT OUTPUT INOUT SUPPLY1 SUPPLY0 REG
 %token ATTR_OPEN ATTR_CLOSED
@@ -91,34 +97,26 @@ sta::VerilogParse::error(const location_type &loc,
 %left '*' '/'
 %left NEG     /* negation--unary minus */
 
-%type <string> ID STRING CONSTANT
-%type <ival> WIRE WAND WOR TRI INPUT OUTPUT INOUT SUPPLY1 SUPPLY0
-%type <ival> ATTR_OPEN ATTR_CLOSED
-%type <ival> INT parameter_exprs parameter_expr
-%type <string> attr_spec_value
-%type <port_type> dcl_type port_dcl_type
-%type <stmt> stmt declaration instance parameter parameter_dcls parameter_dcl
-%type <stmt> defparam param_values param_value port_dcl
-%type <stmt_seq> stmts stmt_seq net_assignments continuous_assign port_dcls
-%type <stmt> specify_block
-%type <stmt_seq> specify_stmts
-%type <assign> net_assignment
-%type <dcl_arg> dcl_arg
-%type <dcl_arg_seq> dcl_args
-%type <net> port net_scalar net_bit_select net_part_select net_assign_lhs
-%type <net> net_constant net_expr port_ref port_expr named_pin_net_expr
-%type <net> inst_named_pin net_named net_expr_concat
-%type <nets> port_list port_refs inst_ordered_pins
-%type <nets> inst_named_pins net_exprs inst_pins
-%type <attr_entry> attr_spec
-%type <attr_seq> attr_specs
-%type <attr_stmt> attr_instance
-%type <attr_stmt_seq> attr_instance_seq
-
-// Used by error recovery.
-%destructor { delete $$; } STRING
-%destructor { delete $$; } CONSTANT
-%destructor { delete $$; } attr_spec_value
+%type <std::string> attr_spec_value
+%type <int> parameter_exprs parameter_expr
+%type <sta::PortDirection *> dcl_type port_dcl_type
+%type <sta::VerilogStmt *> stmt declaration instance parameter parameter_dcls parameter_dcl
+%type <sta::VerilogStmt *> defparam param_values param_value port_dcl
+%type <sta::VerilogStmtSeq *> stmts stmt_seq net_assignments continuous_assign port_dcls
+%type <sta::VerilogStmt *> specify_block
+%type <sta::VerilogStmtSeq *> specify_stmts
+%type <sta::VerilogAssign *> net_assignment
+%type <sta::VerilogDclArg *> dcl_arg
+%type <sta::VerilogDclArgSeq *> dcl_args
+%type <sta::VerilogNet *> port net_scalar net_bit_select net_part_select net_assign_lhs
+%type <sta::VerilogNet *> net_constant net_expr port_ref port_expr named_pin_net_expr
+%type <sta::VerilogNet *> inst_named_pin net_named net_expr_concat
+%type <sta::VerilogNetSeq *> port_list port_refs inst_ordered_pins
+%type <sta::VerilogNetSeq *> inst_named_pins net_exprs inst_pins
+%type <sta::VerilogAttrEntry *> attr_spec
+%type <sta::VerilogAttrEntrySeq *> attr_specs
+%type <sta::VerilogAttrStmt *> attr_instance
+%type <sta::VerilogAttrStmtSeq *> attr_instance_seq
 
 %start file
 
@@ -147,10 +145,10 @@ module:
 port_list:
 	port
 	{ $$ = new sta::VerilogNetSeq;
-	  $$->push_back($1);
+          $$->push_back($1);
 	}
 |	port_list ',' port
-	{ $1->push_back($3); }
+	{ $1->push_back($3); $$ = $1; }
 	;
 
 port:
@@ -172,7 +170,7 @@ port_refs:
 	  $$->push_back($1);
 	}
 |	port_refs ',' port_ref
-	{ $1->push_back($3); }
+	{ $1->push_back($3); $$ = $1; }
 	;
 
 port_ref:
@@ -220,13 +218,13 @@ stmts:
 	// empty
 	{ $$ = new sta::VerilogStmtSeq; }
 |	stmts stmt
-	{ if ($2) $1->push_back($2); }
+	{ if ($2) $1->push_back($2); $$ = $1; }
 |	stmts stmt_seq
 	// Append stmt_seq to stmts.
-	{ sta::VerilogStmtSeq::Iterator iter($2);
-	  while (iter.hasNext())
-	    $1->push_back(iter.next());
+	{ for (sta::VerilogStmt *stmt : *$2)
+	    $1->push_back(stmt);
 	  delete $2;
+	  $$ = $1;
 	}
 	;
 
@@ -280,18 +278,18 @@ parameter_dcls:
 
 parameter_dcl:
 	ID '=' parameter_expr
-	{ delete $1; $$ = nullptr; }
+	{ $$ = nullptr; }
 |	ID '=' STRING
-	{ delete $1; delete $3; $$ = nullptr; }
+	{ $$ = nullptr; }
 ;
 
 parameter_expr:
 	ID
-	{ delete $1; $$ = 0; }
+	{ $$ = 0; }
 |	'`' ID
-	{ delete $2; $$ = 0; }
+	{ $$ = 0; }
 |	CONSTANT
-	{ delete $1; $$ = 0; }
+	{ $$ = 0; }
 |	INT
 |	'-' parameter_expr %prec NEG
 	{ $$ = - $2; }
@@ -321,9 +319,9 @@ param_values:
 
 param_value:
 	ID '=' parameter_expr
-	{ delete $1; $$ = nullptr; }
+	{ $$ = nullptr; }
 |	ID '=' STRING
-	{ delete $1; delete $3; $$ = nullptr; }
+	{ $$ = nullptr; }
 	;
 
 declaration:
@@ -374,7 +372,7 @@ net_assignments:
 	  $$->push_back($1);
 	}
 |	net_assignments ',' net_assignment
-	{ $1->push_back($3); }
+	{ $1->push_back($3); $$ = $1; }
 	;
 
 net_assignment:
@@ -419,7 +417,7 @@ inst_ordered_pins:
 	  $$->push_back($1);
 	}
 |	inst_ordered_pins ',' net_expr
-	{ $1->push_back($3); }
+	{ $1->push_back($3); $$ = $1; }
 	;
 
 // Named pin connections.
@@ -429,7 +427,7 @@ inst_named_pins:
 	  $$->push_back($1);
 	}
 |	inst_named_pins ',' inst_named_pin
-	{ $1->push_back($3); }
+	{ $1->push_back($3); $$ = $1; }
 	;
 
 // The port reference is split out into cases to special case
@@ -499,7 +497,7 @@ net_exprs:
 	  $$->push_back($1);
 	}
 |	net_exprs ',' net_expr
-	{ $$->push_back($3); }
+	{ $1->push_back($3); $$ = $1; }
 	;
 
 net_expr:
@@ -514,7 +512,7 @@ attr_instance_seq:
 	// empty
 	{ $$ = new sta::VerilogAttrStmtSeq; }
 |	attr_instance_seq attr_instance
-	{ if ($2) $1->push_back($2); }
+	{ if ($2) $1->push_back($2); $$ = $1; }
 	;
 
 attr_instance:
@@ -528,14 +526,14 @@ attr_specs:
 	  $$->push_back($1);
 	}
 |       attr_specs ',' attr_spec
-	{ $$->push_back($3); }
+	{ $1->push_back($3); $$ = $1; }
 	;
 
 attr_spec:
 	ID
-	{ $$ = new sta::VerilogAttrEntry(*$1, "1"); delete $1; }
+	{ $$ = new sta::VerilogAttrEntry($1, "1"); }
 | 	ID '=' attr_spec_value
-	{ $$ = new sta::VerilogAttrEntry(*$1, *$3); delete $1; delete $3; }
+	{ $$ = new sta::VerilogAttrEntry($1, $3); }
 	;
 
 attr_spec_value:
@@ -544,7 +542,7 @@ attr_spec_value:
 | 	STRING
 	{ $$ = $1; }
 | 	INT
-  	{ $$ = new std::string(std::to_string($1)); }
+  	{ $$ = std::to_string($1); }
 	;
 
 %%

@@ -1,5 +1,5 @@
 // OpenSTA, Static Timing Analyzer
-// Copyright (c) 2025, Parallax Software, Inc.
+// Copyright (c) 2026, Parallax Software, Inc.
 // 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -24,54 +24,58 @@
 
 #pragma once
 
-#include "Vector.hh"
+#include <string>
+#include <string_view>
+#include <utility>
+#include <vector>
+
 #include "LibertyClass.hh"
 
 namespace sta {
 
 class WireloadForArea;
 
-typedef std::pair<float,float> FanoutLength;
-typedef Vector<FanoutLength*> FanoutLengthSeq;
-typedef Vector<WireloadForArea*> WireloadForAreaSeq;
+using FanoutLength = std::pair<float,float>;
+using FanoutLengthSeq = std::vector<FanoutLength*>;
+using WireloadForAreaSeq = std::vector<WireloadForArea*>;
 
 const char *
 wireloadTreeString(WireloadTree tree);
 WireloadTree
-stringWireloadTree(const char *tree);
+stringWireloadTree(std::string_view wire_load_type);
 
 const char *
 wireloadModeString(WireloadMode wire_load_mode);
 WireloadMode
-stringWireloadMode(const char *wire_load_mode);
+stringWireloadMode(std::string_view wire_load_mode);
 
 class Wireload
 {
 public:
-  Wireload(const char *name,
-	   LibertyLibrary *library);
-  Wireload(const char *name,
-	   LibertyLibrary *library,
-	   float area,
-	   float resistance,
-	   float capacitance,
-	   float slope);
+  Wireload(std::string name,
+           LibertyLibrary *library);
+  Wireload(std::string name,
+           LibertyLibrary *library,
+           float area,
+           float resistance,
+           float capacitance,
+           float slope);
   virtual ~Wireload();
-  const char *name() const { return name_; }
+  const std::string &name() const { return name_; }
   void setArea(float area);
   void setResistance(float res);
   void setCapacitance(float cap);
   void setSlope(float slope);
   void addFanoutLength(float fanout,
-		       float length);
+                       float length);
   // Find wireload resistance/capacitance for fanout.
   virtual void findWireload(float fanout,
-			    const OperatingConditions *op_cond,
-			    float &cap,
-			    float &res) const;
+                            const OperatingConditions *op_cond,
+                            float &cap,
+                            float &res) const;
 
 protected:
-  const char *name_;
+  std::string name_;
   LibertyLibrary *library_;
   float area_;
   float resistance_;
@@ -84,17 +88,17 @@ protected:
 class WireloadSelection
 {
 public:
-  explicit WireloadSelection(const char *name);
+  WireloadSelection(std::string name);
   ~WireloadSelection();
-  const char *name() const { return name_; }
+  const std::string &name() const { return name_; }
   void addWireloadFromArea(float min_area,
-			   float max_area,
-			   const Wireload *wireload);
+                           float max_area,
+                           const Wireload *wireload);
   const Wireload *findWireload(float area) const;
 
 private:
-  const char *name_;
+  const std::string name_;
   WireloadForAreaSeq wireloads_;
 };
 
-} // namespace
+} // namespace sta

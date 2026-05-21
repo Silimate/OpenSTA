@@ -1,5 +1,5 @@
 // OpenSTA, Static Timing Analyzer
-// Copyright (c) 2025, Parallax Software, Inc.
+// Copyright (c) 2026, Parallax Software, Inc.
 // 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -26,15 +26,10 @@
 
 namespace sta {
 
-ClockGatingCheck::ClockGatingCheck() :
-  active_value_(LogicValue::unknown)
-{
-}
-
 void
 ClockGatingCheck::setActiveValue(LogicValue value)
 {
   active_value_ = value;
 }
 
-} // namespace
+} // namespace sta

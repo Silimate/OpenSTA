@@ -1,5 +1,5 @@
 // OpenSTA, Static Timing Analyzer
-// Copyright (c) 2025, Parallax Software, Inc.
+// Copyright (c) 2026, Parallax Software, Inc.
 // 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -24,6 +24,8 @@
 
 #pragma once
 
+#include <string_view>
+
 #include "SpefLocation.hh"
 #include "SpefParse.hh"
 
@@ -41,27 +43,25 @@ class SpefScanner : public SpefFlexLexer
 {
 public:
   SpefScanner(std::istream *stream,
-              const std::string &filename,
+              std::string_view filename,
               SpefReader *reader,
               Report *report);
-  virtual ~SpefScanner() {}
-
-  virtual int lex(SpefParse::semantic_type *const yylval,
+  virtual int lex(SpefParse::semantic_type *yylval,
                   SpefParse::location_type *yylloc);
   // YY_DECL defined in SpefLex.ll
   // Method body created by flex in SpefLex.cc
 
-  void error(const char *msg);
+  void error(std::string_view msg);
   int line() const {  return yylineno; }
 
   // Get rid of override virtual function warning.
   using FlexLexer::yylex;
 
 private:
-  std::string filename_;
+  std::string_view filename_;
   SpefReader *reader_;
   Report *report_;
   std::string token_;
 };
 
-} // namespace
+} // namespace sta

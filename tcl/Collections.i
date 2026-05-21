@@ -20,7 +20,6 @@
         return std::stoull(input);
     }
 }
-
 %define COLLECTION_TYPEMAPS(CollectionType, ElementType, ElementBaseType)
 
 // Declare the class so SWIG registers a destructor, enabling own=true to actually free objects.
@@ -118,10 +117,10 @@ private:
     void collection_sort_inplace(CollectionType *v, StringSeq *property_names, bool descending = false, bool natural = true) {
         auto network = Sta::sta()->network();
         auto &properties = Sta::sta()->properties();
-        sta::sort(
-            v,
+        std::stable_sort(
+            v->begin(), v->end(),
             [&](ElementType A, ElementType B) {
-                for (auto *property_name: *property_names) {
+                for (auto property_name: *property_names) {
                     auto propertyA = properties.getProperty(A, property_name);
                     auto propertyB = properties.getProperty(B, property_name);
                     int diff = propertyA.compare(propertyB, network, natural);
@@ -135,14 +134,14 @@ private:
         );
     }
 
-    CollectionType *collection_sorted(const CollectionType *v, StringSeq *property_names, bool descending = false, bool natural = true) {
+    CollectionType *collection_sorted(const CollectionType *v, StringSeq property_names, bool descending = false, bool natural = true) {
         CollectionType *result;
         if (v != nullptr) {
             result = new CollectionType(*v);
         } else {
             result = new CollectionType();
         }
-        collection_sort_inplace(result, property_names, descending, natural);
+        collection_sort_inplace(result, &property_names, descending, natural);
         return result;
     }
 

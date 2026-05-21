@@ -1,5 +1,5 @@
 // OpenSTA, Static Timing Analyzer
-// Copyright (c) 2025, Parallax Software, Inc.
+// Copyright (c) 2026, Parallax Software, Inc.
 // 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -24,33 +24,32 @@
 
 #include "PathEnd.hh"
 
-#include "Debug.hh"
-#include "TimingRole.hh"
-#include "TimingArc.hh"
-#include "Liberty.hh"
-#include "Network.hh"
-#include "Graph.hh"
-#include "Clock.hh"
-#include "PortDelay.hh"
-#include "DataCheck.hh"
-#include "Sdc.hh"
-#include "ExceptionPath.hh"
 #include "ClkInfo.hh"
-#include "Tag.hh"
-#include "PathAnalysisPt.hh"
-#include "Search.hh"
-#include "ReportPath.hh"
-#include "Sim.hh"
+#include "Clock.hh"
+#include "DataCheck.hh"
+#include "Debug.hh"
+#include "ExceptionPath.hh"
+#include "Graph.hh"
 #include "Latches.hh"
-#include "StaState.hh"
+#include "Liberty.hh"
+#include "Mode.hh"
+#include "Network.hh"
 #include "PathExpanded.hh"
+#include "PortDelay.hh"
+#include "ReportPath.hh"
+#include "Sdc.hh"
+#include "Search.hh"
+#include "Sim.hh"
+#include "StaState.hh"
+#include "Tag.hh"
+#include "TimingArc.hh"
+#include "TimingRole.hh"
 #include "search/Crpr.hh"
 
 namespace sta {
 
 PathEnd::PathEnd(Path *path) :
-  path_(path),
-  path_group_(nullptr)
+  path_(path)
 {
 }
 
@@ -75,13 +74,13 @@ PathEnd::vertex(const StaState *sta) const
 const MinMax *
 PathEnd::minMax(const StaState *sta) const
 {
-  return path_->pathAnalysisPt(sta)->pathMinMax();
+  return path_->minMax(sta);
 }
 
 const EarlyLate *
 PathEnd::pathEarlyLate(const StaState *sta) const
 {
-  return path_->pathAnalysisPt(sta)->pathMinMax();
+  return path_->minMax(sta);
 }
 
 const EarlyLate *
@@ -96,25 +95,13 @@ PathEnd::transition(const StaState *sta) const
   return path_->transition(sta);
 }
 
-PathAPIndex
-PathEnd::pathIndex(const StaState *sta) const
-{
-  return path_->pathAnalysisPtIndex(sta);
-}
-
-PathAnalysisPt *
-PathEnd::pathAnalysisPt(const StaState *sta) const
-{
-  return path_->pathAnalysisPt(sta);
-}
-
 const ClockEdge *
 PathEnd::sourceClkEdge(const StaState *sta) const
 {
   return path_->clkEdge(sta);
 }
 
-Arrival
+const Arrival &
 PathEnd::dataArrivalTime(const StaState *) const
 {
   return path_->arrival();
@@ -123,13 +110,17 @@ PathEnd::dataArrivalTime(const StaState *) const
 Arrival
 PathEnd::dataArrivalTimeOffset(const StaState *sta) const
 {
-  return dataArrivalTime(sta) + sourceClkOffset(sta);
+  return delaySum(dataArrivalTime(sta),
+                  sourceClkOffset(sta),
+                  sta);
 }
 
 Required
 PathEnd::requiredTimeOffset(const StaState *sta) const
 {
-  return requiredTime(sta) + sourceClkOffset(sta);
+  return delaySum(requiredTime(sta),
+                  sourceClkOffset(sta),
+                  sta);
 }
 
 const RiseFall *
@@ -271,9 +262,9 @@ Crpr
 PathEnd::checkCrpr(const StaState *sta) const
 {
   if (checkRole(sta)->genericRole() == TimingRole::hold())
-    return -crpr(sta);
+    return delayDiff(delay_zero, crpr(sta), sta);
   else
-    return crpr(sta);;
+    return crpr(sta);
 }
 
 Crpr
@@ -290,7 +281,7 @@ PathEnd::multiCyclePath() const
 
 int
 PathEnd::exceptPathCmp(const PathEnd *path_end,
-		       const StaState *) const
+                       const StaState *) const
 {
   Type type1 = type();
   Type type2 = path_end->type();
@@ -306,47 +297,48 @@ PathEnd::exceptPathCmp(const PathEnd *path_end,
 
 Delay
 PathEnd::checkTgtClkDelay(const Path *tgt_clk_path,
-			  const ClockEdge *tgt_clk_edge,
-			  const TimingRole *check_role,
-			  const StaState *sta)
+                          const ClockEdge *tgt_clk_edge,
+                          const TimingRole *check_role,
+                          const StaState *sta)
 {
   Delay insertion, latency;
   checkTgtClkDelay(tgt_clk_path, tgt_clk_edge, check_role, sta,
-		   insertion, latency);
-  return Delay(insertion + latency);
+                   insertion, latency);
+  return delaySum(insertion, latency, sta);
 }
 
 void
 PathEnd::checkTgtClkDelay(const Path *tgt_clk_path,
-			  const ClockEdge *tgt_clk_edge,
-			  const TimingRole *check_role,
-			  const StaState *sta,
-			  // Return values.
-			  Delay &insertion,
-			  Delay &latency)
+                          const ClockEdge *tgt_clk_edge,
+                          const TimingRole *check_role,
+                          const StaState *sta,
+                          // Return values.
+                          Delay &insertion,
+                          Delay &latency)
 {
   if (tgt_clk_path) {
     Search *search = sta->search();
     // If propagated clk, adjust required time for target clk network delay.
     const MinMax *min_max = tgt_clk_path->minMax(sta);
     const EarlyLate *early_late = check_role->tgtClkEarlyLate();
-    const PathAnalysisPt *tgt_path_ap = tgt_clk_path->pathAnalysisPt(sta);
     const ClkInfo *clk_info = tgt_clk_path->clkInfo(sta);
     const Pin *tgt_src_pin = clk_info->clkSrc();
     const Clock *tgt_clk = tgt_clk_edge->clock();
     const RiseFall *tgt_clk_rf = tgt_clk_edge->transition();
+    const Mode *mode = tgt_clk_path->mode(sta);
     insertion = search->clockInsertion(tgt_clk, tgt_src_pin, tgt_clk_rf,
-				       min_max, early_late, tgt_path_ap);
+                                       min_max, early_late, mode);
     if (clk_info->isPropagated()
-	// Data check target clock is always propagated.
-	|| check_role->isDataCheck()) {
+        // Data check target clock is always propagated.
+        || check_role->isDataCheck()) {
       // Propagated clock.  Propagated arrival is seeded with
       // early_late==path_min_max insertion delay.
       Arrival clk_arrival = tgt_clk_path->arrival();
       Delay path_insertion = search->clockInsertion(tgt_clk, tgt_src_pin,
-						      tgt_clk_rf, min_max,
-						      min_max, tgt_path_ap);
-      latency = delayRemove(clk_arrival - tgt_clk_edge->time(), path_insertion);
+                                                    tgt_clk_rf, min_max,
+                                                    min_max, mode);
+      latency = delayRemove(delayDiff(clk_arrival, tgt_clk_edge->time(), sta),
+                            path_insertion);
     }
     else
       // Ideal clock.
@@ -360,20 +352,20 @@ PathEnd::checkTgtClkDelay(const Path *tgt_clk_path,
 
 float
 PathEnd::checkClkUncertainty(const ClockEdge *src_clk_edge,
-			     const ClockEdge *tgt_clk_edge,
-			     const Path *tgt_clk_path,
-			     const TimingRole *check_role,
-			     const StaState *sta)
+                             const ClockEdge *tgt_clk_edge,
+                             const Path *tgt_clk_path,
+                             const TimingRole *check_role,
+                             const Sdc *sdc)
 {
 
   float inter_clk;
   bool inter_exists;
-  checkInterClkUncertainty(src_clk_edge, tgt_clk_edge, check_role, sta,
-			   inter_clk, inter_exists);
+  checkInterClkUncertainty(src_clk_edge, tgt_clk_edge, check_role, sdc,
+                           inter_clk, inter_exists);
   if (inter_exists)
     return inter_clk;
   else
-    return checkTgtClkUncertainty(tgt_clk_path, tgt_clk_edge, check_role, sta);
+    return checkTgtClkUncertainty(tgt_clk_path, tgt_clk_edge, check_role, sdc);
 }
 
 float
@@ -383,11 +375,11 @@ PathEnd::checkTgtClkUncertainty(const Path *tgt_clk_path,
                                 const StaState *sta)
 {
   const MinMax *min_max = check_role->pathMinMax();
-  ClockUncertainties *uncertainties = nullptr;
+  const ClockUncertainties *uncertainties = nullptr;
   if (tgt_clk_path && tgt_clk_path->isClock(sta))
     uncertainties = tgt_clk_path->clkInfo(sta)->uncertainties();
   else if (tgt_clk_edge)
-    uncertainties = tgt_clk_edge->clock()->uncertainties();
+    uncertainties = &tgt_clk_edge->clock()->uncertainties();
   float uncertainty = 0.0;
   if (uncertainties) {
     bool exists;
@@ -403,13 +395,12 @@ PathEnd::checkTgtClkUncertainty(const Path *tgt_clk_path,
 
 void
 PathEnd::checkInterClkUncertainty(const ClockEdge *src_clk_edge,
-				  const ClockEdge *tgt_clk_edge,
-				  const TimingRole *check_role,
-				  const StaState *sta,
-				  float &uncertainty,
-				  bool &exists)
+                                  const ClockEdge *tgt_clk_edge,
+                                  const TimingRole *check_role,
+                                  const Sdc *sdc,
+                                  float &uncertainty,
+                                  bool &exists)
 {
-  Sdc *sdc = sta->sdc();
   if (src_clk_edge
       && src_clk_edge != sdc->defaultArrivalClockEdge()
       && tgt_clk_edge) {
@@ -420,11 +411,19 @@ PathEnd::checkInterClkUncertainty(const ClockEdge *src_clk_edge,
                           check_role->pathMinMax(),
                           uncertainty, exists);
     if (exists
-	&& check_role->genericRole() == TimingRole::setup())
+        && check_role->genericRole() == TimingRole::setup())
       uncertainty = -uncertainty;
   }
   else
     exists = false;
+}
+
+bool
+PathEnd::ignoreClkLatency(const Path *path,
+                          PathDelay *path_delay,
+                          const StaState *sta)
+{
+  return path_delay->ignoreClkLatency() && !path->isClock(sta);
 }
 
 ////////////////////////////////////////////////////////////////
@@ -457,7 +456,7 @@ PathEndUnconstrained::PathEndUnconstrained(Path *path) :
 PathEnd *
 PathEndUnconstrained::copy() const
 {
-  return new PathEndUnconstrained(path_);
+  return new PathEndUnconstrained(*this);
 }
 
 bool
@@ -512,22 +511,10 @@ PathEndUnconstrained::typeName() const
 ////////////////////////////////////////////////////////////////
 
 PathEndClkConstrained::PathEndClkConstrained(Path *path,
-					     Path *clk_path) :
+                                             Path *clk_path) :
   PathEnd(path),
   clk_path_(clk_path),
-  crpr_(0.0),
-  crpr_valid_(false)
-{
-}
-
-PathEndClkConstrained::PathEndClkConstrained(Path *path,
-					     Path *clk_path,
-					     Crpr crpr,
-					     bool crpr_valid) :
-  PathEnd(path),
-  clk_path_(clk_path),
-  crpr_(crpr),
-  crpr_valid_(crpr_valid)
+  crpr_(0.0)
 {
 }
 
@@ -542,18 +529,18 @@ float
 PathEndClkConstrained::sourceClkOffset(const StaState *sta) const
 {
   return sourceClkOffset(sourceClkEdge(sta),
-			 targetClkEdge(sta),
-			 checkRole(sta),
-			 sta);
+                         targetClkEdge(sta),
+                         checkRole(sta),
+                         sta);
 }
 
 float
 PathEndClkConstrained::sourceClkOffset(const ClockEdge *src_clk_edge,
-				       const ClockEdge *tgt_clk_edge,
-				       const TimingRole *check_role,
-				       const StaState *sta) const
+                                       const ClockEdge *tgt_clk_edge,
+                                       const TimingRole *check_role,
+                                       const StaState *sta) const
 {
-  Sdc *sdc = sta->sdc();
+  Sdc *sdc = path_->sdc(sta);
   CycleAccting *acct = sdc->cycleAccting(src_clk_edge, tgt_clk_edge);
   return acct->sourceTimeOffset(check_role);
 }
@@ -590,7 +577,7 @@ PathEndClkConstrained::targetClkOffset(const StaState *sta) const
   const ClockEdge *src_clk_edge = sourceClkEdge(sta);
   const ClockEdge *tgt_clk_edge = targetClkEdge(sta);
   const TimingRole *check_role = checkRole(sta);
-  Sdc *sdc = sta->sdc();
+  Sdc *sdc = path_->sdc(sta);
   CycleAccting *acct = sdc->cycleAccting(src_clk_edge, tgt_clk_edge);
   return acct->targetTimeOffset(check_role);
 }
@@ -620,7 +607,7 @@ PathEndClkConstrained::targetClkTime(const StaState *sta) const
   const ClockEdge *src_clk_edge = sourceClkEdge(sta);
   const ClockEdge *tgt_clk_edge = targetClkEdge(sta);
   const TimingRole *check_role = checkRole(sta);
-  Sdc *sdc = sta->sdc();
+  Sdc *sdc = path_->sdc(sta);
   CycleAccting *acct = sdc->cycleAccting(src_clk_edge, tgt_clk_edge);
   return acct->requiredTime(check_role);
 }
@@ -628,20 +615,23 @@ PathEndClkConstrained::targetClkTime(const StaState *sta) const
 Arrival
 PathEndClkConstrained::targetClkArrival(const StaState *sta) const
 {
-  return targetClkArrivalNoCrpr(sta)
-    + checkCrpr(sta);
+  return delaySum(targetClkArrivalNoCrpr(sta), checkCrpr(sta), sta);
 }
  
 Arrival
 PathEndClkConstrained::targetClkArrivalNoCrpr(const StaState *sta) const
 {
-  return targetClkTime(sta)
-    + targetClkDelay(sta)
-    + checkClkUncertainty(sourceClkEdge(sta),
- 			  targetClkEdge(sta),
- 			  targetClkPath(),
- 			  checkRole(sta), sta)
-    + targetClkMcpAdjustment(sta);
+  Sdc *sdc = path_->sdc(sta);
+  Arrival clk_arrival = delaySum(targetClkDelay(sta),
+                                 targetClkTime(sta),
+                                 sta);
+  float uncertainty = checkClkUncertainty(sourceClkEdge(sta),
+                                          targetClkEdge(sta),
+                                          targetClkPath(),
+                                          checkRole(sta),
+                                          sdc);
+  return delaySum(delaySum(clk_arrival, uncertainty, sta),
+                  targetClkMcpAdjustment(sta), sta);
 }
 
 Delay
@@ -655,8 +645,8 @@ PathEndClkConstrained::targetClkInsertionDelay(const StaState *sta) const
 {
   Arrival insertion, latency;
   checkTgtClkDelay(targetClkPath(), targetClkEdge(sta),
-		   checkRole(sta), sta,
-		   insertion, latency);
+                   checkRole(sta), sta,
+                   insertion, latency);
   return insertion;
 }
 
@@ -667,10 +657,11 @@ PathEndClkConstrained::targetNonInterClkUncertainty(const StaState *sta) const
   const ClockEdge *tgt_clk_edge = targetClkEdge(sta);
   const TimingRole *check_role = checkRole(sta);
 
+  Sdc *sdc = path_->sdc(sta);
   float inter_clk;
   bool inter_exists;
   checkInterClkUncertainty(src_clk_edge, tgt_clk_edge, check_role,
-			   sta, inter_clk, inter_exists);
+                           sdc, inter_clk, inter_exists);
   if (inter_exists)
     // This returns non inter-clock uncertainty.
     return 0.0;
@@ -681,11 +672,12 @@ PathEndClkConstrained::targetNonInterClkUncertainty(const StaState *sta) const
 float
 PathEndClkConstrained::interClkUncertainty(const StaState *sta) const
 {
+  Sdc *sdc = path_->sdc(sta);
   float uncertainty;
   bool exists;
   checkInterClkUncertainty(sourceClkEdge(sta), targetClkEdge(sta),
-			   checkRole(sta), sta,
-			   uncertainty, exists);
+                           checkRole(sta), sdc,
+                           uncertainty, exists);
   if (exists)
     return uncertainty;
   else
@@ -695,8 +687,9 @@ PathEndClkConstrained::interClkUncertainty(const StaState *sta) const
 float
 PathEndClkConstrained::targetClkUncertainty(const StaState *sta) const
 {
+  Sdc *sdc = path_->sdc(sta);
   return checkClkUncertainty(sourceClkEdge(sta), targetClkEdge(sta),
-			     targetClkPath(), checkRole(sta), sta);
+                             targetClkPath(), checkRole(sta), sdc);
 }
 
 Crpr
@@ -713,8 +706,9 @@ PathEndClkConstrained::crpr(const StaState *sta) const
 Required
 PathEndClkConstrained::requiredTime(const StaState *sta) const
 {
-  return requiredTimeNoCrpr(sta)
-    + checkCrpr(sta);
+  return delaySum(requiredTimeNoCrpr(sta),
+                  checkCrpr(sta),
+                  sta);
 }
 
 Required
@@ -723,9 +717,9 @@ PathEndClkConstrained::requiredTimeNoCrpr(const StaState *sta) const
   Arrival tgt_clk_arrival = targetClkArrivalNoCrpr(sta);
   ArcDelay check_margin = margin(sta);
   if (checkGenericRole(sta) == TimingRole::setup())
-    return tgt_clk_arrival - check_margin;
+    return delayDiff(tgt_clk_arrival, check_margin, sta);
   else
-    return tgt_clk_arrival + check_margin;
+    return delaySum(tgt_clk_arrival, check_margin, sta);
 }
 
 Slack
@@ -734,14 +728,14 @@ PathEndClkConstrained::slack(const StaState *sta) const
   Arrival arrival = dataArrivalTime(sta);
   Required required = requiredTime(sta);
   if (checkGenericRole(sta) == TimingRole::setup())
-    return required - arrival;
+    return delayDiff(required, arrival, sta);
   else
-    return arrival - required;
+    return delayDiff(arrival, required, sta);
 }
 
 int
 PathEndClkConstrained::exceptPathCmp(const PathEnd *path_end,
-				     const StaState *sta) const
+                                     const StaState *sta) const
 {
   int cmp = PathEnd::exceptPathCmp(path_end, sta);
   if (cmp == 0) {
@@ -757,19 +751,9 @@ PathEndClkConstrained::exceptPathCmp(const PathEnd *path_end,
 ////////////////////////////////////////////////////////////////
 
 PathEndClkConstrainedMcp::PathEndClkConstrainedMcp(Path *path,
-						   Path *clk_path,
-						   MultiCyclePath *mcp) :
+                                                   Path *clk_path,
+                                                   MultiCyclePath *mcp) :
   PathEndClkConstrained(path, clk_path),
-  mcp_(mcp)
-{
-}
-
-PathEndClkConstrainedMcp::PathEndClkConstrainedMcp(Path *path,
-						   Path *clk_path,
-						   MultiCyclePath *mcp,
-						   Crpr crpr,
-						   bool crpr_valid) :
-  PathEndClkConstrained(path, clk_path, crpr, crpr_valid),
   mcp_(mcp)
 {
 }
@@ -782,56 +766,56 @@ PathEndClkConstrainedMcp::targetClkMcpAdjustment(const StaState *sta) const
 
 float
 PathEndClkConstrainedMcp::checkMcpAdjustment(const Path *path,
-					     const ClockEdge *tgt_clk_edge,
-					     const StaState *sta) const
+                                             const ClockEdge *tgt_clk_edge,
+                                             const StaState *sta) const
 {
   if (mcp_) {
     const TimingRole *check_role = checkRole(sta);
     const MinMax *min_max = check_role->pathMinMax();
     const ClockEdge *src_clk_edge = path->clkEdge(sta);
-    Sdc *sdc = sta->sdc();
+    Sdc *sdc = path_->sdc(sta);
     if (min_max == MinMax::max())
       return PathEnd::checkSetupMcpAdjustment(src_clk_edge, tgt_clk_edge,
-					      mcp_, setupDefaultCycles(), sdc);
+                                              mcp_, setupDefaultCycles(), sdc);
     else {
       // Hold check.
       // Default arrival clock is a proxy for the target clock.
       if (src_clk_edge == nullptr)
-	src_clk_edge = tgt_clk_edge;
+        src_clk_edge = tgt_clk_edge;
       else if (src_clk_edge->clock() == sdc->defaultArrivalClock())
-	src_clk_edge = tgt_clk_edge->clock()->edge(src_clk_edge->transition());
+        src_clk_edge = tgt_clk_edge->clock()->edge(src_clk_edge->transition());
 
       const MultiCyclePath *setup_mcp;
       const MultiCyclePath *hold_mcp;
       // Hold checks also need the setup mcp for cycle accounting.
       findHoldMcps(tgt_clk_edge, setup_mcp, hold_mcp, sta);
       if (setup_mcp && hold_mcp) {
-	int setup_mult = setup_mcp->pathMultiplier(MinMax::max());
-	int hold_mult = hold_mcp->pathMultiplier(MinMax::min());
-	const ClockEdge *setup_clk_edge =
-	  setup_mcp->useEndClk() ? tgt_clk_edge : src_clk_edge;
-	float setup_period = setup_clk_edge->clock()->period();
-	const ClockEdge *hold_clk_edge =
-	  hold_mcp->useEndClk() ? tgt_clk_edge : src_clk_edge;
-	float hold_period = hold_clk_edge->clock()->period();
-	return (setup_mult - 1) * setup_period - hold_mult * hold_period;
+        int setup_mult = setup_mcp->pathMultiplier(MinMax::max());
+        int hold_mult = hold_mcp->pathMultiplier(MinMax::min());
+        const ClockEdge *setup_clk_edge =
+          setup_mcp->useEndClk() ? tgt_clk_edge : src_clk_edge;
+        float setup_period = setup_clk_edge->clock()->period();
+        const ClockEdge *hold_clk_edge =
+          hold_mcp->useEndClk() ? tgt_clk_edge : src_clk_edge;
+        float hold_period = hold_clk_edge->clock()->period();
+        return (setup_mult - 1) * setup_period - hold_mult * hold_period;
       }
       else if (hold_mcp) {
-	int mult = hold_mcp->pathMultiplier(min_max);
-	const ClockEdge *clk_edge =
-	  hold_mcp->useEndClk() ? tgt_clk_edge : src_clk_edge;
-	float period = clk_edge->clock()->period();
-	return -mult * period;
+        int mult = hold_mcp->pathMultiplier(min_max);
+        const ClockEdge *clk_edge =
+          hold_mcp->useEndClk() ? tgt_clk_edge : src_clk_edge;
+        float period = clk_edge->clock()->period();
+        return -mult * period;
       }
       else if (setup_mcp) {
-	int mult = setup_mcp->pathMultiplier(min_max);
-	const ClockEdge *clk_edge =
-	  setup_mcp->useEndClk() ? tgt_clk_edge : src_clk_edge;
-	float period = clk_edge->clock()->period();
-	return (mult - 1) * period;
+        int mult = setup_mcp->pathMultiplier(min_max);
+        const ClockEdge *clk_edge =
+          setup_mcp->useEndClk() ? tgt_clk_edge : src_clk_edge;
+        float period = clk_edge->clock()->period();
+        return (mult - 1) * period;
       }
       else
-	return 0.0;
+        return 0.0;
     }
   }
   else
@@ -840,10 +824,10 @@ PathEndClkConstrainedMcp::checkMcpAdjustment(const Path *path,
 
 float
 PathEnd::checkSetupMcpAdjustment(const ClockEdge *src_clk_edge,
-				 const ClockEdge *tgt_clk_edge,
-				 const MultiCyclePath *mcp,
-				 int default_cycles,
-				 Sdc *sdc)
+                                 const ClockEdge *tgt_clk_edge,
+                                 const MultiCyclePath *mcp,
+                                 int default_cycles,
+                                 Sdc *sdc)
 {
   if (mcp) {
     // Default arrival clock is a proxy for the target clock.
@@ -854,7 +838,7 @@ PathEnd::checkSetupMcpAdjustment(const ClockEdge *src_clk_edge,
     if (mcp->minMax()->matches(MinMax::max())) {
       int mult = mcp->pathMultiplier(MinMax::max());
       const ClockEdge *clk_edge =
-	mcp->useEndClk() ? tgt_clk_edge : src_clk_edge;
+        mcp->useEndClk() ? tgt_clk_edge : src_clk_edge;
       float period = clk_edge->clock()->period();
       return (mult - default_cycles) * period;
     }
@@ -871,16 +855,16 @@ PathEndClkConstrained::slackNoCrpr(const StaState *sta) const
   Arrival arrival = dataArrivalTime(sta);
   Required required = requiredTimeNoCrpr(sta);
   if (checkGenericRole(sta) == TimingRole::setup())
-    return required - arrival;
+    return delayDiff(required, arrival, sta);
   else
-    return arrival - required;
+    return delayDiff(arrival, required, sta);
 }
 
 void
 PathEndClkConstrainedMcp::findHoldMcps(const ClockEdge *tgt_clk_edge,
-				       const MultiCyclePath *&setup_mcp,
-				       const MultiCyclePath *&hold_mcp,
-				       const StaState *sta) const
+                                       const MultiCyclePath *&setup_mcp,
+                                       const MultiCyclePath *&hold_mcp,
+                                       const StaState *sta) const
 
 {
   Pin *pin = path_->pin(sta);
@@ -892,25 +876,27 @@ PathEndClkConstrainedMcp::findHoldMcps(const ClockEdge *tgt_clk_edge,
     hold_mcp = mcp_;
     setup_mcp =
       dynamic_cast<MultiCyclePath*>(search->exceptionTo(ExceptionPathType::multi_cycle,
-							path_, pin, rf,
-							tgt_clk_edge,
-							MinMax::max(), true,
-							false));
+                                                        path_, pin, rf,
+                                                        tgt_clk_edge,
+                                                        MinMax::max(), true,
+                                                        false,
+                                                        path_->sdc(sta)));
   }
   else {
     setup_mcp = mcp_;
     hold_mcp =
       dynamic_cast<MultiCyclePath*>(search->exceptionTo(ExceptionPathType::multi_cycle,
-							path_, pin, rf,
-							tgt_clk_edge,
-							MinMax::min(), true,
-							false));
+                                                        path_, pin, rf,
+                                                        tgt_clk_edge,
+                                                        MinMax::min(), true,
+                                                        false,
+                                                        path_->sdc(sta)));
   }
 }
 
 int
 PathEndClkConstrainedMcp::exceptPathCmp(const PathEnd *path_end,
-					const StaState *sta) const
+                                        const StaState *sta) const
 {
   int cmp = PathEndClkConstrained::exceptPathCmp(path_end, sta);
   if (cmp == 0) {
@@ -931,25 +917,12 @@ PathEndClkConstrainedMcp::exceptPathCmp(const PathEnd *path_end,
 ////////////////////////////////////////////////////////////////
 
 PathEndCheck::PathEndCheck(Path *path,
-			   TimingArc *check_arc,
-			   Edge *check_edge,
-			   Path *clk_path,
-			   MultiCyclePath *mcp,
-			   const StaState *) :
+                           TimingArc *check_arc,
+                           Edge *check_edge,
+                           Path *clk_path,
+                           MultiCyclePath *mcp,
+                           const StaState *) :
   PathEndClkConstrainedMcp(path, clk_path, mcp),
-  check_arc_(check_arc),
-  check_edge_(check_edge)
-{
-}
-
-PathEndCheck::PathEndCheck(Path *path,
-			   TimingArc *check_arc,
-			   Edge *check_edge,
-			   Path *clk_path,
-			   MultiCyclePath *mcp,
-			   Crpr crpr,
-			   bool crpr_valid) :
-  PathEndClkConstrainedMcp(path, clk_path, mcp, crpr, crpr_valid),
   check_arc_(check_arc),
   check_edge_(check_edge)
 {
@@ -958,8 +931,7 @@ PathEndCheck::PathEndCheck(Path *path,
 PathEnd *
 PathEndCheck::copy() const
 {
-  return new PathEndCheck(path_, check_arc_, check_edge_,
-			  clk_path_, mcp_, crpr_, crpr_valid_);
+  return new PathEndCheck(*this);
 }
 
 PathEnd::Type
@@ -996,13 +968,15 @@ ArcDelay
 PathEndCheck::margin(const StaState *sta) const
 {
   return sta->search()->deratedDelay(clk_path_->vertex(sta),
-				     check_arc_, check_edge_, false,
-				     pathAnalysisPt(sta));
+                                     check_arc_, check_edge_, false,
+                                     path_->minMax(sta),
+                                     path_->dcalcAnalysisPtIndex(sta),
+                                     path_->sdc(sta));
 }
 
 int
 PathEndCheck::exceptPathCmp(const PathEnd *path_end,
-			    const StaState *sta) const
+                            const StaState *sta) const
 {
   int cmp = PathEndClkConstrainedMcp::exceptPathCmp(path_end, sta);
   if (cmp == 0) {
@@ -1022,10 +996,18 @@ PathEndCheck::exceptPathCmp(const PathEnd *path_end,
 Delay
 PathEndCheck::clkSkew(const StaState *sta)
 {
-  return sourceClkDelay(sta) - targetClkDelay(sta) - crpr(sta)
-    // Uncertainty decreases slack, but increases skew.
-    - checkTgtClkUncertainty(clk_path_, clk_path_->clkEdge(sta),
-                             checkRole(sta), sta);
+  Delay skew = delayDiff(sourceClkDelay(sta),
+                         targetClkDelay(sta),
+                         sta);
+  skew = delayDiff(skew, crpr(sta), sta);
+  // Uncertainty decreases slack, but increases skew.
+  skew = delayDiff(skew,
+                   checkTgtClkUncertainty(clk_path_,
+                                                    clk_path_->clkEdge(sta),
+                                                    checkRole(sta),
+                                                    sta),
+                   sta);
+  return skew;
 }
 
 Delay
@@ -1040,7 +1022,8 @@ PathEndCheck::sourceClkDelay(const StaState *sta) const
       Arrival clk_arrival = src_clk_path->arrival();
       const ClockEdge *src_clk_edge = src_clk_info->clkEdge();
       Delay insertion = sourceClkInsertionDelay(sta);
-      return delayRemove(clk_arrival - src_clk_edge->time(), insertion);
+      return delayRemove(delayDiff(clk_arrival, src_clk_edge->time(), sta),
+                         insertion);
     }
     else
       // Ideal clock.
@@ -1057,9 +1040,17 @@ PathEndCheck::requiredTimeNoCrpr(const StaState *sta) const
   ArcDelay check_margin = margin(sta);
   float macro_clk_tree_delay = macroClkTreeDelay(sta);
   if (checkGenericRole(sta) == TimingRole::setup())
-    return tgt_clk_arrival - (check_margin + macro_clk_tree_delay);
+    return delayDiff(tgt_clk_arrival,
+                     delaySum(check_margin,
+                              macro_clk_tree_delay,
+                              sta),
+                     sta);
   else
-    return tgt_clk_arrival + (check_margin - macro_clk_tree_delay);
+    return delaySum(tgt_clk_arrival,
+                    delayDiff(check_margin,
+                              macro_clk_tree_delay,
+                              sta),
+                    sta);
 }
 
 float
@@ -1077,7 +1068,7 @@ PathEndCheck::macroClkTreeDelay(const StaState *sta) const
     if (clk_port) {
       const MinMax *min_max = clk_path_->minMax(sta);
       const RiseFall *rf = clk_path_->transition(sta);
-      float slew = delayAsFloat(clk_path_->slew(sta));
+      float slew = delayAsFloat(clk_path_->slew(sta), min_max, sta);
       return clk_port->clkTreeDelay(slew, rf, min_max);
     }
   }
@@ -1087,51 +1078,30 @@ PathEndCheck::macroClkTreeDelay(const StaState *sta) const
 ////////////////////////////////////////////////////////////////
 
 PathEndLatchCheck::PathEndLatchCheck(Path *path,
-				     TimingArc *check_arc,
-				     Edge *check_edge,
-				     Path *disable_path,
-				     MultiCyclePath *mcp,
-				     PathDelay *path_delay,
-				     const StaState *sta) :
+                                     TimingArc *check_arc,
+                                     Edge *check_edge,
+                                     Path *disable_path,
+                                     MultiCyclePath *mcp,
+                                     PathDelay *path_delay,
+                                     const StaState *sta) :
   PathEndCheck(path, check_arc, check_edge, nullptr, mcp, sta),
   disable_path_(disable_path),
   path_delay_(path_delay),
   src_clk_arrival_(0.0)
 {
   Latches *latches = sta->latches();
-  Path *enable_path =
-    latches->latchEnableOtherPath(disable_path,
-                                  disable_path->pathAnalysisPt(sta));
+  Path *enable_path = latches->latchEnableOtherPath(disable_path);
   clk_path_ = enable_path;
   Search *search = sta->search();
   // Same as PathEndPathDelay::findRequired.
-  if (path_delay_ && ignoreClkLatency(sta))
+  if (path_delay_ && PathEnd::ignoreClkLatency(path_, path_delay_, sta))
     src_clk_arrival_ = search->pathClkPathArrival(path_);
-}
-
-PathEndLatchCheck::PathEndLatchCheck(Path *path,
-				     TimingArc *check_arc,
-				     Edge *check_edge,
-				     Path *clk_path,
-				     Path *disable_path,
-				     MultiCyclePath *mcp,
-				     PathDelay *path_delay,
- 				     Delay src_clk_arrival,
-				     Crpr crpr,
-				     bool crpr_valid) :
-  PathEndCheck(path, check_arc, check_edge, clk_path, mcp, crpr, crpr_valid),
-  disable_path_(disable_path),
-  path_delay_(path_delay),
-  src_clk_arrival_(src_clk_arrival)
-{
 }
 
 PathEnd *
 PathEndLatchCheck::copy() const
 {
-  return new PathEndLatchCheck(path_, check_arc_, check_edge_,
-			       clk_path_, disable_path_, mcp_, path_delay_,
-			       src_clk_arrival_, crpr_, crpr_valid_);
+  return new PathEndLatchCheck(*this);
 }
 
 PathEnd::Type
@@ -1177,15 +1147,15 @@ PathEndLatchCheck::sourceClkOffset(const StaState *sta) const
     return pathDelaySrcClkOffset(path_, path_delay_, src_clk_arrival_, sta);
   else
     return PathEndClkConstrained::sourceClkOffset(sourceClkEdge(sta),
-						  disable_path_->clkEdge(sta),
-						  TimingRole::setup(),
-						  sta);
+                                                  disable_path_->clkEdge(sta),
+                                                  TimingRole::setup(),
+                                                  sta);
 }
 
 const TimingRole *
 PathEndLatchCheck::checkRole(const StaState *sta) const
 {
-  if (clk_path_->clkInfo(sta)->isPulseClk())
+  if (clk_path_ && clk_path_->clkInfo(sta)->isPulseClk())
     // Pulse latches use register cycle accounting.
     return TimingRole::setup();
   else
@@ -1219,9 +1189,9 @@ PathEndLatchCheck::requiredTime(const StaState *sta) const
   Arrival borrow, adjusted_data_arrival, time_given_to_startpoint;
   Latches *latches = sta->latches();
   latches->latchRequired(path_, targetClkPath(), latchDisable(),
-			 mcp_, path_delay_, src_clk_arrival_, margin(sta),
-			 required, borrow, adjusted_data_arrival,
-			 time_given_to_startpoint);
+                         mcp_, path_delay_, src_clk_arrival_, margin(sta),
+                         required, borrow, adjusted_data_arrival,
+                         time_given_to_startpoint);
   return required;
 }
 
@@ -1232,47 +1202,47 @@ PathEndLatchCheck::borrow(const StaState *sta) const
   Required required;
   Arrival  borrow, adjusted_data_arrival, time_given_to_startpoint;
   latches->latchRequired(path_, targetClkPath(), latchDisable(),
-			 mcp_, path_delay_, src_clk_arrival_, margin(sta),
-			 required, borrow, adjusted_data_arrival,
-			 time_given_to_startpoint);
+                         mcp_, path_delay_, src_clk_arrival_, margin(sta),
+                         required, borrow, adjusted_data_arrival,
+                         time_given_to_startpoint);
   return borrow;
 }
 
 void 
 PathEndLatchCheck::latchRequired(const StaState *sta,
-				 // Return values.
-				 Required &required,
-				 Delay &borrow,
-				 Arrival &adjusted_data_arrival,
-				 Delay &time_given_to_startpoint) const
+                                 // Return values.
+                                 Required &required,
+                                 Delay &borrow,
+                                 Arrival &adjusted_data_arrival,
+                                 Delay &time_given_to_startpoint) const
 {
   Latches *latches = sta->latches();
   latches->latchRequired(path_, targetClkPath(), latchDisable(),
-			 mcp_, path_delay_, src_clk_arrival_, margin(sta),
-			 required, borrow, adjusted_data_arrival,
-			 time_given_to_startpoint);
+                         mcp_, path_delay_, src_clk_arrival_, margin(sta),
+                         required, borrow, adjusted_data_arrival,
+                         time_given_to_startpoint);
 }
 
 void 
 PathEndLatchCheck::latchBorrowInfo(const StaState *sta,
-				   // Return values.
-				   float &nom_pulse_width,
-				   Delay &open_latency,
-				   Delay &latency_diff,
-				   float &open_uncertainty,
-				   Crpr &open_crpr,
-				   Crpr &crpr_diff,
-				   Delay &max_borrow,
-				   bool &borrow_limit_exists) const
+                                   // Return values.
+                                   float &nom_pulse_width,
+                                   Delay &open_latency,
+                                   Delay &latency_diff,
+                                   float &open_uncertainty,
+                                   Crpr &open_crpr,
+                                   Crpr &crpr_diff,
+                                   Delay &max_borrow,
+                                   bool &borrow_limit_exists) const
 {
   Latches *latches = sta->latches();
   latches->latchBorrowInfo(path_, targetClkPath(), latchDisable(),
-			   margin(sta),
-			   path_delay_ && ignoreClkLatency(sta),
-			   nom_pulse_width, open_latency,
-			   latency_diff, open_uncertainty,
-			   open_crpr, crpr_diff, max_borrow,
-			   borrow_limit_exists);
+                           margin(sta),
+                           path_delay_ && ignoreClkLatency(sta),
+                           nom_pulse_width, open_latency,
+                           latency_diff, open_uncertainty,
+                           open_crpr, crpr_diff, max_borrow,
+                           borrow_limit_exists);
 }
 
 Arrival
@@ -1283,22 +1253,24 @@ PathEndLatchCheck::targetClkWidth(const StaState *sta) const
   Arrival enable_arrival = search->clkPathArrival(clk_path_);
   const ClkInfo *enable_clk_info = clk_path_->clkInfo(sta);
   if (enable_clk_info->isPulseClk())
-    return disable_arrival - enable_arrival;
+    return delayDiff(disable_arrival, enable_arrival, sta);
   else {
     if (delayGreater(enable_arrival, disable_arrival, sta)) {
       const Clock *disable_clk = enable_clk_info->clock();
       if (disable_clk)
-        disable_arrival += disable_clk->period();
+        disable_arrival = delaySum(disable_arrival,
+                                   disable_clk->period(),
+                                   sta);
     }
-    return disable_arrival - enable_arrival;
+    return delayDiff(disable_arrival, enable_arrival, sta);
   }
 }
 
 int
 PathEndLatchCheck::exceptPathCmp(const PathEnd *path_end,
-				 const StaState *sta) const
+                                 const StaState *sta) const
 {
-  int cmp = PathEndClkConstrainedMcp::exceptPathCmp(path_end, sta);
+  int cmp = PathEndCheck::exceptPathCmp(path_end, sta);
   if (cmp == 0) {
     const PathEndLatchCheck *path_end2 =
       dynamic_cast<const PathEndLatchCheck*>(path_end);
@@ -1325,23 +1297,12 @@ PathEndLatchCheck::ignoreClkLatency(const StaState *sta) const
 ///////////////////////////////////////////////////////////////
 
 PathEndOutputDelay::PathEndOutputDelay(OutputDelay *output_delay,
-				       Path *path,
-				       Path *clk_path,
-				       MultiCyclePath *mcp,
-				       const StaState *) :
+                                       Path *path,
+                                       Path *clk_path,
+                                       MultiCyclePath *mcp,
+                                       const StaState *) :
   // No target clk_path_ for output delays.
   PathEndClkConstrainedMcp(path, clk_path, mcp),
-  output_delay_(output_delay)
-{
-}
-
-PathEndOutputDelay::PathEndOutputDelay(OutputDelay *output_delay,
-				       Path *path,
-				       Path *clk_path,
-				       MultiCyclePath *mcp,
-				       Crpr crpr,
-				       bool crpr_valid) :
-  PathEndClkConstrainedMcp(path, clk_path, mcp, crpr, crpr_valid),
   output_delay_(output_delay)
 {
 }
@@ -1349,8 +1310,7 @@ PathEndOutputDelay::PathEndOutputDelay(OutputDelay *output_delay,
 PathEnd *
 PathEndOutputDelay::copy() const
 {
-  return new PathEndOutputDelay(output_delay_, path_, clk_path_,
-				mcp_, crpr_, crpr_valid_);
+  return new PathEndOutputDelay(*this);
 }
 
 PathEnd::Type
@@ -1385,8 +1345,8 @@ PathEndOutputDelay::margin(const StaState *sta) const
 
 float
 PathEnd::outputDelayMargin(OutputDelay *output_delay,
-			   const Path *path,
-			   const StaState *sta)
+                           const Path *path,
+                           const StaState *sta)
 {
   const RiseFall *rf = path->transition(sta);
   const MinMax *min_max = path->minMax(sta);
@@ -1423,10 +1383,14 @@ PathEndOutputDelay::targetClkArrivalNoCrpr(const StaState *sta) const
   else {
     const ClockEdge *tgt_clk_edge = targetClkEdge(sta);
     const TimingRole *check_role = checkRole(sta);
-    return targetClkTime(sta)
-      + tgtClkDelay(tgt_clk_edge, check_role, sta)
-      + targetClkUncertainty(sta)
-      + checkMcpAdjustment(path_, tgt_clk_edge, sta);
+    Arrival base = delaySum(targetClkTime(sta),
+                            tgtClkDelay(tgt_clk_edge, check_role, sta),
+                            sta);
+    return delaySum(delaySum(base,
+                             targetClkUncertainty(sta),
+                             sta),
+                    checkMcpAdjustment(path_, tgt_clk_edge, sta),
+                    sta);
   }
 }
 
@@ -1452,42 +1416,41 @@ PathEndOutputDelay::targetClkDelay(const StaState *sta) const
 
 Arrival
 PathEndOutputDelay::tgtClkDelay(const ClockEdge *tgt_clk_edge,
-				const TimingRole *check_role,
-				const StaState *sta) const
+                                const TimingRole *check_role,
+                                const StaState *sta) const
 {
   Arrival insertion, latency;
   tgtClkDelay(tgt_clk_edge, check_role, sta,
-	      insertion, latency);
-  return insertion + latency;
+              insertion, latency);
+  return delaySum(insertion, latency, sta);
 }
 
 void
 PathEndOutputDelay::tgtClkDelay(const ClockEdge *tgt_clk_edge,
-				const TimingRole *check_role,
-				const StaState *sta,
-				// Return values.
-				Arrival &insertion,
-				Arrival &latency) const
+                                const TimingRole *check_role,
+                                const StaState *sta,
+                                // Return values.
+                                Arrival &insertion,
+                                Arrival &latency) const
 {
   // Early late: setup early, hold late.
   const EarlyLate *early_late = check_role->tgtClkEarlyLate();
   // Latency min_max depends on bc_wc or ocv.
-  const PathAnalysisPt *path_ap = path_->pathAnalysisPt(sta);
-  const MinMax *latency_min_max = path_ap->tgtClkAnalysisPt()->pathMinMax();
+  const MinMax *latency_min_max = path_->tgtClkMinMax(sta);
   Clock *tgt_clk = tgt_clk_edge->clock();
   const RiseFall *tgt_clk_rf = tgt_clk_edge->transition();
+  const Mode *mode = path_->mode(sta);
   if (!output_delay_->sourceLatencyIncluded())
     insertion = sta->search()->clockInsertion(tgt_clk,
-					      tgt_clk->defaultPin(),
-					      tgt_clk_rf,
-					      latency_min_max,
-					      early_late, path_ap);
+                                              tgt_clk->defaultPin(),
+                                              tgt_clk_rf,
+                                              latency_min_max,
+                                              early_late, mode);
   else
     insertion = 0.0;
-  const Sdc *sdc = sta->sdc();
   if (!tgt_clk->isPropagated()
       && !output_delay_->networkLatencyIncluded())
-    latency = sdc->clockLatency(tgt_clk, tgt_clk_rf, latency_min_max);
+    latency = mode->sdc()->clockLatency(tgt_clk, tgt_clk_rf, latency_min_max);
   else
     latency = 0.0;
 }
@@ -1500,14 +1463,14 @@ PathEndOutputDelay::targetClkInsertionDelay(const StaState *sta) const
   else {
     Arrival insertion, latency;
     tgtClkDelay(targetClkEdge(sta), checkRole(sta), sta,
-		insertion, latency);
+                insertion, latency);
     return insertion;
   }
 }
 
 int
 PathEndOutputDelay::exceptPathCmp(const PathEnd *path_end,
-				  const StaState *sta) const
+                                  const StaState *sta) const
 {
   int cmp = PathEndClkConstrainedMcp::exceptPathCmp(path_end, sta);
   if (cmp == 0) {
@@ -1528,25 +1491,12 @@ PathEndOutputDelay::exceptPathCmp(const PathEnd *path_end,
 ////////////////////////////////////////////////////////////////
 
 PathEndGatedClock::PathEndGatedClock(Path *gating_ref,
-				     Path *clk_path,
-				     const TimingRole *check_role,
-				     MultiCyclePath *mcp,
-				     ArcDelay margin,
-				     const StaState *) :
+                                     Path *clk_path,
+                                     const TimingRole *check_role,
+                                     MultiCyclePath *mcp,
+                                     ArcDelay margin,
+                                     const StaState *) :
   PathEndClkConstrainedMcp(gating_ref, clk_path, mcp),
-  check_role_(check_role),
-  margin_(margin)
-{
-}
-
-PathEndGatedClock::PathEndGatedClock(Path *gating_ref,
-				     Path *clk_path,
-				     const TimingRole *check_role,
-				     MultiCyclePath *mcp,
-				     ArcDelay margin,
-				     Crpr crpr,
-				     bool crpr_valid) :
-  PathEndClkConstrainedMcp(gating_ref, clk_path, mcp, crpr, crpr_valid),
   check_role_(check_role),
   margin_(margin)
 {
@@ -1555,8 +1505,7 @@ PathEndGatedClock::PathEndGatedClock(Path *gating_ref,
 PathEnd *
 PathEndGatedClock::copy() const
 {
-  return new PathEndGatedClock(path_, clk_path_, check_role_,
-			       mcp_, margin_, crpr_, crpr_valid_);
+  return new PathEndGatedClock(*this);
 }
 
 PathEnd::Type
@@ -1591,7 +1540,7 @@ PathEndGatedClock::reportShort(const ReportPath *report) const
 
 int
 PathEndGatedClock::exceptPathCmp(const PathEnd *path_end,
-				 const StaState *sta) const
+                                 const StaState *sta) const
 {
   int cmp = PathEndClkConstrainedMcp::exceptPathCmp(path_end, sta);
   if (cmp == 0) {
@@ -1612,10 +1561,10 @@ PathEndGatedClock::exceptPathCmp(const PathEnd *path_end,
 ////////////////////////////////////////////////////////////////
 
 PathEndDataCheck::PathEndDataCheck(DataCheck *check,
-				   Path *data_path,
-				   Path *data_clk_path,
-				   MultiCyclePath *mcp,
-				   const StaState *sta) :
+                                   Path *data_path,
+                                   Path *data_clk_path,
+                                   MultiCyclePath *mcp,
+                                   const StaState *sta) :
   PathEndClkConstrainedMcp(data_path, nullptr, mcp),
   data_clk_path_(data_clk_path),
   check_(check)
@@ -1639,15 +1588,15 @@ PathEndDataCheck::clkPath(Path *path,
     if (prev_arc) {
       const TimingRole *prev_role = prev_arc->role();
       if (prev_role == TimingRole::regClkToQ()
-	  || prev_role == TimingRole::latchEnToQ()) {
+          || prev_role == TimingRole::latchEnToQ()) {
         prev_path = p->prevPath();
-	return prev_path;
+        return prev_path;
       }
       else if (prev_role == TimingRole::latchDtoQ()) {
-	const Latches *latches = sta->latches();
-	Edge *prev_edge = p->prevEdge(sta);
-	Path *enable_path = latches->latchEnablePath(p, prev_edge);
-	return enable_path;
+        const Latches *latches = sta->latches();
+        Edge *prev_edge = p->prevEdge(sta);
+        Path *enable_path = latches->latchEnablePath(p, prev_edge);
+        return enable_path;
       }
     }
     p = prev_path;
@@ -1655,24 +1604,10 @@ PathEndDataCheck::clkPath(Path *path,
   return nullptr;
 }
 
-PathEndDataCheck::PathEndDataCheck(DataCheck *check,
-				   Path *data_path,
-				   Path *data_clk_path,
-				   Path *clk_path,
-				   MultiCyclePath *mcp,
- 				   Crpr crpr,
- 				   bool crpr_valid) :
-  PathEndClkConstrainedMcp(data_path, clk_path, mcp, crpr, crpr_valid),
-  data_clk_path_(data_clk_path),
-  check_(check)
-{
-}
-
 PathEnd *
 PathEndDataCheck::copy() const
 {
-  return new PathEndDataCheck(check_, path_, data_clk_path_,
- 			      clk_path_, mcp_, crpr_, crpr_valid_);
+  return new PathEndDataCheck(*this);
 }
 
 PathEnd::Type
@@ -1699,17 +1634,23 @@ PathEndDataCheck::requiredTimeNoCrpr(const StaState *sta) const
 {
   Arrival data_clk_arrival = data_clk_path_->arrival();
   float data_clk_time = data_clk_path_->clkEdge(sta)->time();
-  Arrival data_clk_delay = data_clk_arrival - data_clk_time;
-  Arrival tgt_clk_arrival = targetClkTime(sta)
-    + data_clk_delay
-    + targetClkUncertainty(sta)
-    + targetClkMcpAdjustment(sta);
+  Arrival data_clk_delay = delayDiff(data_clk_arrival,
+                                     data_clk_time,
+                                     sta);
+  Arrival tgt_clk_arrival =
+    delaySum(delaySum(targetClkTime(sta),
+                      data_clk_delay,
+                      sta),
+             delaySum(targetClkUncertainty(sta),
+                      targetClkMcpAdjustment(sta),
+                      sta),
+             sta);
 
   ArcDelay check_margin = margin(sta);
   if (checkGenericRole(sta) == TimingRole::setup())
-    return tgt_clk_arrival - check_margin;
+    return delayDiff(tgt_clk_arrival, check_margin, sta);
   else
-    return tgt_clk_arrival + check_margin;
+    return delaySum(tgt_clk_arrival, check_margin, sta);
 }
 
 ArcDelay
@@ -1718,9 +1659,9 @@ PathEndDataCheck::margin(const StaState *sta) const
   float margin;
   bool margin_exists;
   check_->margin(data_clk_path_->transition(sta),
-		 path_->transition(sta),
-		 path_->minMax(sta),
-		 margin, margin_exists);
+                 path_->transition(sta),
+                 path_->minMax(sta),
+                 margin, margin_exists);
   return margin;
 }
 
@@ -1747,7 +1688,7 @@ PathEndDataCheck::reportShort(const ReportPath *report) const
 
 int
 PathEndDataCheck::exceptPathCmp(const PathEnd *path_end,
-				const StaState *sta) const
+                                const StaState *sta) const
 {
   int cmp = PathEndClkConstrainedMcp::exceptPathCmp(path_end, sta);
   if (cmp == 0) {
@@ -1768,8 +1709,8 @@ PathEndDataCheck::exceptPathCmp(const PathEnd *path_end,
 ////////////////////////////////////////////////////////////////
 
 PathEndPathDelay::PathEndPathDelay(PathDelay *path_delay,
-				   Path *path,
-				   const StaState *sta):
+                                   Path *path,
+                                   const StaState *sta):
   PathEndClkConstrained(path, nullptr),
   path_delay_(path_delay),
   check_arc_(nullptr),
@@ -1780,9 +1721,9 @@ PathEndPathDelay::PathEndPathDelay(PathDelay *path_delay,
 }
 
 PathEndPathDelay::PathEndPathDelay(PathDelay *path_delay,
-				   Path *path,
-				   OutputDelay *output_delay,
-				   const StaState *sta):
+                                   Path *path,
+                                   OutputDelay *output_delay,
+                                   const StaState *sta):
   PathEndClkConstrained(path, nullptr),
   path_delay_(path_delay),
   check_arc_(nullptr),
@@ -1793,11 +1734,11 @@ PathEndPathDelay::PathEndPathDelay(PathDelay *path_delay,
 }
 
 PathEndPathDelay::PathEndPathDelay(PathDelay *path_delay,
-				   Path *path,
-				   Path *clk_path,
-				   TimingArc *check_arc,
-				   Edge *check_edge,
-				   const StaState *sta) :
+                                   Path *path,
+                                   Path *clk_path,
+                                   TimingArc *check_arc,
+                                   Edge *check_edge,
+                                   const StaState *sta) :
   PathEndClkConstrained(path, clk_path),
   path_delay_(path_delay),
   check_arc_(check_arc),
@@ -1807,30 +1748,10 @@ PathEndPathDelay::PathEndPathDelay(PathDelay *path_delay,
   findSrcClkArrival(sta);
 }
 
-PathEndPathDelay::PathEndPathDelay(PathDelay *path_delay,
-				   Path *path,
-				   Path *clk_path,
-				   TimingArc *check_arc,
-				   Edge *check_edge,
-				   OutputDelay *output_delay,
-				   Arrival src_clk_arrival,
-				   Crpr crpr,
-				   bool crpr_valid) :
-  PathEndClkConstrained(path, clk_path, crpr, crpr_valid),
-  path_delay_(path_delay),
-  check_arc_(check_arc),
-  check_edge_(check_edge),
-  output_delay_(output_delay),
-  src_clk_arrival_(src_clk_arrival)
-{
-}
-
 PathEnd *
 PathEndPathDelay::copy() const
 {
-  return new PathEndPathDelay(path_delay_, path_, clk_path_,
-			      check_arc_, check_edge_, output_delay_,
-			      src_clk_arrival_, crpr_, crpr_valid_);
+  return new PathEndPathDelay(*this);
 }
 
 PathEnd::Type
@@ -1848,7 +1769,7 @@ PathEndPathDelay::typeName() const
 void
 PathEndPathDelay::findSrcClkArrival(const StaState *sta)
 {
-  if (ignoreClkLatency(sta)) {
+  if (PathEnd::ignoreClkLatency(path_, path_delay_, sta)) {
     Search *search = sta->search();
     src_clk_arrival_ = search->pathClkPathArrival(path_);
   }
@@ -1891,8 +1812,10 @@ PathEndPathDelay::margin(const StaState *sta) const
 {
   if (check_arc_) {
     return sta->search()->deratedDelay(check_edge_->from(sta->graph()),
-				       check_arc_, check_edge_, false,
-				       pathAnalysisPt(sta));
+                                       check_arc_, check_edge_, false,
+                                       path_->minMax(sta),
+                                       path_->dcalcAnalysisPtIndex(sta),
+                                       path_->sdc(sta));
   }
   else if (output_delay_)
     return outputDelayMargin(output_delay_, path_, sta);
@@ -1915,29 +1838,21 @@ PathEnd::clkSkew(const StaState *)
 // Helper shared by PathEndLatchCheck.
 float
 PathEnd::pathDelaySrcClkOffset(const Path *path,
-			       PathDelay *path_delay,
-			       Arrival src_clk_arrival,
-			       const StaState *sta)
+                               PathDelay *path_delay,
+                               Arrival src_clk_arrival,
+                               const StaState *sta)
 {
   float offset = 0.0;
   const ClockEdge *clk_edge = path->clkEdge(sta);
   if (clk_edge) {
     if (ignoreClkLatency(path, path_delay, sta))
-      offset = -delayAsFloat(src_clk_arrival);
+      offset = -delayAsFloat(src_clk_arrival, path->minMax(sta), sta);
     else
       // Arrival includes src clock edge time that is not counted in the
       // path delay.
       offset = -clk_edge->time();
   }
   return offset;
-}
-
-bool
-PathEnd::ignoreClkLatency(const Path *path,
-                          PathDelay *path_delay,
-                          const StaState *sta)
-{
-  return path_delay->ignoreClkLatency() && !path->isClock(sta);
 }
 
 const ClockEdge *
@@ -1966,8 +1881,9 @@ PathEndPathDelay::targetClkArrivalNoCrpr(const StaState *sta) const
 {
   const ClockEdge *tgt_clk_edge = targetClkEdge(sta);
   if (tgt_clk_edge)
-    return targetClkDelay(sta)
-      + targetClkUncertainty(sta);
+    return delaySum(targetClkDelay(sta),
+                    targetClkUncertainty(sta),
+                    sta);
   else if (clk_path_)
     return clk_path_->arrival();
   else
@@ -1985,19 +1901,29 @@ PathEndPathDelay::requiredTime(const StaState *sta) const
 {
   float delay = path_delay_->delay();
   if (path_delay_->ignoreClkLatency()) {
-    Required src_offset = path_->isClock(sta)
-      ? path_->clkEdge(sta)->time()
-      : src_clk_arrival_;
-    return src_offset + delay
-      + ((minMax(sta) == MinMax::max()) ? -margin(sta) : margin(sta));
+    Delay with_delay = path_->isClock(sta)
+      ? Delay(path_->clkEdge(sta)->time() + delay)
+      : delaySum(src_clk_arrival_, delay, sta);
+    ArcDelay m = margin(sta);
+    return (minMax(sta) == MinMax::max())
+      ? delayDiff(with_delay, m, sta)
+      : delaySum(with_delay, m, sta);
   }
   else {
     Arrival tgt_clk_arrival = targetClkArrival(sta);
     float src_clk_offset = sourceClkOffset(sta);
     // Path delay includes target clk latency and timing check setup/hold 
     // margin or external departure at target.
-    return delay - src_clk_offset + tgt_clk_arrival
-      + ((minMax(sta) == MinMax::max()) ? -margin(sta) : margin(sta));
+    Delay base = delaySum(tgt_clk_arrival,
+                          delay,
+                          sta);
+    Delay with_src = delayDiff(base,
+                               src_clk_offset,
+                               sta);
+    ArcDelay m = margin(sta);
+    return (minMax(sta) == MinMax::max())
+      ? delayDiff(with_src, m, sta)
+      : delaySum(with_src, m, sta);
   }
 }
 
@@ -2009,7 +1935,7 @@ PathEndPathDelay::ignoreClkLatency(const StaState *sta) const
 
 int
 PathEndPathDelay::exceptPathCmp(const PathEnd *path_end,
-				const StaState *sta) const
+                                const StaState *sta) const
 {
   int cmp = PathEndClkConstrained::exceptPathCmp(path_end, sta);
   if (cmp == 0) {
@@ -2019,11 +1945,11 @@ PathEndPathDelay::exceptPathCmp(const PathEnd *path_end,
     if (path_delay_ == path_delay2) {
       const TimingArc *check_arc2 = path_end2->check_arc_;
       if (check_arc_ == check_arc2)
-	return 0;
+        return 0;
       else if (check_arc_ < check_arc2)
-	return -1;
+        return -1;
       else
-	return 1;
+        return 1;
     }
     else if (path_delay_ < path_delay2)
       return -1;
@@ -2036,32 +1962,22 @@ PathEndPathDelay::exceptPathCmp(const PathEnd *path_end,
 
 ////////////////////////////////////////////////////////////////
 
-PathEndLess::PathEndLess(const StaState *sta) :
-  sta_(sta)
-{
-}
-
-bool
-PathEndLess::operator()(const PathEnd *path_end1,
-			const PathEnd *path_end2) const
-{
-  return PathEnd::less(path_end1, path_end2, sta_);
-}
-
 bool
 PathEnd::less(const PathEnd *path_end1,
-	      const PathEnd *path_end2,
-	      const StaState *sta)
+              const PathEnd *path_end2,
+              bool cmp_slack,
+              const StaState *sta)
 {
-  return cmp(path_end1, path_end2, sta) < 0;
+  return cmp(path_end1, path_end2, cmp_slack, sta) < 0;
 }
 
 int
 PathEnd::cmp(const PathEnd *path_end1,
-	     const PathEnd *path_end2,
-	     const StaState *sta)
+             const PathEnd *path_end2,
+             bool cmp_slack,
+             const StaState *sta)
 {
-  int cmp = path_end1->isUnconstrained()
+  int cmp = !cmp_slack || path_end1->isUnconstrained()
     ? -cmpArrival(path_end1, path_end2, sta)
     : cmpSlack(path_end1, path_end2, sta);
   if (cmp == 0) {
@@ -2073,9 +1989,9 @@ PathEnd::cmp(const PathEnd *path_end1,
       const Path *clk_path2 = path_end2->targetClkPath();
       cmp = Path::cmpPinTrClk(clk_path1, clk_path2, sta);
       if (cmp == 0) {
-	cmp = Path::cmpAll(path1, path2, sta);
-	if (cmp == 0)
-	  cmp = Path::cmpAll(clk_path1, clk_path2, sta);
+        cmp = Path::cmpAll(path1, path2, sta);
+        if (cmp == 0)
+          cmp = Path::cmpAll(clk_path1, clk_path2, sta);
       }
     }
   }
@@ -2084,27 +2000,27 @@ PathEnd::cmp(const PathEnd *path_end1,
 
 int
 PathEnd::cmpSlack(const PathEnd *path_end1,
-		  const PathEnd *path_end2,
-		  const StaState *sta)
+                  const PathEnd *path_end2,
+                  const StaState *sta)
 {
   Slack slack1 = path_end1->slack(sta);
   Slack slack2 = path_end2->slack(sta);
-  if (delayZero(slack1)
-      && delayZero(slack2)
+  if (delayZero(slack1, sta)
+      && delayZero(slack2, sta)
       && path_end1->isLatchCheck()
       && path_end2->isLatchCheck()) {
     Arrival borrow1 = path_end1->borrow(sta);
     Arrival borrow2 = path_end2->borrow(sta);
     // Latch slack is zero if there is borrowing so break ties
     // based on borrow time.
-    if (delayEqual(borrow1, borrow2))
+    if (delayEqual(borrow1, borrow2, sta))
       return 0;
     else if (delayGreater(borrow1, borrow2, sta))
       return -1;
     else
       return 1;
   }
-  else if (delayEqual(slack1, slack2))
+  else if (delayEqual(slack1, slack2, sta))
     return 0;
   else if (delayLess(slack1, slack2, sta))
     return -1;
@@ -2114,13 +2030,13 @@ PathEnd::cmpSlack(const PathEnd *path_end1,
 
 int
 PathEnd::cmpArrival(const PathEnd *path_end1,
-		    const PathEnd *path_end2,
-		    const StaState *sta)
+                    const PathEnd *path_end2,
+                    const StaState *sta)
 {
   Arrival arrival1 = path_end1->dataArrivalTime(sta);
   Arrival arrival2 = path_end2->dataArrivalTime(sta);
   const MinMax *min_max = path_end1->minMax(sta);
-  if (delayEqual(arrival1, arrival2))
+  if (delayEqual(arrival1, arrival2, sta))
     return 0;
   else if (delayLess(arrival1, arrival2, min_max, sta))
     return -1;
@@ -2130,8 +2046,8 @@ PathEnd::cmpArrival(const PathEnd *path_end1,
 
 int
 PathEnd::cmpNoCrpr(const PathEnd *path_end1,
-		   const PathEnd *path_end2,
-		   const StaState *sta)
+                   const PathEnd *path_end2,
+                   const StaState *sta)
 {
   int cmp = path_end1->exceptPathCmp(path_end2, sta);
   if (cmp == 0) {
@@ -2145,14 +2061,32 @@ PathEnd::cmpNoCrpr(const PathEnd *path_end1,
 
 ////////////////////////////////////////////////////////////////
 
-PathEndSlackLess::PathEndSlackLess(const StaState *sta) :
+PathEndLess::PathEndLess(bool cmp_slack,
+                         const StaState *sta) :
+  cmp_slack_(cmp_slack),
+  sta_(sta)
+{
+}
+
+bool
+PathEndLess::operator()(const PathEnd *path_end1,
+                        const PathEnd *path_end2) const
+{
+  return PathEnd::less(path_end1, path_end2, cmp_slack_, sta_);
+}
+
+////////////////////////////////////////////////////////////////
+
+PathEndSlackLess::PathEndSlackLess(bool cmp_slack,
+                                   const StaState *sta) :
+  cmp_slack_(cmp_slack),
   sta_(sta)
 {
 }
 
 bool
 PathEndSlackLess::operator()(const PathEnd *path_end1,
-			     const PathEnd *path_end2) const
+                             const PathEnd *path_end2) const
 {
   int cmp = path_end1->isUnconstrained()
     ? -PathEnd::cmpArrival(path_end1, path_end2, sta_)
@@ -2169,7 +2103,7 @@ PathEndNoCrprLess::PathEndNoCrprLess(const StaState *sta) :
 
 bool
 PathEndNoCrprLess::operator()(const PathEnd *path_end1,
-			      const PathEnd *path_end2) const
+                              const PathEnd *path_end2) const
 {
   int cmp = path_end1->exceptPathCmp(path_end2, sta_);
   if (cmp == 0) {
@@ -2181,4 +2115,4 @@ PathEndNoCrprLess::operator()(const PathEnd *path_end1,
     return cmp < 0;
 }
 
-} // namespace
+} // namespace sta

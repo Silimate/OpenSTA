@@ -1,5 +1,5 @@
 // OpenSTA, Static Timing Analyzer
-// Copyright (c) 2025, Parallax Software, Inc.
+// Copyright (c) 2026, Parallax Software, Inc.
 // 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -25,32 +25,31 @@
 #pragma once
 
 #include <functional>
+#include <utility>
 
 namespace sta {
 
-typedef const std::function<void (double x,
-                                  // Return values.
-                                  double &y,
-                                  double &dy)> FindRootFunc;
+using FindRootFunc = const std::function<void (double x,
+                                                 // Return values.
+                                                 double &y,
+                                                 double &dy)>;
 
-double
-findRoot(FindRootFunc func,
-	 double x1,
-	 double x2,
-	 double x_tol,
-	 int max_iter,
-         // Return value.
-         bool &fail);
-
-double
-findRoot(FindRootFunc func,
-	 double x1,
-	 double y1,
+// first: root estimate; second: true if the search failed.
+std::pair<double, bool>
+findRoot(const FindRootFunc &func,
+         double x1,
          double x2,
-	 double y2,
-	 double x_tol,
-	 int max_iter,
-         // Return value.
-         bool &fail);
+         double x_tol,
+         int max_iter);
 
-} // namespace
+// first: root estimate; second: true if the search failed.
+std::pair<double, bool>
+findRoot(const FindRootFunc &func,
+         double x1,
+         double y1,
+         double x2,
+         double y2,
+         double x_tol,
+         int max_iter);
+
+} // namespace sta

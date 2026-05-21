@@ -1,5 +1,5 @@
 # OpenSTA, Static Timing Analyzer
-# Copyright (c) 2025, Parallax Software, Inc.
+# Copyright (c) 2026, Parallax Software, Inc.
 # 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -48,8 +48,8 @@ namespace eval sta {
 #  net
 
 proc get_object_args { objects clks_var libcells_var libports_var \
-			 cells_var insts_var ports_var pins_var nets_var \
-			 edges_var timing_arc_sets_var } {
+                         cells_var insts_var ports_var pins_var nets_var \
+                         edges_var timing_arc_sets_var } {
   if { $clks_var != {} } {
     upvar 1 $clks_var clks
   }
@@ -87,97 +87,96 @@ proc get_object_args { objects clks_var libcells_var libports_var \
     if { [sizeof_collection $obj] > 1 || [sta::is_collection $obj] } {
       # List arg. Recursive call without initing objects.
       get_object_args $obj $clks_var $libcells_var $libports_var $cells_var $insts_var \
-	$ports_var $pins_var $nets_var $edges_var $timing_arc_sets_var
+        $ports_var $pins_var $nets_var $edges_var $timing_arc_sets_var
     } elseif { [is_object $obj] } {
       # Explicit object arg.
       set object_type [object_type $obj]
       if { $pins_var != {} && $object_type == "Pin" } {
-	lappend pins $obj
+        lappend pins $obj
       } elseif { $insts_var != {} && $object_type == "Instance" } {
-	lappend insts $obj
+        lappend insts $obj
       } elseif { $nets_var != {} && $object_type == "Net" } {
-	lappend nets $obj
+        lappend nets $obj
       } elseif { $ports_var != {} && $object_type == "Port" } {
-	lappend ports $obj
+        lappend ports $obj
       } elseif { $edges_var != {} && $object_type == "Edge" } {
-	lappend edges $obj
+        lappend edges $obj
       } elseif { $clks_var != {} && $object_type == "Clock" } {
-	lappend clks $obj
+        lappend clks $obj
       } elseif { $libcells_var != {} && $object_type == "LibertyCell" } {
-	lappend libcells $obj
+        lappend libcells $obj
       } elseif { $libports_var != {} && $object_type == "LibertyPort" } {
-	lappend libports $obj
+        lappend libports $obj
       } elseif { $cells_var != {} && $object_type == "Cell" } {
-	lappend cells $obj
+        lappend cells $obj
       } elseif { $timing_arc_sets_var != {} \
-		   && $object_type == "TimingArcSet" } {
-	lappend timing_arc_sets $obj
+                   && $object_type == "TimingArcSet" } {
+        lappend timing_arc_sets $obj
       } else {
-	sta_error 100 "unsupported object type $object_type."
+        sta_error 100 "unsupported object type $object_type."
       }
     } elseif { $obj != {} } {
       # Check for implicit arg.
       # Search for most general object type first.
       set matches {}
       if { $clks_var != {} } {
-	set matches [get_clocks -quiet $obj]
+        set matches [get_clocks -quiet $obj]
       }
       if { [sizeof_collection $matches] > 0 } {
-	set clks [add_to_collection $clks $matches]
-      } else {
-	if { $libcells_var != {} } {
-	  set matches [get_lib_cells -quiet $obj]
-	}
-	if { [sizeof_collection $matches] > 0 } {
-	  set libcells [add_to_collection $libcells $matches]
-	} else {
-	  
-	  if { $libports_var != {} } {
-	    set matches [get_lib_pins -quiet $obj]
-	  }
-	  if { [sizeof_collection $matches] > 0 } {
-	    set libports [add_to_collection $libports $matches]
-	  } else {
-	    
-	    if { $cells_var != {} } {
-	      set matches [find_cells_matching $obj 0 0]
-	    }
-	    if { [sizeof_collection $matches] > 0 } {
-	      set cells [add_to_collection $cells $matches]
-	    } else {
-	      
-	      if { $insts_var != {} } {
-		set matches [get_cells -quiet $obj]
-	      }
-	      if { [sizeof_collection $matches] > 0 } {
-		set insts [add_to_collection $insts $matches]
-	      } else {
-		if { $ports_var != {} } {
-		  set matches [get_ports -quiet $obj]
-		}
-		if { [sizeof_collection $matches] > 0 }  {
-		  set ports [add_to_collection $ports $matches]
-		} else {
-		  if { $pins_var != {} } {
-		    set matches [get_pins -quiet $obj]
-		  }
-		  if { [sizeof_collection $matches] > 0 } {
-		    set pins [add_to_collection $pins $matches]
-		  } else {
-		    if { $nets_var != {} } {
-		      set matches [get_nets -quiet $obj]
-		    }
-		    if { [sizeof_collection $matches] > 0 } {
-		      set nets [add_to_collection $nets $matches]
-		    } else {
-		      sta_warn 101 "object '$obj' not found."
-		    }
-		  }
-		}
-	      }
-	    }
-	  }
-	}
+        set clks [add_to_collection $clks $matches]
+        } else {
+        if { $libcells_var != {} } {
+          set matches [get_lib_cells -quiet $obj]
+        }
+        if { [sizeof_collection $matches] > 0 } {
+          set libcells [add_to_collection $libcells $matches]
+        } else {
+          if { $libports_var != {} } {
+            set matches [get_lib_pins -quiet $obj]
+          }
+          if { [sizeof_collection $matches] > 0 } {
+            set libports [add_to_collection $libports $matches]
+          } else {
+            
+            if { $cells_var != {} } {
+              set matches [find_cells_matching $obj 0 0]
+            }
+            if { [sizeof_collection $matches] > 0 } {
+              set cells [add_to_collection $cells $matches]
+            } else {
+              
+              if { $insts_var != {} } {
+                set matches [get_cells -quiet $obj]
+              }
+              if { [sizeof_collection $matches] > 0 } {
+                set insts [add_to_collection $insts $matches]
+              } else {
+                if { $ports_var != {} } {
+                  set matches [get_ports -quiet $obj]
+                }
+                if { [sizeof_collection $matches] > 0 }  {
+                  set ports [add_to_collection $ports $matches]
+                } else {
+                  if { $pins_var != {} } {
+                    set matches [get_pins -quiet $obj]
+                  }
+                  if { [sizeof_collection $matches] > 0 } {
+                    set pins [add_to_collection $pins $matches]
+                  } else {
+                    if { $nets_var != {} } {
+                      set matches [get_nets -quiet $obj]
+                    }
+                    if { [sizeof_collection $matches] > 0 } {
+                      set nets [add_to_collection $nets $matches]
+                    } else {
+                      sta_warn 101 "object '$obj' not found."
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
       }
     }
   }
@@ -194,7 +193,7 @@ proc parse_clk_cell_port_args { objects clks_var cells_var ports_var } {
 }
 
 proc parse_clk_cell_port_pin_args { objects clks_var cells_var ports_var \
-				      pins_arg } {
+                                      pins_arg } {
   upvar 1 $clks_var clks
   upvar 1 $cells_var cells
   upvar 1 $ports_var ports
@@ -243,13 +242,13 @@ proc parse_clk_port_pin_arg { objects clks_var pins_var } {
 }
 
 proc parse_libcell_libport_inst_port_pin_edge_timing_arc_set_arg { objects \
-								     libcells_var \
-								     libports_var \
-								     insts_var \
-								     ports_var \
-								     pins_var \
-								     edges_var \
-								     timing_arc_sets_var } {
+                                                                     libcells_var \
+                                                                     libports_var \
+                                                                     insts_var \
+                                                                     ports_var \
+                                                                     pins_var \
+                                                                     edges_var \
+                                                                     timing_arc_sets_var } {
   upvar 1 $libcells_var libcells
   upvar 1 $libports_var libports
   upvar 1 $insts_var insts
@@ -399,85 +398,154 @@ proc get_ports_or_pins { pattern } {
 
 ################################################################
 
-# -corner keyword is optional.
-# If -corner keyword is missing:
-#  one corner: return default
-#  multiple corners: error
-proc parse_corner { keys_var } {
+# -scene keyword is optional.
+# If -scene keyword is missing:
+#  one scene: return default
+#  multiple scenes: error
+proc parse_scene { keys_var } {
   upvar 1 $keys_var keys
 
+  set scene_arg ""
+  # compabibility 05/29/2025
   if { [info exists keys(-corner)] } {
-    set corner_arg $keys(-corner)
-    if { [is_object $corner_arg] } {
-      set object_type [object_type $corner_arg]
-      if { $object_type == "Corner" } {
-        return $corner_arg
+    set scene_arg $keys(-corner)
+  }
+  if { [info exists keys(-scene)] } {
+    set scene_arg $keys(-scene)
+  }
+  if { $scene_arg != "" } {
+    if { [is_object $scene_arg] } {
+      set object_type [object_type $scene_arg]
+      if { $object_type == "Scene" } {
+        return $scene_arg
       } else {
-        sta_error 144 "corner object type '$object_type' is not a corner."
+        sta_error 144 "scene object type '$object_type' is not a scene."
       }
     } else {
-      set corner [find_corner $corner_arg]
-      if { $corner == "NULL" } {
-        sta_error 102 "$corner_arg is not the name of process corner."
+      set scene [find_scene $scene_arg]
+      if { $scene == "NULL" } {
+        sta_error 102 "$scene_arg is not the name of a scene."
       } else {
-        return $corner
+        return $scene
       }
     }
-  } elseif { [multi_corner] } {
-    sta_error 103 "-corner keyword required with multi-corner analysis."
+  } elseif { [multi_scene] } {
+    sta_error 103 "-scene keyword required with multi-scene analysis."
   } else {
-    return [cmd_corner]
+    return [cmd_scene]
   }
 }
 
-# -corner keyword is required.
-proc parse_corner_required { keys_var } {
+# -scene keyword is required.
+proc parse_scene_required { keys_var } {
   upvar 1 $keys_var keys
 
+  set scene_name ""
+  if { [info exists keys(-scene)] } {
+    set scene_name $keys(-scene)
+  }
+  # compabibility 05/29/2025
   if { [info exists keys(-corner)] } {
-    set corner_name $keys(-corner)
-    set corner [find_corner $corner_name]
-    if { $corner == "NULL" } {
-      sta_error 104 "$corner_name is not the name of process corner."
+    set scene_name $keys(-corner)
+  }
+  if { $scene_name != "" } {
+    set scene [find_scene $scene_name]
+    if { $scene == "NULL" } {
+      sta_error 104 "$scene_name is not the name of a scene."
     } else {
-      return $corner
+      return $scene
     }
   } else {
-    sta_error 105 "missing -corner arg."
+    sta_error 105 "missing -scene arg."
   }
 }
 
-proc parse_corner_or_default { keys_var } {
+proc parse_scene_or_default { keys_var } {
   upvar 1 $keys_var keys
 
+  set scene_name ""
+  if { [info exists keys(-scene)] } {
+    set scene_name $keys(-scene)
+  }
+  # compabibility 05/29/2025
   if { [info exists keys(-corner)] } {
-    set corner_name $keys(-corner)
-    set corner [find_corner $corner_name]
-    if { $corner == "NULL" } {
-      sta_error 106 "$corner_name is not the name of process corner."
+    set scene_name $keys(-corner)
+  }
+  if { $scene_name != "" } {
+    set scene [find_scene $scene_name]
+    if { $scene == "NULL" } {
+      sta_error 106 "$scene_name is not the name of a scene."
     } else {
-      return $corner
+      return $scene
     }
   } else {
-    return [cmd_corner]
+    return [cmd_scene]
   }
 }
 
-# Return NULL for all.
-proc parse_corner_or_all { keys_var } {
+# If -scene/-corner return scene, else return NULL.
+proc parse_scene_or_null { keys_var } {
   upvar 1 $keys_var keys
 
+  set scene_name ""
+  if { [info exists keys(-scene)] } {
+    set scene_name $keys(-scene)
+  }
+  # compabibility 05/29/2025
   if { [info exists keys(-corner)] } {
-    set corner_name $keys(-corner)
-    set corner [find_corner $corner_name]
-    if { $corner == "NULL" } {
-      sta_error 107 "$corner_name is not the name of process corner."
+    set scene_name $keys(-corner)
+  }
+  if { $scene_name != "" } {
+    set scene [find_scene $scene_name]
+    if { $scene == "NULL" } {
+      sta_error 107 "$scene_name is not the name of a scene."
     } else {
-      return $corner
+      return $scene
     }
   } else {
     return "NULL"
   }
+}
+
+# If -scenes/-corner return scenes, else return default scene.
+proc parse_scenes_or_default { keys_var } {
+  upvar 1 $keys_var keys
+
+  if { [info exists keys(-scenes)] } {
+    return [find_scenes $keys(-scenes)]
+  } elseif { [info exists keys(-corner)] } {
+    # compabibility 05/29/2025
+    return [find_scenes $keys(-corner)]
+  } else {
+    return [cmd_scene]
+  }
+}
+
+# If -scenes/-corner return scenes, else return all scenes.
+proc parse_scenes_or_all { keys_var } {
+  upvar 1 $keys_var keys
+
+  if { [info exists keys(-scenes)] } {
+    return [find_scenes $keys(-scenes)]
+  } elseif { [info exists keys(-corner)] } {
+    # compabibility 05/29/2025
+    return [find_scenes $keys(-corner)]
+  } else {
+    return [scenes]
+  }
+}
+
+proc find_scenes { scene_names } {
+  set scenes {}
+  foreach scene_name $scene_names {
+    set scene [find_scene $scene_name]
+    if { $scene == "NULL" } {
+      sta_error 134 "$scene_name is not the name of a scene."
+    } else {
+      lappend scenes $scene
+    }
+  }
+  return $scenes
 }
 
 ################################################################
@@ -621,7 +689,7 @@ proc get_lib_cell_arg { arg_name arg error_proc } {
     if { $library != "NULL" } {
       set lib_cell [$library find_liberty_cell $cell_name]
       if { $lib_cell == "NULL" } {
-	$error_proc 117 "liberty cell '$arg' not found."
+        $error_proc 117 "liberty cell '$arg' not found."
       }
     } else {
       $error_proc 118  "library '$lib_name' not found."
@@ -649,12 +717,12 @@ proc get_lib_cells_arg { arg_name arglist error_proc } {
       if { $object_type == "LibertyCell" || $object_type == "LibertyCellSeq" } {
         append_to_collection lib_cells $arg
       } else {
-	$error_proc 120 "unsupported object type $object_type."
+        $error_proc 120 "unsupported object type $object_type."
       }
     } elseif { $arg != {} } {
       set arg_lib_cells [get_lib_cells1 $arg $error_proc]
       if { [sizeof_collection $arg_lib_cells] > 0 } {
-	set lib_cells [add_to_collection $lib_cells $arg_lib_cells]
+        set lib_cells [add_to_collection $lib_cells $arg_lib_cells]
       }
     }
   }

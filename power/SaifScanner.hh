@@ -1,5 +1,5 @@
 // OpenSTA, Static Timing Analyzer
-// Copyright (c) 2025, Parallax Software, Inc.
+// Copyright (c) 2026, Parallax Software, Inc.
 // 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -36,6 +36,7 @@
 namespace sta {
 
 class Report;
+class SaifReader;
 
 class SaifScanner : public SaifFlexLexer
 {
@@ -44,9 +45,7 @@ public:
              const std::string &filename,
              SaifReader *reader,
              Report *report);
-  virtual ~SaifScanner() {}
-
-  virtual int lex(SaifParse::semantic_type *const yylval,
+  virtual int lex(SaifParse::semantic_type *yylval,
                   SaifParse::location_type *yylloc);
   // YY_DECL defined in SaifLex.ll
   // Method body created by flex in SaifLex.cc
@@ -63,4 +62,4 @@ private:
   std::string token_;
 };
 
-} // namespace
+} // namespace sta

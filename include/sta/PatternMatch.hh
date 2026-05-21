@@ -1,5 +1,5 @@
 // OpenSTA, Static Timing Analyzer
-// Copyright (c) 2025, Parallax Software, Inc.
+// Copyright (c) 2026, Parallax Software, Inc.
 // 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -25,12 +25,13 @@
 #pragma once
 
 #include <string>
+#include <string_view>
 
 #include "Error.hh"
 
 // Don't require all of tcl.h.
-typedef struct Tcl_RegExp_ *Tcl_RegExp;
-typedef struct Tcl_Interp Tcl_Interp;
+using Tcl_RegExp = struct Tcl_RegExp_ *;
+using Tcl_Interp = struct Tcl_Interp;
 
 namespace sta {
 
@@ -45,20 +46,17 @@ public:
   //   Regular expressions are always anchored.
   // If nocase is true, ignore case in the pattern.
   // Tcl_Interp is optional for reporting regexp compile errors.
-  PatternMatch(const char *pattern,
-	       bool is_regexp,
-	       bool nocase,
-	       Tcl_Interp *interp);
+  PatternMatch(std::string_view pattern,
+               bool is_regexp,
+               bool nocase,
+               Tcl_Interp *interp);
   // Use unix glob style matching.
-  PatternMatch(const char *pattern);
-  PatternMatch(const char *pattern,
-	       const PatternMatch *inherit_from);
-  PatternMatch(const std::string &pattern,
-	       const PatternMatch *inherit_from);
-  bool match(const char *str) const;
-  bool match(const std::string &str) const;
-  bool matchNoCase(const char *str) const;
-  const char *pattern() const { return pattern_; }
+  PatternMatch(std::string_view pattern);
+  PatternMatch(std::string_view pattern,
+               const PatternMatch *inherit_from);
+  bool match(std::string_view str) const;
+  bool matchNoCase(std::string_view str) const;
+  const std::string &pattern() const { return pattern_; }
   bool isRegexp() const { return is_regexp_; }
   bool nocase() const { return nocase_; }
   Tcl_Interp *tclInterp() const { return interp_; }
@@ -67,7 +65,7 @@ public:
 private:
   void compileRegexp();
 
-  const char *pattern_;
+  std::string pattern_;
   bool is_regexp_;
   bool nocase_;
   Tcl_Interp *interp_;
@@ -78,9 +76,9 @@ private:
 class RegexpCompileError : public Exception
 {
 public:
-  explicit RegexpCompileError(const char *pattern);
-  virtual ~RegexpCompileError() noexcept {}
-  virtual const char *what() const noexcept;
+  RegexpCompileError(std::string_view pattern);
+  ~RegexpCompileError() noexcept override = default;
+  const char *what() const noexcept override;
 
 private:
   std::string error_;
@@ -90,14 +88,14 @@ private:
 // '*' matches zero or more characters
 // '?' matches any character
 bool
-patternMatch(const char *pattern,
-	     const char *str);
+patternMatch(std::string_view pattern,
+             std::string_view str);
 bool
-patternMatchNoCase(const char *pattern,
-		   const char *str,
-		   bool nocase);
+patternMatchNoCase(std::string_view pattern,
+                   std::string_view str,
+                   bool nocase);
 // Predicate to find out if there are wildcard characters in the pattern.
 bool
-patternWildcards(const char *pattern);
+patternWildcards(std::string_view pattern);
 
-} // namespace
+} // namespace sta

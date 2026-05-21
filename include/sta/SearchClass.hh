@@ -1,5 +1,5 @@
 // OpenSTA, Static Timing Analyzer
-// Copyright (c) 2025, Parallax Software, Inc.
+// Copyright (c) 2026, Parallax Software, Inc.
 // 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -24,22 +24,24 @@
 
 #pragma once
 
+#include <functional>
 #include <limits>
+#include <map>
+#include <vector>
 
-#include "Vector.hh"
-#include "Set.hh"
-#include "Map.hh"
-#include "UnorderedMap.hh"
-#include "StringSet.hh"
-#include "MinMaxValues.hh"
 #include "Delay.hh"
-#include "NetworkClass.hh"
 #include "GraphClass.hh"
+#include "LibertyClass.hh"
+#include "MinMaxValues.hh"
+#include "NetworkClass.hh"
+#include "RiseFallMinMaxDelay.hh"
+#include "SdcClass.hh"
+#include "VectorMap.hh"
 
 namespace sta {
 
 class Search;
-class Corner;
+class Scene;
 class Path;
 class PathEnd;
 class PathGroup;
@@ -56,12 +58,9 @@ class ClkInfo;
 class ClkInfoHash;
 class ClkInfoEqual;
 class VertexPathIterator;
-class PathAnalysisPt;
-class PathAnalysisPtIterator;
 class MinPulseWidthCheck;
 class MinPeriodCheck;
 class MaxSkewCheck;
-class CharPtrLess;
 class SearchPred;
 class BfsFwdIterator;
 class ClkDelays;
@@ -70,10 +69,10 @@ class ClkDelays;
 class TagMatchLess
 {
 public:
-  explicit TagMatchLess(bool match_crpr_clk_pin,
-			const StaState *sta);
+  TagMatchLess(bool match_crpr_clk_pin,
+               const StaState *sta);
   bool operator()(const Tag *tag1,
-		  const Tag *tag2) const;
+                  const Tag *tag2) const;
 
 protected:
   bool match_crpr_clk_pin_;
@@ -84,7 +83,7 @@ class TagMatchHash
 {
 public:
   TagMatchHash(bool match_crpr_clk_pin,
-	       const StaState *sta);
+               const StaState *sta);
   size_t operator()(const Tag *tag) const;
 
 protected:
@@ -96,39 +95,38 @@ class TagMatchEqual
 {
 public:
   TagMatchEqual(bool match_crpr_clk_pin,
-		const StaState *sta);
+                const StaState *sta);
   bool operator()(const Tag *tag1, 
-		  const Tag *tag2) const;
+                  const Tag *tag2) const;
 
 protected:
   bool match_crpr_clk_pin_;
   const StaState *sta_;
 };
 
-typedef int PathAPIndex;
-typedef uint32_t TagIndex;
-typedef Vector<Tag*> TagSeq;
-typedef Vector<MinPulseWidthCheck*> MinPulseWidthCheckSeq;
-typedef Vector<MinPeriodCheck*> MinPeriodCheckSeq;
-typedef Vector<MaxSkewCheck*> MaxSkewCheckSeq;
-typedef StringSet PathGroupNameSet;
-typedef Vector<PathEnd*> PathEndSeq;
-typedef Vector<Arrival> ArrivalSeq;
-typedef Map<Vertex*, size_t> VertexPathCountMap;
-typedef Map<Tag*, size_t, TagMatchLess> PathIndexMap;
-typedef Vector<Slack> SlackSeq;
-typedef Delay Crpr;
-typedef Vector<Path*> PathSeq;
-typedef std::vector<const Path*> ConstPathSeq;
+using PathAPIndex = int;
+using TagIndex = uint32_t;
+using TagSeq = std::vector<Tag*>;
+using PathEndSeq = std::vector<PathEnd*>;
+using ArrivalSeq = std::vector<Arrival>;
+using VertexPathCountMap = std::map<Vertex*, size_t>;
+using PathIndexMap = VectorMap<Tag*, size_t, TagMatchLess>;
+using SlackSeq = std::vector<Slack>;
+using Crpr = Delay;
+using PathSeq = std::vector<Path*>;
+using ConstPathSeq = std::vector<const Path*>;
+// Path::slack/arrival/required function.
+using PathDelayFunc = std::function<Delay (const Path *path)>;
+using DelaysWrtClks = std::map<const ClockEdge*, RiseFallMinMaxDelay>;
 
 enum class ReportPathFormat { full,
-			      full_clock,
-			      full_clock_expanded,
-			      shorter,
-			      endpoint,
-			      summary,
-			      slack_only,
-			      json
+                              full_clock,
+                              full_clock_expanded,
+                              shorter,
+                              endpoint,
+                              summary,
+                              slack_only,
+                              json
 };
 
 enum class ReportDeduplicationMode { none,
@@ -140,7 +138,7 @@ static const TagIndex tag_index_bit_count = 28;
 static const TagIndex tag_index_max = (1 << tag_index_bit_count) - 1;
 static const TagIndex tag_index_null = tag_index_max;
 static const int path_ap_index_bit_count = 8;
-// One path analysis point per corner min/max.
-static const int corner_count_max = (1 << path_ap_index_bit_count) / 2;
+// One path analysis point per scene min/max.
+static const int scene_count_max = (1 << path_ap_index_bit_count) / 2;
 
-} // namespace
+} // namespace sta

@@ -1,5 +1,5 @@
 // OpenSTA, Static Timing Analyzer
-// Copyright (c) 2025, Parallax Software, Inc.
+// Copyright (c) 2026, Parallax Software, Inc.
 // 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -24,6 +24,9 @@
 
 #pragma once
 
+#include <optional>
+#include <utility>
+
 #include "LibertyClass.hh"
 #include "LumpedCapDelayCalc.hh"
 
@@ -41,7 +44,7 @@ class DmpCeffDelayCalc : public LumpedCapDelayCalc
 {
 public:
   DmpCeffDelayCalc(StaState *sta);
-  virtual ~DmpCeffDelayCalc();
+  ~DmpCeffDelayCalc() override;
   bool reduceSupported() const override { return true; }
   ArcDcalcResult gateDelay(const Pin *drvr_pin,
                            const TimingArc *arc,
@@ -49,14 +52,16 @@ public:
                            float load_cap,
                            const Parasitic *parasitic,
                            const LoadPinIndexMap &load_pin_index_map,
-                           const DcalcAnalysisPt *dcalc_ap) override;
+                           const Scene *scene,
+                           const MinMax *min_max) override;
   std::string reportGateDelay(const Pin *drvr_pin,
                               const TimingArc *arc,
                               const Slew &in_slew,
                               float load_cap,
                               const Parasitic *parasitic,
                               const LoadPinIndexMap &load_pin_index_map,
-                              const DcalcAnalysisPt *dcalc_ap,
+                              const Scene *scene,
+                              const MinMax *min_max,
                               int digits) override;
   void copyState(const StaState *sta) override;
 
@@ -67,26 +72,24 @@ protected:
                              const LibertyLibrary *drvr_library,
                              const Parasitic *parasitic,
                              // Return values.
-                             ArcDelay &wire_delay,
-                             Slew &load_slew) = 0;
-  void gateDelaySlew(// Return values.
-                     double &delay,
-		     double &slew);
-  void loadDelaySlewElmore(const Pin *load_pin,
-                           double elmore,
-                           ArcDelay &delay,
-                           Slew &slew);
+                             double &wire_delay,
+                             double &load_slew) = 0;
+  std::pair<double, double> gateDelaySlew();
+  std::optional<std::pair<double, double>>
+  loadDelaySlewElmore(const Pin *load_pin,
+                      double elmore);
   // Select the appropriate special case Dartu/Menezes/Pileggi algorithm.
   void setCeffAlgorithm(const LibertyLibrary *library,
-			const LibertyCell *cell,
-			const Pvt *pvt,
-			const GateTableModel *gate_model,
-			const RiseFall *rf,
-			double in_slew,
-			double c2,
-			double rpi,
-			double c1);
+                        const LibertyCell *cell,
+                        const Pvt *pvt,
+                        const GateTableModel *gate_model,
+                        const RiseFall *rf,
+                        double in_slew,
+                        double c2,
+                        double rpi,
+                        double c1);
 
+  const Parasitics *parasitics_;
   static bool unsuppored_model_warned_;
 
 private:
@@ -95,7 +98,7 @@ private:
   DmpCap *dmp_cap_;
   DmpPi *dmp_pi_;
   DmpZeroC2 *dmp_zero_c2_;
-  DmpAlg *dmp_alg_;
+  DmpAlg *dmp_alg_{nullptr};
 };
 
-} // namespace
+} // namespace sta

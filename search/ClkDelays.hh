@@ -1,5 +1,5 @@
 // OpenSTA, Static Timing Analyzer
-// Copyright (c) 2025, Parallax Software, Inc.
+// Copyright (c) 2026, Parallax Software, Inc.
 // 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -24,10 +24,11 @@
 
 #pragma once
 
+#include "Delay.hh"
 #include "MinMax.hh"
+#include "Path.hh"
 #include "StaState.hh"
 #include "Transition.hh"
-#include "Path.hh"
 
 namespace sta {
 
@@ -41,7 +42,7 @@ public:
              // Return values.
              Delay &insertion,
              Delay &delay,
-             float &internal_latency,
+             float &lib_clk_delay,
              Delay &latency,
              Path &path,
              bool &exists) const;
@@ -49,7 +50,7 @@ public:
                const RiseFall *end_rf,
                const MinMax *min_max,
                // Return values.
-               Delay &delay,
+               Delay &latency,
                bool &exists) const;
   static Delay latency(Path *clk_path,
                        StaState *sta);
@@ -61,9 +62,9 @@ public:
                   StaState *sta);
 
 private:
-  static float insertionDelay(Path *clk_path,
+  static Delay insertionDelay(Path *clk_path,
                               StaState *sta);
-  static float delay(Path *clk_path,
+  static Delay delay(Path *clk_path,
                      StaState *sta);
   static float clkTreeDelay(Path *clk_path,
                             StaState *sta);
@@ -76,4 +77,4 @@ private:
   bool exists_[RiseFall::index_count][RiseFall::index_count][MinMax::index_count];
 };
 
-} // namespace
+} // namespace sta

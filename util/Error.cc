@@ -1,5 +1,5 @@
 // OpenSTA, Static Timing Analyzer
-// Copyright (c) 2025, Parallax Software, Inc.
+// Copyright (c) 2026, Parallax Software, Inc.
 // 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -24,21 +24,16 @@
 
 #include "Error.hh"
 
-#include <cstdlib>
 #include <cstdio>
+#include <cstdlib>
 
+#include "Format.hh"
 #include "StringUtil.hh"
 
 namespace sta {
 
-Exception::Exception() :
-  std::exception()
-{
-}
-
-ExceptionMsg::ExceptionMsg(const char *msg,
-			   const bool suppressed) :
-  Exception(),
+ExceptionMsg::ExceptionMsg(const std::string &msg,
+                           bool suppressed) :
   msg_(msg),
   suppressed_(suppressed)
 {
@@ -50,34 +45,33 @@ ExceptionMsg::what() const noexcept
   return msg_.c_str();
 }
 
-ExceptionLine::ExceptionLine(const char *filename,
-			     int line) :
-  Exception(),
+ExceptionLine::ExceptionLine(const std::string &filename,
+                             int line) :
   filename_(filename),
   line_(line)
 {
 }
 
-FileNotReadable::FileNotReadable(const char *filename) :
-  filename_(filename)
+FileNotReadable::FileNotReadable(std::string_view filename) :
+  msg_(sta::format("cannot read file {}.", filename))
 {
 }
 
 const char *
 FileNotReadable::what() const noexcept
 {
-  return stringPrintTmp("cannot read file %s.", filename_);
+  return msg_.c_str();
 }
 
-FileNotWritable::FileNotWritable(const char *filename) :
-  filename_(filename)
+FileNotWritable::FileNotWritable(std::string_view filename) :
+  msg_(sta::format("cannot write file {}.", filename))
 {
 }
 
 const char *
 FileNotWritable::what() const noexcept
 {
-  return stringPrintTmp("cannot write file %s.", filename_);
+  return msg_.c_str();
 }
 
-} // namespace
+} // namespace sta

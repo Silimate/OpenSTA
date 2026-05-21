@@ -1,5 +1,5 @@
 // OpenSTA, Static Timing Analyzer
-// Copyright (c) 2025, Parallax Software, Inc.
+// Copyright (c) 2026, Parallax Software, Inc.
 // 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -24,15 +24,15 @@
 
 #pragma once
 
-#include <cstdint>
-#include <vector>
-#include <string>
-#include <set>
 #include <array>
+#include <cstdint>
+#include <set>
+#include <string>
+#include <vector>
 
-#include "Zlib.hh"
 #include "NetworkClass.hh"
 #include "StaState.hh"
+#include "Zlib.hh"
 
 // Header for SaifReader.cc to communicate with SaifLex.cc, SaifParse.cc
 
@@ -46,7 +46,7 @@ class SaifScanner;
 
 enum class SaifState { T0, T1, TX, TZ, TB, TC, IG };
 
-typedef std::array<uint64_t, static_cast<int>(SaifState::IG)+1> SaifStateDurations;
+using SaifStateDurations = std::array<uint64_t, static_cast<int>(SaifState::IG)+1>;
 
 class SaifReader : public StaState
 {
@@ -58,30 +58,30 @@ public:
 
   void setDivider(char divider);
   void setTimescale(uint64_t multiplier,
-                    const char *units);
+                    std::string &&units);
   void setDuration(uint64_t duration);
-  void instancePush(const char *instance_name);
+  void instancePush(std::string &&instance_name);
   void instancePop();
-  void setNetDurations(const char *net_name,
-                       SaifStateDurations &durations);
+  void setNetDurations(std::string &&net_name,
+                       const SaifStateDurations &durations);
   const char *filename() { return filename_; }
 
 private:
-  std::string unescaped(const char *token);
+  std::string unescaped(const std::string &token);
 
   const char *filename_;
   const char *scope_;           // Divider delimited scope to begin annotation.
 
-  char divider_;
-  char escape_;
-  double timescale_;
-  int64_t duration_;
+  char divider_ = '/';
+  char escape_ = '\\';
+  double timescale_ = 1.0E-9;  // default units of ns
+  int64_t duration_ = 0;
 
   std::vector<std::string> saif_scope_;   // Scope during parsing.
-  size_t in_scope_level_;
+  size_t in_scope_level_ = 0;
   std::vector<Instance*> path_;      // Path within scope.
   std::set<const Pin*> annotated_pins_;
   Power *power_;
 };
 
-} // namespace
+} // namespace sta

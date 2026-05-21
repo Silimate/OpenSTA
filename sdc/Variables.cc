@@ -1,5 +1,5 @@
 // OpenSTA, Static Timing Analyzer
-// Copyright (c) 2025, Parallax Software, Inc.
+// Copyright (c) 2026, Parallax Software, Inc.
 // 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -25,31 +25,6 @@
 #include "Variables.hh"
 
 namespace sta {
-
-Variables::Variables() :
-  crpr_enabled_(true),
-  crpr_mode_(CrprMode::same_pin),
-  propagate_gated_clock_enable_(true),
-  preset_clr_arcs_enabled_(false),
-  cond_default_arcs_enabled_(true),
-  bidirect_net_paths_enabled_(false),
-  bidirect_inst_paths_enabled_(false),
-  recovery_removal_checks_enabled_(true),
-  gated_clk_checks_enabled_(true),
-  clk_thru_tristate_enabled_(false),
-  dynamic_loop_breaking_(false),
-  propagate_all_clks_(false),
-  use_default_arrival_clock_(false),
-  pocv_enabled_(false),
-  boolean_props_as_int_(true),
-  direction_props_short_(false),
-  liberty_line_debug_(false),
-  no_inv_delay_calc_(false),
-  no_inv_power_calc_(false),
-  strip_escaped_bus_(false),
-  enable_collections_(false)
-{
-}
 
 void
 Variables::setCrprEnabled(bool enabled)
@@ -88,12 +63,6 @@ Variables::setBidirectInstPathsEnabled(bool enabled)
 }
 
 void
-Variables::setBidirectNetPathsEnabled(bool enabled)
-{
-  bidirect_net_paths_enabled_ = enabled;
-}
-
-void
 Variables::setRecoveryRemovalChecksEnabled(bool enabled)
 {
   recovery_removal_checks_enabled_ = enabled;
@@ -129,10 +98,24 @@ Variables::setUseDefaultArrivalClock(bool enable)
   use_default_arrival_clock_ = enable;
 }
 
-void
-Variables::setPocvEnabled(bool enabled)
+////////////////////////////////////////////////////////////////
+
+bool
+Variables::pocvEnabled() const
 {
-  pocv_enabled_ = enabled;
+  return pocv_mode_ != PocvMode::scalar;
 }
-  
-} // namespace
+
+void
+Variables::setPocvMode(PocvMode mode)
+{
+  pocv_mode_ = mode;
+}
+
+void
+Variables::setPocvQuantile(float quantile)
+{
+  pocv_quantile_ = quantile;
+}
+
+} // namespace sta

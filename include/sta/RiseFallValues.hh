@@ -1,5 +1,5 @@
 // OpenSTA, Static Timing Analyzer
-// Copyright (c) 2025, Parallax Software, Inc.
+// Copyright (c) 2026, Parallax Software, Inc.
 // 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -33,10 +33,10 @@ class RiseFallValues
 {
 public:
   RiseFallValues();
-  explicit RiseFallValues(float init_value);
+  RiseFallValues(float init_value);
   float value(const RiseFall *rf) const;
   void value(const RiseFall *rf,
-	     float &value, bool &exists) const;
+             float &value, bool &exists) const;
   bool hasValue(const RiseFall *rf) const;
   void setValue(const RiseFallBoth *rf, float value);
   void setValue(const RiseFall *rf, float value);
@@ -49,4 +49,4 @@ private:
   bool exists_[RiseFall::index_count];
 };
 
-} // namespace
+} // namespace sta

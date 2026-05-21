@@ -25,14 +25,12 @@
 #pragma once
 
 #include "PatternMatch.hh"
-#include "FilterExpr.hh"
 #include <functional>
 
-
-template <class SEQ_TYPE, class OBJECT_TYPE, int ERROR_CODE, const char * OBJECT_TYPE_NAME>
+template <class SEQ_TYPE, class OBJECT_TYPE, int ERROR_CODE, const char * OBJECT_TYPE_NAME, SEQ_TYPE (*FILTER_FN)(std::string_view, SEQ_TYPE *, sta::Sta *)>
 SEQ_TYPE *
 find_objects_complete(SEQ_TYPE *collection,
-                      StringSeq *patterns,
+                      const StringSeq &patterns,
                       bool regexp,
                       bool nocase,
                       bool quiet,
@@ -41,12 +39,12 @@ find_objects_complete(SEQ_TYPE *collection,
 {
   collection = collection ? new SEQ_TYPE(*collection) : new SEQ_TYPE();
   auto sta = Sta::sta();
-  for (const char *pattern: *patterns) {
+  for (const std::string pattern: patterns) {
     PatternMatch matcher(pattern, regexp, nocase, sta->tclInterp());
     auto result = get_pattern(&matcher);
     if (result.size() == 0) {
         if (!quiet)
-          sta->report()->warn(ERROR_CODE, "%s '%s' not found.", OBJECT_TYPE_NAME, pattern);
+          sta->report()->warn(ERROR_CODE, "{} '{}' not found.", OBJECT_TYPE_NAME, pattern);
     } else {
       auto entries = collection->size();
       collection->resize(entries + result.size());
@@ -58,7 +56,7 @@ find_objects_complete(SEQ_TYPE *collection,
     }
   }
   if (filter_expression != nullptr) {
-    auto filtered = filter_objects<OBJECT_TYPE>(filter_expression, collection, sta->booleanPropsAsInt());
+    auto filtered = FILTER_FN(filter_expression, collection, sta);
     delete collection;
     collection = new SEQ_TYPE(filtered);
   }

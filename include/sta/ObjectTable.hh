@@ -1,5 +1,5 @@
 // OpenSTA, Static Timing Analyzer
-// Copyright (c) 2025, Parallax Software, Inc.
+// Copyright (c) 2026, Parallax Software, Inc.
 // 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -24,7 +24,9 @@
 
 #pragma once
 
-#include "Vector.hh"
+#include <vector>
+
+#include "ContainerHelpers.hh"
 #include "Error.hh"
 #include "ObjectId.hh"
 
@@ -48,7 +50,6 @@ template <class TYPE>
 class ObjectTable
 {
 public:
-  ObjectTable();
   ~ObjectTable();
   TYPE *make();
   void destroy(TYPE *object);
@@ -66,26 +67,19 @@ public:
 private:
   void makeBlock();
   void freePush(TYPE *object,
-		ObjectId id);
+                ObjectId id);
 
-  size_t size_;
+  size_t size_{0};
   // Object ID of next free object.
-  ObjectId free_;
-  Vector<TableBlock<TYPE>*> blocks_;
+  ObjectId free_{object_id_null};
+  std::vector<TableBlock<TYPE>*> blocks_;
   static constexpr ObjectId idx_mask_ = block_object_count - 1;
 };
 
 template <class TYPE>
-ObjectTable<TYPE>::ObjectTable() :
-  size_(0),
-  free_(object_id_null)
-{
-}
-
-template <class TYPE>
 ObjectTable<TYPE>::~ObjectTable()
 {
-  blocks_.deleteContents();
+  deleteContents(blocks_);
 }
 
 template <class TYPE>
@@ -106,7 +100,7 @@ ObjectTable<TYPE>::make()
 template <class TYPE>
 void
 ObjectTable<TYPE>::freePush(TYPE *object,
-			    ObjectId id)
+                            ObjectId id)
 {
   // Link free objects into a list linked by Object ID.
   ObjectId *free_next = reinterpret_cast<ObjectId*>(object);
@@ -181,7 +175,7 @@ template <class TYPE>
 void
 ObjectTable<TYPE>::clear()
 {
-  blocks_.deleteContentsClear();
+  deleteContents(blocks_);;
   size_ = 0;
 }
 
@@ -192,7 +186,7 @@ class TableBlock
 {
 public:
   TableBlock(BlockIdx block_idx,
-	     ObjectTable<TYPE> *table);
+             ObjectTable<TYPE> *table);
   BlockIdx index() const { return block_idx_; }
   TYPE &ref(ObjectIdx idx) { return objects_[idx]; }
   TYPE *pointer(ObjectIdx idx) { return &objects_[idx]; }
@@ -205,10 +199,10 @@ private:
 
 template <class TYPE>
 TableBlock<TYPE>::TableBlock(BlockIdx block_idx,
-			     ObjectTable<TYPE> *table) :
+                             ObjectTable<TYPE> *table) :
   block_idx_(block_idx),
   table_(table)
 {
 }
 
-} // Namespace
+} // namespace sta

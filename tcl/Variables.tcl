@@ -1,5 +1,5 @@
 # OpenSTA, Static Timing Analyzer
-# Copyright (c) 2025, Parallax Software, Inc.
+# Copyright (c) 2026, Parallax Software, Inc.
 # 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -33,21 +33,21 @@ namespace eval sta {
 # Default digits to print after decimal point for reporting commands.
 set ::sta_report_default_digits 2
 
-trace variable ::sta_report_default_digits "rw" \
+trace add variable ::sta_report_default_digits {read write} \
   sta::trace_report_default_digits
 
 proc trace_report_default_digits { name1 name2 op } {
   global sta_report_default_digits
 
-  if { $op == "w" } {
+  if { $op == "write" } {
     if { !([string is integer $sta_report_default_digits] \
-	   && $sta_report_default_digits >= 0) } {
+           && $sta_report_default_digits >= 0) } {
       sta_error 590 "sta_report_default_digits must be a positive integer."
     }
   }
 }
 
-trace variable ::sta_crpr_enabled "rw" \
+trace add variable ::sta_crpr_enabled {read write} \
   sta::trace_crpr_enabled
 
 proc trace_crpr_enabled { name1 name2 op } {
@@ -55,15 +55,15 @@ proc trace_crpr_enabled { name1 name2 op } {
     crpr_enabled set_crpr_enabled
 }
 
-trace variable ::sta_crpr_mode "rw" \
+trace add variable ::sta_crpr_mode {read write} \
   sta::trace_crpr_mode
 
 proc trace_crpr_mode { name1 name2 op } {
   global sta_crpr_mode
 
-  if { $op == "r" } {
+  if { $op == "read" } {
     set sta_crpr_mode [crpr_mode]
-  } elseif { $op == "w" } {
+  } elseif { $op == "write" } {
     if { $sta_crpr_mode == "same_pin" || $sta_crpr_mode == "same_transition" } {
       set_crpr_mode $sta_crpr_mode
     } else {
@@ -72,7 +72,7 @@ proc trace_crpr_mode { name1 name2 op } {
   }
 }
 
-trace variable ::sta_cond_default_arcs_enabled "rw" \
+trace add variable ::sta_cond_default_arcs_enabled {read write} \
   sta::trace_cond_default_arcs_enabled
 
 proc trace_cond_default_arcs_enabled { name1 name2 op } {
@@ -80,7 +80,7 @@ proc trace_cond_default_arcs_enabled { name1 name2 op } {
     cond_default_arcs_enabled set_cond_default_arcs_enabled
 }
 
-trace variable ::sta_gated_clock_checks_enabled "rw" \
+trace add variable ::sta_gated_clock_checks_enabled {read write} \
   sta::trace_gated_clk_checks_enabled
 
 proc trace_gated_clk_checks_enabled { name1 name2 op } {
@@ -88,7 +88,7 @@ proc trace_gated_clk_checks_enabled { name1 name2 op } {
     gated_clk_checks_enabled set_gated_clk_checks_enabled
 }
 
-trace variable ::sta_internal_bidirect_instance_paths_enabled "rw" \
+trace add variable ::sta_internal_bidirect_instance_paths_enabled {read write} \
   sta::trace_internal_bidirect_instance_paths_enabled
 
 proc trace_internal_bidirect_instance_paths_enabled { name1 name2 op } {
@@ -96,15 +96,7 @@ proc trace_internal_bidirect_instance_paths_enabled { name1 name2 op } {
     bidirect_inst_paths_enabled set_bidirect_inst_paths_enabled
 }
 
-trace variable ::sta_bidirect_net_paths_enabled "rw" \
-  sta::trace_bidirect_net_paths_enabled
-
-proc trace_bidirect_net_paths_enabled { name1 name2 op } {
-  trace_boolean_var $op ::sta_bidirect_net_paths_enabled \
-    bidirect_net_paths_enabled set_bidirect_net_paths_enabled
-}
-
-trace variable ::sta_clock_through_tristate_enabled "rw" \
+trace add variable ::sta_clock_through_tristate_enabled {read write} \
   sta::trace_clock_through_tristate_enabled
 
 proc trace_clock_through_tristate_enabled { name1 name2 op } {
@@ -112,7 +104,7 @@ proc trace_clock_through_tristate_enabled { name1 name2 op } {
     clk_thru_tristate_enabled set_clk_thru_tristate_enabled
 }
 
-trace variable ::sta_preset_clear_arcs_enabled "rw" \
+trace add variable ::sta_preset_clear_arcs_enabled {read write} \
   sta::trace_preset_clr_arcs_enabled
 
 proc trace_preset_clr_arcs_enabled { name1 name2 op } {
@@ -120,7 +112,7 @@ proc trace_preset_clr_arcs_enabled { name1 name2 op } {
     preset_clr_arcs_enabled set_preset_clr_arcs_enabled
 }
 
-trace variable ::sta_recovery_removal_checks_enabled "rw" \
+trace add variable ::sta_recovery_removal_checks_enabled {read write} \
   sta::trace_recovery_removal_checks_enabled
 
 proc trace_recovery_removal_checks_enabled { name1 name2 op } {
@@ -128,7 +120,7 @@ proc trace_recovery_removal_checks_enabled { name1 name2 op } {
     recovery_removal_checks_enabled set_recovery_removal_checks_enabled
 }
 
-trace variable ::sta_dynamic_loop_breaking "rw" \
+trace add variable ::sta_dynamic_loop_breaking {read write} \
   sta::trace_dynamic_loop_breaking
 
 proc trace_dynamic_loop_breaking { name1 name2 op } {
@@ -136,7 +128,7 @@ proc trace_dynamic_loop_breaking { name1 name2 op } {
     dynamic_loop_breaking set_dynamic_loop_breaking
 }
 
-trace variable ::sta_input_port_default_clock "rw" \
+trace add variable ::sta_input_port_default_clock {read write} \
   sta::trace_input_port_default_clock
 
 proc trace_input_port_default_clock { name1 name2 op } {
@@ -144,7 +136,7 @@ proc trace_input_port_default_clock { name1 name2 op } {
     use_default_arrival_clock set_use_default_arrival_clock
 }
 
-trace variable ::sta_propagate_all_clocks "rw" \
+trace add variable ::sta_propagate_all_clocks {read write} \
   sta::trace_propagate_all_clocks
 
 proc trace_propagate_all_clocks { name1 name2 op } {
@@ -152,7 +144,7 @@ proc trace_propagate_all_clocks { name1 name2 op } {
     propagate_all_clocks set_propagate_all_clocks
 }
 
-trace variable ::sta_propagate_gated_clock_enable "rw" \
+trace add variable ::sta_propagate_gated_clock_enable {read write} \
   sta::trace_propagate_gated_clock_enable
 
 proc trace_propagate_gated_clock_enable { name1 name2 op } {
@@ -160,15 +152,26 @@ proc trace_propagate_gated_clock_enable { name1 name2 op } {
     propagate_gated_clock_enable set_propagate_gated_clock_enable
 }
 
-trace variable ::sta_pocv_enabled "rw" \
-  sta::trace_pocv_enabled
+trace add variable ::sta_pocv_mode {read write} \
+  sta::trace_pocv_mode
 
-proc trace_pocv_enabled { name1 name2 op } {
-  trace_boolean_var $op ::sta_pocv_enabled \
-    pocv_enabled set_pocv_enabled
+proc trace_pocv_mode { name1 name2 op } {
+  global sta_pocv_mode
+
+  if { $op == "read" } {
+    set sta_pocv_mode [pocv_mode]
+  } elseif { $op == "write" } {
+    if { $sta_pocv_mode == "scalar" \
+           || $sta_pocv_mode == "normal" \
+           || $sta_pocv_mode == "skew_normal" } {
+      set_pocv_mode $sta_pocv_mode
+    } else {
+      sta_error 593 "sta_pocv_mode must be scalar, normal, or skew_normal."
+    }
+  }
 }
 
-trace variable ::sta_boolean_props_as_int "rw" \
+trace add variable ::sta_boolean_props_as_int {read write} \
   sta::trace_boolean_props_as_int
 
 proc trace_boolean_props_as_int { name1 name2 op } {
@@ -176,7 +179,7 @@ proc trace_boolean_props_as_int { name1 name2 op } {
     boolean_props_as_int set_boolean_props_as_int
 }
 
-trace variable ::sta_direction_props_short "rw" \
+trace add variable ::sta_direction_props_short {read write} \
   sta::trace_direction_props_short
 
 proc trace_direction_props_short { name1 name2 op } {
@@ -184,7 +187,7 @@ proc trace_direction_props_short { name1 name2 op } {
     direction_props_short set_direction_props_short
 }
 
-trace variable ::sta_liberty_line_debug "rw" \
+trace add variable ::sta_liberty_line_debug {read write} \
   sta::trace_liberty_line_debug
 
 proc trace_liberty_line_debug { name1 name2 op } {
@@ -192,7 +195,7 @@ proc trace_liberty_line_debug { name1 name2 op } {
     liberty_line_debug set_liberty_line_debug
 }
 
-trace variable ::sta_no_inv_delay_calc "rw" \
+trace add variable ::sta_no_inv_delay_calc {read write} \
   sta::trace_no_inv_delay_calc
 
 proc trace_no_inv_delay_calc { name1 name2 op } {
@@ -200,7 +203,7 @@ proc trace_no_inv_delay_calc { name1 name2 op } {
     no_inv_delay_calc set_no_inv_delay_calc
 }
 
-trace variable ::sta_no_inv_power_calc "rw" \
+trace add variable ::sta_no_inv_power_calc {read write} \
   sta::trace_no_inv_power_calc
 
 proc trace_no_inv_power_calc { name1 name2 op } {
@@ -208,7 +211,7 @@ proc trace_no_inv_power_calc { name1 name2 op } {
     no_inv_power_calc set_no_inv_power_calc
 }
 
-trace variable ::sta_strip_escaped_bus "rw" \
+trace add variable ::sta_strip_escaped_bus {read write} \
   sta::trace_strip_escaped_bus
 
 proc trace_strip_escaped_bus { name1 name2 op } {
@@ -216,7 +219,7 @@ proc trace_strip_escaped_bus { name1 name2 op } {
     strip_escaped_bus set_strip_escaped_bus
 }
 
-trace variable ::sta_enable_collections "rw" \
+trace add variable ::sta_enable_collections {read write} \
   sta::trace_enable_collections
 
 proc trace_enable_collections { name1 name2 op } {
@@ -224,17 +227,32 @@ proc trace_enable_collections { name1 name2 op } {
     enable_collections set_enable_collections
 }
 
-# Report path numeric field width is digits + extra.
-set report_path_field_width_extra 5
+trace add variable ::sta_pocv_quantile {read write} \
+  sta::trace_pocv_quantile
+
+proc trace_pocv_quantile { name1 name2 op } {
+  global sta_pocv_quantile
+
+  if { $op == "read" } {
+    set sta_pocv_quantile [pocv_quantile]
+  } elseif { $op == "write" } {
+    if { [string is double $sta_pocv_quantile] \
+           && $sta_pocv_quantile >= 0.0 } {
+      set_pocv_quantile $sta_pocv_quantile
+    } else {
+      sta_error 594 "sta_pocv_quantile must be a positive floating point number."
+    }
+  }
+}
 
 ################################################################
 
 proc trace_boolean_var { op var_name get_proc set_proc } {
   upvar 1 $var_name var
 
-  if { $op == "r" } {
+  if { $op == "read" } {
     set var [$get_proc]
-  } elseif { $op == "w" } {
+  } elseif { $op == "write" } {
     if { $var == 0 } {
       $set_proc 0
     } elseif { $var == 1 } {

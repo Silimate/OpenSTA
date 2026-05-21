@@ -1,5 +1,5 @@
 // OpenSTA, Static Timing Analyzer
-// Copyright (c) 2025, Parallax Software, Inc.
+// Copyright (c) 2026, Parallax Software, Inc.
 // 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -24,6 +24,9 @@
 
 #pragma once
 
+#include <string>
+#include <string_view>
+
 #include "VerilogLocation.hh"
 #include "VerilogParse.hh"
 
@@ -36,28 +39,29 @@
 namespace sta {
 
 class Report;
+class VerilogReader;
 
 class VerilogScanner : public VerilogFlexLexer
 {
 public:
   VerilogScanner(std::istream *stream,
-                 const char *filename,
+                 std::string_view filename,
                  Report *report);
-  virtual ~VerilogScanner() {}
-
-  virtual int lex(VerilogParse::semantic_type *const yylval,
+  virtual int lex(VerilogParse::semantic_type *yylval,
                   VerilogParse::location_type *yylloc);
   // YY_DECL defined in VerilogLex.ll
   // Method body created by flex in VerilogLex.cc
 
-  void error(const char *msg);
+  void error(std::string_view msg);
 
   // Get rid of override virtual function warning.
   using yyFlexLexer::yylex;
 
 private:
-  const char *filename_;
+  std::string filename_;
   Report *report_;
+  // Quoted string accumulation (see VerilogLex.ll).
+  std::string token_;
 };
 
-} // namespace
+} // namespace sta

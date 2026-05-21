@@ -1,5 +1,5 @@
 // OpenSTA, Static Timing Analyzer
-// Copyright (c) 2025, Parallax Software, Inc.
+// Copyright (c) 2026, Parallax Software, Inc.
 // 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -22,8 +22,6 @@
 // 
 // This notice may not be removed or altered from any source distribution.
 
-%module NetworkEdit
-
 %{
 using sta::Cell;
 using sta::Instance;
@@ -44,8 +42,8 @@ using sta::NetworkEdit;
 
 Instance *
 make_instance_cmd(const char *name,
-		  LibertyCell *cell,
-		  Instance *parent)
+                  LibertyCell *cell,
+                  Instance *parent)
 {
   return Sta::sta()->makeInstance(name, cell, parent);
 }
@@ -58,14 +56,14 @@ delete_instance_cmd(Instance *inst)
 
 void
 replace_cell_cmd(Instance *inst,
-		 LibertyCell *to_cell)
+                 LibertyCell *to_cell)
 {
   Sta::sta()->replaceCell(inst, to_cell);
 }
 
 Net *
 make_net_cmd(const char *name,
-	     Instance *parent)
+             Instance *parent)
 {
   return Sta::sta()->makeNet(name, parent);
 }
@@ -85,8 +83,8 @@ delete_net_cmd(Net *net)
 
 void
 connect_pin_cmd(Instance *inst,
-		Port *port,
-		Net *net)
+                Port *port,
+                Net *net)
 {
   Sta::sta()->connectPin(inst, port, net);
 }
@@ -102,6 +100,13 @@ void
 network_changed()
 {
   Sta::sta()->networkChanged();
+}
+
+// Notify STA of network change without touching SDC network references.
+void
+network_changed_non_sdc()
+{
+  Sta::sta()->networkChangedNonSdc();
 }
 
 %} // inline

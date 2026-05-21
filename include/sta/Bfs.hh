@@ -1,5 +1,5 @@
 // OpenSTA, Static Timing Analyzer
-// Copyright (c) 2025, Parallax Software, Inc.
+// Copyright (c) 2026, Parallax Software, Inc.
 // 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -25,12 +25,12 @@
 #pragma once
 
 #include <mutex>
+#include <vector>
 
-#include "Iterator.hh"
-#include "Set.hh"
 #include "GraphClass.hh"
-#include "VertexVisitor.hh"
+#include "Iterator.hh"
 #include "StaState.hh"
+#include "VertexVisitor.hh"
 
 namespace sta {
 
@@ -39,7 +39,7 @@ class BfsFwdIterator;
 class BfsBkwdIterator;
 
 // LevelQueue is a vector of vertex vectors indexed by logic level.
-typedef Vector<VertexSeq> LevelQueue;
+using LevelQueue = std::vector<VertexSeq>;
 
 // Abstract base class for forward and backward breadth first search iterators.
 // Visit all of the vertices at a level before moving to the next.
@@ -50,36 +50,36 @@ typedef Vector<VertexSeq> LevelQueue;
 // Vertices are marked as being in the queue by using a flag on
 // the vertex indexed by bfs_index.  A unique flag is only needed
 // if the BFS in in use when other BFS's are simultaneously in use.
-class BfsIterator : public StaState, Iterator<Vertex*>
+class BfsIterator : public StaState,
+                    public Iterator<Vertex*>
 {
 public:
-  virtual ~BfsIterator();
   // Make sure that the BFS queue is deep enough for the max logic level.
   void ensureSize();
   // Reset to virgin state.
   void clear();
-  bool empty() const;
+  [[nodiscard]] bool empty() const;
   // Enqueue a vertex to search from.
   void enqueue(Vertex *vertex);
   // Enqueue vertices adjacent to a vertex.
   void enqueueAdjacentVertices(Vertex *vertex);
-  void enqueueAdjacentVertices(Vertex *vertex,
-			       SearchPred *search_pred);
-  void enqueueAdjacentVertices(Vertex *vertex,
-			       Level to_level);
+  virtual void enqueueAdjacentVertices(Vertex *vertex,
+                                       const Mode *mode);
   virtual void enqueueAdjacentVertices(Vertex *vertex,
 				       SearchPred *search_pred,
-				       Level to_level) = 0;
-  bool inQueue(Vertex *vertex);
+                                       const Mode *mode) = 0;
+  virtual void enqueueAdjacentVertices(Vertex *vertex,
+                                       SearchPred *search_pred) = 0;
+  [[nodiscard]] bool inQueue(Vertex *vertex);
   void checkInQueue(Vertex *vertex);
   // Notify iterator that vertex will be deleted.
   void deleteVertexBefore(Vertex *vertex);
   void remove(Vertex *vertex);
   void reportEntries() const;
 
-  virtual bool hasNext();
+  bool hasNext() override;
   bool hasNext(Level to_level);
-  virtual Vertex *next();
+  Vertex *next() override;
 
   // Apply visitor to all vertices in the queue in level order.
   // Returns the number of vertices that are visited.
@@ -130,18 +130,20 @@ public:
   BfsFwdIterator(BfsIndex bfs_index,
 		 SearchPred *search_pred,
 		 StaState *sta);
-  virtual ~BfsFwdIterator();
-  virtual void enqueueAdjacentVertices(Vertex *vertex,
-				       SearchPred *search_pred,
-				       Level to_level);
+  ~BfsFwdIterator() override;
+  void enqueueAdjacentVertices(Vertex *vertex,
+                              SearchPred *search_pred) override;
+  void enqueueAdjacentVertices(Vertex *vertex,
+			       SearchPred *search_pred,
+                               const Mode *mode) override;
   using BfsIterator::enqueueAdjacentVertices;
 
 protected:
-  virtual bool levelLessOrEqual(Level level1,
-				Level level2) const;
-  virtual bool levelLess(Level level1,
-			 Level level2) const;
-  virtual void incrLevel(Level &level) const;
+  bool levelLessOrEqual(Level level1,
+			Level level2) const override;
+  bool levelLess(Level level1,
+		 Level level2) const override;
+  void incrLevel(Level &level) const override;
 };
 
 class BfsBkwdIterator : public BfsIterator
@@ -150,18 +152,20 @@ public:
   BfsBkwdIterator(BfsIndex bfs_index,
 		  SearchPred *search_pred,
 		  StaState *sta);
-  virtual ~BfsBkwdIterator();
-  virtual void enqueueAdjacentVertices(Vertex *vertex,
-				       SearchPred *search_pred,
-				       Level to_level);
+  ~BfsBkwdIterator() override;
+  void enqueueAdjacentVertices(Vertex *vertex,
+                              SearchPred *search_pred) override;
+  void enqueueAdjacentVertices(Vertex *vertex,
+			       SearchPred *search_pred,
+                               const Mode *mode) override;
   using BfsIterator::enqueueAdjacentVertices;
 
 protected:
-  virtual bool levelLessOrEqual(Level level1,
-				Level level2) const;
-  virtual bool levelLess(Level level1,
-			 Level level2) const;
-  virtual void incrLevel(Level &level) const;
+  bool levelLessOrEqual(Level level1,
+			Level level2) const override;
+  bool levelLess(Level level1,
+		 Level level2) const override;
+  void incrLevel(Level &level) const override;
 };
 
-} // namespace
+} // namespace sta

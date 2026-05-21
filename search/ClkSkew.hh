@@ -1,5 +1,5 @@
 // OpenSTA, Static Timing Analyzer
-// Copyright (c) 2025, Parallax Software, Inc.
+// Copyright (c) 2026, Parallax Software, Inc.
 // 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -25,14 +25,19 @@
 #pragma once
 
 #include <map>
+#include <unordered_set>
 
-#include "UnorderedSet.hh"
+#include "Delay.hh"
+#include "GraphClass.hh"
+#include "MinMax.hh"
+#include "Mode.hh"
+#include "Path.hh"
+#include "Scene.hh"
 #include "SdcClass.hh"
-#include "StaState.hh"
-#include "Transition.hh"
 #include "SearchClass.hh"
 #include "SearchPred.hh"
-#include "Path.hh"
+#include "StaState.hh"
+#include "Transition.hh"
 
 namespace sta {
 
@@ -44,20 +49,20 @@ class ClkSkew
 public:
   ClkSkew();
   ClkSkew(Path *src_path,
-	  Path *tgt_path,
+          Path *tgt_path,
           bool include_internal_latency,
-	  StaState *sta);
+          StaState *sta);
   ClkSkew(const ClkSkew &clk_skew);
-  void operator=(const ClkSkew &clk_skew);
+  ClkSkew &operator=(const ClkSkew &clk_skew) = default;
   Path *srcPath() { return src_path_; }
   Path *tgtPath() { return tgt_path_; }
-  float srcLatency(const StaState *sta);
+  Arrival srcLatency(const StaState *sta);
   float tgtLatency(const StaState *sta);
   float srcInternalClkLatency(const StaState *sta);
   float tgtInternalClkLatency(const StaState *sta);
   Crpr crpr(const StaState *sta);
   float uncertainty(const StaState *sta);
-  float skew() const { return skew_; }
+  Delay skew() const { return skew_; }
   static bool srcTgtPathNameLess(ClkSkew &clk_skew1,
                                  ClkSkew &clk_skew2,
                                  const StaState *sta);
@@ -69,16 +74,18 @@ private:
   Path *src_path_;
   Path *tgt_path_;
   bool include_internal_latency_;
-  float skew_;
+  Delay skew_;
 };
 
-typedef std::map<const Clock*, ClkSkew[SetupHold::index_count]> ClkSkewMap;
+using ClkSkewMap = std::map<const Clock*, ClkSkew[SetupHold::index_count]>;
 
 class FanOutSrchPred : public SearchPred1
 {
 public:
   FanOutSrchPred(const StaState *sta);
-  virtual bool searchThru(Edge *edge);
+  bool searchThru(Edge *edge,
+                  const Mode *mode) const override;
+  using SearchPred1::searchThru;
 };
 
 // Find and report clock skews between source/target registers.
@@ -89,44 +96,45 @@ public:
   void clear();
   // Report clk skews for clks.
   void reportClkSkew(ConstClockSeq &clks,
-		     const Corner *corner,
-		     const SetupHold *setup_hold,
+                     const SceneSeq &scenes,
+                     const SetupHold *setup_hold,
                      bool include_internal_latency,
-		     int digits);
+                     int digits);
   // Find worst clock skew between src/target registers.
-  float findWorstClkSkew(const Corner *corner,
+  Delay findWorstClkSkew(const SceneSeq &scenes,
                          const SetupHold *setup_hold,
                          bool include_internal_latency);
   
 protected:
   void findClkSkew(ConstClockSeq &clks,
-                   const Corner *corner,
+                   const SceneSeq &scenes,
                    bool include_internal_latency);
   bool hasClkPaths(Vertex *vertex);
   void findClkSkewFrom(Vertex *src_vertex,
-		       ClkSkewMap &skews);
+                       ClkSkewMap &skews);
   void findClkSkewFrom(Vertex *src_vertex,
-		       Vertex *q_vertex,
-		       const RiseFallBoth *src_rf,
-		       ClkSkewMap &skews);
+                       Vertex *q_vertex,
+                       const RiseFallBoth *src_rf,
+                       ClkSkewMap &skews);
   void findClkSkew(Vertex *src_vertex,
-		   const RiseFallBoth *src_rf,
-		   Vertex *tgt_vertex,
-		   const RiseFallBoth *tgt_rf,
-		   ClkSkewMap &skews);
+                   const RiseFallBoth *src_rf,
+                   Vertex *tgt_vertex,
+                   const RiseFallBoth *tgt_rf,
+                   ClkSkewMap &skews);
   VertexSet findFanout(Vertex *from);
   void findFanout1(Vertex *from,
-                   UnorderedSet<Vertex*> &visited,
+                   std::unordered_set<Vertex*> &visited,
                    VertexSet &endpoints);
   void reportClkSkew(ClkSkew &clk_skew,
                      int digits);
 
+  // Node StaState scenes_ and modes_ are reused there.
   ConstClockSeq clks_;
   ConstClockSet clk_set_;
-  const Corner *corner_;
-  bool include_internal_latency_;
+  SceneSet scenes_set_;
+  bool include_internal_latency_{true};
   FanOutSrchPred fanout_pred_;
   ClkSkewMap skews_;
 };
 
-} // namespace
+} // namespace sta

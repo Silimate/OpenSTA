@@ -1,54 +1,50 @@
 // OpenSTA, Static Timing Analyzer
-// Copyright (c) 2025, Parallax Software, Inc.
-// 
+// Copyright (c) 2026, Parallax Software, Inc.
+//
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
-// 
+//
 // This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
-// 
+//
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
-// 
+//
 // The origin of this software must not be misrepresented; you must not
 // claim that you wrote the original software.
-// 
+//
 // Altered source versions must be plainly marked as such, and must not be
 // misrepresented as being the original software.
-// 
+//
 // This notice may not be removed or altered from any source distribution.
 
 #include "CcsCeffDelayCalc.hh"
 
+#include <algorithm>
+#include <cmath>
+
 #include "Debug.hh"
-#include "Units.hh"
-#include "Liberty.hh"
-#include "TimingArc.hh"
-#include "Network.hh"
-#include "Graph.hh"
-#include "Corner.hh"
-#include "DcalcAnalysisPt.hh"
-#include "Parasitics.hh"
-#include "GraphDelayCalc.hh"
 #include "DmpDelayCalc.hh"
 #include "FindRoot.hh"
+#include "Graph.hh"
+#include "GraphDelayCalc.hh"
+#include "Liberty.hh"
+#include "Network.hh"
+#include "Parasitics.hh"
+#include "Scene.hh"
+#include "TimingArc.hh"
+#include "Units.hh"
 
 namespace sta {
-
-using std::string;
 
 // Implementaion based on:
 // "Gate Delay Estimation with Library Compatible Current Source Models
 // and Effective Capacitance", D. Garyfallou et al,
 // IEEE Transactions on Very Large Scale Integration (VLSI) Systems, March 2021
-
-using std::abs;
-using std::exp;
-using std::make_shared;
 
 ArcDelayCalc *
 makeCcsCeffDelayCalc(StaState *sta)
@@ -58,20 +54,13 @@ makeCcsCeffDelayCalc(StaState *sta)
 
 CcsCeffDelayCalc::CcsCeffDelayCalc(StaState *sta) :
   LumpedCapDelayCalc(sta),
-  output_waveforms_(nullptr),
-  // Includes the Vh:Vdd region.
-  region_count_(0),
-  vl_fail_(false),
   watch_pin_values_(network_),
   capacitance_unit_(units_->capacitanceUnit()),
   table_dcalc_(makeDmpCeffElmoreDelayCalc(sta))
 {
 }
 
-CcsCeffDelayCalc::~CcsCeffDelayCalc()
-{
-  delete table_dcalc_;
-}
+CcsCeffDelayCalc::~CcsCeffDelayCalc() { delete table_dcalc_; }
 
 ArcDelayCalc *
 CcsCeffDelayCalc::copy()
@@ -86,19 +75,22 @@ CcsCeffDelayCalc::gateDelay(const Pin *drvr_pin,
                             float load_cap,
                             const Parasitic *parasitic,
                             const LoadPinIndexMap &load_pin_index_map,
-                            const DcalcAnalysisPt *dcalc_ap)
+                            const Scene *scene,
+                            const MinMax *min_max)
 {
   in_slew_ = delayAsFloat(in_slew);
   load_cap_ = load_cap;
+  parasitics_ = scene->parasitics(min_max);
   parasitic_ = parasitic;
   output_waveforms_ = nullptr;
 
-  GateTableModel *table_model = arc->gateTableModel(dcalc_ap);
+  const GateTableModel *table_model = arc->gateTableModel(scene, min_max);
   if (table_model && parasitic) {
     OutputWaveforms *output_waveforms = table_model->outputWaveforms();
-    parasitics_->piModel(parasitic, c2_, rpi_, c1_);
-    if (output_waveforms
-        && rpi_ > 0.0 && c1_ > 0.0
+    Parasitics *parasitics = scene->parasitics(min_max);
+    parasitics->piModel(parasitic, c2_, rpi_, c1_);
+    if (output_waveforms && rpi_ > 0.0
+        && c1_ > 0.0
         // Bounds check because extrapolating waveforms does not work for shit.
         && output_waveforms->slewAxis()->inBounds(in_slew_)
         && output_waveforms->capAxis()->inBounds(c2_)
@@ -109,60 +101,80 @@ CcsCeffDelayCalc::gateDelay(const Pin *drvr_pin,
       drvr_rf_ = arc->toEdge()->asRiseFall();
       drvr_library->supplyVoltage("VDD", vdd_, vdd_exists);
       if (!vdd_exists)
-        report_->error(1700, "VDD not defined in library %s", drvr_library->name());
+        report_->error(1700, "VDD not defined in library {}", drvr_library->name());
       vth_ = drvr_library->outputThreshold(drvr_rf_) * vdd_;
       vl_ = drvr_library->slewLowerThreshold(drvr_rf_) * vdd_;
       vh_ = drvr_library->slewUpperThreshold(drvr_rf_) * vdd_;
 
-      const DcalcAnalysisPtSeq &dcalc_aps = corners_->dcalcAnalysisPts();
-      drvr_cell->ensureVoltageWaveforms(dcalc_aps);
-      in_slew_ = delayAsFloat(in_slew);
+      drvr_cell->ensureVoltageWaveforms(scenes_);
       output_waveforms_ = output_waveforms;
       ref_time_ = output_waveforms_->referenceTime(in_slew_);
-      debugPrint(debug_, "ccs_dcalc", 1, "%s %s",
+      debugPrint(debug_, "ccs_dcalc", 1, "{} {}",
                  drvr_cell->name(),
-                 drvr_rf_->to_string().c_str());
-      ArcDelay gate_delay;
-      Slew drvr_slew;
-      gateDelaySlew(drvr_library, drvr_rf_, gate_delay, drvr_slew);
-      return makeResult(drvr_library,drvr_rf_,gate_delay,drvr_slew,load_pin_index_map);
+                 drvr_rf_->shortName());
+
+      double gate_delay, drvr_slew;
+      gateDelaySlew(drvr_library, gate_delay, drvr_slew);
+      debugPrint(debug_, "ccs_dcalc", 2, "gate_delay {} drvr_slew {}",
+                 delayAsString(gate_delay, this), delayAsString(drvr_slew, this));
+
+      // Fill in pocv parameters.
+      ArcDelay gate_delay2(gate_delay);
+      Slew drvr_slew2(drvr_slew);
+      if (variables_->pocvEnabled()) {
+        double ceff = region_ceff_[0];
+        const Pvt *pvt = pinPvt(drvr_pin_, scene, min_max);
+        table_model->gateDelayPocv(pvt, in_slew_, ceff, min_max,
+                                   variables_->pocvMode(),
+                                   gate_delay2, drvr_slew2);
+      }
+      ArcDcalcResult dcalc_result(load_pin_index_map.size());
+      dcalc_result.setGateDelay(gate_delay2);
+      dcalc_result.setDrvrSlew(drvr_slew2);
+
+      for (const auto &[load_pin, load_idx] : load_pin_index_map) {
+        double wire_delay, load_slew;
+        loadDelaySlew(load_pin, drvr_library, drvr_slew, wire_delay, load_slew);
+        dcalc_result.setWireDelay(load_idx, wire_delay);
+        dcalc_result.setLoadSlew(load_idx, load_slew);
+      }
+      return dcalc_result;
     }
   }
   return table_dcalc_->gateDelay(drvr_pin, arc, in_slew, load_cap, parasitic,
-                                 load_pin_index_map, dcalc_ap);
+                                 load_pin_index_map, scene, min_max);
 }
 
 void
 CcsCeffDelayCalc::gateDelaySlew(const LibertyLibrary *drvr_library,
-                                const RiseFall *rf,
                                 // Return values.
-                                ArcDelay &gate_delay,
-                                Slew &drvr_slew)
+                                double &gate_delay,
+                                double &drvr_slew)
 {    
-  initRegions(drvr_library, rf);
+  initRegions(drvr_library, drvr_rf_);
   findCsmWaveform();
   ref_time_ = output_waveforms_->referenceTime(in_slew_);
   gate_delay = region_times_[region_vth_idx_] - ref_time_;
-  drvr_slew = abs(region_times_[region_vh_idx_] - region_times_[region_vl_idx_]);
+  drvr_slew = std::abs(region_times_[region_vh_idx_] - region_times_[region_vl_idx_]);
   debugPrint(debug_, "ccs_dcalc", 2,
-             "gate_delay %s drvr_slew %s (initial)",
+             "gate_delay {} drvr_slew {} (initial)",
              delayAsString(gate_delay, this),
              delayAsString(drvr_slew, this));
-  float prev_drvr_slew = delayAsFloat(drvr_slew);
+  float prev_drvr_slew = drvr_slew;
   constexpr int max_iterations = 5;
   for (int iter = 0; iter < max_iterations; iter++) {
-    debugPrint(debug_, "ccs_dcalc", 2, "iteration %d", iter);
+    debugPrint(debug_, "ccs_dcalc", 2, "iteration {}", iter);
     // Init drvr ramp model for vl.
     for (size_t i = 0; i <= region_count_; i++) {
       region_ramp_times_[i] = region_times_[i];
       if (i < region_count_)
         region_ramp_slopes_[i] = (region_volts_[i + 1] - region_volts_[i])
-          / (region_times_[i + 1] - region_times_[i]);
+            / (region_times_[i + 1] - region_times_[i]);
     }
 
     for (size_t i = 0; i < region_count_; i++) {
-      double v1 = region_volts_[i];
-      double v2 = region_volts_[i + 1];
+      double seg_v1 = region_volts_[i];
+      double seg_v2 = region_volts_[i + 1];
       double t1 = region_times_[i];
       double t2 = region_times_[i + 1];
 
@@ -171,26 +183,25 @@ CcsCeffDelayCalc::gateDelaySlew(const LibertyLibrary *drvr_library,
       // for the charge on c1 from previous segments so it does not
       // work well.
       double c1_v1, c1_v2, ignore;
-      vl(t1, rpi_ * c1_, c1_v1, ignore);
-      vl(t2, rpi_ * c1_, c1_v2, ignore);
-      double q1 = v1 * c2_ + c1_v1 * c1_;
-      double q2 = v2 * c2_ + c1_v2 * c1_;
-      double ceff = (q2 - q1) / (v2 - v1);
+      vLoad(t1, rpi_ * c1_, c1_v1, ignore);
+      vLoad(t2, rpi_ * c1_, c1_v2, ignore);
+      double q1 = seg_v1 * c2_ + c1_v1 * c1_;
+      double q2 = seg_v2 * c2_ + c1_v2 * c1_;
+      double ceff = (q2 - q1) / (seg_v2 - seg_v1);
 
-      debugPrint(debug_, "ccs_dcalc", 2, "ceff %s",
+      debugPrint(debug_, "ccs_dcalc", 2, "ceff {}",
                  capacitance_unit_->asString(ceff));
       region_ceff_[i] = ceff;
     }
     findCsmWaveform();
     gate_delay = region_times_[region_vth_idx_] - ref_time_;
-    drvr_slew = abs(region_times_[region_vh_idx_] - region_times_[region_vl_idx_]);
-    debugPrint(debug_, "ccs_dcalc", 2,
-               "gate_delay %s drvr_slew %s",
+    drvr_slew = std::abs(region_times_[region_vh_idx_] - region_times_[region_vl_idx_]);
+    debugPrint(debug_, "ccs_dcalc", 2, "gate_delay {} drvr_slew {}",
                delayAsString(gate_delay, this),
                delayAsString(drvr_slew, this));
-    if (abs(delayAsFloat(drvr_slew) - prev_drvr_slew) < .01 * prev_drvr_slew)
+    if (std::abs(drvr_slew - prev_drvr_slew) < .01 * prev_drvr_slew)
       break;
-    prev_drvr_slew = delayAsFloat(drvr_slew);
+    prev_drvr_slew = drvr_slew;
   }
 }
 
@@ -220,85 +231,85 @@ CcsCeffDelayCalc::initRegions(const LibertyLibrary *drvr_library,
 
   double vth_vh = (vh_ - vth_);
   switch (region_count_) {
-  case 4:
-    region_vth_idx_ = 2;
-    region_volts_ = {0.0, vl_, vth_, vh_, vdd_};
-    break;
-  case 5: {
-    region_vth_idx_ = 2;
-    double v1 =  vth_ + .7 * vth_vh;
-    region_volts_ = {0.0, vl_, vth_, v1, vh_, vdd_};
-    break;
+    case 4:
+      region_vth_idx_ = 2;
+      region_volts_ = {0.0, vl_, vth_, vh_, vdd_};
+      break;
+    case 5: {
+      region_vth_idx_ = 2;
+      double v1 = vth_ + .7 * vth_vh;
+      region_volts_ = {0.0, vl_, vth_, v1, vh_, vdd_};
+      break;
+    }
+    case 6: {
+      region_vth_idx_ = 2;
+      double v1 = vth_ + .3 * vth_vh;
+      double v2 = vth_ + .6 * vth_vh;
+      region_volts_ = {0.0, vl_, vth_, v1, v2, vh_, vdd_};
+      break;
+    }
+    case 7: {
+      region_vth_idx_ = 2;
+      region_vh_idx_ = 5;
+      double v1 = vth_ + .3 * vth_vh;
+      double v2 = vth_ + .6 * vth_vh;
+      double v3 = vh_ + .5 * (vdd_ - vh_);
+      region_volts_ = {0.0, vl_, vth_, v1, v2, vh_, v3, vdd_};
+      break;
+    }
+    case 8: {
+      region_vth_idx_ = 2;
+      region_vh_idx_ = 6;
+      double v1 = vth_ + .25 * vth_vh;
+      double v2 = vth_ + .50 * vth_vh;
+      double v3 = vth_ + .75 * vth_vh;
+      double v4 = vh_ + .5 * (vdd_ - vh_);
+      region_volts_ = {0.0, vl_, vth_, v1, v2, v3, vh_, v4, vdd_};
+      break;
+    }
+    case 9: {
+      region_vth_idx_ = 2;
+      region_vh_idx_ = 7;
+      double v1 = vth_ + .2 * vth_vh;
+      double v2 = vth_ + .4 * vth_vh;
+      double v3 = vth_ + .6 * vth_vh;
+      double v4 = vth_ + .8 * vth_vh;
+      double v5 = vh_ + .5 * (vdd_ - vh_);
+      region_volts_ = {0.0, vl_, vth_, v1, v2, v3, v4, vh_, v5, vdd_};
+      break;
+    }
+    case 10: {
+      region_vth_idx_ = 2;
+      region_vh_idx_ = 7;
+      double v1 = vth_ + .2 * vth_vh;
+      double v2 = vth_ + .4 * vth_vh;
+      double v3 = vth_ + .6 * vth_vh;
+      double v4 = vth_ + .8 * vth_vh;
+      double v5 = vh_ + .3 * (vdd_ - vh_);
+      double v6 = vh_ + .6 * (vdd_ - vh_);
+      region_volts_ = {0.0, vl_, vth_, v1, v2, v3, v4, vh_, v5, v6, vdd_};
+      break;
+    }
+    default:
+      report_->error(1701, "unsupported ccs region count.");
+      break;
   }
-  case 6: {
-    region_vth_idx_ = 2;
-    double v1 = vth_ + .3 * vth_vh;
-    double v2 = vth_ + .6 * vth_vh;
-    region_volts_ = {0.0, vl_, vth_, v1, v2, vh_, vdd_};
-    break;
-  }
-  case 7: {
-    region_vth_idx_ = 2;
-    region_vh_idx_ = 5;
-    double v1 = vth_ + .3 * vth_vh;
-    double v2 = vth_ + .6 * vth_vh;
-    double v3 = vh_ + .5 * (vdd_ - vh_);
-    region_volts_ = {0.0, vl_, vth_, v1, v2, vh_, v3, vdd_};
-    break;
-  }
-  case 8: {
-    region_vth_idx_ = 2;
-    region_vh_idx_ = 6;
-    double v1 = vth_ + .25 * vth_vh;
-    double v2 = vth_ + .50 * vth_vh;
-    double v3 = vth_ + .75 * vth_vh;
-    double v4 = vh_ + .5 * (vdd_ - vh_);
-    region_volts_ = {0.0, vl_, vth_, v1, v2, v3, vh_, v4, vdd_};
-    break;
-  }
-  case 9: {
-    region_vth_idx_ = 2;
-    region_vh_idx_ = 7;
-    double v1 = vth_ + .2 * vth_vh;
-    double v2 = vth_ + .4 * vth_vh;
-    double v3 = vth_ + .6 * vth_vh;
-    double v4 = vth_ + .8 * vth_vh;
-    double v5 = vh_ + .5 * (vdd_ - vh_);
-    region_volts_ = {0.0, vl_, vth_, v1, v2, v3, v4, vh_, v5, vdd_};
-    break;
-  }
-  case 10: {
-    region_vth_idx_ = 2;
-    region_vh_idx_ = 7;
-    double v1 = vth_ + .2 * vth_vh;
-    double v2 = vth_ + .4 * vth_vh;
-    double v3 = vth_ + .6 * vth_vh;
-    double v4 = vth_ + .8 * vth_vh;
-    double v5 = vh_ + .3 * (vdd_ - vh_);
-    double v6 = vh_ + .6 * (vdd_ - vh_);
-    region_volts_ = {0.0, vl_, vth_, v1, v2, v3, v4, vh_, v5, v6, vdd_};
-    break;
-  }
-  default:
-    report_->error(1701, "unsupported ccs region count.");
-    break;
-  }
-  fill(region_ceff_.begin(), region_ceff_.end(), c2_ + c1_);
+  std::ranges::fill(region_ceff_, c2_ + c1_);
 }
 
 void
 CcsCeffDelayCalc::findCsmWaveform()
 {
   for (size_t i = 0; i < region_count_; i++) {
-    double t1 = output_waveforms_->voltageTime(in_slew_, region_ceff_[i],
-                                               region_volts_[i]);
+    double t1 =
+        output_waveforms_->voltageTime(in_slew_, region_ceff_[i], region_volts_[i]);
     double t2 = output_waveforms_->voltageTime(in_slew_, region_ceff_[i],
                                                region_volts_[i + 1]);
     region_begin_times_[i] = t1;
     region_end_times_[i] = t2;
     double time_offset = (i == 0)
-      ? 0.0
-      : t1 - (region_end_times_[i - 1] - region_time_offsets_[i - 1]);
+        ? 0.0
+        : t1 - (region_end_times_[i - 1] - region_time_offsets_[i - 1]);
     region_time_offsets_[i] = time_offset;
 
     if (i == 0)
@@ -309,76 +320,48 @@ CcsCeffDelayCalc::findCsmWaveform()
 
 ////////////////////////////////////////////////////////////////
 
-ArcDcalcResult
-CcsCeffDelayCalc::makeResult(const LibertyLibrary *drvr_library,
-                             const RiseFall *rf,
-                             ArcDelay &gate_delay,
-                             Slew &drvr_slew,
-                             const LoadPinIndexMap &load_pin_index_map)
-{
-  ArcDcalcResult dcalc_result(load_pin_index_map.size());
-  debugPrint(debug_, "ccs_dcalc", 2,
-             "gate_delay %s drvr_slew %s",
-             delayAsString(gate_delay, this),
-             delayAsString(drvr_slew, this));
-  dcalc_result.setGateDelay(gate_delay);
-  dcalc_result.setDrvrSlew(drvr_slew);
-
-  for (const auto &[load_pin, load_idx] : load_pin_index_map) {
-    ArcDelay wire_delay;
-    Slew load_slew;
-    loadDelaySlew(load_pin, drvr_library, rf, drvr_slew, wire_delay, load_slew);
-    dcalc_result.setWireDelay(load_idx, wire_delay);
-    dcalc_result.setLoadSlew(load_idx, load_slew);
-  }
-  return dcalc_result;
-}
-
 void
 CcsCeffDelayCalc::loadDelaySlew(const Pin *load_pin,
                                 const LibertyLibrary *drvr_library,
-                                const RiseFall *rf,
-                                Slew &drvr_slew,
+                                double drvr_slew,
                                 // Return values.
-                                ArcDelay &wire_delay,
-                                Slew &load_slew)
+                                double &wire_delay,
+                                double &load_slew)
 {
-  ArcDelay wire_delay1 = 0.0;
-  Slew load_slew1 = drvr_slew;
+  wire_delay = 0.0;
+  load_slew = drvr_slew;
+
   bool elmore_exists = false;
   float elmore = 0.0;
-  if (parasitic_
-      && parasitics_->isPiElmore(parasitic_))
+  if (parasitic_ && parasitics_->isPiElmore(parasitic_))
     parasitics_->findElmore(parasitic_, load_pin, elmore, elmore_exists);
 
   if (elmore_exists &&
       (elmore == 0.0
        // Elmore delay is small compared to driver slew.
-       || elmore < delayAsFloat(drvr_slew) * 1e-3)) {
-    wire_delay1 = elmore;
-    load_slew1 = drvr_slew;
+       || elmore < drvr_slew * 1e-3)) {
+    wire_delay = elmore;
+    load_slew = drvr_slew;
   }
   else
-    loadDelaySlew(load_pin, drvr_slew, elmore, wire_delay1, load_slew1);
+    loadDelaySlew(load_pin, drvr_slew, elmore, wire_delay, load_slew);
 
-  thresholdAdjust(load_pin, drvr_library, rf, wire_delay, load_slew);
-  wire_delay = wire_delay1;
-  load_slew = load_slew1;
+  thresholdAdjust(load_pin, drvr_library, drvr_rf_, wire_delay, load_slew);
 }
 
 void
 CcsCeffDelayCalc::loadDelaySlew(const Pin *load_pin,
-                                Slew &drvr_slew,
+                                double &drvr_slew,
                                 float elmore,
                                 // Return values.
-                                ArcDelay &delay,
-                                Slew &slew)
+                                double &delay,
+                                double &slew)
 {
   for (size_t i = 0; i <= region_count_; i++) {
     region_ramp_times_[i] = region_times_[i];
     if (i < region_count_)
       region_ramp_slopes_[i] = (region_volts_[i + 1] - region_volts_[i])
-        / (region_times_[i + 1] - region_times_[i]);
+          / (region_times_[i + 1] - region_times_[i]);
   }
 
   vl_fail_ = false;
@@ -394,10 +377,8 @@ CcsCeffDelayCalc::loadDelaySlew(const Pin *load_pin,
     slew = drvr_slew;
     fail("load delay threshold crossing");
   }
-  debugPrint(debug_, "ccs_dcalc", 2,
-             "load %s delay %s slew %s",
-             network_->pathName(load_pin),
-             delayAsString(delay, this),
+  debugPrint(debug_, "ccs_dcalc", 2, "load {} delay {} slew {}",
+             network_->pathName(load_pin), delayAsString(delay, this),
              delayAsString(slew, this));
 }
 
@@ -418,11 +399,11 @@ rampElmoreV(double t,
 
 // Elmore (one pole) response to 2 segment ramps [0, vth] slew1, [vth, vdd] slew2.
 void
-CcsCeffDelayCalc::vl(double t,
-                     double elmore,
-                     // Return values.
-                     double &vl,
-                     double &dvl_dt)
+CcsCeffDelayCalc::vLoad(double t,
+                        double elmore,
+                        // Return values.
+                        double &vl,
+                        double &dvl_dt)
 {
   vl = 0.0;
   dvl_dt = 0.0;
@@ -447,11 +428,11 @@ CcsCeffDelayCalc::vl(double t,
 
 // for debugging
 double
-CcsCeffDelayCalc::vl(double t,
-                     double elmore)
+CcsCeffDelayCalc::vLoad(double t,
+                        double elmore)
 {
   double vl1, dvl_dt;
-  vl(t, elmore, vl1, dvl_dt);
+  vLoad(t, elmore, vl1, dvl_dt);
   return vl1;
 }
 
@@ -461,14 +442,13 @@ CcsCeffDelayCalc::findVlTime(double v,
 {
   double t_init = region_ramp_times_[0];
   double t_final = region_ramp_times_[region_count_];
-  bool root_fail = false;
-  double time = findRoot([&] (double t,
-                              double &y,
-                              double &dy) {
-    vl(t, elmore, y, dy);
-    y -= v;
-  }, t_init, t_final + elmore * 3.0, .001, 20, root_fail);
-  vl_fail_ |= root_fail;
+  auto [time, failed] =
+    findRoot([&](double t, double &y, double &dy) {
+      vLoad(t, elmore, y, dy);
+      y -= v;
+    },
+      t_init, t_final + elmore * 3.0, .001, 20);
+  vl_fail_ |= failed;
   return time;
 }
 
@@ -492,7 +472,7 @@ PinSeq
 CcsCeffDelayCalc::watchPins() const
 {
   PinSeq pins;
-  for (const auto& [pin, values] : watch_pin_values_)
+  for (const auto &[pin, values] : watch_pin_values_)
     pins.push_back(pin);
   return pins;
 }
@@ -528,13 +508,14 @@ CcsCeffDelayCalc::drvrWaveform()
         drvr_volts->push_back(v);
       }
     }
-    TableAxisPtr drvr_time_axis = make_shared<TableAxis>(TableAxisVariable::time,
-                                                         drvr_times);
-    Table1 drvr_table(drvr_volts, drvr_time_axis);
+    TableAxisPtr drvr_time_axis =
+        std::make_shared<TableAxis>(TableAxisVariable::time, std::move(*drvr_times));
+    delete drvr_times;
+    Table drvr_table(drvr_volts, drvr_time_axis);
     return drvr_table;
   }
   else
-    return Table1();
+    return Table();
 }
 
 Waveform
@@ -555,17 +536,18 @@ CcsCeffDelayCalc::loadWaveform(const Pin *load_pin)
         load_times->push_back(t);
 
         double ignore;
-        vl(t, elmore, v, ignore);
+        vLoad(t, elmore, v, ignore);
         double v1 = (drvr_rf_ == RiseFall::rise()) ? v : vdd_ - v;
         load_volts->push_back(v1);
       }
-      TableAxisPtr load_time_axis = make_shared<TableAxis>(TableAxisVariable::time,
-                                                           load_times);
-      Table1 load_table(load_volts, load_time_axis);
+      TableAxisPtr load_time_axis = std::make_shared<TableAxis>(
+          TableAxisVariable::time, std::move(*load_times));
+      delete load_times;
+      Table load_table(load_volts, load_time_axis);
       return load_table;
     }
   }
-  return Table1();
+  return Table();
 }
 
 Waveform
@@ -574,17 +556,16 @@ CcsCeffDelayCalc::drvrRampWaveform(const Pin *in_pin,
                                    const Pin *drvr_pin,
                                    const RiseFall *drvr_rf,
                                    const Pin *load_pin,
-                                   const Corner *corner,
+                                   const Scene *scene,
                                    const MinMax *min_max)
 {
   bool elmore_exists = false;
   float elmore = 0.0;
   if (parasitic_) {
     parasitics_->findElmore(parasitic_, load_pin, elmore, elmore_exists);
-    bool dcalc_success = makeWaveformPreamble(in_pin, in_rf, drvr_pin,
-                                              drvr_rf, corner, min_max);
-    if (dcalc_success
-        && elmore_exists) {
+    bool dcalc_success =
+        makeWaveformPreamble(in_pin, in_rf, drvr_pin, drvr_rf, scene, min_max);
+    if (dcalc_success && elmore_exists) {
       FloatSeq *load_times = new FloatSeq;
       FloatSeq *load_volts = new FloatSeq;
       for (size_t j = 0; j <= region_count_; j++) {
@@ -603,13 +584,14 @@ CcsCeffDelayCalc::drvrRampWaveform(const Pin *in_pin,
         double v1 = (drvr_rf == RiseFall::rise()) ? v : vdd_ - v;
         load_volts->push_back(v1);
       }
-      TableAxisPtr load_time_axis = make_shared<TableAxis>(TableAxisVariable::time,
-                                                           load_times);
-      Table1 load_table(load_volts, load_time_axis);
+      TableAxisPtr load_time_axis = std::make_shared<TableAxis>(
+          TableAxisVariable::time, std::move(*load_times));
+      delete load_times;
+      Table load_table(load_volts, load_time_axis);
       return load_table;
     }
   }
-  return Table1();
+  return Table();
 }
 
 bool
@@ -617,7 +599,7 @@ CcsCeffDelayCalc::makeWaveformPreamble(const Pin *in_pin,
                                        const RiseFall *in_rf,
                                        const Pin *drvr_pin,
                                        const RiseFall *drvr_rf,
-                                       const Corner *corner,
+                                       const Scene *scene,
                                        const MinMax *min_max)
 {
   Vertex *in_vertex = graph_->pinLoadVertex(in_pin);
@@ -632,7 +614,7 @@ CcsCeffDelayCalc::makeWaveformPreamble(const Pin *in_pin,
       break;
   }
   if (edge) {
-    TimingArc *arc = nullptr;  
+    TimingArc *arc = nullptr;
     for (TimingArc *arc1 : edge->timingArcSet()->arcs()) {
       if (arc1->fromEdge()->asRiseFall() == in_rf
           && arc1->toEdge()->asRiseFall() == drvr_rf) {
@@ -641,15 +623,15 @@ CcsCeffDelayCalc::makeWaveformPreamble(const Pin *in_pin,
       }
     }
     if (arc) {
-      DcalcAnalysisPt *dcalc_ap = corner->findDcalcAnalysisPt(min_max);
-      const Slew &in_slew = graph_->slew(in_vertex, in_rf, dcalc_ap->index());
-      parasitic_ = arc_delay_calc_->findParasitic(drvr_pin, drvr_rf, dcalc_ap);
+      DcalcAPIndex slew_index = scene->dcalcAnalysisPtIndex(min_max);
+      const Slew &in_slew = graph_->slew(in_vertex, in_rf, slew_index);
+      parasitic_ = arc_delay_calc_->findParasitic(drvr_pin, drvr_rf, scene, min_max);
       if (parasitic_) {
         parasitics_->piModel(parasitic_, c2_, rpi_, c1_);
         LoadPinIndexMap load_pin_index_map =
-          graph_delay_calc_->makeLoadPinIndexMap(drvr_vertex);
-        gateDelay(drvr_pin, arc, in_slew, load_cap_, parasitic_,
-                  load_pin_index_map, dcalc_ap);
+            graph_delay_calc_->makeLoadPinIndexMap(drvr_vertex);
+        gateDelay(drvr_pin, arc, in_slew, load_cap_, parasitic_, load_pin_index_map,
+                  scene, min_max);
         return true;
       }
     }
@@ -659,37 +641,36 @@ CcsCeffDelayCalc::makeWaveformPreamble(const Pin *in_pin,
 
 ////////////////////////////////////////////////////////////////
 
-string
+std::string
 CcsCeffDelayCalc::reportGateDelay(const Pin *drvr_pin,
                                   const TimingArc *arc,
                                   const Slew &in_slew,
                                   float load_cap,
                                   const Parasitic *parasitic,
                                   const LoadPinIndexMap &load_pin_index_map,
-                                  const DcalcAnalysisPt *dcalc_ap,
+                                  const Scene *scene,
+                                  const MinMax *min_max,
                                   int digits)
 {
   Parasitic *pi_elmore = nullptr;
   const RiseFall *rf = arc->toEdge()->asRiseFall();
   if (parasitic && !parasitics_->isPiElmore(parasitic)) {
-    const ParasiticAnalysisPt *ap = dcalc_ap->parasiticAnalysisPt();
-    pi_elmore = parasitics_->reduceToPiElmore(parasitic, drvr_pin_, rf,
-                                               dcalc_ap->corner(),
-                                               dcalc_ap->constraintMinMax(), ap);
+    pi_elmore =
+        parasitics_->reduceToPiElmore(parasitic, drvr_pin_, rf, scene, min_max);
   }
-  string report = table_dcalc_->reportGateDelay(drvr_pin, arc, in_slew, load_cap,
-                                                pi_elmore, load_pin_index_map,
-                                                dcalc_ap, digits);
+  std::string report =
+      table_dcalc_->reportGateDelay(drvr_pin, arc, in_slew, load_cap, pi_elmore,
+                                    load_pin_index_map, scene, min_max, digits);
   parasitics_->deleteDrvrReducedParasitics(drvr_pin);
   return report;
 }
 
 void
-CcsCeffDelayCalc::fail(const char *reason)
+CcsCeffDelayCalc::fail(std::string_view reason)
 {
   // Report failures with a unique debug flag.
   if (debug_->check("ccs_dcalc", 1) || debug_->check("dcalc_error", 1))
-    report_->reportLine("delay_calc: CCS failed - %s", reason);
+    report_->report("delay_calc: CCS failed - {}", reason);
 }
 
-} // namespace
+}  // namespace sta

@@ -1,5 +1,5 @@
 // OpenSTA, Static Timing Analyzer
-// Copyright (c) 2025, Parallax Software, Inc.
+// Copyright (c) 2026, Parallax Software, Inc.
 // 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -35,14 +35,14 @@ const float INF = 1E+30F;
 
 static bool
 compareMin(float value1,
-	   float value2)
+           float value2)
 {
   return value1 < value2;
 }
 
 static bool
 compareMax(float value1,
-	   float value2)
+           float value2)
 {
   return value1 > value2;
 }
@@ -52,13 +52,13 @@ compareMax(float value1,
 const MinMax MinMax::min_("min", 0,  INF, std::numeric_limits<int>::max(), compareMin);
 const MinMax MinMax::max_("max", 1, -INF, std::numeric_limits<int>::min(), compareMax);
 const std::array<const MinMax*, 2> MinMax::range_{&min_, &max_};
-const std::array<int, 2> MinMax::range_index_{min_.index(), max_.index()};
+const std::array<size_t, 2> MinMax::range_index_{min_.index(), max_.index()};
 
-MinMax::MinMax(const char *name,
-	       int index,
-	       float init_value,
+MinMax::MinMax(std::string_view name,
+               size_t index,
+               float init_value,
                int init_value_int,
-	       bool (*compare)(float value1, float value2)) :
+               bool (*compare)(float value1, float value2)) :
   name_(name),
   index_(index),
   init_value_(init_value),
@@ -86,20 +86,20 @@ MinMax::opposite() const
 }
 
 const MinMax *
-MinMax::find(const char *min_max)
+MinMax::find(std::string_view min_max)
 {
-  if (stringEq(min_max, "min")
-      || stringEq(min_max, "early"))
+  if (stringEqual(min_max, "min")
+      || stringEqual(min_max, "early"))
     return &min_;
-  else if (stringEq(min_max, "max")
-	   || stringEq(min_max, "late"))
+  else if (stringEqual(min_max, "max")
+           || stringEqual(min_max, "late"))
     return &max_;
   else
     return nullptr;
 }
 
 const MinMax *
-MinMax::find(int index)
+MinMax::find(size_t index)
 {
   if (index == min_.index())
     return &min_;
@@ -111,14 +111,14 @@ MinMax::find(int index)
 
 bool
 MinMax::compare(float value1,
-		float value2) const
+                float value2) const
 {
   return compare_(value1, value2);
 }
 
 float
 MinMax::minMax(float value1,
-	       float value2) const
+               float value2) const
 {
   if (compare_(value1, value2))
     return value1;
@@ -131,12 +131,12 @@ MinMax::minMax(float value1,
 const MinMaxAll MinMaxAll::min_("min", 0, {MinMax::min()}, {MinMax::min()->index()});
 const MinMaxAll MinMaxAll::max_("max", 1, {MinMax::max()}, {MinMax::max()->index()});
 const MinMaxAll MinMaxAll::all_("all", 2, {MinMax::min(), MinMax::max()},
-			  {MinMax::min()->index(), MinMax::max()->index()});
+                          {MinMax::min()->index(), MinMax::max()->index()});
 
-MinMaxAll::MinMaxAll(const char *name,
-		     int index,
-		     std::vector<const MinMax*> range,
-		     std::vector<int> range_index) :
+MinMaxAll::MinMaxAll(std::string_view name,
+                     size_t index,
+                     const std::vector<const MinMax*> &range,
+                     const std::vector<size_t> &range_index) :
   name_(name),
   index_(index),
   range_(range),
@@ -168,18 +168,18 @@ MinMaxAll::matches(const MinMaxAll *min_max) const
 const MinMaxAll *
 MinMaxAll::find(const char *min_max)
 {
-  if (stringEq(min_max, "min")
-      || stringEq(min_max, "early"))
+  if (stringEqual(min_max, "min")
+      || stringEqual(min_max, "early"))
     return &min_;
-  else if (stringEq(min_max, "max")
-	   || stringEq(min_max, "late"))
+  else if (stringEqual(min_max, "max")
+           || stringEqual(min_max, "late"))
     return &max_;
-  else if (stringEq(min_max, "all")
-	   || stringEq(min_max, "min_max")
-	   || stringEq(min_max, "minmax"))
+  else if (stringEqual(min_max, "all")
+           || stringEqual(min_max, "min_max")
+           || stringEqual(min_max, "minmax"))
     return &all_;
   else
     return nullptr;
 }
 
-} // namespace
+} // namespace sta

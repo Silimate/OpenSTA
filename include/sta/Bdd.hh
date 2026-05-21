@@ -1,5 +1,5 @@
 // OpenSTA, Static Timing Analyzer
-// Copyright (c) 2025, Parallax Software, Inc.
+// Copyright (c) 2026, Parallax Software, Inc.
 // 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -26,22 +26,22 @@
 
 #include <map>
 
-#include "StaState.hh"
 #include "LibertyClass.hh"
+#include "StaState.hh"
 
 struct DdNode;
 struct DdManager;
 
 namespace sta {
 
-typedef std::map<const LibertyPort*, DdNode*, LibertyPortLess> BddPortVarMap;
-typedef std::map<unsigned, const LibertyPort*> BddVarIdxPortMap;
+using BddPortVarMap = std::map<const LibertyPort*, DdNode*, LibertyPortLess>;
+using BddVarIdxPortMap = std::map<unsigned, const LibertyPort*>;
 
 class Bdd : public StaState
 {
 public:
   Bdd(const StaState *sta);
-  ~Bdd();
+  ~Bdd() override;
   DdNode *funcBdd(const FuncExpr *expr);
   DdNode *findNode(const LibertyPort *port);
   const LibertyPort *nodePort(DdNode *node);
@@ -58,4 +58,4 @@ private:
   BddVarIdxPortMap bdd_var_idx_port_map_;
 };
 
-} // namespace
+} // namespace sta

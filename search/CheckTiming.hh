@@ -1,5 +1,5 @@
 // OpenSTA, Static Timing Analyzer
-// Copyright (c) 2025, Parallax Software, Inc.
+// Copyright (c) 2026, Parallax Software, Inc.
 // 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -24,30 +24,36 @@
 
 #pragma once
 
-#include "Vector.hh"
-#include "StringSeq.hh"
-#include "NetworkClass.hh"
+#include <string_view>
+#include <vector>
+
 #include "GraphClass.hh"
+#include "Mode.hh"
+#include "NetworkClass.hh"
 #include "SdcClass.hh"
 #include "StaState.hh"
+#include "StringUtil.hh"
 
 namespace sta {
 
-typedef StringSeq CheckError;
-typedef Vector<CheckError*> CheckErrorSeq;
+class ClkNetwork;
+
+using CheckError = StringSeq;
+using CheckErrorSeq = std::vector<CheckError*>;
 
 class CheckTiming : public StaState
 {
 public:
-  explicit CheckTiming(StaState *sta);
-  ~CheckTiming();
-  CheckErrorSeq &check(bool no_input_delay,
-		       bool no_output_delay,
-		       bool reg_multiple_clks,
-		       bool reg_no_clks,
-		       bool unconstrained_endpoints,
-		       bool loops,
-		       bool generated_clks);
+  CheckTiming(StaState *sta);
+  ~CheckTiming() override;
+  CheckErrorSeq &check(const Mode *mode,
+                       bool no_input_delay,
+                       bool no_output_delay,
+                       bool reg_multiple_clks,
+                       bool reg_no_clks,
+                       bool unconstrained_endpoints,
+                       bool loops,
+                       bool generated_clks);
 
 protected:
   void clear();
@@ -55,10 +61,10 @@ protected:
   void checkNoInputDelay();
   void checkNoOutputDelay();
   void checkRegClks(bool reg_multiple_clks,
-		    bool reg_no_clks);
+                    bool reg_no_clks);
   void checkUnconstrainedEndpoints();
   bool hasClkedArrival(Vertex *vertex);
-  void checkNoOutputDelay(PinSet &ends);
+  void checkNoOutputDelay(PinSet &no_departure);
   void checkUnconstrainedOutputs(PinSet &unconstrained_ends);
   void checkUnconstrainedSetups(PinSet &unconstrained_ends);
   void checkLoops();
@@ -66,15 +72,16 @@ protected:
   bool hasClkedCheck(Vertex *vertex);
   bool hasMaxDelay(Pin *pin);
   void checkGeneratedClocks();
-  void pushPinErrors(const char *msg,
-		     PinSet &pins);
+  void pushPinErrors(std::string_view msg,
+                     PinSet &pins);
   void pushClkErrors(const char *msg,
-		     ClockSet &clks);
-  void errorMsgSubst(const char *msg,
-		     int count,
-		     std::string &error_msg);
+                     ClockSet &clks);
 
   CheckErrorSeq errors_;
+  const Mode *mode_{nullptr};
+  const Sdc *sdc_{nullptr};
+  const Sim *sim_{nullptr};
+  const ClkNetwork *clk_network_{nullptr};
 };
 
-} // namespace
+} // namespace sta

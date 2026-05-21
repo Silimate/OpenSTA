@@ -1,5 +1,5 @@
 // OpenSTA, Static Timing Analyzer
-// Copyright (c) 2025, Parallax Software, Inc.
+// Copyright (c) 2026, Parallax Software, Inc.
 // 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -55,8 +55,8 @@ enum class StateInternalValue {
 
 class StatetableRow;
 
-typedef std::vector<StateInputValue> StateInputValues;
-typedef std::vector<StateInternalValue> StateInternalValues;
+using StateInputValues = std::vector<StateInputValue>;
+using StateInternalValues = std::vector<StateInternalValue>;
 
 // Register/Latch
 class Sequential
@@ -76,20 +76,24 @@ public:
   LibertyPort *output() const { return output_; }
   LibertyPort *outputInv() const { return output_inv_; }
 
-protected:
   // clock/data are:
   //   clocked_on/next_state for registers
   //   enable/data for latches
   Sequential(bool is_register,
-	     FuncExpr *clock,
-	     FuncExpr *data,
-	     FuncExpr *clear,
-	     FuncExpr *preset,
-	     LogicValue clr_preset_out,
-	     LogicValue clr_preset_out_inv,
-	     LibertyPort *output,
-	     LibertyPort *output_inv);
+             FuncExpr *clock,
+             FuncExpr *data,
+             FuncExpr *clear,
+             FuncExpr *preset,
+             LogicValue clr_preset_out,
+             LogicValue clr_preset_out_inv,
+             LibertyPort *output,
+             LibertyPort *output_inv);
+  Sequential(Sequential &&other) noexcept;
+  Sequential(const Sequential &) = delete;
+  Sequential &operator=(Sequential &&) noexcept;
+  Sequential &operator=(const Sequential &) = delete;
 
+protected:
   bool is_register_;
   FuncExpr *clock_;
   FuncExpr *data_;
@@ -137,4 +141,4 @@ private:
   StateInternalValues next_values_;
 };
 
-} // namespace
+} // namespace sta

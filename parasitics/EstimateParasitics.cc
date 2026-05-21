@@ -1,5 +1,5 @@
 // OpenSTA, Static Timing Analyzer
-// Copyright (c) 2025, Parallax Software, Inc.
+// Copyright (c) 2026, Parallax Software, Inc.
 // 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -24,12 +24,14 @@
 
 #include "EstimateParasitics.hh"
 
-#include "Wireload.hh"
+#include <algorithm>
+
 #include "Liberty.hh"
-#include "PortDirection.hh"
 #include "Network.hh"
-#include "Sdc.hh"
 #include "Parasitics.hh"
+#include "PortDirection.hh"
+#include "Sdc.hh"
+#include "Wireload.hh"
 
 namespace sta {
 
@@ -42,20 +44,21 @@ EstimateParasitics::EstimateParasitics(StaState *sta) :
 // loads when driven by a different pin.
 void
 EstimateParasitics::estimatePiElmore(const Pin *drvr_pin,
-				     const RiseFall *rf,
-				     const Wireload *wireload,
-				     float fanout,
-				     float net_pin_cap,
-				     const Corner *corner,
-				     const MinMax *min_max,
-				     float &c2,
-				     float &rpi,
-				     float &c1,
-				     float &elmore_res,
-				     float &elmore_cap,
-				     bool &elmore_use_load_cap)
+                                     const RiseFall *rf,
+                                     const Wireload *wireload,
+                                     float fanout,
+                                     float net_pin_cap,
+                                     const Scene *scene,
+                                     const MinMax *min_max,
+                                     float &c2,
+                                     float &rpi,
+                                     float &c1,
+                                     float &elmore_res,
+                                     float &elmore_cap,
+                                     bool &elmore_use_load_cap)
 {
-  const OperatingConditions *op_cond = sdc_->operatingConditions(min_max);
+  const Sdc *sdc = scene->sdc();
+  const OperatingConditions *op_cond = sdc->operatingConditions(min_max);
   float wireload_cap, wireload_res;
   wireload->findWireload(fanout, op_cond, wireload_cap, wireload_res);
 
@@ -65,22 +68,22 @@ EstimateParasitics::estimatePiElmore(const Pin *drvr_pin,
   switch (tree) {
   case WireloadTree::worst_case:
     estimatePiElmoreWorst(drvr_pin, wireload_cap, wireload_res,
-			  fanout, net_pin_cap, rf, corner, min_max,
-			  c2, rpi, c1, elmore_res,
-			  elmore_cap, elmore_use_load_cap);
+                          fanout, net_pin_cap, rf, scene, min_max,
+                          c2, rpi, c1, elmore_res,
+                          elmore_cap, elmore_use_load_cap);
     break;
   case WireloadTree::balanced:
   case WireloadTree::unknown:
     estimatePiElmoreBalanced(drvr_pin, wireload_cap, wireload_res,
-			     fanout, net_pin_cap, rf, corner, min_max,
-			     c2, rpi, c1, elmore_res,
-			     elmore_cap, elmore_use_load_cap);
+                             fanout, net_pin_cap, rf, scene, min_max,
+                             c2, rpi, c1, elmore_res,
+                             elmore_cap, elmore_use_load_cap);
     break;
   case WireloadTree::best_case:
     estimatePiElmoreBest(drvr_pin, wireload_cap, net_pin_cap,
-                         rf, corner, min_max,
-			 c2, rpi, c1, elmore_res, elmore_cap,
-			 elmore_use_load_cap);
+                         rf, scene, min_max,
+                         c2, rpi, c1, elmore_res, elmore_cap,
+                         elmore_use_load_cap);
     break;
   }
 }
@@ -88,17 +91,17 @@ EstimateParasitics::estimatePiElmore(const Pin *drvr_pin,
 // No wire resistance, so load is lumped capacitance.
 void
 EstimateParasitics::estimatePiElmoreBest(const Pin *,
-					 float wireload_cap,
-					 float net_pin_cap,
-					 const RiseFall *,
-					 const Corner *,
-					 const MinMax *,
-					 float &c2,
-					 float &rpi,
-					 float &c1,
-					 float &elmore_res,
-					 float &elmore_cap,
-					 bool &elmore_use_load_cap) const
+                                         float wireload_cap,
+                                         float net_pin_cap,
+                                         const RiseFall *,
+                                         const Scene *,
+                                         const MinMax *,
+                                         float &c2,
+                                         float &rpi,
+                                         float &c1,
+                                         float &elmore_res,
+                                         float &elmore_cap,
+                                         bool &elmore_use_load_cap) const
 {
   c2 = wireload_cap + net_pin_cap;
   rpi = 0.0;
@@ -112,22 +115,23 @@ EstimateParasitics::estimatePiElmoreBest(const Pin *,
 // the resistor.
 void
 EstimateParasitics::estimatePiElmoreWorst(const Pin *drvr_pin,
-					  float wireload_cap,
-					  float wireload_res,
-					  float,
-					  float net_pin_cap,
-					  const RiseFall *rf,
-					  const Corner *corner,
-					  const MinMax *min_max,
-					  float &c2,
-					  float &rpi,
-					  float &c1,
-					  float &elmore_res,
-					  float &elmore_cap,
-					  bool &elmore_use_load_cap)
+                                          float wireload_cap,
+                                          float wireload_res,
+                                          float,
+                                          float net_pin_cap,
+                                          const RiseFall *rf,
+                                          const Scene *scene,
+                                          const MinMax *min_max,
+                                          float &c2,
+                                          float &rpi,
+                                          float &c1,
+                                          float &elmore_res,
+                                          float &elmore_cap,
+                                          bool &elmore_use_load_cap)
 {
+  const Sdc *sdc = scene->sdc();
   float drvr_pin_cap = 0.0;
-  drvr_pin_cap = sdc_->pinCapacitance(drvr_pin, rf, corner, min_max);
+  drvr_pin_cap = sdc->pinCapacitance(drvr_pin, rf, scene, min_max);
   c2 = drvr_pin_cap;
   rpi = wireload_res;
   c1 = net_pin_cap - drvr_pin_cap + wireload_cap;
@@ -141,19 +145,19 @@ EstimateParasitics::estimatePiElmoreWorst(const Pin *drvr_pin,
 // Use O'Brien/Savarino reduction to rspf (pi elmore) model.
 void
 EstimateParasitics::estimatePiElmoreBalanced(const Pin *drvr_pin,
-					     float wireload_cap,
-					     float wireload_res,
-					     float fanout,
-					     float net_pin_cap,
-					     const RiseFall *rf,
-					     const Corner *corner,
-					     const MinMax *min_max,
-					     float &c2,
-					     float &rpi,
-					     float &c1,
-					     float &elmore_res,
-					     float &elmore_cap,
-					     bool &elmore_use_load_cap)
+                                             float wireload_cap,
+                                             float wireload_res,
+                                             float fanout,
+                                             float net_pin_cap,
+                                             const RiseFall *rf,
+                                             const Scene *scene,
+                                             const MinMax *min_max,
+                                             float &c2,
+                                             float &rpi,
+                                             float &c1,
+                                             float &elmore_res,
+                                             float &elmore_cap,
+                                             bool &elmore_use_load_cap)
 {
   if (wireload_res == 0.0
       || fanout == 0.0) {
@@ -172,7 +176,8 @@ EstimateParasitics::estimatePiElmoreBalanced(const Pin *drvr_pin,
     double y1 = 0.0;
     double y2 = 0.0;
     double y3 = 0.0;
-    y1 = sdc_->pinCapacitance(drvr_pin, rf, corner, min_max);
+    const Sdc *sdc = scene->sdc();
+    y1 = sdc->pinCapacitance(drvr_pin, rf, scene, min_max);
     PinConnectedPinIterator *load_iter =
       network_->connectedPinIterator(drvr_pin);
     while (load_iter->hasNext()) {
@@ -181,11 +186,11 @@ EstimateParasitics::estimatePiElmoreBalanced(const Pin *drvr_pin,
       double cap = 0.0;
       // Bidirects don't count themselves as loads.
       if (load_pin == drvr_pin)
-        cap = sdc_->portExtCap(port, rf, corner, min_max);
+        cap = sdc->portExtCap(port, rf, min_max);
       else if (network_->isLeaf(load_pin))
-        cap = sdc_->pinCapacitance(load_pin, rf, corner, min_max) + cap_fanout;
+        cap = sdc->pinCapacitance(load_pin, rf, scene, min_max) + cap_fanout;
       else if (network_->isTopLevelPort(load_pin))
-        cap = sdc_->portExtCap(port, rf, corner, min_max) + cap_fanout;
+        cap = sdc->portExtCap(port, rf, min_max) + cap_fanout;
       double y2_ = res_fanout * cap * cap;
       y1 += cap;
       y2 += -y2_;
@@ -202,8 +207,7 @@ EstimateParasitics::estimatePiElmoreBalanced(const Pin *drvr_pin,
     else {
       c1 = static_cast<float>(y2 * y2 / y3);
       c2 = static_cast<float>(y1 - y2 * y2 / y3);
-      if (c2 < 0.0)
-        c2 = 0.0;
+      c2 = std::max(c2, 0.0f);
       rpi = static_cast<float>(-y3 * y3 / (y2 * y2 * y2));
     }
     elmore_res = static_cast<float>(res_fanout);
@@ -212,28 +216,4 @@ EstimateParasitics::estimatePiElmoreBalanced(const Pin *drvr_pin,
   }
 }
 
-#if 0
-static void
-selectWireload(Network *network)
-{
-  // Look for a default wireload selection group.
-  WireloadSelection *selection;
-  float area = instanceArea(network->topInstance(), network);
-  Wireload *wireload = selection->findWireload(area);
-}
-
-static float
-instanceArea(Instance *inst,
-	     Network *network)
-{
-  float area = 0.0;
-  LeafInstanceIterator *inst_iter = network->leafInstanceIterator();
-  while (network->hasNext(inst_iter)) {
-    Instance *leaf = network->next(inst_iter);
-    area += network->cell(leaf)->area();
-  }
-  return area;
-}
-#endif
-
-} // namespace
+} // namespace sta

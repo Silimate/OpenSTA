@@ -1,5 +1,5 @@
 // OpenSTA, Static Timing Analyzer
-// Copyright (c) 2025, Parallax Software, Inc.
+// Copyright (c) 2026, Parallax Software, Inc.
 // 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -24,8 +24,8 @@
 
 #pragma once
 
-#include <vector>
 #include <map>
+#include <vector>
 
 #include "DelayCalcBase.hh"
 
@@ -38,11 +38,13 @@ public:
   ParallelDelayCalc(StaState *sta);
   ArcDcalcResultSeq gateDelays(ArcDcalcArgSeq &dcalc_args,
                                const LoadPinIndexMap &load_pin_index_map,
-                               const DcalcAnalysisPt *dcalc_ap) override;
+                               const Scene *scene,
+                               const MinMax *min_max) override;
 protected:
   ArcDcalcResultSeq gateDelaysParallel(ArcDcalcArgSeq &dcalc_args,
                                        const LoadPinIndexMap &load_pin_index_map,
-                                       const DcalcAnalysisPt *dcalc_ap);
+                                       const Scene *scene,
+                                       const MinMax *min_max);
 };
 
-} // namespace
+} // namespace sta

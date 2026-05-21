@@ -1,5 +1,5 @@
 // OpenSTA, Static Timing Analyzer
-// Copyright (c) 2025, Parallax Software, Inc.
+// Copyright (c) 2026, Parallax Software, Inc.
 // 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -24,6 +24,8 @@
 
 #include "InputDrive.hh"
 
+#include "SdcClass.hh"
+
 namespace sta {
 
 InputDrive::InputDrive()
@@ -46,25 +48,25 @@ InputDrive::~InputDrive()
 
 void
 InputDrive::setSlew(const RiseFallBoth *rf,
-		    const MinMaxAll *min_max,
-		    float slew)
+                    const MinMaxAll *min_max,
+                    float slew)
 {
   slews_.setValue(rf, min_max, slew);
 }
 
 void
 InputDrive::setDriveResistance(const RiseFallBoth *rf,
-			       const MinMaxAll *min_max,
-			       float res)
+                               const MinMaxAll *min_max,
+                               float res)
 {
   drive_resistances_.setValue(rf, min_max, res);
 }
 
 void
 InputDrive::driveResistance(const RiseFall *rf,
-			    const MinMax *min_max,
-			    float &res,
-			    bool &exists) const
+                            const MinMax *min_max,
+                            float &res,
+                            bool &exists) const
 {
   drive_resistances_.value(rf, min_max, res, exists);
 }
@@ -88,27 +90,27 @@ InputDrive::driveResistanceMinMaxEqual(const RiseFall *rf) const
 
 void
 InputDrive::setDriveCell(const LibertyLibrary *library,
-			 const LibertyCell *cell,
-			 const LibertyPort *from_port,
-			 float *from_slews,
-			 const LibertyPort *to_port,
-			 const RiseFallBoth *rf,
-			 const MinMaxAll *min_max)
+                         const LibertyCell *cell,
+                         const LibertyPort *from_port,
+                         const DriveCellSlews &from_slews,
+                         const LibertyPort *to_port,
+                         const RiseFallBoth *rf,
+                         const MinMaxAll *min_max)
 {
   for (auto rf_index : rf->rangeIndex()) {
     for (auto mm_index : min_max->rangeIndex()) {
       InputDriveCell *drive = drive_cells_[rf_index][mm_index];
       if (drive) {
-	drive->setLibrary(library);
-	drive->setCell(cell);
-	drive->setFromPort(from_port);
-	drive->setFromSlews(from_slews);
-	drive->setToPort(to_port);
+        drive->setLibrary(library);
+        drive->setCell(cell);
+        drive->setFromPort(from_port);
+        drive->setFromSlews(from_slews);
+        drive->setToPort(to_port);
       }
       else {
-	drive = new InputDriveCell(library, cell, from_port,
-				   from_slews, to_port);
-	drive_cells_[rf_index][mm_index] = drive;
+        drive = new InputDriveCell(library, cell, from_port,
+                                   from_slews, to_port);
+        drive_cells_[rf_index][mm_index] = drive;
       }
     }
   }
@@ -116,38 +118,39 @@ InputDrive::setDriveCell(const LibertyLibrary *library,
 
 void
 InputDrive::driveCell(const RiseFall *rf,
-		      const MinMax *min_max,
+                      const MinMax *min_max,
                       // Return values.
-		      const LibertyCell *&cell,
-		      const LibertyPort *&from_port,
-		      float *&from_slews,
-		      const LibertyPort *&to_port) const
+                      const LibertyCell *&cell,
+                      const LibertyPort *&from_port,
+                      const DriveCellSlews *&from_slews,
+                      const LibertyPort *&to_port) const
 {
   InputDriveCell *drive = drive_cells_[rf->index()][min_max->index()];
   if (drive) {
     cell = drive->cell();
     from_port = drive->fromPort();
-    from_slews = drive->fromSlews();
+    from_slews = &drive->fromSlews();
     to_port = drive->toPort();
   }
   else {
     cell = nullptr;
     from_port = nullptr;
-    from_slews = nullptr;
+    static constexpr DriveCellSlews slews_zero{0.0, 0.0};
+    from_slews = &slews_zero;
     to_port = nullptr;
   }
 }
 
 InputDriveCell *
 InputDrive::driveCell(const RiseFall *rf,
-		      const MinMax *min_max) const
+                      const MinMax *min_max) const
 {
   return drive_cells_[rf->index()][min_max->index()];
 }
 
 bool
 InputDrive::hasDriveCell(const RiseFall *rf,
-			 const MinMax *min_max) const
+                         const MinMax *min_max) const
 {
   return drive_cells_[rf->index()][min_max->index()] != nullptr;
 }
@@ -170,9 +173,9 @@ InputDrive::driveCellsEqual() const
 
 void
 InputDrive::slew(const RiseFall *rf,
-		 const MinMax *min_max,
-		 float &slew,
-		 bool &exists) const
+                 const MinMax *min_max,
+                 float &slew,
+                 bool &exists) const
 {
   slews_.value(rf, min_max, slew, exists);
 }
@@ -180,16 +183,16 @@ InputDrive::slew(const RiseFall *rf,
 ////////////////////////////////////////////////////////////////
 
 InputDriveCell::InputDriveCell(const LibertyLibrary *library,
-			       const LibertyCell *cell,
-			       const LibertyPort *from_port,
-			       float *from_slews,
-			       const LibertyPort *to_port) :
+                               const LibertyCell *cell,
+                               const LibertyPort *from_port,
+                               const DriveCellSlews &from_slews,
+                               const LibertyPort *to_port) :
   library_(library),
   cell_(cell),
   from_port_(from_port),
+  from_slews_(from_slews),
   to_port_(to_port)
 {
-  setFromSlews(from_slews);
 }
 
 void
@@ -217,10 +220,9 @@ InputDriveCell::setToPort(const LibertyPort *to_port)
 }
 
 void
-InputDriveCell::setFromSlews(float *from_slews)
+InputDriveCell::setFromSlews(const DriveCellSlews &from_slews)
 {
-  for (auto rf_index : RiseFall::rangeIndex())
-    from_slews_[rf_index] = from_slews[rf_index];
+  from_slews_ = from_slews;
 }
 
 bool
@@ -235,4 +237,4 @@ InputDriveCell::equal(const InputDriveCell *drive) const
     && to_port_ == drive->to_port_;
 }
 
-} // namespace
+} // namespace sta

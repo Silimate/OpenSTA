@@ -1,5 +1,5 @@
 // OpenSTA, Static Timing Analyzer
-// Copyright (c) 2025, Parallax Software, Inc.
+// Copyright (c) 2026, Parallax Software, Inc.
 // 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -24,6 +24,9 @@
 
 #pragma once
 
+#include <string>
+#include <string_view>
+
 namespace sta {
 
 class Report;
@@ -34,31 +37,29 @@ class LibExprScanner;
 class LibExprReader
 {
 public:
-  LibExprReader(const char *func,
-		LibertyCell *cell,
-		const char *error_msg,
-		Report *report);
-  FuncExpr *makeFuncExprPort(const char *port_name);
+  LibExprReader(std::string_view func,
+                const LibertyCell *cell,
+                std::string_view error_msg,
+                Report *report);
+  FuncExpr *makeFuncExprPort(std::string &&port_name);
   FuncExpr *makeFuncExprOr(FuncExpr *arg1,
-			   FuncExpr *arg2);
+                           FuncExpr *arg2);
   FuncExpr *makeFuncExprAnd(FuncExpr *arg1,
-			    FuncExpr *arg2);
+                            FuncExpr *arg2);
   FuncExpr *makeFuncExprXor(FuncExpr *arg1,
-			    FuncExpr *arg2);
+                            FuncExpr *arg2);
   FuncExpr *makeFuncExprNot(FuncExpr *arg);
   void setResult(FuncExpr *result);
   FuncExpr *result() { return result_; }
-  void parseError(const char *msg);
-  size_t copyInput(char *buf,
-		   size_t max_size);
+  void parseError(std::string_view msg);
   Report *report() const { return report_; }
 
 private:
-  const char *func_;
-  LibertyCell *cell_;
-  const char *error_msg_;
+  std::string_view func_;
+  const LibertyCell *cell_;
+  std::string_view error_msg_;
   Report *report_;
-  FuncExpr *result_;
+  FuncExpr *result_{nullptr};
 };
 
-} // namespace
+} // namespace sta

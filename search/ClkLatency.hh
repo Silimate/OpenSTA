@@ -1,5 +1,5 @@
 // OpenSTA, Static Timing Analyzer
-// Copyright (c) 2025, Parallax Software, Inc.
+// Copyright (c) 2026, Parallax Software, Inc.
 // 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -26,16 +26,15 @@
 
 #include <map>
 
-#include "SdcClass.hh"
-#include "StaState.hh"
-#include "Transition.hh"
-#include "SearchClass.hh"
-#include "Path.hh"
 #include "ClkDelays.hh"
+#include "SdcClass.hh"
+#include "Scene.hh"
+#include "SearchClass.hh"
+#include "StaState.hh"
 
 namespace sta {
 
-typedef std::map<const Clock*, ClkDelays> ClkDelayMap;
+using ClkDelayMap = std::map<const Clock*, ClkDelays>;
 
 // Find and report clock skews between source/target registers.
 class ClkLatency : public StaState
@@ -44,20 +43,20 @@ public:
   ClkLatency(StaState *sta);
   // Report clk latency for clks.
   void reportClkLatency(ConstClockSeq &clks,
-                        const Corner *corner,
+                        const SceneSeq &scenes,
                         bool include_internal_latency,
                         int digits);
   ClkDelays findClkDelays(const Clock *clk,
-                          const Corner *corner,
+                          const Scene *scene,
                           bool include_internal_latency);
   
 protected:
   ClkDelayMap findClkDelays(ConstClockSeq &clks,
-                            const Corner *corner,
+                            const SceneSet &scenes,
                             bool include_internal_latency);
   void reportClkLatency(const Clock *clk,
                         ClkDelays &clk_delays,
                         int digits);
 };
     
-} // namespace
+} // namespace sta

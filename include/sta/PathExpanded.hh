@@ -1,5 +1,5 @@
 // OpenSTA, Static Timing Analyzer
-// Copyright (c) 2025, Parallax Software, Inc.
+// Copyright (c) 2026, Parallax Software, Inc.
 // 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -24,11 +24,11 @@
 
 #pragma once
 
-#include "TimingArc.hh"
 #include "GraphClass.hh"
-#include "SearchClass.hh"
 #include "Path.hh"
+#include "SearchClass.hh"
 #include "StaState.hh"
+#include "TimingArc.hh"
 
 namespace sta {
 
@@ -38,13 +38,13 @@ public:
   PathExpanded(const StaState *sta);
   // Expand path for lookup by index.
   PathExpanded(const Path *path,
-	       const StaState *sta);
+               const StaState *sta);
   PathExpanded(const Path *path,
-	       // Expand generated clk source paths.
-	       bool expand_genclks,
-	       const StaState *sta);
+               // Expand generated clk source paths.
+               bool expand_genclks,
+               const StaState *sta);
   void expand(const Path *path,
-	      bool expand_genclks);
+              bool expand_genclks);
   size_t size() const { return paths_.size(); }
   // path(0) is the startpoint.
   // path(size()-1) is the endpoint.
@@ -59,9 +59,9 @@ public:
   size_t startIndex() const;
   const Path *clkPath() const;
   void latchPaths(// Return values.
-		  const Path *&d_path,
-		  const Path *&q_path,
-		  Edge *&d_q_edge) const;
+                  const Path *&d_path,
+                  const Path *&q_path,
+                  Edge *&d_q_edge) const;
 
 protected:
   void expandGenclk(const Path *clk_path);
@@ -78,4 +78,4 @@ protected:
   const StaState *sta_;
 };
 
-} // namespace
+} // namespace sta
