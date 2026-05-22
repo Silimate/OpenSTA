@@ -46,3 +46,21 @@ set_path_margin -setup 3.0 -through [get_pins u1/Z]
 setup_at -from [get_pins r1/CK] -to [get_pins r3/D]
 # Should see path margin.
 setup_at -from [get_pins r2/CK] -to [get_pins r3/D]
+
+# Test a clock-scoped startpoint.
+reset_path -from [get_pins r1/CK]
+reset_path -through [get_pins u1/Z]
+set_path_margin -setup 4.0 -from [get_clocks clk]
+# Should see path margin on the clock.
+setup_at -from [get_pins r1/CK] -to [get_pins r3/D]
+setup_at -from [get_pins r2/CK] -to [get_pins r3/D]
+
+# Test -from, -through, and -to.
+reset_path -from [get_clocks clk]
+set_path_margin -setup 6.0 -from [get_pins r1/CK] \
+                           -through [get_pins u2/A1] \
+                           -to [get_pins r3/D]
+# Should see path margin.
+setup_at -from [get_pins r1/CK] -to [get_pins r3/D]
+# Should not see path margin.
+setup_at -from [get_pins r2/CK] -to [get_pins r3/D]
