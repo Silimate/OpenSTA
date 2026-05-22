@@ -709,23 +709,17 @@ PathEndClkConstrained::targetClkUncertainty(const StaState *sta) const
 float
 PathEndClkConstrained::targetClkPathMargin(const StaState *sta) const
 {
-  const Sdc *sdc = sta->sdc();
-  const TimingRole *role = checkRole(sta);
-  ExceptionPath *exception = nullptr;
-  int hi_priority_exception = -1;
-  // Look up a path margin for the target
-  sdc->exceptionTo(ExceptionPathType::path_margin,
-                   path_->pin(sta),
-                   path_->transition(sta),
-                   targetClkEdge(sta),
-                   role->pathMinMax(),
-                   false,
-                   exception, hi_priority_exception);
-  if (!exception) // no path margin found
+  ExceptionPath *exception =
+    sta->search()->exceptionTo(ExceptionPathType::path_margin,
+                               path_, path_->pin(sta),
+                               path_->transition(sta),
+                               targetClkEdge(sta),
+                               checkRole(sta)->pathMinMax(),
+                               false, false);
+  if (!exception)
     return 0.0;
   float margin = exception->margin();
-  // Setup time margin is sign-flipped
-  if (role->genericRole() == TimingRole::setup())
+  if (checkRole(sta)->genericRole() == TimingRole::setup())
     margin = -margin;
   return margin;
 }
