@@ -1561,8 +1561,8 @@ VerilogReader::makeGeneratedClocks(LibertyCell *lib_cell, Instance *inst)
       // containing the generated clock definition
       network_->addGeneratedClockPinToCell(pinPath.c_str(), lib_cell);
 
-      debugPrint(debug_, "libgenclk", 1, "Adding generated clock pin %s "
-        "to liberty cell %s for instance %s", 
+      debugPrint(debug_, "libgenclk", 1, "Adding generated clock pin {} "
+        "to liberty cell {} for instance {}",
         pinPath, lib_cell->name(), inst_path);
     }
   }

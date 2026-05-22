@@ -219,14 +219,14 @@ VcdCountReader::setTimeUnit(std::string_view ,
 void
 VcdCountReader::setTimeMin(VcdTime time)
 {
-  debugPrint(debug_, "read_vcd", 1, "setTimeMin called with time %" PRIu64, time);
+  debugPrint(debug_, "read_vcd", 1, "setTimeMin called with time {}", time);
   time_min_ = time;
 }
 
 void
 VcdCountReader::setTimeMax(VcdTime time)
 {
-  debugPrint(debug_, "read_vcd", 1, "setTimeMax called with time %" PRIu64, time);
+  debugPrint(debug_, "read_vcd", 1, "setTimeMax called with time {}", time);
   time_max_ = time;
 }
 

@@ -1362,7 +1362,7 @@ Power::findOutputInternalPower(const LibertyPort *to_port,
     }
     float port_internal = weight * energy * to_activity.density();
     float avg_arc_internal = energy * to_activity.density();
-    debugPrint(debug_, "power", 2,  "%3s -> %-3s %6s  %.3f %.3f %.3f %9.2e %9.2e %s",
+    debugPrint(debug_, "power", 2,  "{:>3} -> {:<3} {:>6}  {:.3f} {:.3f} {:.3f} {:9.2e} {:9.2e} {}",
                from_scene_port ? from_scene_port->name() : "-" ,
                to_port->name(),
                when ? when->to_string().c_str() : "",
