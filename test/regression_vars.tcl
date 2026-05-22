@@ -143,6 +143,7 @@ record_example_tests {
 record_public_tests {
   collections
   delay_calc_no_inv
+  disable_clock_gating_check
   disconnect_mcp_pin
   extras
   filter_expr_defined
@@ -167,6 +168,7 @@ record_public_tests {
   liberty_float_as_str
   liberty_latch3
   liberty_write_escaped_names
+  non_seq_timing
   lib_cell_props
   package_require
   path_group_names

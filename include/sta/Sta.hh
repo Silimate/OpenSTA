@@ -587,6 +587,10 @@ public:
                                      Sdc *sdc);
   void removeDisableClockGatingCheck(Pin *pin,
                                      Sdc *sdc);
+  void disableClockGatingCheck(LibertyCell *cell,
+                               Sdc *sdc);
+  void removeDisableClockGatingCheck(LibertyCell *cell,
+                                     Sdc *sdc);
   void setLogicValue(Pin *pin,
                      LogicValue value,
                      Mode *mode);
@@ -764,6 +768,7 @@ public:
 
   // Registers whose clock pin is in the fanout of an ICG cell
   InstanceSeq clockGatedRegisters(const Mode *mode);
+  bool isClkGatedRegister(const Instance *inst);
 
   // The set of clocks that arrive at vertex in the clock network.
   ClockSet clocks(const Pin *pin,

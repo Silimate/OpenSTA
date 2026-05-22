@@ -27,6 +27,7 @@
 #include <atomic>
 #include <mutex>
 #include <unordered_set>
+#include <vector>
 
 #include "Delay.hh"
 #include "GraphClass.hh"
@@ -201,6 +202,11 @@ public:
 
   // Find arrivals for the clock tree.
   void findClkArrivals();
+  bool isClkGated(const Vertex *vertex) const;
+  void updateClkGates(Vertex *vertex);
+  void computeClkGates();
+  bool isClkGateVertex(Vertex *vertex);
+  void seedArrival(Vertex *vertex);
   EvalPred *evalPred() const { return eval_pred_; }
   SearchPred *searchAdj() const { return search_thru_; }
   Tag *tag(TagIndex index) const;
@@ -596,6 +602,10 @@ protected:
   SearchAdj *search_adj_;
   EvalPred *eval_pred_;
 
+  // Clock arrivals are known.
+  bool clk_arrivals_valid_;
+  // Per-vertex cache of whether the vertex is clock gated.
+  std::vector<char> clk_gated_;
   // Some arrivals exist.
   bool arrivals_exist_{false};
   // Arrivals at start points have been initialized.

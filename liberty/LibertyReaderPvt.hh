@@ -356,11 +356,25 @@ protected:
                       LibertyPort *related_out_port,
                       bool one_to_one,
                       const TimingArcAttrsPtr &timing_attrs,
-                      int timing_line);
+                      const LibertyGroup *timing_group);
   void makeTimingArcs(LibertyCell *cell,
                       LibertyPort *to_port,
                       LibertyPort *related_out_port,
                       const TimingArcAttrsPtr &timing_attrs);
+
+  std::unordered_map<LibertyPort*, std::vector<const LibertyGroup*>> bit_overrides_;
+  bool relatedPinIncludesPort(LibertyCell *cell,
+                              const LibertyGroup *timing_group,
+                              LibertyPort *from_port,
+                              int line);
+  bool sameArcIdentity(LibertyCell *cell,
+                       const LibertyGroup *pin_timing,
+                       const LibertyGroup *bus_timing,
+                       LibertyPort *from_port);
+  bool hasBitPinTimingOverride(LibertyCell *cell,
+                               LibertyPort *to_port_bit,
+                               LibertyPort *from_port,
+                               const LibertyGroup *bus_timing);
 
   void readInternalPowerGroups(LibertyCell *cell,
                                const LibertyPortSeq &ports,

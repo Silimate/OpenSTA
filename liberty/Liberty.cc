@@ -1122,7 +1122,9 @@ LibertyCell::isClockGateOther() const
 bool
 LibertyCell::isClockGate() const
 {
-  return clock_gate_type_ != ClockGateType::none;
+  return clock_gate_type_ != ClockGateType::none
+    && has_clk_gate_clk_pin_
+    && has_clk_gate_enable_pin_;
 }
 
 void

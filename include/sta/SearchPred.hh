@@ -118,6 +118,9 @@ public:
                   const Mode *mode) const override;
   bool searchThru(Edge *edge,
                   const Mode *mode) const override;
+  using SearchPred::searchFrom;
+  using SearchPred::searchThru;
+  using SearchPred::searchTo;
   // The variable part of searchThru used by descendents.
   virtual bool searchThruAllow(const TimingRole *role) const;
   bool searchTo(const Vertex *to_vertex,

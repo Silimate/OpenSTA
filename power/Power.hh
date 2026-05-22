@@ -129,6 +129,7 @@ public:
   float clockMinPeriod(const Sdc *sdc);
   float clockMinPeriod();
   void powerInvalid();
+  PwrActivity inputActivity() const { return input_activity_; }
 
 protected:
   PwrActivity &activity(const Pin *pin);
