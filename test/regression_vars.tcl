@@ -183,6 +183,7 @@ record_public_tests {
   power_json
   prima3
   report_checks_sorted
+  set_path_margin
   report_checks_src_attr
   report_json1
   report_json2
