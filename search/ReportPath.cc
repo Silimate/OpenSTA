@@ -407,7 +407,11 @@ ReportPath::reportPathEnds(const PathEndSeq *ends) const
 
     end_iter = ends->begin();
 
-    // Reiterate to maintain order; also filter delays
+    // Second filtering pass: create final list with order preserved, optionally
+    // also filtered by delay
+    PathEndSeq filtered;
+    filtered.reserve(qualified_endpoints.size());
+
     std::set<Delay> found_delays;
     while (end_iter != end_iter_end) {
       PathEnd *end = *end_iter++;
@@ -416,11 +420,20 @@ ReportPath::reportPathEnds(const PathEndSeq *ends) const
         (!qualified_endpoints.size() || qualified_endpoints.count(end)) &&
         (!dedup_same_delay_ || !found_delays.count(end_delay))
       ) {
-          reportPathEnd(end, prev_end, end_iter == end_iter_end);
-          found_delays.insert(end_delay);
-          prev_end = end;
+        filtered.push_back(end);
+        found_delays.insert(end_delay);
+        prev_end = end;
       }
-    } 
+    }
+
+    // Report final list
+    end_iter = filtered.begin();
+    end_iter_end = filtered.end();
+    prev_end = nullptr;
+    while (end_iter != end_iter_end) {
+      PathEnd *end = *end_iter++;
+      reportPathEnd(end, prev_end, end_iter == end_iter_end);
+    }
   }
   else {
     if (format_ != ReportPathFormat::json)

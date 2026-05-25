@@ -5592,8 +5592,7 @@ pinInstances(PinSet &pins,
   return insts;
 }
 
-InstanceSeq Sta::clockGatedRegisters(const Mode *mode) {
-  Network* network = this->network();
+InstanceSeq Sta::clockGatedRegisters() {
   InstanceSeq result;
 
   // Find all leaf registers

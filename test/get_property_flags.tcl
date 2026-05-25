@@ -26,7 +26,9 @@ puts "get_ports 2"
 report_object_full_names [get_ports -filter direction==output *]
 
 # Default property settings (sta_boolean_props_as_int=1, sta_direction_props_short=0)
-# Incompatible property values used: will return empty lists
+# Incompatible property values used:
+# - booleans: starting OpenSTA 3.0, will be translated to 1/0 automatically
+# - directions: return empty lists
 puts "TEST 2"
 puts "get_clocks"
 report_object_full_names [get_clocks -filter is_virtual==false *]
@@ -46,7 +48,9 @@ puts "get_ports 2"
 report_object_full_names [get_ports -filter direction==out *]
 
 # Non-default property settings (sta_boolean_props_as_int=0, sta_direction_props_short=1)
-# Incompatible property values used: will return empty lists
+# Incompatible property values used:
+# - booleans: starting OpenSTA 3.0, will be translated to true/false automatically
+# - directions: return empty lists
 set sta_boolean_props_as_int 0
 set sta_direction_props_short 1
 puts "TEST 3"

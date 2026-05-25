@@ -86,6 +86,8 @@ public:
   // Format report_path_endpoint only:
   //   Previous path end is used to:
   //   - detect path group changes so headers are reported by group.
+  //   Last is used to:
+  //   - If set to true, a comma is not emitted after in JSON mode.
   void reportPathEnd(const PathEnd *end,
                      const PathEnd *prev_end,
                      bool last) const;

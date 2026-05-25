@@ -50,9 +50,15 @@ get_ports
 get_ports 2
 TEST 3
 get_clocks
+clk
 get_clocks 2
+vclk
 get_lib_cells
+asap7_small/BUFx2_ASAP7_75t_R
 get_lib_cells 2
+asap7_small/AND2x2_ASAP7_75t_R
+asap7_small/BUFx2_ASAP7_75t_R
+asap7_small/DFFHQx4_ASAP7_75t_R
 get_pins
 get_pins 2
 get_ports

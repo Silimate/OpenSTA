@@ -767,7 +767,7 @@ public:
                       const Mode *mode);
 
   // Registers whose clock pin is in the fanout of an ICG cell
-  InstanceSeq clockGatedRegisters(const Mode *mode);
+  InstanceSeq clockGatedRegisters();
   bool isClkGatedRegister(const Instance *inst);
 
   // The set of clocks that arrive at vertex in the clock network.

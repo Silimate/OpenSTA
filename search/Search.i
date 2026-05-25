@@ -953,8 +953,7 @@ InstanceSeq
 clock_gated_registers()
 {
   Sta *sta = Sta::sta();
-  const Mode *mode = sta->cmdMode();
-  return sta->clockGatedRegisters(mode);
+  return sta->clockGatedRegisters();
 }
 
 ////////////////////////////////////////////////////////////////

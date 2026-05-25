@@ -280,12 +280,22 @@ filterObjects(std::string_view property,
   for (T *object : all) {
     PropertyValue value = properties.getProperty(object, property);
     std::string prop = value.to_string(network);
-    if (value.type() == PropertyValue::Type::bool_
-        && sta->booleanPropsAsInt()) {
-      if (stringEqual(pattern, "true"))
-        pattern = "1";
-      else if (stringEqual(pattern, "false"))
-        pattern = "0";
+
+    // normalize boolean props
+    if (value.type() == PropertyValue::Type::bool_) {
+      if (sta->booleanPropsAsInt()) {
+        if (stringEqual(pattern, "true")) {
+          pattern = "1";
+        } else if (stringEqual(pattern, "false")) {
+          pattern = "0";
+        }
+      } else {
+        if (stringEqual(pattern, "1")) {
+          pattern = "true";
+        } else if (stringEqual(pattern, "0")) {
+          pattern = "false";
+        }
+      }
     }
     if ((exact_match && prop == pattern)
         || (not_match && prop != pattern)

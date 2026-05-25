@@ -39,7 +39,7 @@ find_objects_complete(SEQ_TYPE *collection,
 {
   collection = collection ? new SEQ_TYPE(*collection) : new SEQ_TYPE();
   auto sta = Sta::sta();
-  for (const std::string pattern: patterns) {
+  for (const std::string &pattern: patterns) {
     PatternMatch matcher(pattern, regexp, nocase, sta->tclInterp());
     auto result = get_pattern(&matcher);
     if (result.size() == 0) {
