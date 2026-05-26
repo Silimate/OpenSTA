@@ -660,11 +660,11 @@ public:
                      std::string_view comment,
                      Sdc *sdc);
   void makePathMargin(ExceptionFrom *from,
-		                  ExceptionThruSeq *thrus,
-		                  ExceptionTo *to,
-		                  const MinMaxAll *min_max,
-		                  float margin,
-		                  const char *comment);
+                      ExceptionThruSeq *thrus,
+                      ExceptionTo *to,
+                      const MinMaxAll *min_max,
+                      float margin,
+                      const char *comment);
   void makeGroupPath(std::string_view name,
                      bool is_default,
                      ExceptionFrom *from,
