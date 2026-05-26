@@ -988,20 +988,6 @@ LibertyReader::readCell(LibertyCell *cell,
   for (auto const &[port_group, ports] : port_group_map)
     readPortDir(ports, port_group);
 
-  // Pre-pass: build bit_overrides_ so bus-level timing arcs won't overwrite
-  // per-bit pin() block arcs that cover the same logical arc.
-  bit_overrides_.clear();
-  for (auto const &[port_group, ports] : port_group_map) {
-    auto timing_groups = port_group->findSubgroups("timing");
-    if (timing_groups.empty())
-      continue;
-    for (LibertyPort *port : ports) {
-      auto &tgs = bit_overrides_[port];
-      for (const LibertyGroup *tg : timing_groups)
-        tgs.push_back(tg);
-    }
-  }
-
   for (auto const &[port_group, ports] : port_group_map) {
     readPortAttributes(cell, ports, port_group);
     makePortFuncs(cell, ports, port_group);
@@ -2591,66 +2577,6 @@ LibertyReader::makeTableAxis(const LibertyGroup *table_group,
   return template_axis;
 }
 
-////////////////////////////////////////////////////////////////
-
-bool
-LibertyReader::relatedPinIncludesPort(LibertyCell *cell,
-                                      const LibertyGroup *timing_group,
-                                      LibertyPort *from_port,
-                                      int line)
-{
-  StringSeq related_names = findAttributStrings(timing_group, "related_pin");
-  for (const std::string &related_pin : related_names) {
-    PortNameBitIterator it(cell, related_pin, this, line);
-    while (it.hasNext()) {
-      if (it.next() == from_port)
-        return true;
-    }
-  }
-  return false;
-}
-
-bool
-LibertyReader::sameArcIdentity(LibertyCell *cell,
-                               const LibertyGroup *pin_timing,
-                               const LibertyGroup *bus_timing,
-                               LibertyPort *from_port)
-{
-  static const std::string empty;
-  const LibertySimpleAttr *pin_type_attr = pin_timing->findSimpleAttr("timing_type");
-  const LibertySimpleAttr *bus_type_attr = bus_timing->findSimpleAttr("timing_type");
-  const std::string &pin_type = pin_type_attr ? pin_type_attr->stringValue() : empty;
-  const std::string &bus_type = bus_type_attr ? bus_type_attr->stringValue() : empty;
-  if (pin_type != bus_type)
-    return false;
-  const LibertySimpleAttr *pin_when = pin_timing->findSimpleAttr("when");
-  const LibertySimpleAttr *bus_when = bus_timing->findSimpleAttr("when");
-  const std::string &pin_when_str = pin_when ? pin_when->stringValue() : empty;
-  const std::string &bus_when_str = bus_when ? bus_when->stringValue() : empty;
-  if (pin_when_str != bus_when_str)
-    return false;
-  if (from_port == nullptr) {
-    StringSeq related = findAttributStrings(pin_timing, "related_pin");
-    return related.empty();
-  }
-  return relatedPinIncludesPort(cell, pin_timing, from_port, bus_timing->line());
-}
-
-bool
-LibertyReader::hasBitPinTimingOverride(LibertyCell *cell,
-                                       LibertyPort *to_port_bit,
-                                       LibertyPort *from_port,
-                                       const LibertyGroup *bus_timing)
-{
-  auto it = bit_overrides_.find(to_port_bit);
-  if (it == bit_overrides_.end())
-    return false;
-  for (const LibertyGroup *pin_tg : it->second)
-    if (sameArcIdentity(cell, pin_tg, bus_timing, from_port))
-      return true;
-  return false;
-}
-
 void
 LibertyReader::makeTimingArcs(LibertyCell *cell,
                               const std::string &from_port_name,
@@ -2691,9 +2617,8 @@ LibertyReader::makeTimingArcs(LibertyCell *cell,
       LibertyPortMemberIterator bit_iter(to_port);
       while (bit_iter.hasNext()) {
         LibertyPort *to_port_bit = bit_iter.next();
-        if (!hasBitPinTimingOverride(cell, to_port_bit, from_port, timing_group))
-          builder_.makeTimingArcs(cell, from_port, to_port_bit, related_out_port,
-                                  timing_attrs);
+        builder_.makeTimingArcs(cell, from_port, to_port_bit, related_out_port,
+                                timing_attrs);
       }
     }
   }
@@ -2724,9 +2649,8 @@ LibertyReader::makeTimingArcs(LibertyCell *cell,
         LibertyPort *to_port_bit = to_port_iter.next();
         if (from_port_bit->direction()->isOutput())
           warn(1215, timing_line, "timing group from output port.");
-        if (!hasBitPinTimingOverride(cell, to_port_bit, from_port_bit, timing_group))
-          builder_.makeTimingArcs(cell, from_port_bit, to_port_bit,
-                                  related_out_port, timing_attrs);
+        builder_.makeTimingArcs(cell, from_port_bit, to_port_bit,
+                                related_out_port, timing_attrs);
       }
     }
     else {
@@ -2736,9 +2660,8 @@ LibertyReader::makeTimingArcs(LibertyCell *cell,
         LibertyPortMemberIterator to_port_iter(to_port);
         while (to_port_iter.hasNext()) {
           LibertyPort *to_port_bit = to_port_iter.next();
-          if (!hasBitPinTimingOverride(cell, to_port_bit, from_port_bit, timing_group))
-            builder_.makeTimingArcs(cell, from_port_bit, to_port_bit,
-                                    related_out_port, timing_attrs);
+          builder_.makeTimingArcs(cell, from_port_bit, to_port_bit,
+                                  related_out_port, timing_attrs);
         }
       }
     }
