@@ -857,11 +857,11 @@ make_path_delay(ExceptionFrom *from,
 
 void
 make_path_margin(ExceptionFrom *from,
-		 ExceptionThruSeq *thrus,
-		 ExceptionTo *to,
-		 const MinMaxAll *min_max,
-		 float margin,
-		 const char *comment)
+                 ExceptionThruSeq *thrus,
+                 ExceptionTo *to,
+                 const MinMaxAll *min_max,
+                 float margin,
+                 const char *comment)
 {
   Sta::sta()->makePathMargin(from, thrus, to, min_max, margin, comment);
 }
