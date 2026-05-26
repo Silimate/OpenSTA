@@ -560,24 +560,24 @@ PathDelay::overrides(ExceptionPath *exception) const
 ////////////////////////////////////////////////////////////////
 
 PathMargin::PathMargin(ExceptionFrom *from,
-		       ExceptionThruSeq *thrus,
-		       ExceptionTo *to,
-		       const MinMaxAll *min_max,
-		       float margin,
-		       bool own_pts,
-		       const char *comment) :
+                       ExceptionThruSeq *thrus,
+                       ExceptionTo *to,
+                       const MinMaxAll *min_max,
+                       float margin,
+                       bool own_pts,
+                       const char *comment) :
   ExceptionPath(from, thrus, to, min_max, own_pts,
-		pathMarginPriority() + fromThruToPriority(from, thrus, to),
-		comment),
+                pathMarginPriority() + fromThruToPriority(from, thrus, to),
+                comment),
   margin_(margin)
 {
 }
 
 ExceptionPath *
 PathMargin::clone(ExceptionFrom *from,
-		  ExceptionThruSeq *thrus,
-		  ExceptionTo *to,
-		  bool own_pts)
+                  ExceptionThruSeq *thrus,
+                  ExceptionTo *to,
+                  bool own_pts)
 {
   return new PathMargin(from, thrus, to, min_max_, margin_, own_pts, comment_);
 }
