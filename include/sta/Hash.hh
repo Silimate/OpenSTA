@@ -61,7 +61,7 @@ hashString(std::string_view str);
 
 // Pointer hashing is strongly discouraged because it causes results to change
 // from run to run. Use Network::id functions instead.
-#if __WORDSIZE == 64
+#ifdef __LP64__
   #define hashPtr(ptr) (reinterpret_cast<intptr_t>(ptr) >> 3)
 #else
   #define hashPtr(ptr) (reinterpret_cast<intptr_t>(ptr) >> 2)
