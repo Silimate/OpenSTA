@@ -2071,11 +2071,11 @@ Sta::makePathDelay(ExceptionFrom *from,
 
 void
 Sta::makePathMargin(ExceptionFrom *from,
-		    ExceptionThruSeq *thrus,
-		    ExceptionTo *to,
-		    const MinMaxAll *min_max,
-		    float margin,
-		    const char *comment)
+                    ExceptionThruSeq *thrus,
+                    ExceptionTo *to,
+                    const MinMaxAll *min_max,
+                    float margin,
+                    const char *comment)
 {
   sdc_->makePathMargin(from, thrus, to, min_max, margin, comment);
   search_->arrivalsInvalid();
