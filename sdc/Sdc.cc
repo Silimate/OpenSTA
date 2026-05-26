@@ -4109,11 +4109,11 @@ Sdc::makePathMargin(ExceptionFrom *from,
                     ExceptionTo *to,
                     const MinMaxAll *min_max,
                     float margin,
-                    const char *comment)
+                    std::string_view comment)
 {
   checkFromThrusTo(from, thrus, to);
   PathMargin *exception = new PathMargin(from, thrus, to, min_max,
-	                                     margin, true, comment);
+                                         margin, true, comment);
   addException(exception);
 }
 

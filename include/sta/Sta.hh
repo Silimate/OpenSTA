@@ -664,7 +664,8 @@ public:
                       ExceptionTo *to,
                       const MinMaxAll *min_max,
                       float margin,
-                      const char *comment);
+                      std::string_view comment,
+                      Sdc *sdc);
   void makeGroupPath(std::string_view name,
                      bool is_default,
                      ExceptionFrom *from,

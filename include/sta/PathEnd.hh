@@ -262,6 +262,7 @@ public:
   float targetNonInterClkUncertainty(const StaState *sta) const override;
   float interClkUncertainty(const StaState *sta) const override;
   float targetClkUncertainty(const StaState *sta) const override;
+  float targetClkPathMargin(const StaState *sta) const override;
   Crpr crpr(const StaState *sta) const override;
   Required requiredTime(const StaState *sta) const override;
   Slack slack(const StaState *sta) const override;

@@ -861,9 +861,11 @@ make_path_margin(ExceptionFrom *from,
                  ExceptionTo *to,
                  const MinMaxAll *min_max,
                  float margin,
-                 const char *comment)
+                 std::string_view comment)
 {
-  Sta::sta()->makePathMargin(from, thrus, to, min_max, margin, comment);
+  Sta *sta = Sta::sta();
+  Sdc *sdc = sta->cmdSdc();
+  sta->makePathMargin(from, thrus, to, min_max, margin, comment, sdc);
 }
 
 void
