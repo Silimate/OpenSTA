@@ -701,13 +701,14 @@ PathEndClkConstrained::targetClkUncertainty(const StaState *sta) const
 float
 PathEndClkConstrained::targetClkPathMargin(const StaState *sta) const
 {
+  Sdc *sdc = path_->sdc(sta);
   ExceptionPath *exception =
     sta->search()->exceptionTo(ExceptionPathType::path_margin,
                                path_, path_->pin(sta),
                                path_->transition(sta),
                                targetClkEdge(sta),
                                checkRole(sta)->pathMinMax(),
-                               false, false);
+                               false, false, sdc);
   if (!exception)
     return 0.0;
   float margin = exception->margin();
