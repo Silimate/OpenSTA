@@ -1246,6 +1246,10 @@ ReportPath::reportJson(const PathEnd *end,
                  delayAsFloat(end->checkCrpr(this)));
     result += sta::format("  \"margin\": {:.3e},\n",
                  delayAsFloat(end->margin(this)));
+    float path_margin = end->targetClkPathMargin(this);
+    if (path_margin != 0.0)
+      result += sta::format("  \"path_margin\": {:.3e},\n",
+                   path_margin);
     result += sta::format("  \"required_time\": {:.3e},\n",
                  delayAsFloat(end->requiredTimeOffset(this)));
     result += sta::format("  \"slack\": {:.3e}\n",
