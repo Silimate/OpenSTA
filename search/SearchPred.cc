@@ -177,12 +177,15 @@ ClkTreeSearchPred::searchThru(Edge *edge,
 {
   const TimingRole *role = edge->role();
   const Sdc *sdc = mode->sdc();
+  const Sim *sim = mode->sim();
   return searchThruAllow(role)
     && !((role == TimingRole::tristateEnable()
           && !sta_->variables()->clkThruTristateEnabled())
          || role == TimingRole::regSetClr()
          || sdc->isDisabledConstraint(edge)
          || sdc->isDisabledCondDefault(edge)
+         || sim->isDisabledCond(edge)
+         || sim->simTimingSense(edge) == TimingSense::none
          || edge->isBidirectInstPath()
          || edge->isDisabledLoop());
 }
