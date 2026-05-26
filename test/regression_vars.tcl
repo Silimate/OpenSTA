@@ -182,11 +182,11 @@ record_public_tests {
   prima3
   read_saif_null_instance
   report_checks_sorted
-  set_path_margin
   report_checks_src_attr
   report_json1
   report_json2
   sdc_strip_escaped_bus
+  set_path_margin
   slash_port_test
   suppress_msg
   vcd_timestamp
