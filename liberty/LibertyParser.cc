@@ -78,7 +78,7 @@ LibertyParser::makeDefine(const LibertyAttrValueSeq *values,
                           int line)
 {
   LibertyDefine *define = nullptr;
-  if (values->size() == 3) {
+  if (values && values->size() == 3) {
     std::string &define_name = (*values)[0]->stringValue();
     const std::string &group_type_name = (*values)[1]->stringValue();
     const std::string &value_type_name = (*values)[2]->stringValue();
@@ -92,9 +92,15 @@ LibertyParser::makeDefine(const LibertyAttrValueSeq *values,
       delete value;
     delete values;
   }
-  else
+  else {
     report_->fileWarn(24, filename_, line,
                       "define does not have three arguments.");
+    if (values) {
+      for (auto value : *values)
+        delete value;
+    }
+    delete values;
+  }
   return define;
 }
 
@@ -196,7 +202,11 @@ LibertyParser::makeComplexAttr(std::string &&name,
     return nullptr;  // Define is not a complex attr; already added to group
   }
   else {
-    LibertyComplexAttr *attr = new LibertyComplexAttr(std::move(name), *values, line);
+    LibertyComplexAttr *attr = new LibertyComplexAttr(std::move(name),
+                                                      values
+                                                      ? *values
+                                                      : LibertyAttrValueSeq(),
+                                                      line);
     delete values;
     LibertyGroup *group = this->group();
     group->addAttr(attr);
