@@ -677,7 +677,6 @@ FalsePath::mergeable(ExceptionPath *exception) const
 bool
 FalsePath::overrides(ExceptionPath *exception) const
 {
-  // Most recent definition overrides earlier ones.
   return exception->priority() == priority()
     && exception->minMax() == min_max_;
 }
