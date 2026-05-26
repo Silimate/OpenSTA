@@ -247,7 +247,7 @@ public:
                                bool own_pts);
   virtual bool isPathMargin() const { return true; }
   virtual ExceptionPathType type() const { return ExceptionPathType::path_margin; }
-  virtual std::string_view *typeString() const;
+  virtual std::string_view typeString() const;
   virtual bool mergeable(ExceptionPath *exception) const;
   virtual bool overrides(ExceptionPath *exception) const;
   virtual float margin() const { return margin_; }
