@@ -186,6 +186,7 @@ record_public_tests {
   report_json1
   report_json2
   sdc_strip_escaped_bus
+  set_path_margin
   slash_port_test
   suppress_msg
   vcd_timestamp

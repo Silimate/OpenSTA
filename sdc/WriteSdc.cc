@@ -1273,6 +1273,10 @@ WriteSdc::writeExceptionCmd(ExceptionPath *exception) const
     if (exception->ignoreClkLatency())
       sta::print(stream_, " -ignore_clock_latency");
   }
+  else if (exception->isPathMargin()) {
+    gzprintf(stream_, "set_path_margin");
+    writeSetupHoldFlag(exception->minMax());
+  }
   else if (exception->isGroupPath()) {
     if (exception->isDefault())
       sta::print(stream_, "group_path -default");
@@ -1292,6 +1296,10 @@ WriteSdc::writeExceptionValue(ExceptionPath *exception) const
   else if (exception->isPathDelay()) {
     sta::print(stream_, " ");
     writeTime(exception->delay());
+  }
+  else if (exception->isPathMargin()) {
+    gzprintf(stream_, " ");
+    writeTime(exception->margin());
   }
 }
 
