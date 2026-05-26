@@ -49,9 +49,9 @@ class ClkSkew
 public:
   ClkSkew();
   ClkSkew(Path *src_path,
-          Path *tgt_path,
+	  Path *tgt_path,
           bool include_internal_latency,
-          StaState *sta);
+	  StaState *sta);
   ClkSkew(const ClkSkew &clk_skew);
   ClkSkew &operator=(const ClkSkew &clk_skew) = default;
   Path *srcPath() { return src_path_; }

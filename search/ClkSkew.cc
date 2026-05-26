@@ -313,8 +313,8 @@ ClkSkews::findClkSkew(Vertex *src_vertex,
     Scene *src_scene = src_path->scene(this);
     const Clock *src_clk = src_path->clock(this);
     if (src_path->isClock(this)
-        && src_rf->matches(src_path->transition(this))
-        && clk_set_.contains(src_clk)
+	&& src_rf->matches(src_path->transition(this))
+	&& clk_set_.contains(src_clk)
         && scenes_set_.contains(src_scene)) {
       const MinMax *src_min_max = src_path->minMax(this);
       const MinMax *tgt_min_max = src_min_max->opposite();
