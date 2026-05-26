@@ -240,7 +240,7 @@ public:
              const MinMaxAll *min_max,
              float margin,
              bool own_pts,
-             const char *comment);
+             std::string_view comment);
   virtual ExceptionPath *clone(ExceptionFrom *from,
                                ExceptionThruSeq *thrus,
                                ExceptionTo *to,
