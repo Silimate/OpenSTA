@@ -235,16 +235,16 @@ class PathMargin : public ExceptionPath
 {
 public:
   PathMargin(ExceptionFrom *from,
-	     ExceptionThruSeq *thrus,
-	     ExceptionTo *to,
-	     const MinMaxAll *min_max,
-	     float margin,
-	     bool own_pts,
-	     const char *comment);
+             ExceptionThruSeq *thrus,
+             ExceptionTo *to,
+             const MinMaxAll *min_max,
+             float margin,
+             bool own_pts,
+             const char *comment);
   virtual ExceptionPath *clone(ExceptionFrom *from,
-			       ExceptionThruSeq *thrus,
-			       ExceptionTo *to,
-			       bool own_pts);
+                               ExceptionThruSeq *thrus,
+                               ExceptionTo *to,
+                               bool own_pts);
   virtual bool isPathMargin() const { return true; }
   virtual ExceptionPathType type() const { return ExceptionPathType::path_margin; }
   virtual const char *typeString() const;
