@@ -1,5 +1,5 @@
 // OpenSTA, Static Timing Analyzer
-// Copyright (c) 2025, Parallax Software, Inc.
+// Copyright (c) 2026, Parallax Software, Inc.
 // 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -39,7 +39,7 @@ public:
   double staToUser(double value);
   // Convert from user interface units to sta units.
   double userToSta(double value);
-  void operator=(const Unit &unit);
+  Unit &operator=(const Unit &unit) = default;
   float scale() const { return scale_; }
   void setScale(float scale);
   // Mkmunpf abbreviation for scale.
@@ -56,10 +56,9 @@ public:
   void setDigits(int digits);
   // Does not include suffix.
   int width() const;
-  const char *asString(float value) const;
-  const char *asString(double value) const;
-  const char *asString(float value,
-		       int digits) const;
+  std::string asString(float value) const;
+  std::string asString(float value,
+                       int digits) const;
 
 private:
   void setScaleAbbrevSuffix();
@@ -76,8 +75,8 @@ class Units
 {
 public:
   Units();
-  Unit *find(const char *unit_name);
-  void operator=(const Units &units);
+  Unit *find(std::string_view unit_name);
+  Units &operator=(const Units &units);
   Unit *timeUnit() { return &time_unit_; }
   const Unit *timeUnit() const { return &time_unit_; }
   Unit *capacitanceUnit() { return &capacitance_unit_; }
@@ -106,4 +105,4 @@ private:
   Unit scalar_unit_;
 };
 
-} // namespace
+} // namespace sta

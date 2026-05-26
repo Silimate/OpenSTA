@@ -1,5 +1,5 @@
 // OpenSTA, Static Timing Analyzer
-// Copyright (c) 2025, Parallax Software, Inc.
+// Copyright (c) 2026, Parallax Software, Inc.
 // 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -24,23 +24,25 @@
 
 #pragma once
 
-#include "SdcCmdComment.hh"
+#include <string>
+
 #include "SdcClass.hh"
+#include "SdcCmdComment.hh"
 
 namespace sta {
 
 class ClockGroups : public SdcCmdComment
 {
 public:
-  ClockGroups(const char *name,
-	      bool logically_exclusive,
-	      bool physically_exclusive,
-	      bool asynchronous,
-	      bool allow_paths,
-	      const char *comment);
+  ClockGroups(std::string_view name,
+              bool logically_exclusive,
+              bool physically_exclusive,
+              bool asynchronous,
+              bool allow_paths,
+              std::string_view comment);
   ~ClockGroups();
   void makeClockGroup(ClockSet *clks);
-  const char *name() const { return name_; }
+  const std::string &name() const { return name_; }
   ClockGroupSet *groups() { return &groups_; }
   bool logicallyExclusive() const { return logically_exclusive_; }
   bool physicallyExclusive() const { return physically_exclusive_; }
@@ -49,7 +51,7 @@ public:
   void removeClock(Clock *clk);
 
 private:
-  const char *name_;
+  std::string name_;
   bool logically_exclusive_;
   bool physically_exclusive_;
   bool asynchronous_;
@@ -57,4 +59,4 @@ private:
   ClockGroupSet groups_;
 };
 
-} // namespace
+} // namespace sta

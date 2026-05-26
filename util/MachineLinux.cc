@@ -24,13 +24,14 @@
 
 #include "Machine.hh"
 
-#include <stdlib.h>
-#include <unistd.h>
-#include <stdio.h>
-#include <sys/time.h>
+#include <cstdio>
+#include <cstdlib>
 #include <sys/resource.h>
+#include <sys/time.h>
 #include <thread>
+#include <unistd.h>
 
+#include "Format.hh"
 #include "StaConfig.hh"
 #include "StringUtil.hh"
 
@@ -81,8 +82,7 @@ systemRunTime()
 size_t
 memoryUsage()
 {
-  std::string proc_filename;
-  stringPrint(proc_filename, "/proc/%d/status", getpid());
+  std::string proc_filename = sta::format("/proc/{}/status", getpid());
   size_t memory = 0;
   FILE *status = fopen(proc_filename.c_str(), "r");
   if (status) {
@@ -91,13 +91,13 @@ memoryUsage()
     while (fgets(line, line_length, status) != nullptr) {
       char *field = strtok(line, " \t");
       if (field && stringEq(field, "VmRSS:")) {
-	char *size = strtok(nullptr, " \t");
-	if (size) {
-	  char *ignore;
-	  // VmRSS is in kilobytes.
-	  memory = strtol(size, &ignore, 10) * 1000;
-	  break;
-	}
+        char *size = strtok(nullptr, " \t");
+        if (size) {
+          char *ignore;
+          // VmRSS is in kilobytes.
+          memory = strtol(size, &ignore, 10) * 1000;
+          break;
+        }
       }
     }
     fclose(status);
@@ -105,4 +105,4 @@ memoryUsage()
   return memory;
 }
 
-} // namespace
+} // namespace sta

@@ -1,5 +1,5 @@
 // OpenSTA, Static Timing Analyzer
-// Copyright (c) 2025, Parallax Software, Inc.
+// Copyright (c) 2026, Parallax Software, Inc.
 // 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -22,35 +22,21 @@
 // 
 // This notice may not be removed or altered from any source distribution.
 
-#include "StringUtil.hh"
 #include "SdcCmdComment.hh"
+
+#include "StringUtil.hh"
 
 namespace sta {
 
-SdcCmdComment::SdcCmdComment() :
-  comment_(nullptr)
+SdcCmdComment::SdcCmdComment(std::string_view comment) :
+  comment_(comment)
 {
 }
 
-SdcCmdComment::SdcCmdComment(const char *comment)
-{
-  comment_ = nullptr;
-  if (comment && comment[0] != '\0')
-    comment_ = stringCopy(comment);
-}
-  
-SdcCmdComment::~SdcCmdComment()
-{
-  stringDelete(comment_);
-}
 void
-SdcCmdComment::setComment(const char *comment)
+SdcCmdComment::setComment(std::string_view comment)
 {
-  if (comment_)
-    stringDelete(comment_);
-  comment_ = nullptr;
-  if (comment && comment[0] != '\0')
-    comment_ = stringCopy(comment);
+  comment_ = comment;
 }
 
-} // namespace
+} // namespace sta

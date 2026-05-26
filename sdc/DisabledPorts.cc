@@ -1,5 +1,5 @@
 // OpenSTA, Static Timing Analyzer
-// Copyright (c) 2025, Parallax Software, Inc.
+// Copyright (c) 2026, Parallax Software, Inc.
 // 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -26,20 +26,12 @@
 
 #include <algorithm>
 
-#include "StringUtil.hh"
-#include "TimingRole.hh"
 #include "Liberty.hh"
 #include "Network.hh"
+#include "StringUtil.hh"
+#include "TimingRole.hh"
 
 namespace sta {
-
-DisabledPorts::DisabledPorts() :
-  all_(false),
-  from_(nullptr),
-  to_(nullptr),
-  from_to_(nullptr)
-{
-}
 
 DisabledPorts::~DisabledPorts()
 {
@@ -96,39 +88,33 @@ DisabledPorts::setDisabledFromTo(LibertyPort *from,
 {
   if (from_to_ == nullptr)
     from_to_ = new LibertyPortPairSet;
-  LibertyPortPair pair(from, to);
-  from_to_->insert(pair);
+  from_to_->insert({from, to});
 }
 
 void
 DisabledPorts::removeDisabledFromTo(LibertyPort *from,
                                     LibertyPort *to)
 {
-  if (from_to_) {
-    LibertyPortPair from_to(from, to);
-    from_to_->erase(from_to);
-  }
+  if (from_to_)
+    from_to_->erase({from, to});
 }
 
 bool
 DisabledPorts::isDisabled(LibertyPort *from,
                           LibertyPort *to,
-			  const TimingRole *role)
+                          const TimingRole *role)
 {
-  LibertyPortPair from_to(from, to);
   // set_disable_timing instance does not disable timing checks.
   return (all_ && !role->isTimingCheck())
-    || (from_ && from_->hasKey(from))
-    || (to_ && to_->hasKey(to))
-    || (from_to_ && from_to_->hasKey(from_to));
+    || (from_ && from_->contains(from))
+    || (to_ && to_->contains(to))
+    || (from_to_ && from_to_->contains({from, to}));
 }
 
 ////////////////////////////////////////////////////////////////
 
 DisabledCellPorts::DisabledCellPorts(LibertyCell *cell) :
-  DisabledPorts(),
-  cell_(cell),
-  arc_sets_(nullptr)
+  cell_(cell)
 {
 }
 
@@ -157,31 +143,25 @@ bool
 DisabledCellPorts::isDisabled(TimingArcSet *arc_set) const
 {
   return arc_sets_
-    && arc_sets_->hasKey(arc_set);
+    && arc_sets_->contains(arc_set);
 }
 
 class DisabledCellPortsLess
 {
 public:
-  DisabledCellPortsLess();
   bool operator()(const DisabledCellPorts *disable1,
-		  const DisabledCellPorts *disable2);
+                  const DisabledCellPorts *disable2);
 };
-
-DisabledCellPortsLess::DisabledCellPortsLess()
-{
-}
 
 bool
 DisabledCellPortsLess::operator()(const DisabledCellPorts *disable1,
-				  const DisabledCellPorts *disable2)
+                                  const DisabledCellPorts *disable2)
 {
-  return stringLess(disable1->cell()->name(),
-		    disable2->cell()->name());
+  return disable1->cell()->name() < disable2->cell()->name();
 }
 
 DisabledCellPortsSeq
-sortByName(DisabledCellPortsMap *cell_map)
+sortByName(const DisabledCellPortsMap *cell_map)
 {
   DisabledCellPortsSeq disables;
   for (auto cell_disable : *cell_map) {
@@ -195,7 +175,6 @@ sortByName(DisabledCellPortsMap *cell_map)
 ////////////////////////////////////////////////////////////////
 
 DisabledInstancePorts::DisabledInstancePorts(Instance *inst) :
-  DisabledPorts(),
   inst_(inst)
 {
 }
@@ -203,9 +182,9 @@ DisabledInstancePorts::DisabledInstancePorts(Instance *inst) :
 class DisabledInstPortsLess
 {
 public:
-  explicit DisabledInstPortsLess(const Network *network);
+  DisabledInstPortsLess(const Network *network);
   bool operator()(const DisabledInstancePorts *disable1,
-		  const DisabledInstancePorts *disable2);
+                  const DisabledInstancePorts *disable2);
 
 private:
   const Network *network_;
@@ -220,8 +199,8 @@ bool
 DisabledInstPortsLess::operator()(const DisabledInstancePorts *disable1,
                                   const DisabledInstancePorts *disable2)
 {
-  return stringLess(network_->pathName(disable1->instance()),
-		    network_->pathName(disable2->instance()));
+  return network_->pathName(disable1->instance()) <
+    network_->pathName(disable2->instance());
 }
 
 DisabledInstancePortsSeq
@@ -243,19 +222,19 @@ class LibertyPortPairNameLess
 {
 public:
   bool operator()(const LibertyPortPair &pair1,
-		  const LibertyPortPair &pair2);
+                  const LibertyPortPair &pair2);
 };
 
 bool
 LibertyPortPairNameLess::operator()(const LibertyPortPair &pair1,
-				    const LibertyPortPair &pair2)
+                                    const LibertyPortPair &pair2)
 {
-  const char *from1 = pair1.first->name();
-  const char *from2 = pair2.first->name();
-  const char *to1 = pair1.second->name();
-  const char *to2 = pair2.second->name();
-  return stringLess(from1, from2)
-    || (stringEq(from1, from2) && stringLess(to1, to2));
+  const std::string &from1 = pair1.first->name();
+  const std::string &from2 = pair2.first->name();
+  const std::string &to1 = pair1.second->name();
+  const std::string &to2 = pair2.second->name();
+  return from1 < from2
+    || (from1 == from2 && to1 < to2);
 }
 
 LibertyPortPairSeq
@@ -268,4 +247,4 @@ sortByName(const LibertyPortPairSet *set)
   return pairs;
 }
 
-}
+} // namespace sta

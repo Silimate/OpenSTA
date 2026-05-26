@@ -1,5 +1,5 @@
 // OpenSTA, Static Timing Analyzer
-// Copyright (c) 2025, Parallax Software, Inc.
+// Copyright (c) 2026, Parallax Software, Inc.
 // 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -22,33 +22,26 @@
 // 
 // This notice may not be removed or altered from any source distribution.
 
-#include "ArcDelayCalc.hh"
-#include "StringSet.hh"
-#include "StringSeq.hh"
-
 #include <tcl.h>
+
+#include "ArcDelayCalc.hh"
+#include "StringUtil.hh"
 
 namespace sta {
 
 #if TCL_MAJOR_VERSION < 9
-    typedef int Tcl_Size;
+    using Tcl_Size = int ;
 #endif
 
-StringSet *
-tclListSetConstChar(Tcl_Obj *const source,
-		    Tcl_Interp *interp);
-
-int
-tclListSeqConstCharCheck(Tcl_Obj *const source,
-		 	 Tcl_Interp *interp);
-
+StringSeq
+tclListStringSeq(Tcl_Obj *source,
+                 Tcl_Interp *interp);
 StringSeq *
-tclListSeqConstChar(Tcl_Obj *const source,
-		    Tcl_Interp *interp);
-
-StdStringSet *
-tclListSetStdString(Tcl_Obj *const source,
-		    Tcl_Interp *interp);
+tclListStringSeqPtr(Tcl_Obj *source,
+                    Tcl_Interp *interp);
+StringSet *
+tclListStringSet(Tcl_Obj *source,
+                 Tcl_Interp *interp);
 
 void
 tclArgError(Tcl_Interp *interp,
@@ -58,10 +51,10 @@ tclArgError(Tcl_Interp *interp,
 
 void
 objectListNext(const char *list,
-	       const char *type,
-	       // Return values.
-	       bool &type_match,
-	       const char *&next);
+               const char *type,
+               // Return values.
+               bool &type_match,
+               const char *&next);
 
 Tcl_Obj *
 tclArcDcalcArg(ArcDcalcArg &gate,
@@ -71,4 +64,4 @@ ArcDcalcArg
 arcDcalcArgTcl(Tcl_Obj *obj,
                Tcl_Interp *interp);
 
-} // namespace
+} // namespace sta

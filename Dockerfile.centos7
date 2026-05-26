@@ -11,8 +11,10 @@ RUN sed -i s/mirror.centos.org/vault.centos.org/g /etc/yum.repos.d/*.repo \
 RUN sed -i s/mirror.centos.org/vault.centos.org/g /etc/yum.repos.d/*.repo \
     && sed -i s/^#.*baseurl=http/baseurl=http/g /etc/yum.repos.d/*.repo \
     && sed -i s/^mirrorlist=http/#mirrorlist=http/g /etc/yum.repos.d/*.repo \ 
-    && yum install -y devtoolset-11 wget cmake3 make eigen3-devel tcl swig3 flex zlib-devel valgrind \
+    && yum install -y devtoolset-11 git wget cmake3 make eigen3-devel tcl swig3 flex zlib-devel valgrind \
     && yum clean -y all
+
+RUN ln -sf /usr/bin/cmake3 /usr/bin/cmake
 
 # Download Bison
 RUN wget https://mirrors.dotsrc.org/gnu/bison/bison-3.8.2.tar.gz && \
@@ -51,6 +53,30 @@ RUN source /opt/rh/devtoolset-11/enable && \
     make -j`nproc` && \
     make install
 
+# Download and build fmt
+# Ensure the Vault redirect is applied to everything including new installs
+RUN sed -i s/mirror.centos.org/vault.centos.org/g /etc/yum.repos.d/*.repo && \
+    sed -i s/^#.*baseurl=http/baseurl=http/g /etc/yum.repos.d/*.repo && \
+    sed -i s/^mirrorlist=http/#mirrorlist=http/g /etc/yum.repos.d/*.repo && \
+    yum install -y ca-certificates git && \
+    update-ca-trust force-enable
+# clone fmt compatible version (10.2.1)
+RUN git config --global http.sslVerify false && \
+    git clone --depth 1 --branch 10.2.1 https://github.com/fmtlib/fmt.git /tmp/fmt
+RUN source /opt/rh/devtoolset-11/enable && \
+    cd /tmp/fmt && \
+    mkdir build && cd build && \
+    cmake3 .. \
+    -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
+    -DFMT_TEST=OFF \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DFMT_DOC=OFF && \
+    make -j$(nproc) && \
+    make install
+RUN rm -rf /tmp/fmt
+
+################################################################
+
 FROM base-dependencies AS builder
 
 COPY . /OpenSTA
@@ -60,8 +86,9 @@ WORKDIR /OpenSTA
 RUN rm -rf build && mkdir build
 RUN source /opt/rh/devtoolset-11/enable && \
     cd build && \
-    cmake3 .. && \
-    make -j`nproc`
+    cmake .. && \
+    # LTO fails with -j
+    make
 
 # Run sta on entry
 ENTRYPOINT ["/OpenSTA/build/sta"]

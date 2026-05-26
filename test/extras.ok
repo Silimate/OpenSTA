@@ -1,16 +1,16 @@
-Warning: ../examples/gcd_sky130hd.v line 527, module sky130_fd_sc_hd__tapvpwrvgnd_1 not found. Creating black box for TAP_11.
+Warning 198: ../examples/gcd_sky130hd.v line 527, module sky130_fd_sc_hd__tapvpwrvgnd_1 not found. Creating black box for TAP_11.
 opensta
 Warning: all_fanin not supported, will return empty list
 Warning: all_fanout not supported, will return empty list
-Warning: extras.tcl line 11, time scale 1e-12 does not match library scale 1e-09.
-Warning: extras.tcl line 11, capacitance scale 1e-15 does not match library scale 1e-12.
+Warning 345: extras.tcl line 11, time scale 1e-12 does not match library scale 1e-09.
+Warning 345: extras.tcl line 11, capacitance scale 1e-15 does not match library scale 1e-12.
 Clock period: 10.000000
 Clock period: 10.000000
 dummy is empty
-Warning: clock objects do not have a dummy property.
+Warning 9000: clock objects do not have a dummy property.
 
-Warning: clock '*_x4*' not found.
-Warning: extras.tcl line 30, get_property  is not an object.
+Warning 351: clock '*_x4*' not found.
+Warning 2204: extras.tcl line 30, get_property  is not an object.
 clk_x4 clk_x41
 Startpoint: req_val (input port clocked by clk)
 Endpoint: _413_ (rising edge-triggered flip-flop clocked by clk)
@@ -104,7 +104,7 @@ Path Type: max
 (Path is unconstrained)
 
 
-Warning: pin 'clk_x41' not found.
+Warning 363: pin 'clk_x41' not found.
 
 
 

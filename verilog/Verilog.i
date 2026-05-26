@@ -1,5 +1,5 @@
 // OpenSTA, Static Timing Analyzer
-// Copyright (c) 2025, Parallax Software, Inc.
+// Copyright (c) 2026, Parallax Software, Inc.
 // 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -22,11 +22,9 @@
 // 
 // This notice may not be removed or altered from any source distribution.
 
-%module verilog
-
 %{
-#include "VerilogWriter.hh"
 #include "Sta.hh"
+#include "VerilogWriter.hh"
 %}
 
 %inline %{
@@ -39,8 +37,8 @@ read_verilog_cmd(const char *filename)
 
 void
 write_verilog_cmd(const char *filename,
-		  bool include_pwr_gnd,
-		  CellSeq *remove_cells)
+                  bool include_pwr_gnd,
+                  CellSeq *remove_cells)
 {
   // This does NOT want the SDC (cmd) network because it wants
   // to see the sta internal names.

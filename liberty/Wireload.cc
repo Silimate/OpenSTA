@@ -1,5 +1,5 @@
 // OpenSTA, Static Timing Analyzer
-// Copyright (c) 2025, Parallax Software, Inc.
+// Copyright (c) 2026, Parallax Software, Inc.
 // 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -25,15 +25,20 @@
 #include "Wireload.hh"
 
 #include <algorithm>
+#include <cstddef>
+#include <string>
+#include <string_view>
+#include <utility>
 
-#include "StringUtil.hh"
+#include "ContainerHelpers.hh"
+#include "LibertyClass.hh"
 #include "Liberty.hh"
 
 namespace sta {
 
-Wireload::Wireload(const char *name,
-		   LibertyLibrary *library) :
-  name_(stringCopy(name)),
+Wireload::Wireload(std::string name,
+                   LibertyLibrary *library) :
+  name_(std::move(name)),
   library_(library),
   area_(0.0F),
   resistance_(0.0F),
@@ -42,13 +47,13 @@ Wireload::Wireload(const char *name,
 {
 }
 
-Wireload::Wireload(const char *name,
-		   LibertyLibrary *library,
-		   float area,
-		   float resistance,
-		   float capacitance,
-		   float slope) :
-  name_(stringCopy(name)),
+Wireload::Wireload(std::string name,
+                   LibertyLibrary *library,
+                   float area,
+                   float resistance,
+                   float capacitance,
+                   float slope) :
+  name_(std::move(name)),
   library_(library),
   area_(area),
   resistance_(resistance),
@@ -59,8 +64,7 @@ Wireload::Wireload(const char *name,
 
 Wireload::~Wireload()
 {
-  fanout_lengths_.deleteContents();
-  stringDelete(name_);
+  deleteContents(fanout_lengths_);
 }
 
 void
@@ -90,7 +94,7 @@ Wireload::setSlope(float slope)
 struct FanoutLess
 {
   bool operator()(FanoutLength *fanout1,
-		  FanoutLength *fanout2) const
+                  FanoutLength *fanout2) const
   {
     return fanout1->first < fanout2->first;
   }
@@ -98,7 +102,7 @@ struct FanoutLess
 
 void
 Wireload::addFanoutLength(float fanout,
-			  float length)
+                          float length)
 {
   FanoutLength *fanout_length = new FanoutLength(fanout, length);
   fanout_lengths_.push_back(fanout_length);
@@ -110,9 +114,9 @@ Wireload::addFanoutLength(float fanout,
 
 void
 Wireload::findWireload(float fanout,
-		       const OperatingConditions *op_cond,
-		       float &cap,
-		       float &res) const
+                       const OperatingConditions *op_cond,
+                       float &cap,
+                       float &res) const
 {
   size_t size = fanout_lengths_.size();
   float length;
@@ -125,8 +129,7 @@ Wireload::findWireload(float fanout,
     if (fanout < fanout0) {
       // Extrapolate from lowest fanout entry.
       length = fanout_lengths_[0]->second - (fanout0 - fanout) * slope_;
-      if (length < 0)
-	length = 0;
+      length = std::max(length, 0.0F);
     }
     else if (fanout == fanout0)
       length = fanout_lengths_[0]->second;
@@ -138,11 +141,11 @@ Wireload::findWireload(float fanout,
       int lower = -1;
       int upper = size;
       while (upper - lower > 1) {
-	int mid = (upper + lower) >> 1;
-	if (fanout >= fanout_lengths_[mid]->first)
-	  lower = mid;
-	else
-	  upper = mid;
+        int mid = (upper + lower) >> 1;
+        if (fanout >= fanout_lengths_[mid]->first)
+          lower = mid;
+        else
+          upper = mid;
       }
       // Interpolate between lower and lower+1 entries.
       float fanout1 = fanout_lengths_[lower]->first;
@@ -165,8 +168,8 @@ class WireloadForArea
 {
 public:
   WireloadForArea(float min_area,
-		  float max_area,
-		  const Wireload *wireload);
+                  float max_area,
+                  const Wireload *wireload);
   float minArea() const { return min_area_; }
   float maxArea() const { return max_area_; }
   const Wireload *wireload() const { return wireload_; }
@@ -178,29 +181,28 @@ private:
 };
 
 WireloadForArea::WireloadForArea(float min_area,
-				 float max_area,
-				 const Wireload *wireload) :
+                                 float max_area,
+                                 const Wireload *wireload) :
   min_area_(min_area),
   max_area_(max_area),
   wireload_(wireload)
 {
 }
 
-WireloadSelection::WireloadSelection(const char *name) :
-  name_(stringCopy(name))
+WireloadSelection::WireloadSelection(std::string name) :
+  name_(std::move(name))
 {
 }
 
 WireloadSelection::~WireloadSelection()
 {
-  wireloads_.deleteContents();
-  stringDelete(name_);
+  deleteContents(wireloads_);
 }
 
 struct WireloadForAreaMinLess
 {
   bool operator()(WireloadForArea *wireload1,
-		  WireloadForArea *wireload2) const
+                  WireloadForArea *wireload2) const
   {
     return wireload1->minArea() < wireload2->minArea();
   }
@@ -208,11 +210,11 @@ struct WireloadForAreaMinLess
 
 void
 WireloadSelection::addWireloadFromArea(float min_area,
-				       float max_area,
-				       const Wireload *wireload)
+                                       float max_area,
+                                       const Wireload *wireload)
 {
   WireloadForArea *wireload_area = new WireloadForArea(min_area, max_area,
-						       wireload);
+                                                       wireload);
   wireloads_.push_back(wireload_area);
   // Keep wireloads sorted by area for lookup.
   if (wireloads_.size() > 1
@@ -264,13 +266,13 @@ wireloadTreeString(WireloadTree tree)
 }
 
 WireloadTree
-stringWireloadTree(const char *wire_load_type)
+stringWireloadTree(std::string_view wire_load_type)
 {
-  if (stringEq(wire_load_type, "worst_case_tree"))
+  if (wire_load_type == "worst_case_tree")
     return WireloadTree::worst_case;
-  else if (stringEq(wire_load_type, "best_case_tree"))
+  else if (wire_load_type == "best_case_tree")
     return WireloadTree::best_case;
-  else if (stringEq(wire_load_type, "balanced_tree"))
+  else if (wire_load_type == "balanced_tree")
     return WireloadTree::balanced;
   else
     return WireloadTree::unknown;
@@ -294,16 +296,16 @@ wireloadModeString(WireloadMode wire_load_mode)
 }
 
 WireloadMode
-stringWireloadMode(const char *wire_load_mode)
+stringWireloadMode(std::string_view wire_load_mode)
 {
-  if (stringEq(wire_load_mode, "top"))
+  if (wire_load_mode == "top")
     return WireloadMode::top;
-  else if (stringEq(wire_load_mode, "enclosed"))
+  else if (wire_load_mode == "enclosed")
     return WireloadMode::enclosed;
-  else if (stringEq(wire_load_mode, "segmented"))
+  else if (wire_load_mode == "segmented")
     return WireloadMode::segmented;
   else
     return WireloadMode::unknown;
 }
 
-} // namespace
+} // namespace sta

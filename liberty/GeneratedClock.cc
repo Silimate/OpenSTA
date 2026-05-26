@@ -14,9 +14,9 @@ GeneratedClock::GeneratedClock(const char *name,
                                 bool invert,
                                 IntSeq *edges,
                                 FloatSeq *edge_shifts) :
-  name_(name ? stringCopy(name) : nullptr),
-  clock_pin_(clock_pin ? stringCopy(clock_pin) : nullptr),
-  master_pin_(master_pin ? stringCopy(master_pin) : nullptr),
+  name_(name ),
+  clock_pin_(clock_pin),
+  master_pin_(master_pin),
   divided_by_(divided_by),
   multiplied_by_(multiplied_by),
   duty_cycle_(duty_cycle),
@@ -28,12 +28,6 @@ GeneratedClock::GeneratedClock(const char *name,
 
 GeneratedClock::~GeneratedClock()
 {
-  if (name_)
-    stringDelete(name_);
-  if (clock_pin_)
-    stringDelete(clock_pin_);
-  if (master_pin_)
-    stringDelete(master_pin_);
   if (edges_)
     delete edges_;
   if (edge_shifts_)

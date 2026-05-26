@@ -1,5 +1,5 @@
 // OpenSTA, Static Timing Analyzer
-// Copyright (c) 2025, Parallax Software, Inc.
+// Copyright (c) 2026, Parallax Software, Inc.
 // 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -25,37 +25,39 @@
 #pragma once
 
 #include <fstream>
-#include <string>
 #include <map>
+#include <string>
+#include <string_view>
 #include <vector>
 
-#include "StaState.hh"
-#include "StringSet.hh"
-#include "Liberty.hh"
-#include "GraphClass.hh"
-#include "Parasitics.hh"
 #include "Bdd.hh"
 #include "CircuitSim.hh"
+#include "Format.hh"
+#include "GraphClass.hh"
+#include "Liberty.hh"
+#include "Parasitics.hh"
+#include "StaState.hh"
+#include "StringUtil.hh"
 
 namespace sta {
 
-typedef std::map<const ParasiticNode*, int> ParasiticNodeMap;
-typedef Map<std::string, StringVector> CellSpicePortNames;
-typedef Map<const LibertyPort*, LogicValue> LibertyPortLogicValues;
-typedef std::vector<std::string> StdStringSeq;
+using ParasiticNodeMap = std::map<const ParasiticNode*, int>;
+using CellSpicePortNames = std::map<std::string, StringSeq, std::less<>>;
+using LibertyPortLogicValues = std::map<const LibertyPort*, LogicValue>;
 
 // Utilities for writing a spice deck.
 class WriteSpice : public StaState
 {
 public:
-  WriteSpice(const char *spice_filename,
-             const char *subckt_filename,
-             const char *lib_subckt_filename,
-             const char *model_filename,
-             const char *power_name,
-             const char *gnd_name,
+  WriteSpice(std::string_view spice_filename,
+             std::string_view subckt_filename,
+             std::string_view lib_subckt_filename,
+             std::string_view model_filename,
+             std::string_view power_name,
+             std::string_view gnd_name,
              CircuitSim ckt_sim,
-             const DcalcAnalysisPt *dcalc_ap,
+             const Scene *scene,
+             const MinMax *min_max,
              const StaState *sta);
 
 protected:
@@ -63,76 +65,75 @@ protected:
   void writeHeader(std::string &title,
                    float max_time,
                    float time_step);
-  void writePrintStmt(StdStringSeq &node_names);
-  void writeGnuplotFile(StdStringSeq &node_nanes);
-  void writeSubckts(StdStringSet &cell_names);
-  void findCellSubckts(StdStringSet &cell_names);
-  void recordSpicePortNames(const char *cell_name,
-			    StringVector &tokens);
+  void writePrintStmt(StringSeq &node_names);
+  void writeGnuplotFile(StringSeq &node_nanes);
+  void writeSubckts(StringSet &cell_names);
+  void findCellSubckts(StringSet &cell_names);
+  void recordSpicePortNames(std::string_view cell_name,
+                            StringSeq &tokens);
   void writeSubcktInst(const Instance *inst);
   void writeSubcktInstVoltSrcs(const Instance *inst,
-			       LibertyPortLogicValues &port_values,
+                               LibertyPortLogicValues &port_values,
                                const PinSet &excluded_input_pins);
-  float pgPortVoltage(LibertyPort *pg_port);
-  void writeVoltageSource(const char *inst_name,
-			  const char *port_name,
-			  float voltage);
+  float pgPortVoltage(const LibertyPort *pg_port);
+  void writeVoltageSource(std::string_view inst_name,
+                          std::string_view port_name,
+                          float voltage);
+  void writeVoltageSource(std::string_view inst_name,
+                          std::string_view subckt_port_name,
+                          const LibertyPort *pg_port,
+                          float voltage);
   void writeVoltageSource(LibertyCell *cell,
-			  const char *inst_name,
-			  const char *subckt_port_name,
-			  const char *pg_port_name,
-			  float voltage);
+                          std::string_view inst_name,
+                          std::string_view subckt_port_name,
+                          const std::string &pg_port_name,
+                          float voltage);
   void writeClkedStepSource(const Pin *pin,
-			    const RiseFall *rf,
-			    const Clock *clk);
-  void writeDrvrParasitics(const Pin *drvr_pin,
-                           const RiseFall *drvr_rf,
-                           // Nets with parasitics to include coupling caps to.
-                           const NetSet &coupling_nets,
-                           const ParasiticAnalysisPt *parasitic_ap);
+                            const RiseFall *rf,
+                            const Clock *clk);
   void writeDrvrParasitics(const Pin *drvr_pin,
                            const Parasitic *parasitic,
                            const NetSet &coupling_nets);
   void writeParasiticNetwork(const Pin *drvr_pin,
                              const Parasitic *parasitic,
-                             const NetSet &aggressor_nets);
+                             const NetSet &coupling_nets);
   void writePiElmore(const Pin *drvr_pin,
                      const Parasitic *parasitic);
   void writeNullParasitic(const Pin *drvr_pin);
 
-  void writeVoltageSource(const char *node_name,
+  void writeVoltageSource(std::string_view node_name,
                           float voltage);
   void writeRampVoltSource(const Pin *pin,
-			   const RiseFall *rf,
-			   float time,
-			   float slew);
+                           const RiseFall *rf,
+                           float time,
+                           float slew);
   void writeWaveformVoltSource(const Pin *pin,
                                DriverWaveform *drvr_waveform,
                                const RiseFall *rf,
                                float delay,
                                float slew);
   void writeWaveformEdge(const RiseFall *rf,
-			 float time,
-			 float slew);
+                         float time,
+                         float slew);
   float railToRailSlew(float slew,
                        const RiseFall *rf);
   void seqPortValues(Sequential *seq,
-		     const RiseFall *rf,
-		     // Return values.
-		     LibertyPortLogicValues &port_values);
+                     const RiseFall *rf,
+                     // Return values.
+                     LibertyPortLogicValues &port_values);
   LibertyPort *onePort(FuncExpr *expr);
   void writeMeasureDelayStmt(const Pin *from_pin,
                              const RiseFall *from_rf,
                              const Pin *to_pin,
                              const RiseFall *to_rf,
-                             std::string prefix);
+                             std::string_view prefix);
   void writeMeasureSlewStmt(const Pin *pin,
                             const RiseFall *rf,
-                            std::string prefix);
-  const char *spiceTrans(const RiseFall *rf);
+                            std::string_view prefix);
+  std::string_view spiceTrans(const RiseFall *rf);
   float findSlew(Vertex *vertex,
-		 const RiseFall *rf,
-		 const TimingArc *next_arc);
+                 const RiseFall *rf,
+                 const TimingArc *next_arc);
   float slewAxisMinValue(const TimingArc *arc);
   float clkWaveformTimeOffset(const Clock *clk);
 
@@ -140,38 +141,39 @@ protected:
                       const Pin *drvr_pin,
                       const RiseFall *drvr_rf,
                       const Edge *gate_edge,
-		      // Return values.
-		      LibertyPortLogicValues &port_values,
-		      bool &is_clked);
+                      // Return values.
+                      LibertyPortLogicValues &port_values,
+                      bool &is_clked);
   void regPortValues(const Pin *input_pin,
                      const RiseFall *drvr_rf,
                      const LibertyPort *drvr_port,
                      const FuncExpr *drvr_func,
-		     // Return values.
-		     LibertyPortLogicValues &port_values,
+                     // Return values.
+                     LibertyPortLogicValues &port_values,
                      bool &is_clked);
   void gatePortValues(const Instance *inst,
-		      const FuncExpr *expr,
-		      const LibertyPort *input_port,
-		      // Return values.
-		      LibertyPortLogicValues &port_values);
+                      const FuncExpr *expr,
+                      const LibertyPort *input_port,
+                      // Return values.
+                      LibertyPortLogicValues &port_values);
   void writeSubcktInstLoads(const Pin *drvr_pin,
                             const Pin *path_load,
                             const PinSet &excluded_input_pins,
                             InstanceSet &written_insts);
   PinSeq drvrLoads(const Pin *drvr_pin);
   void writeSubcktInstVoltSrcs();
-  std::string replaceFileExt(std::string filename,
-                             const char *ext);
+  std::string replaceFileExt(std::string_view filename,
+                             std::string_view ext);
 
-  const char *spice_filename_;
-  const char *subckt_filename_;
-  const char *lib_subckt_filename_;
-  const char *model_filename_;
-  const char *power_name_;
-  const char *gnd_name_;
+  const std::string spice_filename_;
+  const std::string subckt_filename_;
+  const std::string lib_subckt_filename_;
+  const std::string model_filename_;
+  const std::string power_name_;
+  const std::string gnd_name_;
   CircuitSim ckt_sim_;
-  const DcalcAnalysisPt *dcalc_ap_;
+  const Scene *scene_;
+  const MinMax *min_max_;
 
   std::ofstream spice_stream_;
   LibertyLibrary *default_library_;
@@ -179,19 +181,15 @@ protected:
   float gnd_voltage_;
   float max_time_;
   // Resistance to use to simulate a short circuit between spice nodes.
-  float short_ckt_resistance_;
+  float short_ckt_resistance_{0.0001F};
   // Input clock waveform cycles.
   // Sequential device numbers.
-  int cap_index_;
-  int res_index_;
-  int volt_index_;
+  int cap_index_{1};
+  int res_index_{1};
+  int volt_index_{1};
   CellSpicePortNames cell_spice_port_names_;
   Bdd bdd_;
+  Parasitics *parasitics_;
 };
 
-void
-streamPrint(std::ofstream &stream,
-	    const char *fmt,
-	    ...) __attribute__((format (printf, 2, 3)));
-
-} // namespace
+}  // namespace sta

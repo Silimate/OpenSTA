@@ -1,5 +1,5 @@
 // OpenSTA, Static Timing Analyzer
-// Copyright (c) 2025, Parallax Software, Inc.
+// Copyright (c) 2026, Parallax Software, Inc.
 // 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -24,170 +24,76 @@
 
 #include "CheckMaxSkews.hh"
 
-#include "TimingRole.hh"
-#include "TimingArc.hh"
+#include <cstddef>
+
+#include "ContainerHelpers.hh"
+#include "Delay.hh"
+#include "Graph.hh"
 #include "Liberty.hh"
 #include "Network.hh"
-#include "Graph.hh"
-#include "Clock.hh"
+#include "NetworkClass.hh"
 #include "Path.hh"
-#include "PathAnalysisPt.hh"
 #include "Search.hh"
+#include "TimingArc.hh"
+#include "TimingRole.hh"
+#include "Transition.hh"
 
 namespace sta {
-
-// Abstract base class.
-class MaxSkewCheckVisitor
-{
-public:
-  MaxSkewCheckVisitor() {}
-  virtual ~MaxSkewCheckVisitor() {}
-  virtual void visit(MaxSkewCheck &check,
-		     const StaState *sta) = 0;
-};
 
 CheckMaxSkews::CheckMaxSkews(StaState *sta) :
   sta_(sta)
 {
 }
 
-CheckMaxSkews::~CheckMaxSkews()
-{
-  checks_.deleteContents();
-}
-
 void
 CheckMaxSkews::clear()
 {
-  checks_.deleteContentsClear();
-}
-
-class MaxSkewChecksVisitor : public MaxSkewCheckVisitor
-{
-public:
-  explicit MaxSkewChecksVisitor(MaxSkewCheckSeq &checks);
-  virtual void visit(MaxSkewCheck &check,
-		     const StaState *sta);
-
-private:
-  MaxSkewCheckSeq &checks_;
-};
-
-MaxSkewChecksVisitor::MaxSkewChecksVisitor(MaxSkewCheckSeq &checks) :
-  MaxSkewCheckVisitor(),
-  checks_(checks)
-{
-}
-
-void
-MaxSkewChecksVisitor::visit(MaxSkewCheck &check,
-			    const StaState *)
-{
-  checks_.push_back(new MaxSkewCheck(check));
-}
-
-class MaxSkewViolatorsVisititor : public MaxSkewCheckVisitor
-{
-public:
-  explicit MaxSkewViolatorsVisititor(MaxSkewCheckSeq &checks);
-  virtual void visit(MaxSkewCheck &check,
-		     const StaState *sta);
-
-private:
-  MaxSkewCheckSeq &checks_;
-};
-
-MaxSkewViolatorsVisititor::
-MaxSkewViolatorsVisititor(MaxSkewCheckSeq &checks) :
-  MaxSkewCheckVisitor(),
-  checks_(checks)
-{
-}
-
-void
-MaxSkewViolatorsVisititor::visit(MaxSkewCheck &check,
-				 const StaState *sta)
-{
-  if (delayLess(check.slack(sta), 0.0, sta))
-    checks_.push_back(new MaxSkewCheck(check));
+  checks_.clear();
 }
 
 MaxSkewCheckSeq &
-CheckMaxSkews::violations()
+CheckMaxSkews::check(const Net *net,
+                     size_t max_count,
+                     bool violators,
+                     const SceneSeq &scenes)
 {
   clear();
-  MaxSkewViolatorsVisititor visitor(checks_);
-  visitMaxSkewChecks(&visitor);
+  scenes_ = Scene::sceneSet(scenes);
+
+  Graph *graph = sta_->graph();
+  const Network *network = sta_->network();
+  if (net) {
+    NetPinIterator *pin_iter = network->pinIterator(net);
+    while (pin_iter->hasNext()) {
+      const Pin *pin = pin_iter->next();
+      Vertex *vertex = graph->pinLoadVertex(pin);
+      check(vertex, violators);
+    }
+    delete pin_iter;
+  }
+  else {
+    VertexIterator vertex_iter(graph);
+    while (vertex_iter.hasNext()) {
+      Vertex *vertex = vertex_iter.next();
+      check(vertex, violators);
+    }
+  }
+
+  // Sort checks by slack
   sort(checks_, MaxSkewSlackLess(sta_));
+  if (!violators && checks_.size() > max_count)
+    checks_.resize(max_count);
   return checks_;
 }
 
-class MaxSkewSlackVisitor : public MaxSkewCheckVisitor
-{
-public:
-  MaxSkewSlackVisitor();
-  virtual void visit(MaxSkewCheck &check,
-		     const StaState *sta);
-  MaxSkewCheck *minSlackCheck();
-
-private:
-  MaxSkewCheck *min_slack_check_;
-};
-
-MaxSkewSlackVisitor::MaxSkewSlackVisitor() :
-  MaxSkewCheckVisitor(),
-  min_slack_check_(nullptr)
-{
-}
-
 void
-MaxSkewSlackVisitor::visit(MaxSkewCheck &check,
-			   const StaState *sta)
-{
-  MaxSkewSlackLess slack_less(sta);
-  if (min_slack_check_ == nullptr
-      || slack_less(&check, min_slack_check_)) {
-    delete min_slack_check_;
-    min_slack_check_ = new MaxSkewCheck(check);
-  }
-}
-
-MaxSkewCheck *
-MaxSkewSlackVisitor::minSlackCheck()
-{
-  return min_slack_check_;
-}
-
-MaxSkewCheck *
-CheckMaxSkews::minSlackCheck()
-{
-  clear();
-  MaxSkewSlackVisitor visitor;
-  visitMaxSkewChecks(&visitor);
-  MaxSkewCheck *check = visitor.minSlackCheck();
-  // Save check for cleanup.
-  checks_.push_back(check);
-  return check;
-}
-
-void
-CheckMaxSkews::visitMaxSkewChecks(MaxSkewCheckVisitor *visitor)
-{
-  Graph *graph = sta_->graph();
-  VertexIterator vertex_iter(graph);
-  while (vertex_iter.hasNext()) {
-    Vertex *vertex = vertex_iter.next();
-    visitMaxSkewChecks(vertex, visitor);
-  }
-}
-
-void
-CheckMaxSkews:: visitMaxSkewChecks(Vertex *vertex,
-				   MaxSkewCheckVisitor *visitor)
+CheckMaxSkews::check(Vertex *vertex,
+                     bool violators)
 {
   Graph *graph = sta_->graph();
   Search *search = sta_->search();
   const MinMax *clk_min_max = MinMax::max();
+  MaxSkewCheck min_slack_check;
   VertexInEdgeIterator edge_iter(vertex, graph);
   while (edge_iter.hasNext()) {
     Edge *edge = edge_iter.next();
@@ -195,35 +101,53 @@ CheckMaxSkews:: visitMaxSkewChecks(Vertex *vertex,
       Vertex *ref_vertex = edge->from(graph);
       TimingArcSet *arc_set = edge->timingArcSet();
       for (TimingArc *arc : arc_set->arcs()) {
-	const RiseFall *clk_rf = arc->fromEdge()->asRiseFall();
-	const RiseFall *ref_rf = arc->toEdge()->asRiseFall();
-	VertexPathIterator clk_path_iter(vertex, clk_rf, clk_min_max, search);
-	while (clk_path_iter.hasNext()) {
-	  Path *clk_path = clk_path_iter.next();
-	  if (clk_path->isClock(search)) {
-	    const PathAnalysisPt *clk_ap = clk_path->pathAnalysisPt(sta_);
-	    PathAnalysisPt *ref_ap = clk_ap->tgtClkAnalysisPt();
-	    VertexPathIterator ref_path_iter(ref_vertex, ref_rf, ref_ap, sta_);
-	    while (ref_path_iter.hasNext()) {
-	      Path *ref_path = ref_path_iter.next();
-	      if (ref_path->isClock(search)) {
-		MaxSkewCheck check(clk_path, ref_path, arc, edge);
-		visitor->visit(check, sta_);
-	      }
-	    }
-	  }
-	}
+        const RiseFall *clk_rf = arc->fromEdge()->asRiseFall();
+        const RiseFall *ref_rf = arc->toEdge()->asRiseFall();
+        VertexPathIterator clk_path_iter(vertex, clk_rf, clk_min_max, search);
+        while (clk_path_iter.hasNext()) {
+          Path *clk_path = clk_path_iter.next();
+          if (clk_path->isClock(search)) {
+            const Scene *scene = clk_path->scene(sta_);
+            if (scenes_.contains(scene)) {
+              const MinMax *ref_min_max = clk_path->tgtClkMinMax(sta_);
+              VertexPathIterator ref_path_iter(ref_vertex, scene, ref_min_max,
+                                               ref_rf, sta_);
+              while (ref_path_iter.hasNext()) {
+                Path *ref_path = ref_path_iter.next();
+                if (ref_path->isClock(search)) {
+                  MaxSkewCheck skew_check(clk_path, ref_path, arc, edge);
+                  Slack slack = skew_check.slack(sta_);
+                  if ((min_slack_check.isNull()
+                       || delayLess(slack, min_slack_check.slack(sta_), sta_))
+                      && (!violators ||
+                          delayLess(slack, 0.0, sta_)))
+                    min_slack_check = skew_check;
+                }
+              }
+            }
+          }
+        }
       }
     }
   }
+  if (!min_slack_check.isNull())
+    checks_.push_back(min_slack_check);
 }
 
 ////////////////////////////////////////////////////////////////
 
+MaxSkewCheck::MaxSkewCheck() :
+  clk_path_(nullptr),
+  ref_path_(nullptr),
+  check_arc_(nullptr),
+  check_edge_(nullptr)
+{
+}
+
 MaxSkewCheck::MaxSkewCheck(Path *clk_path,
-			   Path *ref_path,
-			   TimingArc *check_arc,
-			   Edge *check_edge) :
+                           Path *ref_path,
+                           TimingArc *check_arc,
+                           Edge *check_edge) :
   clk_path_(clk_path),
   ref_path_(ref_path),
   check_arc_(check_arc),
@@ -248,20 +172,22 @@ MaxSkewCheck::maxSkew(const StaState *sta) const
 {
   Search *search = sta->search();
   return search->deratedDelay(ref_path_->vertex(sta),
-			      check_arc_, check_edge_, false,
-			      clk_path_->pathAnalysisPt(sta));
+                              check_arc_, check_edge_, false,
+                              clk_path_->minMax(sta),
+                              clk_path_->dcalcAnalysisPtIndex(sta),
+                              ref_path_->scene(sta)->sdc());
 }
 
 Delay
-MaxSkewCheck::skew() const
+MaxSkewCheck::skew(const StaState *sta) const
 {
-  return Delay(clk_path_->arrival() - ref_path_->arrival());
+  return delayDiff(clk_path_->arrival(), ref_path_->arrival(), sta);
 }
 
 Slack
 MaxSkewCheck::slack(const StaState *sta) const
 {
-  return maxSkew(sta) - skew();
+  return delayDiff(maxSkew(sta), skew(sta), sta);
 }
 
 ////////////////////////////////////////////////////////////////
@@ -272,15 +198,15 @@ MaxSkewSlackLess::MaxSkewSlackLess(const StaState *sta) :
 }
 
 bool
-MaxSkewSlackLess::operator()(const MaxSkewCheck *check1,
-			     const MaxSkewCheck *check2) const
+MaxSkewSlackLess::operator()(const MaxSkewCheck &check1,
+                             const MaxSkewCheck &check2) const
 {
-  Slack slack1 = check1->slack(sta_);
-  Slack slack2 = check2->slack(sta_);
+  Slack slack1 = check1.slack(sta_);
+  Slack slack2 = check2.slack(sta_);
   return delayLess(slack1, slack2, sta_)
-    || (delayEqual(slack1, slack2)
-	// Break ties based on constrained pin names.
-	&& sta_->network()->pinLess(check1->clkPin(sta_),check2->clkPin(sta_)));
+    || (delayEqual(slack1, slack2, sta_)
+        // Break ties based on constrained pin names.
+        && sta_->network()->pinLess(check1.clkPin(sta_), check2.clkPin(sta_)));
 }
 
-} // namespace
+} // namespace sta

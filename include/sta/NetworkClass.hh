@@ -1,5 +1,5 @@
 // OpenSTA, Static Timing Analyzer
-// Copyright (c) 2025, Parallax Software, Inc.
+// Copyright (c) 2026, Parallax Software, Inc.
 // 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -25,11 +25,12 @@
 #pragma once
 
 #include <cstdint>
-#include <string>
 #include <map>
+#include <set>
+#include <string>
+#include <unordered_set>
+#include <vector>
 
-#include "Set.hh"
-#include "Vector.hh"
 #include "Iterator.hh"
 
 namespace sta {
@@ -49,35 +50,36 @@ class ConstantPinIterator;
 class ViewType;
 class LibertyLibrary;
 
-typedef Iterator<Library*> LibraryIterator;
-typedef Iterator<LibertyLibrary*> LibertyLibraryIterator;
-typedef Vector<Cell*> CellSeq;
-typedef CellSeq::ConstIterator CellSeqIterator;
-typedef Vector<const Port*> PortSeq;
-typedef PortSeq::ConstIterator PortSeqIterator;
-typedef Iterator<Port*> CellPortIterator;
-typedef Iterator<Port*> CellPortBitIterator;
-typedef Iterator<Port*> PortMemberIterator;
+using LibraryIterator = Iterator<Library*>;
+using LibertyLibraryIterator = Iterator<LibertyLibrary*>;
+using CellSeq = std::vector<Cell*>;
+using CellSeqIterator = VectorIterator<CellSeq, Cell*>;
+using PortSeq = std::vector<const Port*>;
+using PortSeqIterator = VectorIterator<PortSeq, const Port*>;
+using CellPortIterator = Iterator<Port*>;
+using CellPortBitIterator = Iterator<Port*>;
+using PortMemberIterator = Iterator<Port*>;
 
-typedef Vector<const Pin*> PinSeq;
-typedef PinSeq::ConstIterator PinSeqIterator;
-typedef Vector<const Instance*> InstanceSeq;
-typedef InstanceSeq::ConstIterator InstanceSeqIterator;
-typedef Vector<const Net*> NetSeq;
-typedef NetSeq::ConstIterator NetSeqIterator;
-typedef std::vector<const Net*> ConstNetSeq;
-typedef Iterator<Instance*> InstanceChildIterator;
-typedef Iterator<Pin*> InstancePinIterator;
-typedef Iterator<Net*> InstanceNetIterator;
-typedef Iterator<Instance*> LeafInstanceIterator;
-typedef Iterator<Net*> NetIterator;
-typedef Iterator<const Pin*> NetPinIterator;
-typedef Iterator<Term*> NetTermIterator;
-typedef Iterator<const Pin*> ConnectedPinIterator;
-typedef ConnectedPinIterator NetConnectedPinIterator;
-typedef ConnectedPinIterator PinConnectedPinIterator;
-typedef uint32_t ObjectId;
-typedef std::map<std::string, std::string> AttributeMap;
+using PinSeq = std::vector<const Pin*>;
+using PinSeqIterator = VectorIterator<PinSeq, const Pin*>;
+using PinUnorderedSet = std::unordered_set<const Pin*>;
+using InstanceSeq = std::vector<const Instance*>;
+using InstanceSeqIterator = VectorIterator<InstanceSeq, const Instance*>;
+using NetSeq = std::vector<const Net*>;
+using NetSeqIterator = VectorIterator<NetSeq, const Net*>;
+using ConstNetSeq = std::vector<const Net*>;
+using InstanceChildIterator = Iterator<Instance*>;
+using InstancePinIterator = Iterator<Pin*>;
+using InstanceNetIterator = Iterator<Net*>;
+using LeafInstanceIterator = Iterator<Instance*>;
+using NetIterator = Iterator<Net*>;
+using NetPinIterator = Iterator<const Pin*>;
+using NetTermIterator = Iterator<Term*>;
+using ConnectedPinIterator = Iterator<const Pin*>;
+using NetConnectedPinIterator = ConnectedPinIterator;
+using PinConnectedPinIterator = ConnectedPinIterator;
+using ObjectId = uint32_t;
+using AttributeMap = std::map<std::string, std::string, std::less<>>;
 
 enum class LogicValue : unsigned { zero, one, unknown, rise, fall };
 
@@ -143,55 +145,37 @@ private:
 
 ////////////////////////////////////////////////////////////////
 
-class CellSet : public Set<const Cell*, CellIdLess>
+class CellSet : public std::set<const Cell*, CellIdLess>
 {
 public:
   CellSet(const Network *network);
 };
 
-class PortSet : public Set<const Port*, PortIdLess>
+class PortSet : public std::set<const Port*, PortIdLess>
 {
 public:
   PortSet(const Network *network);
 };
 
-class InstanceSet : public Set<const Instance*, InstanceIdLess>
+class InstanceSet : public std::set<const Instance*, InstanceIdLess>
 {
 public:
   InstanceSet();
   InstanceSet(const Network *network);
-  static int compare(const InstanceSet *set1,
-                     const InstanceSet *set2,
-                     const Network *network);
-  static bool intersects(const InstanceSet *set1,
-                         const InstanceSet *set2,
-                         const Network *network);
 };
 
-class PinSet : public Set<const Pin*, PinIdLess>
+class PinSet : public std::set<const Pin*, PinIdLess>
 {
 public:
   PinSet();
   PinSet(const Network *network);
-  static int compare(const PinSet *set1,
-                     const PinSet *set2,
-                     const Network *network);
-  static bool intersects(const PinSet *set1,
-                         const PinSet *set2,
-                         const Network *network);
 };
 
-class NetSet : public Set<const Net*, NetIdLess>
+class NetSet : public std::set<const Net*, NetIdLess>
 {
 public:
   NetSet();
   NetSet(const Network *network);
-  static int compare(const NetSet *set1,
-                     const NetSet *set2,
-                     const Network *network);
-  static bool intersects(const NetSet *set1,
-                         const NetSet *set2,
-                         const Network *network);
 };
 
-} // namespace
+} // namespace sta

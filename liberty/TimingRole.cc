@@ -1,5 +1,5 @@
 // OpenSTA, Static Timing Analyzer
-// Copyright (c) 2025, Parallax Software, Inc.
+// Copyright (c) 2026, Parallax Software, Inc.
 // 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -23,6 +23,8 @@
 // This notice may not be removed or altered from any source distribution.
 
 #include "TimingRole.hh"
+
+#include "MinMax.hh"
 
 namespace sta {
 
@@ -90,12 +92,12 @@ const TimingRole TimingRole::clock_tree_path_max_("max clock tree path", false, 
                                                   false, MinMax::max(), nullptr, 28);
 
 TimingRole::TimingRole(const char *name,
-		       bool is_sdf_iopath,
-		       bool is_timing_check,
-		       bool is_non_seq_check,
-		       const MinMax *path_min_max,
-		       const TimingRole *generic_role,
-		       int index) :
+                       bool is_sdf_iopath,
+                       bool is_timing_check,
+                       bool is_non_seq_check,
+                       const MinMax *path_min_max,
+                       const TimingRole *generic_role,
+                       int index) :
   name_(name),
   is_timing_check_(is_timing_check),
   is_sdf_iopath_(is_sdf_iopath),
@@ -164,6 +166,12 @@ TimingRole::isLatchDtoQ() const
 }
 
 bool
+TimingRole::isLatchEnToQ() const
+{
+  return this == &latch_en_q_;
+}
+
+bool
 TimingRole::isTimingCheckBetween() const
 {
   return is_timing_check_
@@ -173,9 +181,9 @@ TimingRole::isTimingCheckBetween() const
 
 bool
 TimingRole::less(const TimingRole *role1,
-		 const TimingRole *role2)
+                 const TimingRole *role2)
 {
   return role1->index() < role2->index();
 }
 
-} // namespace
+} // namespace sta

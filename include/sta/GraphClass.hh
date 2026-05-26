@@ -1,5 +1,5 @@
 // OpenSTA, Static Timing Analyzer
-// Copyright (c) 2025, Parallax Software, Inc.
+// Copyright (c) 2026, Parallax Software, Inc.
 // 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -25,13 +25,13 @@
 #pragma once
 
 #include <limits>
+#include <set>
+#include <vector>
 
-#include "ObjectId.hh"
-#include "Set.hh"
-#include "Vector.hh"
-#include "MinMax.hh"
-#include "Transition.hh"
 #include "Delay.hh"
+#include "MinMax.hh"
+#include "ObjectId.hh"
+#include "Transition.hh"
 
 namespace sta {
 
@@ -42,19 +42,29 @@ class Edge;
 class VertexIterator;
 class VertexInEdgeIterator;
 class VertexOutEdgeIterator;
-class GraphLoop;
-class VertexSet;
 
-typedef ObjectId VertexId;
-typedef ObjectId EdgeId;
-typedef Vector<Vertex*> VertexSeq;
-typedef Vector<Edge*> EdgeSeq;
-typedef Set<Edge*> EdgeSet;
-typedef int Level;
-typedef int DcalcAPIndex;
-typedef int TagGroupIndex;
-typedef Vector<GraphLoop*> GraphLoopSeq;
-typedef std::vector<Slew> SlewSeq;
+class VertexIdLess
+{
+public:
+  VertexIdLess() = delete;
+  VertexIdLess(Graph *&graph);
+  bool operator()(const Vertex *vertex1,
+                  const Vertex *vertex2) const;
+
+private:
+  Graph *&graph_;
+};
+
+using VertexId = ObjectId;
+using EdgeId = ObjectId;
+using VertexSeq = std::vector<Vertex*>;
+using VertexSet = std::set<Vertex*, VertexIdLess>;
+using EdgeSeq = std::vector<Edge*>;
+using EdgeSet = std::set<Edge*>;
+using Level = int;
+using DcalcAPIndex = int;
+using TagGroupIndex = int;
+using SlewSeq = std::vector<Slew>;
 
 static constexpr int level_max = std::numeric_limits<Level>::max();
 
@@ -66,4 +76,4 @@ static constexpr int slew_annotated_bits = MinMax::index_count * RiseFall::index
 // Bit shifts used to mark vertices in a Bfs queue.
 enum class BfsIndex { dcalc, arrival, required, other, bits };
 
-} // namespace
+} // namespace sta

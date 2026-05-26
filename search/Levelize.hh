@@ -1,5 +1,5 @@
 // OpenSTA, Static Timing Analyzer
-// Copyright (c) 2025, Parallax Software, Inc.
+// Copyright (c) 2026, Parallax Software, Inc.
 // 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -25,26 +25,27 @@
 #pragma once
 
 #include <stack>
+#include <utility>
+#include <vector>
 
-#include "NetworkClass.hh"
-#include "SdcClass.hh"
 #include "Graph.hh"
-#include "SearchPred.hh"
 #include "StaState.hh"
 
 namespace sta {
 
 class SearchPred;
 class LevelizeObserver;
+class GraphLoop;
 
-typedef std::pair<Vertex*,VertexOutEdgeIterator*> VertexEdgeIterPair;
-typedef std::stack<VertexEdgeIterPair> FindBackEdgesStack;
+using VertexEdgeIterPair = std::pair<Vertex*,VertexOutEdgeIterator*>;
+using FindBackEdgesStack = std::stack<VertexEdgeIterPair>;
+using GraphLoopSeq = std::vector<GraphLoop*>;
 
 class Levelize : public StaState
 {
 public:
   Levelize(StaState *sta);
-  virtual ~Levelize();
+  ~Levelize() override;
   // Space between initially assigned levels that is filled in by
   // incremental levelization.  Set level space before levelization.
   void setLevelSpace(Level space);
@@ -52,7 +53,6 @@ public:
   void ensureLevelized();
   void invalid();
   // Levels downstream from vertex are invalid.
-  void invalidFrom(Vertex *vertex);
   void relevelizeFrom(Vertex *vertex);
   void deleteVertexBefore(Vertex *vertex);
   void deleteEdgeBefore(Edge *edge);
@@ -61,6 +61,7 @@ public:
   VertexSet &roots() { return roots_; }
   bool isRoot(Vertex *vertex);
   bool hasFanout(Vertex *vertex);
+  bool searchThru(Edge *edge);
   // Reset to virgin state.
   void clear();
   // Edge is disabled to break combinational loops.
@@ -71,7 +72,7 @@ public:
   void setObserver(LevelizeObserver *observer);
   void checkLevels();
   // Public for regression testing.
-  void levelize();
+  void findLevels();
 
 protected:
   void findRoots();
@@ -96,25 +97,24 @@ protected:
              VertexSet &path_vertices,
              EdgeSeq &path);
   void setLevel(Vertex  *vertex,
-		Level level);
+                Level level);
   void setLevelIncr(Vertex  *vertex,
                     Level level);
   void clearLoopEdges();
   void deleteLoops();
   void reportPath(EdgeSeq &path) const;
 
-  SearchPredNonLatch2 search_pred_;
-  bool levelized_;
-  bool levels_valid_;
-  Level max_level_;
-  Level level_space_;
+  bool levelized_{false};
+  bool levels_valid_{false};
+  Level max_level_{0};
+  Level level_space_{10};
   VertexSet roots_;
   VertexSet relevelize_from_;
   GraphLoopSeq loops_;
   EdgeSet loop_edges_;
   EdgeSet disabled_loop_edges_;
   EdgeSet latch_d_to_q_edges_;
-  LevelizeObserver *observer_;
+  LevelizeObserver *observer_{nullptr};
 };
 
 // Loops broken by levelization may not necessarily be combinational.
@@ -123,7 +123,7 @@ protected:
 class GraphLoop
 {
 public:
-  explicit GraphLoop(EdgeSeq *edges);
+  GraphLoop(EdgeSeq *edges);
   ~GraphLoop();
   EdgeSeq *edges() { return edges_; }
   bool isCombinational() const;
@@ -136,10 +136,9 @@ private:
 class LevelizeObserver
 {
 public:
-  LevelizeObserver() {}
-  virtual ~LevelizeObserver() {}
+  virtual ~LevelizeObserver() = default;
   virtual void levelsChangedBefore() = 0;
   virtual void levelChangedBefore(Vertex *vertex) = 0;
 };
 
-} // namespace
+} // namespace sta

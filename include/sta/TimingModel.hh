@@ -1,5 +1,5 @@
 // OpenSTA, Static Timing Analyzer
-// Copyright (c) 2025, Parallax Software, Inc.
+// Copyright (c) 2026, Parallax Software, Inc.
 // 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -25,9 +25,11 @@
 #pragma once
 
 #include <string>
+#include <string_view>
 
 #include "Delay.hh"
 #include "LibertyClass.hh"
+#include "Variables.hh"
 
 namespace sta {
 
@@ -36,7 +38,7 @@ class TimingModel
 {
 public:
   TimingModel(LibertyCell *cell);
-  virtual ~TimingModel() {}
+  virtual ~TimingModel() = default;
   virtual void setIsScaled(bool is_scaled) = 0;
 
 protected:
@@ -50,16 +52,25 @@ public:
   GateTimingModel(LibertyCell *cell);
   // Gate delay calculation.
   virtual void gateDelay(const Pvt *pvt,
-			 float in_slew,
-			 float load_cap,
-			 bool pocv_enabled,
-			 // Return values.
-			 ArcDelay &gate_delay,
-			 Slew &drvr_slew) const = 0;
+                         float in_slew,
+                         float load_cap,
+                         // Return values.
+                         float &gate_delay,
+                         float &drvr_slew) const = 0;
+  // Fill in pocv parameters in gate_delay, drvr_slew.
+  virtual void gateDelayPocv(const Pvt *pvt,
+                             float in_slew,
+                             float load_cap,
+                             const MinMax *min_max,
+                             PocvMode pocv_mode,
+                             // Return values.
+                             ArcDelay &gate_delay,
+                             Slew &drvr_slew) const = 0;
   virtual std::string reportGateDelay(const Pvt *pvt,
                                       float in_slew,
                                       float load_cap,
-                                      bool pocv_enabled,
+                                      const MinMax *min_max,
+                                      PocvMode pocv_mode,
                                       int digits) const = 0;
   virtual float driveResistance(const Pvt *pvt) const = 0;
 };
@@ -74,14 +85,16 @@ public:
                               float from_slew,
                               float to_slew,
                               float related_out_cap,
-                              bool pocv_enabled) const = 0;
+                              const MinMax *min_max,
+                              PocvMode pocv_mode) const = 0;
   virtual std::string reportCheckDelay(const Pvt *pvt,
                                        float from_slew,
-                                       const char *from_slew_annotation,
+                                       std::string_view from_slew_annotation,
                                        float to_slew,
                                        float related_out_cap,
-                                       bool pocv_enabled,
+                                       const MinMax *min_max,
+                                       PocvMode pocv_mode,
                                        int digits) const = 0;
 };
 
-} // namespace
+} // namespace sta

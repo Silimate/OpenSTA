@@ -1,5 +1,5 @@
 // OpenSTA, Static Timing Analyzer
-// Copyright (c) 2025, Parallax Software, Inc.
+// Copyright (c) 2026, Parallax Software, Inc.
 // 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -26,29 +26,30 @@
 
 #include <functional>
 
-#include "Units.hh"
-#include "Network.hh"
 #include "Graph.hh"
+#include "Network.hh"
+#include "Scene.hh"
 #include "Sdc.hh"
-#include "Corner.hh"
 #include "Search.hh"
 #include "Tag.hh"
-#include "PathAnalysisPt.hh"
+#include "Units.hh"
 
 namespace sta {
 
-ClkInfo::ClkInfo(const ClockEdge *clk_edge,
-		 const Pin *clk_src,
-		 bool is_propagated,
+ClkInfo::ClkInfo(Scene *scene,
+                 const ClockEdge *clk_edge,
+                 const Pin *clk_src,
+                 bool is_propagated,
                  const Pin *gen_clk_src,
-		 bool is_gen_clk_src_path,
-		 const RiseFall *pulse_clk_sense,
-		 Arrival insertion,
-		 float latency,
-		 ClockUncertainties *uncertainties,
-                 PathAPIndex path_ap_index,
-		 const Path *crpr_clk_path,
-		 const StaState *sta) :
+                 bool is_gen_clk_src_path,
+                 const RiseFall *pulse_clk_sense,
+                 Arrival insertion,
+                 float latency,
+                 const ClockUncertainties *uncertainties,
+                 const MinMax *min_max,
+                 const Path *crpr_clk_path,
+                 const StaState *sta) :
+  scene_(scene),
   clk_edge_(clk_edge),
   clk_src_(clk_src),
   gen_clk_src_(gen_clk_src),
@@ -61,13 +62,9 @@ ClkInfo::ClkInfo(const ClockEdge *clk_edge,
   crpr_path_refs_filter_(crpr_clk_path ? crpr_clk_path->tag(sta)->isFilter() : false),
   is_pulse_clk_(pulse_clk_sense != nullptr),
   pulse_clk_sense_(pulse_clk_sense ? pulse_clk_sense->index() : 0),
-  path_ap_index_(path_ap_index)
+  min_max_index_(min_max->index())
 {
   findHash(sta);
-}
-
-ClkInfo::~ClkInfo()
-{
 }
 
 void
@@ -101,12 +98,18 @@ ClkInfo::findHash(const StaState *sta)
       hashIncr(hash_, hash_float(uncertainty));
   }
   hashIncr(hash_, hash_float(latency_));
-  hashIncr(hash_, hash_float(delayAsFloat(insertion_)));
+  hashIncr(hash_, hash_float(insertion_.mean()));
   hashIncr(hash_, is_propagated_);
   hashIncr(hash_, is_gen_clk_src_path_);
   hashIncr(hash_, is_pulse_clk_);
   hashIncr(hash_, pulse_clk_sense_);
-  hashIncr(hash_, path_ap_index_);
+  hashIncr(hash_, min_max_index_);
+}
+
+const MinMax *
+ClkInfo::minMax() const
+{
+  return MinMax::find(min_max_index_);
 }
 
 VertexId
@@ -143,15 +146,14 @@ std::string
 ClkInfo::to_string(const StaState *sta) const
 {
   Network *network = sta->network();
-  Corners *corners = sta->corners();
   std::string result;
 
-  PathAnalysisPt *path_ap = corners->findPathAnalysisPt(path_ap_index_);
-  result += path_ap->pathMinMax()->to_string();
+  const MinMax *min_max = minMax();
+  result += scene_->name();
   result += "/";
-  result += std::to_string(path_ap_index_);
-
+  result += min_max->to_string();
   result += " ";
+
   if (clk_edge_)
     result += clk_edge_->name();
   else
@@ -181,7 +183,7 @@ ClkInfo::to_string(const StaState *sta) const
 
   if (delayGreater(insertion_, 0.0, sta)) {
     result += " insert";
-    result += delayAsString(insertion_, sta);
+    result += delayAsString(insertion_, min_max, sta);
   }
 
   if (uncertainties_) {
@@ -235,15 +237,15 @@ ClkInfoEqual::ClkInfoEqual(const StaState *sta) :
 
 bool
 ClkInfoEqual::operator()(const ClkInfo *clk_info1,
-			 const ClkInfo *clk_info2) const
+                         const ClkInfo *clk_info2) const
 {
   return ClkInfo::equal(clk_info1, clk_info2, sta_);
 }
 
 bool
 ClkInfo::equal(const ClkInfo *clk_info1,
-	       const ClkInfo *clk_info2,
-	       const StaState *sta)
+               const ClkInfo *clk_info2,
+               const StaState *sta)
 {
   return ClkInfo::cmp(clk_info1, clk_info2, sta) == 0;
 }
@@ -257,16 +259,23 @@ ClkInfoLess::ClkInfoLess(const StaState *sta) :
 
 bool
 ClkInfoLess::operator()(const ClkInfo *clk_info1,
-			const ClkInfo *clk_info2) const
+                        const ClkInfo *clk_info2) const
 {
   return ClkInfo::cmp(clk_info1, clk_info2, sta_) < 0;
 }
 
 int
 ClkInfo::cmp(const ClkInfo *clk_info1,
-	     const ClkInfo *clk_info2,
-	     const StaState *sta)
+             const ClkInfo *clk_info2,
+             const StaState *sta)
 {
+  size_t scene_index1 = clk_info1->scene()->index();
+  size_t scene_index2 = clk_info2->scene()->index();
+  if (scene_index1 < scene_index2)
+    return -1;
+  if (scene_index1 > scene_index2)
+    return 1;
+
   const ClockEdge *clk_edge1 = clk_info1->clkEdge();
   const ClockEdge *clk_edge2 = clk_info2->clkEdge();
   int edge_index1 = clk_edge1 ? clk_edge1->index() : -1;
@@ -276,11 +285,11 @@ ClkInfo::cmp(const ClkInfo *clk_info1,
   if (edge_index1 > edge_index2)
     return 1;
 
-  PathAPIndex path_ap_index1 = clk_info1->pathAPIndex();
-  PathAPIndex path_ap_index2 = clk_info2->pathAPIndex();
-  if (path_ap_index1 < path_ap_index2)
+  int mm_index1 = clk_info1->minMaxIndex();
+  int mm_index2 = clk_info2->minMaxIndex();
+  if (mm_index1 < mm_index2)
     return -1;
-  if (path_ap_index1 > path_ap_index2)
+  if (mm_index1 > mm_index2)
     return 1;
 
   const Network *network = sta->network();
@@ -302,14 +311,11 @@ ClkInfo::cmp(const ClkInfo *clk_info1,
   if (gen_clk_src_id1 > gen_clk_src_id2)
     return 1;
 
-  bool crpr_on = sta->crprActive();
-  if (crpr_on) {
-    const Path *crpr_path1 = clk_info1->crprClkPathRaw();
-    const Path *crpr_path2 = clk_info2->crprClkPathRaw();
-    int path_cmp = Path::cmp(crpr_path1, crpr_path2, sta);
-    if (path_cmp != 0)
-      return path_cmp;
-  }
+  const Path *crpr_path1 = clk_info1->crprClkPathRaw();
+  const Path *crpr_path2 = clk_info2->crprClkPathRaw();
+  int path_cmp = Path::cmp(crpr_path1, crpr_path2, sta);
+  if (path_cmp != 0)
+    return path_cmp;
 
   const ClockUncertainties *uncertainties1 = clk_info1->uncertainties();
   const ClockUncertainties *uncertainties2 = clk_info2->uncertainties();
@@ -367,4 +373,4 @@ ClkInfo::cmp(const ClkInfo *clk_info1,
     return 0;
 }
 
-} // namespace
+} // namespace sta

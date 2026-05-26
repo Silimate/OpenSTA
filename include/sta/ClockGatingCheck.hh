@@ -1,5 +1,5 @@
 // OpenSTA, Static Timing Analyzer
-// Copyright (c) 2025, Parallax Software, Inc.
+// Copyright (c) 2026, Parallax Software, Inc.
 // 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -24,22 +24,21 @@
 
 #pragma once
 
-#include "SdcClass.hh"
 #include "RiseFallMinMax.hh"
+#include "SdcClass.hh"
 
 namespace sta {
 
 class ClockGatingCheck
 {
 public:
-  ClockGatingCheck();
   RiseFallMinMax *margins() { return &margins_; }
   void setActiveValue(LogicValue value);
   LogicValue activeValue() const { return active_value_; }
 
 private:
   RiseFallMinMax margins_;
-  LogicValue active_value_;
+  LogicValue active_value_{LogicValue::unknown};
 };
 
-} // namespace
+} // namespace sta

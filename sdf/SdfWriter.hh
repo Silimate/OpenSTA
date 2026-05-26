@@ -1,5 +1,5 @@
 // OpenSTA, Static Timing Analyzer
-// Copyright (c) 2025, Parallax Software, Inc.
+// Copyright (c) 2026, Parallax Software, Inc.
 // 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -24,20 +24,22 @@
 
 #pragma once
 
+#include <string_view>
+
 namespace sta {
 
 class StaState;
-class Corner;
+class Scene;
 
 void
-writeSdf(const char *filename,
-	 const Corner *corner,
-	 char divider,
+writeSdf(std::string_view filename,
+         const Scene *scene,
+         char divider,
          bool include_typ,
-	 int digits,
-	 bool gzip,
-	 bool no_timestamp,
-	 bool no_version,
-	 StaState *sta);
+         int digits,
+         bool gzip,
+         bool no_timestamp,
+         bool no_version,
+         StaState *sta);
 
-} // namespace
+} // namespace sta

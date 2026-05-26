@@ -1,5 +1,5 @@
 // OpenSTA, Static Timing Analyzer
-// Copyright (c) 2025, Parallax Software, Inc.
+// Copyright (c) 2026, Parallax Software, Inc.
 // 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -34,29 +34,34 @@ class UnitDelayCalc : public ArcDelayCalc
 public:
   UnitDelayCalc(StaState *sta);
   ArcDelayCalc *copy() override;
-  const char *name() const override { return "unit"; }
+  std::string_view name() const override { return "unit"; }
   Parasitic *findParasitic(const Pin *drvr_pin,
                            const RiseFall *rf,
-                           const DcalcAnalysisPt *dcalc_ap) override;
+                           const Scene *scene,
+                           const MinMax *min_max) override;
   bool reduceSupported() const override { return false; }
   Parasitic *reduceParasitic(const Parasitic *parasitic_network,
                              const Pin *drvr_pin,
                              const RiseFall *rf,
-                             const DcalcAnalysisPt *dcalc_ap) override;
+                             const Scene *scene,
+                             const MinMax *min_max) override;
   void reduceParasitic(const Parasitic *parasitic_network,
                        const Net *net,
-                       const Corner *corner,
+                       const Scene *scene,
                        const MinMaxAll *min_max) override;
   void setDcalcArgParasiticSlew(ArcDcalcArg &gate,
-                                const DcalcAnalysisPt *dcalc_ap) override;
+                                const Scene *scene,
+                                const MinMax *min_max) override;
   void setDcalcArgParasiticSlew(ArcDcalcArgSeq &gates,
-                                const DcalcAnalysisPt *dcalc_ap) override;
+                                const Scene *scene,
+                                const MinMax *min_max) override;
   ArcDcalcResult inputPortDelay(const Pin *port_pin,
                                 float in_slew,
                                 const RiseFall *rf,
                                 const Parasitic *parasitic,
                                 const LoadPinIndexMap &load_pin_index_map,
-                                const DcalcAnalysisPt *dcalc_ap) override;
+                                const Scene *scene,
+                const MinMax *min_max) override;
   ArcDcalcResult gateDelay(const Pin *drvr_pin,
                            const TimingArc *arc,
                            const Slew &in_slew,
@@ -64,31 +69,36 @@ public:
                            float load_cap,
                            const Parasitic *parasitic,
                            const LoadPinIndexMap &load_pin_index_map,
-                           const DcalcAnalysisPt *dcalc_ap) override;
+                           const Scene *scene,
+                           const MinMax *min_max) override;
   ArcDcalcResultSeq gateDelays(ArcDcalcArgSeq &args,
                                const LoadPinIndexMap &load_pin_index_map,
-                               const DcalcAnalysisPt *dcalc_ap) override;
+                               const Scene *scene,
+                               const MinMax *min_max) override;
   ArcDelay checkDelay(const Pin *check_pin,
                       const TimingArc *arc,
                       const Slew &from_slew,
                       const Slew &to_slew,
                       float related_out_cap,
-                      const DcalcAnalysisPt *dcalc_ap) override;
+                      const Scene *scene,
+                      const MinMax *min_max) override;
   std::string reportGateDelay(const Pin *drvr_pin,
                               const TimingArc *arc,
                               const Slew &in_slew,
                               float load_cap,
                               const Parasitic *parasitic,
                               const LoadPinIndexMap &load_pin_index_map,
-                              const DcalcAnalysisPt *dcalc_ap,
+                              const Scene *scene,
+                              const MinMax *min_max,
                               int digits) override;
   std::string reportCheckDelay(const Pin *check_pin,
                                const TimingArc *arc,
                                const Slew &from_slew,
-                               const char *from_slew_annotation,
+                               std::string_view from_slew_annotation,
                                const Slew &to_slew,
                                float related_out_cap,
-                               const DcalcAnalysisPt *dcalc_ap,
+                               const Scene *scene,
+                               const MinMax *min_max,
                                int digits) override;
   void finishDrvrPin() override;
 
@@ -99,4 +109,4 @@ protected:
 ArcDelayCalc *
 makeUnitDelayCalc(StaState *sta);
 
-} // namespace
+} // namespace sta

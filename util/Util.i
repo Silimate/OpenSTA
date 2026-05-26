@@ -1,5 +1,5 @@
 // OpenSTA, Static Timing Analyzer
-// Copyright (c) 2025, Parallax Software, Inc.
+// Copyright (c) 2026, Parallax Software, Inc.
 // 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -22,33 +22,26 @@
 // 
 // This notice may not be removed or altered from any source distribution.
 
-%module util
 %include <std_string.i>
 
 %{
 
+#include "Error.hh"
+#include "Fuzzy.hh"
+#include "Report.hh"
 #include "Sta.hh"
 #include "StaConfig.hh"  // STA_VERSION
 #include "Stats.hh"
-#include "Report.hh"
-#include "Error.hh"
-#include "Fuzzy.hh"
+#include "StringUtil.hh"
 #include "Units.hh"
 
 using namespace sta;
 
 %}
 
-////////////////////////////////////////////////////////////////
-//
-// Empty class definitions to make swig happy.
-// Private constructor/destructor so swig doesn't emit them.
-//
-////////////////////////////////////////////////////////////////
-
 %inline %{
 
-float float_inf = INF;
+const float float_inf = INF;
 
 const char *
 version()
@@ -115,7 +108,7 @@ report_error(int id,
              const char *msg)
 {
   Report *report = Sta::sta()->report();
-  report->error(id, "%s", msg);
+  report->error(id, "{}", msg);
 }
 
 void
@@ -125,7 +118,7 @@ report_file_error(int id,
                   const char *msg)
 {
   Report *report = Sta::sta()->report();
-  report->error(id, filename, line, "%s", msg);
+  report->error(id, filename, line, "{}", msg);
 }
 
 void
@@ -133,7 +126,7 @@ report_warn(int id,
             const char *msg)
 {
   Report *report = Sta::sta()->report();
-  report->warn(id, "%s", msg);
+  report->warn(id, "{}", msg);
 }
 
 void
@@ -143,7 +136,7 @@ report_file_warn(int id,
                  const char *msg)
 {
   Report *report = Sta::sta()->report();
-  report->fileWarn(id, filename, line, "%s", msg);
+  report->fileWarn(id, filename, line, "{}", msg);
 }
 
 void
@@ -151,9 +144,9 @@ report_line(const char *msg)
 {
   Sta *sta = Sta::sta();
   if (sta)
-    sta->report()->reportLineString(msg);
+    sta->report()->reportLine(msg);
   else
-    // After sta::delete_all_memory souce -echo prints the cmd file line
+    // After sta::delete_all_memory include -echo prints the cmd file line.
     printf("%s\n", msg);
 }
 
@@ -226,7 +219,7 @@ log_end()
 
 void
 set_debug(const char *what,
-	  int level)
+          int level)
 {
   Sta::sta()->setDebugLevel(what, level);
 }
@@ -260,23 +253,6 @@ const char *
 object_type(const char *obj)
 {
   return &obj[1 + sizeof(void*) * 2 + 3];
-}
-
-bool
-is_object_list(const char *list,
-	       const char *type)
-{
-  const char *s = list;
-  while (s) {
-    bool type_match;
-    const char *next;
-    objectListNext(s, type, type_match, next);
-    if (type_match)
-      s = next;
-    else
-      return false;
-  }
-  return true;
 }
 
 ////////////////////////////////////////////////////////////////
@@ -390,7 +366,7 @@ area_sta_ui(double value)
 
 void
 set_cmd_unit_scale(const char *unit_name,
-		   float scale)
+                   float scale)
 {
   Unit *unit = Sta::sta()->units()->find(unit_name);
   if (unit)
@@ -399,7 +375,7 @@ set_cmd_unit_scale(const char *unit_name,
 
 void
 set_cmd_unit_digits(const char *unit_name,
-		    int digits)
+                    int digits)
 {
   Unit *unit = Sta::sta()->units()->find(unit_name);
   if (unit)
@@ -408,7 +384,7 @@ set_cmd_unit_digits(const char *unit_name,
 
 void
 set_cmd_unit_suffix(const char *unit_name,
-		    const char *suffix)
+                    const char *suffix)
 {
   Unit *unit = Sta::sta()->units()->find(unit_name);
   if (unit) {
@@ -471,81 +447,80 @@ unit_scale(const char *unit_name)
 
 // format_unit functions print with fixed digits and suffix.
 // Pass value arg as string to support NaNs.
-const char *
-format_time(const char *value,
-	    int digits)
+std::string
+format_time(std::string value,
+            int digits)
 {
-  float value1 = strtof(value, nullptr);
+  auto [value1, valid] = stringFloat(value);
   return Sta::sta()->units()->timeUnit()->asString(value1, digits);
 }
 
-const char *
+std::string
 format_capacitance(const char *value,
-		   int digits)
+                   int digits)
 {
-  float value1 = strtof(value, nullptr);
+  auto [value1, valid] = stringFloat(value);
   return Sta::sta()->units()->capacitanceUnit()->asString(value1, digits);
 }
 
-const char *
+std::string
 format_resistance(const char *value,
-		  int digits)
+                  int digits)
 {
-  float value1 = strtof(value, nullptr);
+  auto [value1, valid] = stringFloat(value);
   return Sta::sta()->units()->resistanceUnit()->asString(value1, digits);
 }
 
-const char *
+std::string
 format_voltage(const char *value,
-	       int digits)
+               int digits)
 {
-  float value1 = strtof(value, nullptr);
+  auto [value1, valid] = stringFloat(value);
   return Sta::sta()->units()->voltageUnit()->asString(value1, digits);
 }
 
-const char *
+std::string
 format_current(const char *value,
-	       int digits)
+               int digits)
 {
-  float value1 = strtof(value, nullptr);
+  auto [value1, valid] = stringFloat(value);
   return Sta::sta()->units()->currentUnit()->asString(value1, digits);
 }
 
-const char *
+std::string
 format_power(const char *value,
-	     int digits)
+             int digits)
 {
-  float value1 = strtof(value, nullptr);
+  auto [value1, valid] = stringFloat(value);
   return Sta::sta()->units()->powerUnit()->asString(value1, digits);
 }
 
-const char *
+std::string
 format_distance(const char *value,
-		int digits)
+                int digits)
 {
-  float value1 = strtof(value, nullptr);
-  Unit *dist_unit = Sta::sta()->units()->distanceUnit();
-  return dist_unit->asString(value1, digits);
+  auto [value1, valid] = stringFloat(value);
+  return Sta::sta()->units()->distanceUnit()->asString(value1, digits);
 }
 
-const char *
+std::string
 format_area(const char *value,
-	    int digits)
+            int digits)
 {
-  float value1 = strtof(value, nullptr);
+  auto [value1, valid] = stringFloat(value);
   Unit *dist_unit = Sta::sta()->units()->distanceUnit();
   return dist_unit->asString(value1 / dist_unit->scale(), digits);
 }
 
 ////////////////////////////////////////////////////////////////
 
-const char *
+std::string_view
 rise_short_name()
 {
   return RiseFall::rise()->shortName();
 }
 
-const char *
+std::string_view
 fall_short_name()
 {
   return RiseFall::fall()->shortName();
@@ -555,17 +530,9 @@ fall_short_name()
 
 bool
 fuzzy_equal(float value1,
-	    float value2)
+            float value2)
 {
   return fuzzyEqual(value1, value2);
 }
 
 %} // inline
-
-////////////////////////////////////////////////////////////////
-//
-// Object Methods
-//
-////////////////////////////////////////////////////////////////
-
-

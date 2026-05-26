@@ -1,5 +1,5 @@
 // OpenSTA, Static Timing Analyzer
-// Copyright (c) 2025, Parallax Software, Inc.
+// Copyright (c) 2026, Parallax Software, Inc.
 // 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -25,12 +25,14 @@
 #include "ArcDelayCalc.hh"
 
 #include <cstdlib>
+#include <string>
 
-#include "Units.hh"
-#include "Liberty.hh"
-#include "TimingArc.hh"
-#include "Network.hh"
 #include "Graph.hh"
+#include "Liberty.hh"
+#include "Network.hh"
+#include "StringUtil.hh"
+#include "TimingArc.hh"
+#include "Units.hh"
 
 namespace sta {
 
@@ -46,27 +48,29 @@ ArcDelayCalc::gateDelay(const TimingArc *arc,
                         const Parasitic *parasitic,
                         float,
                         const Pvt *,
-                        const DcalcAnalysisPt *dcalc_ap,
+                        const Scene *scene,
+                        const MinMax *min_max,
                         // Return values.
                         ArcDelay &gate_delay,
                         Slew &drvr_slew)
 {
   LoadPinIndexMap load_pin_index_map(network_);
   ArcDcalcResult dcalc_result = gateDelay(nullptr, arc, in_slew, load_cap, parasitic,
-                                          load_pin_index_map, dcalc_ap);
+                                          load_pin_index_map, scene, min_max);
   gate_delay = dcalc_result.gateDelay();
   drvr_slew = dcalc_result.drvrSlew();
 }
 
 ////////////////////////////////////////////////////////////////
 
+// For TCL %typemap(in) ArcDcalcArg.
 ArcDcalcArg
-makeArcDcalcArg(const char *inst_name,
-                const char *in_port_name,
-                const char *in_rf_name,
-                const char *drvr_port_name,
-                const char *drvr_rf_name,
-                const char *input_delay_str,
+makeArcDcalcArg(std::string_view inst_name,
+                std::string_view in_port_name,
+                std::string_view in_rf_name,
+                std::string_view drvr_port_name,
+                std::string_view drvr_rf_name,
+                std::string_view input_delay_str,
                 const StaState *sta)
 {
   Report *report = sta->report();
@@ -81,7 +85,8 @@ makeArcDcalcArg(const char *inst_name,
         if (drvr_pin) {
           const RiseFall *drvr_rf = RiseFall::find(drvr_rf_name);
           if (drvr_rf) {
-            float input_delay = strtof(input_delay_str, nullptr);
+            const std::string input_delay_buf(input_delay_str);
+            auto [input_delay, valid] = stringFloat(input_delay_buf);
             input_delay = sta->units()->timeUnit()->userToSta(input_delay);
 
             const Graph *graph = sta->graph();
@@ -93,24 +98,24 @@ makeArcDcalcArg(const char *inst_name,
             else {
               const Network *network = sta->network();
               const Instance *inst = network->instance(in_pin);
-              report->warn(2100, "no timing arc for %s input/driver pins.",
+              report->warn(2100, "no timing arc for {} input/driver pins.",
                            network->pathName(inst));
             }
           }
           else
-            report->warn(2101, "%s not a valid rise/fall.", drvr_rf_name);
+            report->warn(2101, "{} not a valid rise/fall.", drvr_rf_name);
         }
         else
-          report->warn(2102, "Pin %s/%s not found.", inst_name, drvr_port_name);
+          report->warn(2102, "Pin {}/{} not found.", inst_name, drvr_port_name);
       }
       else
-        report->warn(2103, "%s not a valid rise/fall.", in_rf_name);
+        report->warn(2103, "{} not a valid rise/fall.", in_rf_name);
     }
     else
-      report->warn(2104, "Pin %s/%s not found.", inst_name, in_port_name);
+      report->warn(2104, "Pin {}/{} not found.", inst_name, in_port_name);
   }
   else
-    report->warn(2105, "Instance %s not found.", inst_name);
+    report->warn(2105, "Instance {} not found.", inst_name);
   return ArcDcalcArg();
 }
 
@@ -130,7 +135,7 @@ ArcDcalcArg::ArcDcalcArg(const Pin *in_pin,
                          const Pin *drvr_pin,
                          Edge *edge,
                          const TimingArc *arc,
-                         const Slew in_slew,
+                         Slew in_slew,
                          float load_cap,
                          const Parasitic *parasitic) :
   in_pin_(in_pin),
@@ -160,17 +165,7 @@ ArcDcalcArg::ArcDcalcArg(const Pin *in_pin,
 {
 }
 
-ArcDcalcArg::ArcDcalcArg(const ArcDcalcArg &arg) :
-  in_pin_(arg.in_pin_),
-  drvr_pin_(arg.drvr_pin_),
-  edge_(arg.edge_),
-  arc_(arg.arc_),
-  in_slew_(arg.in_slew_),
-  load_cap_(arg.load_cap_),
-  parasitic_(arg.parasitic_),
-  input_delay_(arg.input_delay_)
-{
-}
+ArcDcalcArg::ArcDcalcArg(const ArcDcalcArg &arg) = default;
 
 const RiseFall *
 ArcDcalcArg::inEdge() const
@@ -256,18 +251,18 @@ ArcDcalcResult::ArcDcalcResult(size_t load_count) :
 }
 
 void
-ArcDcalcResult::setGateDelay(ArcDelay gate_delay)
+ArcDcalcResult::setGateDelay(const ArcDelay &gate_delay)
 {
   gate_delay_ = gate_delay;
 }
 
 void
-ArcDcalcResult::setDrvrSlew(Slew drvr_slew)
+ArcDcalcResult::setDrvrSlew(const Slew &drvr_slew)
 {
   drvr_slew_ = drvr_slew;
 }
 
-ArcDelay
+const ArcDelay &
 ArcDcalcResult::wireDelay(size_t load_idx) const
 {
   return wire_delays_[load_idx];
@@ -275,7 +270,7 @@ ArcDcalcResult::wireDelay(size_t load_idx) const
 
 void
 ArcDcalcResult::setWireDelay(size_t load_idx,
-                             ArcDelay wire_delay)
+                             const ArcDelay &wire_delay)
 {
   wire_delays_[load_idx] = wire_delay;
 }
@@ -287,7 +282,7 @@ ArcDcalcResult::setLoadCount(size_t load_count)
   load_slews_.resize(load_count);
 }
 
-Slew
+const Slew &
 ArcDcalcResult::loadSlew(size_t load_idx) const
 {
   return load_slews_[load_idx];
@@ -295,9 +290,9 @@ ArcDcalcResult::loadSlew(size_t load_idx) const
 
 void
 ArcDcalcResult::setLoadSlew(size_t load_idx,
-                            Slew load_slew)
+                            const Slew &load_slew)
 {
   load_slews_[load_idx] = load_slew;
 }
 
-} // namespace
+} // namespace sta

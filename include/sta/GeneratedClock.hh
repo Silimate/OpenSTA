@@ -2,6 +2,7 @@
 
 #include "LibertyClass.hh"
 #include "SdcClass.hh"
+#include <string>
 
 namespace sta {
 
@@ -9,9 +10,9 @@ class GeneratedClock
 {
 public:
   ~GeneratedClock();
-  const char *name() const { return name_; }
-  const char *clockPin() const { return clock_pin_; }
-  const char *masterPin() const { return master_pin_; }
+  std::string_view name() const { return name_; }
+  std::string_view clockPin() const { return clock_pin_; }
+  std::string_view masterPin() const { return master_pin_; }
   int dividedBy() const { return divided_by_; }
   int multipliedBy() const { return multiplied_by_; }
   float dutyCycle() const { return duty_cycle_; }
@@ -30,9 +31,9 @@ protected:
                  IntSeq *edges,
                  FloatSeq *edge_shifts);
 
-  const char *name_;
-  const char *clock_pin_;
-  const char *master_pin_;
+  std::string name_;
+  std::string clock_pin_;
+  std::string master_pin_;
   int divided_by_;
   int multiplied_by_;
   float duty_cycle_;

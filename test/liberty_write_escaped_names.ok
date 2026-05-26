@@ -49,18 +49,18 @@ library (liberty_write_escaped_names) {
         related_pin : "u_sub/data[0]";
         timing_sense : positive_unate;
         timing_type : combinational;
-	cell_rise(scalar) {
+        cell_rise(scalar) {
           values("1.00000");
-	}
-	rise_transition(scalar) {
+        }
+        rise_transition(scalar) {
           values("1.00000");
-	}
-	cell_fall(scalar) {
+        }
+        cell_fall(scalar) {
           values("1.00000");
-	}
-	fall_transition(scalar) {
+        }
+        fall_transition(scalar) {
           values("1.00000");
-	}
+        }
       }
     }
     pin("div/u_div/QInv[0]") {
@@ -70,18 +70,18 @@ library (liberty_write_escaped_names) {
         related_pin : "u_sub/data[0]";
         timing_sense : positive_unate;
         timing_type : combinational;
-	cell_rise(scalar) {
+        cell_rise(scalar) {
           values("1.00000");
-	}
-	rise_transition(scalar) {
+        }
+        rise_transition(scalar) {
           values("1.00000");
-	}
-	cell_fall(scalar) {
+        }
+        cell_fall(scalar) {
           values("1.00000");
-	}
-	fall_transition(scalar) {
+        }
+        fall_transition(scalar) {
           values("1.00000");
-	}
+        }
       }
     }
     }

@@ -1,5 +1,5 @@
 // OpenSTA, Static Timing Analyzer
-// Copyright (c) 2025, Parallax Software, Inc.
+// Copyright (c) 2026, Parallax Software, Inc.
 // 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -22,25 +22,23 @@
 // 
 // This notice may not be removed or altered from any source distribution.
 
-#include <memory>
-
 #include "ArcDcalcWaveforms.hh"
 
-#include "Report.hh"
+#include <memory>
+
+#include "ArcDelayCalc.hh"
+#include "Graph.hh"
+#include "GraphDelayCalc.hh"
 #include "Liberty.hh"
 #include "Network.hh"
-#include "Graph.hh"
-#include "ArcDelayCalc.hh"
-#include "DcalcAnalysisPt.hh"
-#include "GraphDelayCalc.hh"
+#include "Report.hh"
 
 namespace sta {
 
-using std::make_shared;
-
 Waveform
 ArcDcalcWaveforms::inputWaveform(ArcDcalcArg &dcalc_arg,
-                                 const DcalcAnalysisPt *dcalc_ap,
+                                 const Scene *scene,
+                                 const MinMax *min_max,
                                  const StaState *sta)
 {
   const Network *network = sta->network();
@@ -55,19 +53,22 @@ ArcDcalcWaveforms::inputWaveform(ArcDcalcArg &dcalc_arg,
       const Vertex *in_vertex = graph->pinLoadVertex(in_pin);
       GraphDelayCalc *graph_dcalc = sta->graphDelayCalc();
       Slew in_slew = graph_dcalc->edgeFromSlew(in_vertex, in_rf,
-                                               dcalc_arg.arc()->role(), dcalc_ap);
+                                               dcalc_arg.arc()->role(),
+                                               scene, min_max);
       LibertyLibrary *library = port->libertyLibrary();
       float vdd;
       bool vdd_exists;
       library->supplyVoltage("VDD", vdd, vdd_exists);
       if (!vdd_exists)
-        report->error(1751, "VDD not defined in library %s", library->name());
-      Waveform in_waveform = driver_waveform->waveform(delayAsFloat(in_slew));
+        report->error(1751, "VDD not defined in library {}", library->name());
+      float slew1 = delayAsFloat(in_slew, min_max, sta);
+      Waveform in_waveform = driver_waveform->waveform(slew1);
       // Delay time axis.
-      FloatSeq *time_values = new FloatSeq;
-      for (float time : *in_waveform.axis1()->values())
-        time_values->push_back(time + dcalc_arg.inputDelay());
-      TableAxisPtr time_axis = make_shared<TableAxis>(TableAxisVariable::time, time_values);
+      FloatSeq time_values;
+      for (float time : in_waveform.axis1()->values())
+        time_values.push_back(time + dcalc_arg.inputDelay());
+      TableAxisPtr time_axis = std::make_shared<TableAxis>(TableAxisVariable::time,
+                                                           std::move(time_values));
       // Scale the waveform from 0:vdd.
       FloatSeq *scaled_values = new FloatSeq;
       for (float value : *in_waveform.values()) {
@@ -82,4 +83,4 @@ ArcDcalcWaveforms::inputWaveform(ArcDcalcArg &dcalc_arg,
   return Waveform();
 }
 
-} // namespace
+} // namespace sta

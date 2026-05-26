@@ -1,5 +1,5 @@
 // OpenSTA, Static Timing Analyzer
-// Copyright (c) 2025, Parallax Software, Inc.
+// Copyright (c) 2026, Parallax Software, Inc.
 // 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -24,16 +24,22 @@
 
 #include "LinearModel.hh"
 
+#include <string>
+#include <string_view>
+
+#include "Delay.hh"
+#include "LibertyClass.hh"
+#include "MinMax.hh"
+#include "PocvMode.hh"
+#include "TimingModel.hh"
 #include "Units.hh"
 #include "Liberty.hh"
 
 namespace sta {
 
-using std::string;
-
 GateLinearModel::GateLinearModel(LibertyCell *cell,
                                  float intrinsic,
-				 float resistance) :
+                                 float resistance) :
   GateTimingModel(cell),
   intrinsic_(intrinsic),
   resistance_(resistance)
@@ -42,30 +48,42 @@ GateLinearModel::GateLinearModel(LibertyCell *cell,
 
 void
 GateLinearModel::gateDelay(const Pvt *,
-			   float,
-			   float load_cap,
-			   bool,
-			   // return values
-			   ArcDelay &gate_delay,
-			   Slew &drvr_slew) const
+                           float,
+                           float load_cap,
+                           // return values
+                           float &gate_delay,
+                           float &drvr_slew) const
 {
   gate_delay = intrinsic_ + resistance_ * load_cap;
   drvr_slew = 0.0;
 }
 
-string
+void
+GateLinearModel::gateDelayPocv(const Pvt *,
+                               float,
+                               float,
+                               const MinMax *,
+                               PocvMode,
+                               // return values
+                               ArcDelay &,
+                               Slew &) const
+{
+}
+
+std::string
 GateLinearModel::reportGateDelay(const Pvt *,
-				 float,
-				 float load_cap,
-				 bool,
-				 int digits) const
+                                 float,
+                                 float load_cap,
+                                 const MinMax *,
+                                 PocvMode,
+                                 int digits) const
 {
   const LibertyLibrary *library = cell_->libertyLibrary();
   const Units *units = library->units();
   const Unit *time_unit = units->timeUnit();
   const Unit *res_unit = units->resistanceUnit();
   const Unit *cap_unit = units->capacitanceUnit();
-  string result = "Delay = ";
+  std::string result = "Delay = ";
   result += time_unit->asString(intrinsic_, digits);
   result += " + ";
   result += res_unit->asString(resistance_, digits);
@@ -97,27 +115,29 @@ CheckLinearModel::CheckLinearModel(LibertyCell *cell,
 
 ArcDelay
 CheckLinearModel::checkDelay(const Pvt *,
-			     float,
-			     float,
-			     float,
-			     bool) const
+                             float,
+                             float,
+                             float,
+                             const MinMax *,
+                             PocvMode) const
 {
   return intrinsic_;
 }
 
-string
+std::string
 CheckLinearModel::reportCheckDelay(const Pvt *,
-				   float,
-				   const char *,
-				   float,
-				   float,
-				   bool,
-				   int digits) const
+                                   float,
+                                   std::string_view,
+                                   float,
+                                   float,
+                                   const MinMax *,
+                                   PocvMode,
+                                   int digits) const
 {
   const LibertyLibrary *library = cell_->libertyLibrary();
   const Units *units = library->units();
   const Unit *time_unit = units->timeUnit();
-  string result = "Check = ";
+  std::string result = "Check = ";
   result += time_unit->asString(intrinsic_, digits);
   return result;
 }
@@ -127,4 +147,4 @@ CheckLinearModel::setIsScaled(bool)
 {
 }
 
-} // namespace
+} // namespace sta

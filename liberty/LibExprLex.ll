@@ -25,14 +25,14 @@
 
 // Liberty function expression lexical analyzer
 
+#include <string>
+
 #include "util/FlexDisableRegister.hh"
 #include "Debug.hh"
-#include "StringUtil.hh"
 #include "liberty/LibExprReaderPvt.hh"
 #include "liberty/LibExprReader.hh"
 #include "liberty/LibExprScanner.hh"
 
-using sta::stringCopy;
 using sta::FuncExpr;
 
 #include "LibExprParse.hh"
@@ -40,7 +40,7 @@ using sta::FuncExpr;
 #undef YY_DECL
 #define YY_DECL \
 int \
-sta::LibExprScanner::lex(sta::LibExprParse::semantic_type *const yylval)
+sta::LibExprScanner::lex(sta::LibExprParse::semantic_type *yylval)
 
 typedef sta::LibExprParse::token token;
 
@@ -76,12 +76,12 @@ EOL	\r?\n
 
 <ESCAPED_STRING>{ESCAPE}{QUOTE} {
 	BEGIN(INITIAL);
-	yylval->string = stringCopy(token_.c_str());
+	yylval->emplace<std::string>(token_);
 	return token::PORT;
 	}
 
 {PORT}	{
-	yylval->string = stringCopy(yytext);
+	yylval->emplace<std::string>(yytext, yyleng);
 	return token::PORT;
 	}
 

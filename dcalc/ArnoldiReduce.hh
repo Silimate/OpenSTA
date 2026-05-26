@@ -1,5 +1,5 @@
 // OpenSTA, Static Timing Analyzer
-// Copyright (c) 2025, Parallax Software, Inc.
+// Copyright (c) 2026, Parallax Software, Inc.
 // 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -28,7 +28,8 @@
 
 #pragma once
 
-#include "Map.hh"
+#include <map>
+
 #include "Transition.hh"
 #include "NetworkClass.hh"
 #include "ParasiticsClass.hh"
@@ -39,26 +40,25 @@ namespace sta {
 
 class ConcreteParasiticNetwork;
 class ConcreteParasiticNode;
-class Corner;
+class Scene;
 
 class rcmodel;
 struct ts_edge;
 struct ts_point;
 
-typedef Map<ParasiticNode*, int> ArnolidPtMap;
+using ArnolidPtMap = std::map<ParasiticNode*, int>;
 
 class ArnoldiReduce : public StaState
 {
 public:
   ArnoldiReduce(StaState *sta);
-  ~ArnoldiReduce();
+  ~ArnoldiReduce() override;
   rcmodel *reduceToArnoldi(Parasitic *parasitic,
                            const Pin *drvr_pin,
                            float coupling_cap_factor,
                            const RiseFall *rf,
-                           const Corner *corner,
-                           const MinMax *cnst_min_max,
-                           const ParasiticAnalysisPt *ap);
+                           const Scene *scene,
+                           const MinMax *min_max);
 
 protected:
   void loadWork();
@@ -73,24 +73,24 @@ protected:
   void makeRcmodelFromTs();
   rcmodel *makeRcmodelFromW();
   
+  Parasitics *parasitics_;
   ConcreteParasiticNetwork *parasitic_network_;
   const Pin *drvr_pin_;
   float coupling_cap_factor_;
   const RiseFall *rf_;
-  const Corner *corner_;
+  const Scene *scene_;
   const MinMax *min_max_;
-  const ParasiticAnalysisPt *ap_;
   // ParasiticNode -> ts_point index.
   ArnolidPtMap pt_map_;
 
   // rcWork
   ts_point *ts_pointV;
   int ts_pointN;
-  int ts_pointNmax;
+  int ts_pointNmax{1024};
   static const int ts_point_count_incr_;
   ts_edge *ts_edgeV;
   int ts_edgeN;
-  int ts_edgeNmax;
+  int ts_edgeNmax{1024};
   static const int ts_edge_count_incr_;
   ts_edge **ts_eV;
   ts_edge **ts_stackV;
@@ -98,14 +98,14 @@ protected:
   ts_point **ts_pordV;
   int ts_ordN;
 
-  int termNmax;
+  int termNmax{256};
   int termN;
   ts_point *pterm0;
   const Pin **pinV; // fixed order, offset from pterm0
   int *termV; // from drv-ordered to fixed order
   int *outV;  // from drv-ordered to ts_pordV
 
-  int dNmax;
+  int dNmax{8};
   double *d;
   double *e;
   double *U0;
@@ -120,4 +120,4 @@ protected:
   int order;
 };
 
-} // namespace
+} // namespace sta

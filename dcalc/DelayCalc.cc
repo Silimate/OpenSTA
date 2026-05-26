@@ -1,5 +1,5 @@
 // OpenSTA, Static Timing Analyzer
-// Copyright (c) 2025, Parallax Software, Inc.
+// Copyright (c) 2026, Parallax Software, Inc.
 // 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -24,20 +24,23 @@
 
 #include "DelayCalc.hh"
 
-#include "Map.hh"
-#include "StringUtil.hh"
-#include "UnitDelayCalc.hh"
-#include "LumpedCapDelayCalc.hh"
-#include "DmpDelayCalc.hh"
+#include <map>
+#include <string>
+
 #include "ArnoldiDelayCalc.hh"
 #include "CcsCeffDelayCalc.hh"
+#include "ContainerHelpers.hh"
+#include "DmpDelayCalc.hh"
+#include "LumpedCapDelayCalc.hh"
 #include "PrimaDelayCalc.hh"
+#include "StringUtil.hh"
+#include "UnitDelayCalc.hh"
 
 namespace sta {
 
-typedef Map<const char*, MakeArcDelayCalc, CharPtrLess> DelayCalcMap;
+using DelayCalcMap = std::map<std::string, MakeArcDelayCalc, std::less<>>;
 
-static DelayCalcMap *delay_calcs = nullptr;
+static DelayCalcMap delay_calcs;
 
 void
 registerDelayCalcs()
@@ -52,26 +55,23 @@ registerDelayCalcs()
 }
 
 void
-registerDelayCalc(const char *name,
-		  MakeArcDelayCalc maker)
+registerDelayCalc(std::string_view name,
+                  MakeArcDelayCalc maker)
 {
-  if (delay_calcs == nullptr)
-    delay_calcs = new DelayCalcMap;
-  (*delay_calcs)[name] = maker;
+  delay_calcs[std::string(name)] = maker;
 }
 
 void
 deleteDelayCalcs()
 {
-  delete delay_calcs;
-  delay_calcs = nullptr;
+  delay_calcs.clear();
 }
 
 ArcDelayCalc *
-makeDelayCalc(const char *name,
-	      StaState *sta)
+makeDelayCalc(const std::string_view name,
+              StaState *sta)
 {
-  MakeArcDelayCalc maker = delay_calcs->findKey(name);
+  MakeArcDelayCalc maker = findStringKey(delay_calcs, name);
   if (maker)
     return maker(sta);
   else
@@ -79,18 +79,18 @@ makeDelayCalc(const char *name,
 }
 
 bool
-isDelayCalcName(const char *name)
+isDelayCalcName(std::string_view name)
 {
-  return delay_calcs->hasKey(name);
+  return delay_calcs.contains(name);
 }
 
 StringSeq
 delayCalcNames()
 {
   StringSeq names;
-  for (const auto [name, make_dcalc] : *delay_calcs)
+  for (const auto &[name, make_dcalc] : delay_calcs)
     names.push_back(name);
   return names;
 }
 
-} // namespace
+} // namespace sta

@@ -56,10 +56,6 @@ if { [exec "uname"] == "Darwin" } {
   append valgrind_options " --dsymutil=yes"
 }
 
-proc cleanse_logfile { test log_file } {
-  # Nothing to be done here.
-}
-
 ################################################################
 
 # Record a test in the regression suite.
@@ -136,6 +132,7 @@ proc record_example_tests { tests } {
 record_example_tests {
   delay_calc
   min_max_delays
+  mcmm3
   multi_corner
   power
   power_vcd
@@ -182,6 +179,7 @@ record_public_tests {
   power_calc_no_inv
   power_json
   prima3
+  read_saif_null_instance
   report_checks_sorted
   report_checks_src_attr
   report_json1
@@ -191,8 +189,11 @@ record_public_tests {
   suppress_msg
   vcd_timestamp
   verilog_attribute
+  verilog_well_supplies
   verilog_specify
   write_timing_model_scalar
+  verilog_write_escape
+  verilog_unconnected_hpin
 }
 
 define_test_group fast [group_tests all]

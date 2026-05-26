@@ -1,5 +1,5 @@
 // OpenSTA, Static Timing Analyzer
-// Copyright (c) 2025, Parallax Software, Inc.
+// Copyright (c) 2026, Parallax Software, Inc.
 // 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -24,13 +24,16 @@
 
 #pragma once
 
+#include <cstddef>
 #include <queue>
+#include <vector>
 
+#include "Delay.hh"
 #include "Iterator.hh"
-#include "Vector.hh"
-#include "StaState.hh"
-#include "SearchClass.hh"
+#include "LibertyClass.hh"
 #include "Path.hh"
+#include "SearchClass.hh"
+#include "StaState.hh"
 
 namespace sta {
 
@@ -38,9 +41,9 @@ class Diversion;
 class PathEnumFaninVisitor;
 class DiversionGreater;
 
-typedef Vector<Diversion*> DiversionSeq;
-typedef std::priority_queue<Diversion*,DiversionSeq,
-			    DiversionGreater> DiversionQueue;
+using DiversionSeq = std::vector<Diversion*>;
+using DiversionQueue = std::priority_queue<Diversion*,DiversionSeq,
+                                             DiversionGreater>;
 
 class DiversionGreater
 {
@@ -48,7 +51,7 @@ public:
   DiversionGreater();
   DiversionGreater(const StaState *sta);
   bool operator()(Diversion *div1,
-		  Diversion *div2) const;
+                  Diversion *div2) const;
 
 private:
   const StaState *sta_;
@@ -59,36 +62,35 @@ class PathEnum : public Iterator<PathEnd*>, StaState
 {
 public:
   PathEnum(size_t group_path_count,
-	   size_t endpoint_path_count,
-	   bool unique_pins,
-	   bool unique_edges,
-	   bool cmp_slack,
-	   const StaState *sta);
+           size_t endpoint_path_count,
+           bool unique_pins,
+           bool unique_edges,
+           bool cmp_slack,
+           const StaState *sta);
   // Insert path ends that are enumerated in slack/arrival order.
   void insert(PathEnd *path_end);
-  virtual ~PathEnum();
-  virtual bool hasNext();
-  virtual PathEnd *next();
+  ~PathEnum() override;
+  bool hasNext() override;
+  PathEnd *next() override;
 
 private:
   void makeDiversions(PathEnd *path_end,
-		      Path *before);
+                      Path *before);
   void insert(Diversion *div);
   void makeDivertedPath(Path *path,
-			Path *before_div,
-			Path *after_div,
+                        Path *before_div,
+                        Path *after_div,
                         Edge *div_edge,
-			TimingArc *div_arc,
-			// Returned values.
-			Path *&div_path,
-			Path *&after_div_copy);
+                        TimingArc *div_arc,
+                        // Returned values.
+                        Path *&div_path,
+                        Path *&after_div_copy);
   void updatePathHeadDelays(PathSeq &path,
-			    Path *after_div);
-  Arrival divSlack(Path *path,
-		   Path *after_div,
+                            Path *after_div);
+  Arrival divSlack(Path *before_div,
+                   Path *after_div,
                    const Edge *div_edge,
-		   const TimingArc *div_arc,
-		   const PathAnalysisPt *path_ap);
+                   const TimingArc *div_arc);
   void reportDiversionPath(Diversion *div);
   void pruneDiversionQueue();
   void findNext();
@@ -99,13 +101,13 @@ private:
   bool unique_pins_;
   bool unique_edges_;
   DiversionQueue div_queue_;
-  int div_count_;
+  int div_count_{0};
   // Number of paths returned for each endpoint (limit to endpoint_path_count).
   VertexPathCountMap path_counts_;
-  bool inserts_pruned_;
-  PathEnd *next_;
+  bool inserts_pruned_{false};
+  PathEnd *next_{nullptr};
 
   friend class PathEnumFaninVisitor;
 };
 
-} // namespace
+} // namespace sta

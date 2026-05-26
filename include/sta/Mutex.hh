@@ -1,5 +1,5 @@
 // OpenSTA, Static Timing Analyzer
-// Copyright (c) 2025, Parallax Software, Inc.
+// Copyright (c) 2026, Parallax Software, Inc.
 // 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -29,6 +29,6 @@
 namespace sta {
 
 // Hide a bit of the std verbosity.
-typedef std::lock_guard<std::mutex> LockGuard;
+using LockGuard = std::scoped_lock<std::mutex>;
 
-} // namespace
+} // namespace sta

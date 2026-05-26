@@ -1,5 +1,5 @@
 // OpenSTA, Static Timing Analyzer
-// Copyright (c) 2025, Parallax Software, Inc.
+// Copyright (c) 2026, Parallax Software, Inc.
 // 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -24,9 +24,13 @@
 
 #pragma once
 
+#include <utility>
+#include <vector>
+
 namespace sta {
 
 class Power;
+class Instance;
 
 enum class PwrActivityOrigin
 {
@@ -38,17 +42,16 @@ enum class PwrActivityOrigin
  propagated,
  clock,
  constant,
- defaulted,
  unknown
 };
 
 class PwrActivity
 {
 public:
-  PwrActivity();
+  PwrActivity() = default;
   PwrActivity(float density,
-	      float duty,
-	      PwrActivityOrigin origin);
+              float duty,
+              PwrActivityOrigin origin);
   void init();
   float density() const { return density_; }
   void setDensity(float density);
@@ -56,18 +59,18 @@ public:
   void setDuty(float duty);
   PwrActivityOrigin origin() const { return origin_; }
   void setOrigin(PwrActivityOrigin origin);
-  const char *originName() const;
+  const std::string &originName() const;
   void set(float density,
-	   float duty,
-	   PwrActivityOrigin origin);
+           float duty,
+           PwrActivityOrigin origin);
   bool isSet() const;
 
 private:
   void check();
 
-  float density_;               // transitions / second
-  float duty_;                  // probability signal is high
-  PwrActivityOrigin origin_;
+  float density_{0.0};          // transitions / second
+  float duty_{0.0};             // probability signal is high
+  PwrActivityOrigin origin_{PwrActivityOrigin::unknown};
 
   static constexpr float min_density = 1E-10;
 };
@@ -75,7 +78,7 @@ private:
 class PowerResult
 {
 public:
-  PowerResult();
+  PowerResult() = default;
   void clear();
   float internal() const { return internal_; }
   float inputinternal() const { return inputinternal_; }
@@ -91,11 +94,14 @@ public:
   void incrLeakage(float pwr);
 
 private:
-  float internal_;
-  float inputinternal_;
-  float outputinternal_;
-  float switching_;
-  float leakage_;
+  float internal_{0.0};
+  float inputinternal_{0.0};
+  float outputinternal_{0.0};
+  float switching_{0.0};
+  float leakage_{0.0};
 };
 
-} // namespace
+using InstPower = std::pair<const Instance*, PowerResult>;
+using InstPowers = std::vector<InstPower>;
+
+} // namespace sta

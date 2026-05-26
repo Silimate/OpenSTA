@@ -1,5 +1,5 @@
 // OpenSTA, Static Timing Analyzer
-// Copyright (c) 2025, Parallax Software, Inc.
+// Copyright (c) 2026, Parallax Software, Inc.
 // 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -25,6 +25,7 @@
 #pragma once
 
 #include <exception>
+#include <string>
 
 #include "Report.hh"
 
@@ -34,18 +35,16 @@ namespace sta {
 class Exception : public std::exception
 {
 public:
-  Exception();
-  virtual ~Exception() {}
-  virtual const char *what() const noexcept = 0;
+  const char *what() const noexcept override = 0;
 };
 
 class ExceptionMsg : public Exception
 {
 public:
-  ExceptionMsg(const char *msg,
-               const bool suppressed);
-  virtual const char *what() const noexcept;
-  virtual bool suppressed() const { return suppressed_; }
+  ExceptionMsg(const std::string &msg,
+               bool suppressed);
+  const char *what() const noexcept override;
+  bool suppressed() const { return suppressed_; }
 
 private:
   std::string msg_;
@@ -55,11 +54,11 @@ private:
 class ExceptionLine : public Exception
 {
 public:
-  ExceptionLine(const char *filename,
-		int line);
+  ExceptionLine(const std::string &filename,
+                int line);
 
 protected:
-  const char *filename_;
+  std::string filename_;
   int line_;
 };
 
@@ -67,29 +66,29 @@ protected:
 class FileNotReadable : public Exception
 {
 public:
-  explicit FileNotReadable(const char *filename);
-  virtual const char *what() const noexcept;
+  FileNotReadable(std::string_view filename);
+  const char *what() const noexcept override;
 
 protected:
-  const char *filename_;
+  std::string msg_;
 };
 
 // Failure opening filename for writing.
 class FileNotWritable : public Exception
 {
 public:
-  explicit FileNotWritable(const char *filename);
-  virtual const char *what() const noexcept;
+  FileNotWritable(std::string_view filename);
+  const char *what() const noexcept override;
 
 protected:
-  const char *filename_;
+  std::string msg_;
 };
 
 // Report an error condition that should not be possible.
 // The default handler prints msg to stderr and exits.
 // The msg should NOT include a period or return.
-// Only for use in those cases where a Report object is not available. 
-#define criticalError(id,msg) \
+// Only for use in those cases where a Report object is not available.
+#define criticalError(id, msg) \
   Report::defaultReport()->fileCritical(id, __FILE__, __LINE__, msg)
 
-} // namespace
+} // namespace sta

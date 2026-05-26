@@ -1,5 +1,5 @@
 // OpenSTA, Static Timing Analyzer
-// Copyright (c) 2025, Parallax Software, Inc.
+// Copyright (c) 2026, Parallax Software, Inc.
 // 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -24,7 +24,10 @@
 
 #pragma once
 
-#include "LibertyLocation.hh"
+#include <istream>
+#include <string>
+#include <string_view>
+
 #include "LibertyParse.hh"
 
 #ifndef __FLEX_LEXER_H
@@ -42,12 +45,10 @@ class LibertyScanner : public LibertyFlexLexer
 {
 public:
   LibertyScanner(std::istream *stream,
-                 const char *filename,
+                 std::string_view filename,
                  LibertyParser *reader,
                  Report *report);
-  virtual ~LibertyScanner() {}
-
-  virtual int lex(LibertyParse::semantic_type *const yylval,
+  virtual int lex(LibertyParse::semantic_type *yylval,
                   LibertyParse::location_type *yylloc);
   // YY_DECL defined in LibertyLex.ll
   // Method body created by flex in LibertyLex.cc
@@ -68,7 +69,7 @@ private:
 
   // Previous lex state for include files.
   std::string filename_prev_;
-  std::istream *stream_prev_;
+  std::istream *stream_prev_{nullptr};
 };
 
-} // namespace
+} // namespace sta

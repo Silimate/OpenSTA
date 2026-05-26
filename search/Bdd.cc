@@ -1,5 +1,5 @@
 // OpenSTA, Static Timing Analyzer
-// Copyright (c) 2025, Parallax Software, Inc.
+// Copyright (c) 2026, Parallax Software, Inc.
 // 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -24,10 +24,10 @@
 
 #include "Bdd.hh"
 
-#include "cudd.h"
-#include "StaConfig.hh"
-#include "Report.hh"
 #include "FuncExpr.hh"
+#include "Report.hh"
+#include "StaConfig.hh"
+#include "cudd.h"
 
 namespace sta {
 
@@ -49,17 +49,18 @@ Bdd::funcBdd(const FuncExpr *expr)
   DdNode *right = nullptr;
   DdNode *result = nullptr;
   switch (expr->op()) {
-  case FuncExpr::op_port: {
+  case FuncExpr::Op::port: {
     LibertyPort *port = expr->port();
     result = ensureNode(port);
     break;
   }
-  case FuncExpr::op_not:
+  case FuncExpr::Op::not_:
     left = funcBdd(expr->left());
     if (left)
+      // NOLINTNEXTLINE(performance-no-int-to-ptr)
       result = Cudd_Not(left);
     break;
-  case FuncExpr::op_or:
+  case FuncExpr::Op::or_:
     left = funcBdd(expr->left());
     right = funcBdd(expr->right());
     if (left && right)
@@ -69,7 +70,7 @@ Bdd::funcBdd(const FuncExpr *expr)
     else if (right)
       result = right;
     break;
-  case FuncExpr::op_and:
+  case FuncExpr::Op::and_:
     left = funcBdd(expr->left());
     right = funcBdd(expr->right());
     if (left && right)
@@ -79,7 +80,7 @@ Bdd::funcBdd(const FuncExpr *expr)
     else if (right)
       result = right;
     break;
-  case FuncExpr::op_xor:
+  case FuncExpr::Op::xor_:
     left = funcBdd(expr->left());
     right = funcBdd(expr->right());
     if (left && right)
@@ -89,10 +90,10 @@ Bdd::funcBdd(const FuncExpr *expr)
     else if (right)
       result = right;
     break;
-  case FuncExpr::op_one:
+  case FuncExpr::Op::one:
     result = Cudd_ReadOne(cudd_mgr_);
     break;
-  case FuncExpr::op_zero:
+  case FuncExpr::Op::zero:
     result = Cudd_ReadLogicZero(cudd_mgr_);
     break;
   default:
@@ -161,4 +162,4 @@ Bdd::clearVarMap()
   bdd_var_idx_port_map_.clear();
 }
 
-} // namespace
+} // namespace sta

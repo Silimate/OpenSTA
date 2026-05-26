@@ -1,5 +1,5 @@
 // OpenSTA, Static Timing Analyzer
-// Copyright (c) 2025, Parallax Software, Inc.
+// Copyright (c) 2026, Parallax Software, Inc.
 // 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -24,7 +24,8 @@
 
 #pragma once
 
-#include "StringSet.hh"
+#include <string_view>
+
 #include "CircuitSim.hh"
 
 namespace sta {
@@ -35,18 +36,18 @@ class StaState;
 // Write a spice deck for path.
 // Throws FileNotReadable, FileNotWritable, SubcktEndsMissing
 void
-writePathSpice(Path *path,
-	       // Spice file written for path.
-	       const char *spice_filename,
-	       // Subckts used by path included in spice file.
-	       const char *subckt_filename,
-	       // File of all cell spice subckt definitions.
-	       const char *lib_subckt_filename,
-	       // Device model file included in spice file.
-	       const char *model_filename,
-               const char *power_name,
-	       const char *gnd_name,
+writePathSpice(const Path *path,
+               // Spice file written for path.
+               std::string_view spice_filename,
+               // Subckts used by path included in spice file.
+               std::string_view subckt_filename,
+               // File of all cell spice subckt definitions.
+               std::string_view lib_subckt_filename,
+               // Device model file included in spice file.
+               std::string_view model_filename,
+               std::string_view power_name,
+               std::string_view gnd_name,
                CircuitSim ckt_sim,
-	       StaState *sta);
+               StaState *sta);
 
-} // namespace
+} // namespace sta

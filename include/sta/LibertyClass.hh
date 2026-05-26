@@ -1,5 +1,5 @@
 // OpenSTA, Static Timing Analyzer
-// Copyright (c) 2025, Parallax Software, Inc.
+// Copyright (c) 2026, Parallax Software, Inc.
 // 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -24,11 +24,12 @@
 
 #pragma once
 
+#include <map>
 #include <memory>
+#include <set>
+#include <vector>
 
-#include "Vector.hh"
-#include "Map.hh"
-#include "Set.hh"
+#include "Iterator.hh"
 
 namespace sta {
 
@@ -68,30 +69,29 @@ class ReceiverModel;
 class Statetable;
 class StatetableRow;
 
-typedef Vector<LibertyLibrary*> LibertyLibrarySeq;
-typedef LibertyLibrarySeq::ConstIterator LibertyLibrarySeqIterator;
-typedef Vector<LibertyCell*> LibertyCellSeq;
-typedef LibertyCellSeq::ConstIterator LibertyCellSeqIterator;
-typedef Vector<Sequential*> SequentialSeq;
-typedef Vector<GeneratedClock*> GeneratedClockSeq;
-typedef Map<LibertyCell*, LibertyCellSeq*> LibertyCellEquivMap;
-typedef Vector<LibertyPort*> LibertyPortSeq;
-typedef LibertyPortSeq::ConstIterator LibertyPortSeqIterator;
-typedef Set<LibertyPort*> LibertyPortSet;
-typedef std::pair<const LibertyPort*,const LibertyPort*> LibertyPortPair;
-typedef Set<LibertyCell*> LibertyCellSet;
-typedef std::shared_ptr<Table> TablePtr;
-typedef std::shared_ptr<TimingArcAttrs> TimingArcAttrsPtr;
-typedef std::shared_ptr<TableAxis> TableAxisPtr;
-typedef std::shared_ptr<ReceiverModel> ReceiverModelPtr;
-typedef std::vector<StatetableRow> StatetableRows;
+using LibertyLibrarySeq = std::vector<LibertyLibrary*>;
+using LibertyLibrarySeqIterator = VectorIterator<LibertyLibrarySeq, LibertyLibrary*>;
+using LibertyCellSeq = std::vector<LibertyCell*>;
+using LibertyCellSeqIterator = VectorIterator<LibertyCellSeq, LibertyCell*>;
+using SequentialSeq = std::vector<Sequential>;
+using LibertyCellEquivMap = std::map<LibertyCell*, LibertyCellSeq*>;
+using LibertyPortSeq = std::vector<LibertyPort*>;
+using LibertyPortSeqIterator = VectorIterator<LibertyPortSeq, LibertyPort*>;
+using LibertyPortSet = std::set<LibertyPort*>;
+using LibertyPortPair = std::pair<const LibertyPort*,const LibertyPort*>;
+using LibertyCellSet = std::set<LibertyCell*>;
+using TablePtr = std::shared_ptr<Table>;
+using TimingArcAttrsPtr = std::shared_ptr<TimingArcAttrs>;
+using TableAxisPtr = std::shared_ptr<TableAxis>;
+using ReceiverModelPtr = std::shared_ptr<ReceiverModel>;
+using StatetableRows = std::vector<StatetableRow>;
 
 enum class ScaleFactorType : unsigned {
   pin_cap,
   wire_cap,
   wire_res,
   min_period,
-  // Liberty attributes have rise/fall suffix.
+  // Liberty attributes with rise/fall suffix.
   cell,
   hold,
   setup,
@@ -101,13 +101,13 @@ enum class ScaleFactorType : unsigned {
   skew,
   leakage_power,
   internal_power,
-  // Liberty attributes have rise/fall prefix.
+  // Liberty attributes with rise/fall prefix.
   transition,
-  // Liberty attributes have low/high suffix (indexed as rise/fall).
+  // Liberty attributes with low/high suffix (indexed as rise/fall).
   min_pulse_width,
   unknown,
 };
-const int scale_factor_type_count = int(ScaleFactorType::unknown) + 1;
+const int scale_factor_type_count = static_cast<int>(ScaleFactorType::unknown) + 1;
 // Enough bits to hold a ScaleFactorType enum.
 const int scale_factor_bits = 4;
 
@@ -122,7 +122,7 @@ enum class TimingSense {
   none,
   unknown
 };
-const int timing_sense_count = int(TimingSense::unknown) + 1;
+const int timing_sense_count = static_cast<int>(TimingSense::unknown) + 1;
 const int timing_sense_bit_count = 3;
 
 enum class TableAxisVariable {
@@ -166,22 +166,22 @@ class LibertyPortPairLess
 {
 public:
   bool operator()(const LibertyPortPair &pair1,
-		  const LibertyPortPair &pair2) const;
+                  const LibertyPortPair &pair2) const;
 };
 
 bool
 timingArcSetLess(const TimingArcSet *set1,
-		 const TimingArcSet *set2);
+                 const TimingArcSet *set2);
 
 class TimingArcSetLess
 {
 public:
   bool
   operator()(const TimingArcSet *set1,
-	     const TimingArcSet *set2) const
+             const TimingArcSet *set2) const
   {
     return timingArcSetLess(set1, set2);
   }
 };
 
-} // namespace
+} // namespace sta

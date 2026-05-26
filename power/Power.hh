@@ -1,5 +1,5 @@
 // OpenSTA, Static Timing Analyzer
-// Copyright (c) 2025, Parallax Software, Inc.
+// Copyright (c) 2026, Parallax Software, Inc.
 // 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -24,15 +24,16 @@
 
 #pragma once
 
+#include <string>
+#include <unordered_map>
 #include <utility>
 
-#include "StaConfig.hh"  // CUDD
-#include "UnorderedMap.hh"
-#include "Network.hh"
-#include "SdcClass.hh"
-#include "PowerClass.hh"
-#include "StaState.hh"
 #include "Bdd.hh"
+#include "Network.hh"
+#include "PowerClass.hh"
+#include "SdcClass.hh"
+#include "StaConfig.hh"  // CUDD
+#include "StaState.hh"
 
 struct DdNode;
 struct DdManager;
@@ -40,13 +41,13 @@ struct DdManager;
 namespace sta {
 
 class Sta;
-class Corner;
-class DcalcAnalysisPt;
+class Scene;
 class PropActivityVisitor;
 class BfsFwdIterator;
 class Vertex;
+class ClkNetwork;
 
-typedef std::pair<const Instance*, LibertyPort*> SeqPin;
+using SeqPin = std::pair<const Instance*, LibertyPort*>;
 
 class SeqPinHash
 {
@@ -65,9 +66,9 @@ public:
 		  const SeqPin &pin2) const;
 };
 
-typedef UnorderedMap<const Pin*, PwrActivity> PwrActivityMap;
-typedef UnorderedMap<SeqPin, PwrActivity,
-		     SeqPinHash, SeqPinEqual> PwrSeqActivityMap;
+using PwrActivityMap = std::unordered_map<const Pin*, PwrActivity>;
+using PwrSeqActivityMap = std::unordered_map<SeqPin, PwrActivity,
+                                             SeqPinHash, SeqPinEqual>;
 
 // The Power class has access to Sta components directly for
 // convenience but also requires access to the Sta class member functions.
@@ -77,7 +78,25 @@ public:
   Power(StaState *sta);
   void clear();
   void activitiesInvalid();
-  void power(const Corner *corner,
+  void reportDesign(const Scene *scene,
+                    int digits);
+  void reportInsts(const InstanceSeq &insts,
+                   const Scene *scene,
+                   int digits);
+  void reportHighestInsts(size_t count,
+                          const Scene *scene,
+                          int digits);
+  void reportDesignJson(const Scene *scene,
+                        int digits);
+  void reportInstsJson(const InstanceSeq &insts,
+                       const Scene *scene,
+                       int digits);
+  InstPowers highestInstPowers(size_t count,
+                               const Scene *scene);
+  InstPowers sortInstsByPower(const InstanceSeq &insts,
+                              const Scene *scene);
+
+  void power(const Scene *scene,
 	     // Return values.
 	     PowerResult &total,
 	     PowerResult &sequential,
@@ -86,38 +105,40 @@ public:
 	     PowerResult &macro,
 	     PowerResult &pad);
   PowerResult power(const Instance *inst,
-                    const Corner *corner);
-  void setGlobalActivity(float activity,
+                    const Scene *scene);
+
+  void setGlobalActivity(float density,
 			 float duty);
   void unsetGlobalActivity();
-  void setInputActivity(float activity,
+  void setInputActivity(float density,
 			float duty);
   void unsetInputActivity();
   void setInputPortActivity(const Port *input_port,
-			    float activity,
+			    float density,
 			    float duty);
   void unsetInputPortActivity(const Port *input_port);
-  PwrActivity pinActivity(const Pin *pin);
+  PwrActivity pinActivity(const Pin *pin,
+                          const Scene *scene);
   void setUserActivity(const Pin *pin,
-		       float activity,
+		       float density,
 		       float duty,
 		       PwrActivityOrigin origin);
   void unsetUserActivity(const Pin *pin);
   void reportActivityAnnotation(bool report_unannotated,
                                 bool report_annotated);
+  float clockMinPeriod(const Sdc *sdc);
   float clockMinPeriod();
-  InstanceSeq highestPowerInstances(size_t count,
-                                    const Corner *corner);
   void powerInvalid();
   PwrActivity inputActivity() const { return input_activity_; }
 
 protected:
   PwrActivity &activity(const Pin *pin);
-  bool inClockNetwork(const Instance *inst);
+  bool inClockNetwork(const Instance *inst,
+                      const ClkNetwork *clk_network);
   void powerInside(const Instance *hinst,
-                   const Corner *corner,
+                   const Scene *scene,
                    PowerResult &result);
-  void ensureActivities();
+  void ensureActivities(const Scene *scene);
   bool hasUserActivity(const Pin *pin);
   PwrActivity &userActivity(const Pin *pin);
   void setSeqActivity(const Instance *reg,
@@ -131,15 +152,22 @@ protected:
   void setActivity(const Pin *pin,
 		   PwrActivity &activity);
   PwrActivity findActivity(const Pin *pin);
+  void reportPowerRowJson(std::string_view type,
+                          const PowerResult &power,
+                          int digits,
+                          std::string_view eol);
+  void reportPowerInstJson(const Instance *inst,
+                           const PowerResult &power,
+                           int digits);
 
-  void ensureInstPowers(const Corner *corner);
-  void findInstPowers(const Corner *corner);
+  void ensureInstPowers();
+  void findInstPowers();
   PowerResult power(const Instance *inst,
                     LibertyCell *cell,
-                    const Corner *corner);
+                    const Scene *scene);
   void findInternalPower(const Instance *inst,
                          LibertyCell *cell,
-                         const Corner *corner,
+                         const Scene *scene,
                          // Return values.
                          PowerResult &result);
   void findInputInternalPower(const Pin *to_pin,
@@ -148,7 +176,7 @@ protected:
 			      LibertyCell *cell,
 			      PwrActivity &to_activity,
 			      float load_cap,
-			      const Corner *corner,
+                              const Scene *scene,
 			      // Return values.
 			      PowerResult &result);
   void findOutputInternalPower(const LibertyPort *to_port,
@@ -156,22 +184,22 @@ protected:
 			       LibertyCell *cell,
 			       PwrActivity &to_activity,
 			       float load_cap,
-			       const Corner *corner,
+                               const Scene *scene,
 			       // Return values.
 			       PowerResult &result);
   void findLeakagePower(const Instance *inst,
 			LibertyCell *cell,
-			const Corner *corner,
+                        const Scene *scene,
 			// Return values.
 			PowerResult &result);
   void findSwitchingPower(const Instance *inst,
                           LibertyCell *cell,
-                          const Corner *corner,
+                          const Scene *scene,
                           // Return values.
                           PowerResult &result);
   float getSlew(Vertex *vertex,
                 const RiseFall *rf,
-                const Corner *corner);
+                const Scene *scene);
   float getMinRfSlew(const Pin *pin);
   const Clock *findInstClk(const Instance *inst);
   const Clock *findClk(const Pin *to_pin);
@@ -180,13 +208,15 @@ protected:
 			      LibertyPort *port);
   float portVoltage(LibertyCell *cell,
 		    const LibertyPort *port,
-		    const DcalcAnalysisPt *dcalc_ap);
-  float pgNameVoltage(LibertyCell *cell,
-		      const char *pg_port_name,
-		      const DcalcAnalysisPt *dcalc_ap);
+                    const Scene *scene,
+                    const MinMax *min_max);
+  float pgPortVoltage(LibertyCell *cell,
+		      const LibertyPort *pg_port,
+                      const Scene *scene,
+                      const MinMax *min_max);
   void seedActivities(BfsFwdIterator &bfs);
   void seedRegOutputActivities(const Instance *reg,
-			       Sequential *seq,
+			       const Sequential &seq,
 			       LibertyPort *output,
 			       bool invert);
   void seedRegOutputActivities(const Instance *inst,
@@ -204,14 +234,14 @@ protected:
   LibertyPort *findExprOutPort(FuncExpr *expr);
   float findInputDuty(const Instance *inst,
 		      FuncExpr *func,
-		      InternalPower *pwr);
+		      const InternalPower *pwr);
   float evalDiffDuty(FuncExpr *expr,
                      LibertyPort *from_port,
                      const Instance *inst);
   LibertyPort *findLinkPort(const LibertyCell *cell,
-			    const LibertyPort *corner_port);
+                            const LibertyPort *scene_port);
   Pin *findLinkPin(const Instance *inst,
-		   const LibertyPort *corner_port);
+                   const LibertyPort *scene_port);
   void clockGatePins(const Instance *inst,
                      // Return values.
                      const Pin *&enable,
@@ -226,6 +256,7 @@ protected:
   size_t pinCount();
 
 private:
+  const Scene *scene_{nullptr};
   // Port/pin activities set by set_pin_activity.
   // set_pin_activity -global
   PwrActivity global_activity_;
@@ -235,16 +266,18 @@ private:
   PwrActivityMap user_activity_map_;
   // Propagated activities.
   PwrActivityMap activity_map_;
-  PwrSeqActivityMap seq_activity_map_;
-  bool activities_valid_;
+  PwrSeqActivityMap seq_activity_map_{100,
+                                        SeqPinHash(network_),
+                                        SeqPinEqual()};
+  bool activities_valid_{false};
   Bdd bdd_;
-  std::map<const Instance*, PowerResult, InstanceIdLess> instance_powers_;
-  bool instance_powers_valid_;
-  const Corner *corner_;
+  std::map<const Instance*, PowerResult, InstanceIdLess> instance_powers_{
+      InstanceIdLess(network_)};
+  bool instance_powers_valid_{false};
 
-  static constexpr int max_activity_passes_ = 100;
+  static constexpr int max_activity_passes_ = 50;
 
   friend class PropActivityVisitor;
 };
 
-} // namespace
+} // namespace sta
