@@ -594,7 +594,7 @@ PathMargin::tighterThan(ExceptionPath *) const
   return false;
 }
 
-const char *
+std::string_view
 PathMargin::typeString() const
 {
   return "Margin";
