@@ -1,5 +1,5 @@
 // OpenSTA, Static Timing Analyzer
-// Copyright (c) 2025, Parallax Software, Inc.
+// Copyright (c) 2026, Parallax Software, Inc.
 // 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -54,7 +54,7 @@ RiseFallValues::setValue(float value)
 
 void
 RiseFallValues::setValue(const RiseFallBoth *rf,
-			 float value)
+                         float value)
 {
   for (auto rf_index : rf->rangeIndex()) {
     values_[rf_index] = value;
@@ -64,7 +64,7 @@ RiseFallValues::setValue(const RiseFallBoth *rf,
 
 void
 RiseFallValues::setValue(const RiseFall *rf,
-			 float value)
+                         float value)
 {
   int rf_index = rf->index();
   values_[rf_index] = value;
@@ -82,7 +82,7 @@ RiseFallValues::setValues(RiseFallValues *values)
 
 void
 RiseFallValues::value(const RiseFall *rf,
-		      float &value, bool &exists) const
+                      float &value, bool &exists) const
 {
   int rf_index = rf->index();
   exists = exists_[rf_index];
@@ -102,4 +102,4 @@ RiseFallValues::hasValue(const RiseFall *rf) const
   return exists_[rf->index()];
 }
 
-} // namespace
+} // namespace sta

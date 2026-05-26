@@ -30,7 +30,7 @@
 # 
 # This notice may not be removed or altered from any source distribution.
 
-# Usage: regression -help | [-threads threads] [-j jobs] [-valgrind] [-collections] [-report_stats]
+# Usage: regression -help | [-j jobs] [-threads threads] [-valgrind] [-collections] [-report_stats]
 #                   test1 [test2...]
 
 proc regression_main {} {
@@ -68,9 +68,11 @@ proc setup {} {
   set valgrind_shared_lib_failure 0
 
   if { ![file exists $app_path] } {
-    error "$app_path not found."
+    puts "$app_path not found."
+    exit 1
   } elseif { ![file executable $app_path] } {
-    error "$app_path is not executable."
+    puts "$app_path is not executable."
+    exit 1
   }
 }
 
@@ -84,9 +86,9 @@ proc parse_args {} {
   while { $argv != {} } {
     set arg [lindex $argv 0]
     if { $arg == "help" || $arg == "-help" } {
-      puts {Usage: regression [-help] [-threads threads] [-j jobs] [-collections] [-valgrind] [-report_stats]  tests...}
-      puts "  -threads max|integer - number of threads to use"
-      puts "  -j jobs - number of parallel jobs (processes) to run"
+      puts {Usage: regression [-help] [-threads threads] [-j jobs] [-valgrind] [-report_stats] tests...}
+      puts "  -j jobs - number of parallel test jobs (processes) to run"
+      puts "  -threads max|integer - number of threads the STA uses"
       puts "  -collections - run opensta with collections support (beta)"
       puts "  -valgrind - run valgrind (linux memory checker)"
       puts "  -report_stats - report run time and memory"
@@ -98,8 +100,8 @@ proc parse_args {} {
     } elseif { $arg == "-threads" } {
       set threads [lindex $argv 1]
       if { !([string is integer $threads] || $threads == "max") } {
-	puts "Error: -threads arg $threads is not an integer or max."
-	exit 0
+        puts "Error: -threads arg $threads is not an integer or max."
+        exit 0
       }
       lappend app_options "-threads"
       lappend app_options $threads
@@ -163,11 +165,8 @@ proc expand_tests { argv } {
           lappend tests $test
         }
       }
-    } elseif { [lsearch [group_tests "all"] $arg] != -1 } {
-      lappend tests $arg
     } else {
-      puts "Error: test $arg not found."
-      incr errors(no_cmd)
+      lappend tests $arg
     }
   }
   return $tests
@@ -183,12 +182,10 @@ proc run_tests {} {
       run_test $test
     }
   }
-  write_failure_file
-  write_diff_file
 }
 
 proc run_test { test } {
-  global result_dir diff_file errors diff_options
+  global result_dir diff_file errors diff_options failed_tests
   
   puts -nonewline $test
   flush stdout
@@ -441,26 +438,21 @@ proc test_failed { test reason } {
   }
   lappend failed_tests $test
   incr errors($reason)
+  append_diff_file $test
 }
 
-proc write_failure_file {} {
-  global failure_file failed_tests
+proc append_diff_file { test } {
+  global failure_file
+  global diff_file diff_options
 
-  set ch [open $failure_file "w"]
-  foreach test $failed_tests {
-    puts $ch $test
-  }
-  close $ch
-}
+  set fail_ch [open $failure_file "a"]
+  puts $fail_ch $test
+  close $fail_ch
 
-proc write_diff_file {} {
-  global diff_file diff_options failed_tests
-
-  foreach test $failed_tests {
-    set log_file [test_log_file $test]
-    set ok_file [test_ok_file $test]
-    catch [concat exec diff $diff_options $ok_file $log_file >> $diff_file]
-  }
+  # Append diff to results/diffs
+  set log_file [test_log_file $test]
+  set ok_file [test_ok_file $test]
+  catch [concat exec diff $diff_options $ok_file $log_file >> $diff_file]
 }
 
 # Error messages can be found in "valgrind/memcheck/mc_errcontext.c".
@@ -539,13 +531,13 @@ proc show_summary {} {
   global app_path app
   
   puts "------------------------------------------------------"
+  if { $valgrind_shared_lib_failure } {
+    puts "WARNING: valgrind failed because the executable is not statically linked."
+  }
   set test_count [llength $tests]
   if { [found_errors] } {
     if { $errors(error) != 0 } {
       puts "Errored $errors(error)/$test_count"
-    }
-    if { $errors(fail) != 0 } {
-      puts "Failed $errors(fail)/$test_count"
     }
     if { $errors(leak) != 0 } {
       puts "Memory leaks in $errors(leak)/$test_count"
@@ -560,15 +552,11 @@ proc show_summary {} {
       puts "No cmd tcl file for $errors(no_cmd)/$test_count"
     }
     if { $errors(fail) != 0 } {
-      puts "See $diff_file for differences"
+      puts "Failed $errors(fail)/$test_count"
     }
   } else {
     puts "Passed $test_count"
   }
-  if { $valgrind_shared_lib_failure } {
-    puts "WARNING: valgrind failed because the executable is not statically linked."
-  }
-  puts "See $result_dir for log files"
 }
 
 proc found_errors {} {
@@ -599,22 +587,27 @@ proc save_ok_main {} {
     }
   } else {
     foreach test $argv {
-      save_ok $test
+      if { [lsearch [group_tests "all"] $test] == -1 } {
+        puts "Error: test $test not found."
+      } else {
+        save_ok $test
+      }
     }
   }
 }
 
+# hook for pvt/public sync.
 proc save_ok { test } {
-  if { [lsearch [group_tests "all"] $test] == -1 } {
-    puts "Error: test $test not found."
+  save_ok_file $test
+}
+
+proc save_ok_file { test } {
+  set ok_file [test_ok_file $test]
+  set log_file [test_log_file $test]
+  if { ! [file exists $log_file] } {
+    puts "Error: log file $log_file not found."
   } else {
-    set ok_file [test_ok_file $test]
-    set log_file [test_log_file $test]
-    if { ! [file exists $log_file] } {
-      puts "Error: log file $log_file not found."
-    } else {
-      file copy -force $log_file $ok_file
-    }
+    file copy -force $log_file $ok_file
   }
 }
 

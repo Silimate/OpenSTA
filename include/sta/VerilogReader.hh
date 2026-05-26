@@ -1,5 +1,5 @@
 // OpenSTA, Static Timing Analyzer
-// Copyright (c) 2025, Parallax Software, Inc.
+// Copyright (c) 2026, Parallax Software, Inc.
 // 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -24,12 +24,15 @@
 
 #pragma once
 
+#include <map>
 #include <string>
+#include <string_view>
+#include <vector>
 
-#include "StringSet.hh"
-#include "Vector.hh"
-#include "Map.hh"
+#include "Format.hh"
 #include "NetworkClass.hh"
+#include "Report.hh"
+#include "StringUtil.hh"
 
 namespace sta {
 
@@ -59,30 +62,54 @@ class StringRegistry;
 class VerilogBindingTbl;
 class VerilogNetNameIterator;
 class VerilogNetPortRef;
-class VerilogError;
 class LibertyCell;
+class VerilogErrorCmp;
 
-typedef Map<Cell*, VerilogModule*> VerilogModuleMap;
-typedef Vector<VerilogStmt*> VerilogStmtSeq;
-typedef Vector<VerilogNet*> VerilogNetSeq;
-typedef Vector<VerilogDclArg*> VerilogDclArgSeq;
-typedef Vector<VerilogAttrStmt*> VerilogAttrStmtSeq;
-typedef Vector<VerilogAttrEntry*> VerilogAttrEntrySeq;
-typedef Vector<VerilogError*> VerilogErrorSeq;
+class VerilogError
+{
+public:
+  VerilogError(int id,
+               std::string_view filename,
+               int line,
+               std::string_view msg,
+               bool warn);
+  const char *msg() const { return msg_.c_str(); }
+  std::string_view filename() const { return filename_; }
+  int id() const { return id_; }
+  int line() const { return line_; }
+  bool warn() const { return warn_; }
+
+private:
+  int id_;
+  std::string filename_;
+  int line_;
+  std::string msg_;
+  bool warn_;
+
+  friend class VerilogErrorCmp;
+};
+
+using VerilogModuleMap = std::map<Cell*, VerilogModule*>;
+using VerilogStmtSeq = std::vector<VerilogStmt*>;
+using VerilogNetSeq = std::vector<VerilogNet*>;
+using VerilogDclArgSeq = std::vector<VerilogDclArg*>;
+using VerilogAttrStmtSeq = std::vector<VerilogAttrStmt*>;
+using VerilogAttrEntrySeq = std::vector<VerilogAttrEntry*>;
+using VerilogErrorSeq = std::vector<VerilogError*>;
 
 class VerilogReader
 {
 public:
   VerilogReader(NetworkReader *network);
   ~VerilogReader();
-  bool read(const char *filename);
+  bool read(std::string_view filename);
 
-  void makeModule(const std::string *module_name,
+  void makeModule(std::string_view module_vname,
                   VerilogNetSeq *ports,
                   VerilogStmtSeq *stmts,
                   VerilogAttrStmtSeq *attr_stmts,
                   int line);
-  void makeModule(const std::string *module_name,
+  void makeModule(std::string_view module_vname,
                   VerilogStmtSeq *port_dcls,
                   VerilogStmtSeq *stmts,
                   VerilogAttrStmtSeq *attr_stmts,
@@ -95,8 +122,8 @@ public:
                       VerilogDclArg *arg,
                       VerilogAttrStmtSeq *attr_stmts,
                       int line);
-  VerilogDclArg *makeDclArg(const std::string *net_name);
-  VerilogDclArg*makeDclArg(VerilogAssign *assign);
+  VerilogDclArg *makeDclArg(std::string_view net_vname);
+  VerilogDclArg *makeDclArg(VerilogAssign *assign);
   VerilogDclBus *makeDclBus(PortDirection *dir,
                             int from_index,
                             int to_index,
@@ -109,189 +136,185 @@ public:
                             VerilogDclArgSeq *args,
                             VerilogAttrStmtSeq *attr_stmts,
                             int line);
-  VerilogInst *makeModuleInst(const std::string *module_name,
-                              const std::string *inst_name,
+  VerilogInst *makeModuleInst(std::string_view module_vname,
+                              std::string_view inst_vname,
                               VerilogNetSeq *pins,
                               VerilogAttrStmtSeq *attr_stmts,
-                              const int line);
+                              int line);
   VerilogAssign *makeAssign(VerilogNet *lhs,
-			    VerilogNet *rhs,
-			    int line);
-  VerilogNetScalar *makeNetScalar(const std::string *name);
-  VerilogNetPortRef *makeNetNamedPortRefScalarNet(const std::string *port_vname);
-  VerilogNetPortRef *makeNetNamedPortRefScalarNet(const std::string *port_name,
-						  const std::string *net_name);
-  VerilogNetPortRef *makeNetNamedPortRefBitSelect(const std::string *port_name,
-						  const std::string *bus_name,
-						  int index);
-  VerilogNetPortRef *makeNetNamedPortRefScalar(const std::string *port_name,
-					       VerilogNet *net);
-  VerilogNetPortRef *makeNetNamedPortRefBit(const std::string *port_name,
-					    int index,
-					    VerilogNet *net);
-  VerilogNetPortRef *makeNetNamedPortRefPart(const std::string *port_name,
-					     int from_index,
-					     int to_index,
-					     VerilogNet *net);
+                            VerilogNet *rhs,
+                            int line);
+  VerilogNetScalar *makeNetScalar(std::string_view name);
+  VerilogNetPortRef *makeNetNamedPortRefScalarNet(std::string_view port_vname);
+  VerilogNetPortRef *makeNetNamedPortRefScalarNet(std::string_view port_vname,
+                                                  std::string_view net_vname);
+  VerilogNetPortRef *makeNetNamedPortRefBitSelect(std::string_view port_vname,
+                                                  std::string_view bus_vname,
+                                                  int index);
+  VerilogNetPortRef *makeNetNamedPortRefScalar(std::string_view port_vname,
+                                               VerilogNet *net);
+  VerilogNetPortRef *makeNetNamedPortRefBit(std::string_view port_vname,
+                                            int index,
+                                            VerilogNet *net);
+  VerilogNetPortRef *makeNetNamedPortRefPart(std::string_view port_vname,
+                                             int from_index,
+                                             int to_index,
+                                             VerilogNet *net);
   VerilogNetConcat *makeNetConcat(VerilogNetSeq *nets);
-  VerilogNetConstant *makeNetConstant(const std::string *constant,
-                                  int line);
-  VerilogNetBitSelect *makeNetBitSelect(const std::string *name,
-					int index);
-  VerilogNetPartSelect *makeNetPartSelect(const std::string *name,
-					  int from_index,
-					  int to_index);
+  VerilogNetConstant *makeNetConstant(std::string_view constant,
+                                      int line);
+  VerilogNetBitSelect *makeNetBitSelect(std::string_view name,
+                                        int index);
+  VerilogNetPartSelect *makeNetPartSelect(std::string_view name,
+                                          int from_index,
+                                          int to_index);
   VerilogModule *module(Cell *cell);
-  Instance *linkNetwork(const char *top_cell_name,
-			bool make_black_boxes,
+  Instance *linkNetwork(std::string_view top_cell_name,
+                        bool make_black_boxes,
                         bool delete_modules);
-  const char *filename() const { return filename_.c_str(); }
+  std::string_view filename() const { return filename_; }
   void incrLine();
   Report *report() const { return report_; }
+  template <typename... Args>
   void error(int id,
-             const char *filename,
-	     int line,
-	     const char *fmt, ...);
+             std::string_view filename,
+             int line,
+             std::string_view fmt,
+             Args &&...args)
+  {
+    report_->fileError(id, filename, line, fmt, std::forward<Args>(args)...);
+  }
+  template <typename... Args>
   void warn(int id,
-            const char *filename,
-	    int line,
-	    const char *fmt, ...);
+            std::string_view filename,
+            int line,
+            std::string_view fmt,
+            Args &&...args)
+  {
+    report_->fileWarn(id, filename, line, fmt, std::forward<Args>(args)...);
+  }
   const std::string &zeroNetName() const { return zero_net_name_; }
   const std::string &oneNetName() const { return one_net_name_; }
   void deleteModules();
-  void reportStmtCounts();
   const std::string &constant10Max() const { return constant10_max_; }
 
 protected:
-  void init(const char *filename);
+  void init(std::string_view filename);
   void makeCellPorts(Cell *cell,
-		     VerilogModule *module,
-		     VerilogNetSeq *ports);
+                     VerilogModule *module,
+                     VerilogNetSeq *ports);
   Port *makeCellPort(Cell *cell,
-		     VerilogModule *module,
-		     const std::string &port_name);
+                     VerilogModule *module,
+                     const std::string &port_name);
   void makeNamedPortRefCellPorts(Cell *cell,
-				 VerilogModule *module,
-				 VerilogNet *mod_port,
-				 StdStringSet &port_names);
+                                 VerilogModule *module,
+                                 VerilogNet *mod_port,
+                                 StringSet &port_names);
   void checkModuleDcls(VerilogModule *module,
-		       std::set<std::string> &port_names);
+                       std::set<std::string> &port_names);
   void makeModuleInstBody(VerilogModule *module,
-			  Instance *inst,
-			  VerilogBindingTbl *bindings,
-			  bool make_black_boxes);
+                          Instance *inst,
+                          VerilogBindingTbl *bindings,
+                          bool make_black_boxes);
+  void makeGeneratedClocks(LibertyCell *lib_cell, Instance *inst);
   void makeModuleInstNetwork(VerilogModuleInst *mod_inst,
-			     Instance *parent,
-			     VerilogModule *parent_module,
-			     VerilogBindingTbl *parent_bindings,
-			     bool make_black_boxes);
+                             Instance *parent,
+                             VerilogModule *parent_module,
+                             VerilogBindingTbl *parent_bindings,
+                             bool make_black_boxes);
   void makeLibertyInst(VerilogLibertyInst *lib_inst,
-		       Instance *parent,
-		       VerilogModule *parent_module,
-		       VerilogBindingTbl *parent_bindings);
+                       Instance *parent,
+                       VerilogModule *parent_module,
+                       VerilogBindingTbl *parent_bindings);
   void bindGlobalNets(VerilogBindingTbl *bindings);
   void makeNamedInstPins1(Cell *cell,
-			  Instance *inst,
-			  VerilogModuleInst *mod_inst,
-			  VerilogBindingTbl *bindings,
-			  Instance *parent,
-			  VerilogBindingTbl *parent_bindings,
-			  bool is_leaf);
+                          Instance *inst,
+                          VerilogModuleInst *mod_inst,
+                          VerilogBindingTbl *bindings,
+                          Instance *parent,
+                          VerilogBindingTbl *parent_bindings,
+                          bool is_leaf);
   void makeNamedInstPins(Cell *cell,
-			 Instance *inst,
-			 VerilogModuleInst *mod_inst,
-			 VerilogBindingTbl *bindings,
-			 Instance *parent,
-			 VerilogModule *parent_module,
-			 VerilogBindingTbl *parent_bindings,
-			 bool is_leaf);
+                         Instance *inst,
+                         VerilogModuleInst *mod_inst,
+                         VerilogBindingTbl *bindings,
+                         Instance *parent,
+                         VerilogModule *parent_module,
+                         VerilogBindingTbl *parent_bindings,
+                         bool is_leaf);
   void makeOrderedInstPins(Cell *cell,
-			   Instance *inst,
-			   VerilogModuleInst *mod_inst,
-			   VerilogBindingTbl *bindings,
-			   Instance *parent,
-			   VerilogModule *parent_module,
-			   VerilogBindingTbl *parent_bindings,
-			   bool is_leaf);
+                           Instance *inst,
+                           VerilogModuleInst *mod_inst,
+                           VerilogBindingTbl *bindings,
+                           Instance *parent,
+                           VerilogModule *parent_module,
+                           VerilogBindingTbl *parent_bindings,
+                           bool is_leaf);
   void mergeAssignNet(VerilogAssign *assign,
-		      VerilogModule *module,
-		      Instance *inst,
-		      VerilogBindingTbl *bindings);
+                      VerilogModule *module,
+                      Instance *inst,
+                      VerilogBindingTbl *bindings);
   void makeInstPin(Instance *inst,
-		   Port *port,
-		   VerilogNetNameIterator *net_name_iter,
-		   VerilogBindingTbl *bindings,
-		   Instance *parent,
-		   VerilogBindingTbl *parent_bindings,
-		   bool is_leaf);
+                   Port *port,
+                   VerilogNetNameIterator *net_name_iter,
+                   VerilogBindingTbl *bindings,
+                   Instance *parent,
+                   VerilogBindingTbl *parent_bindings,
+                   bool is_leaf);
   void makeInstPin(Instance *inst,
-		   Port *port,
-		   const std::string &net_name,
-		   VerilogBindingTbl *bindings,
-		   Instance *parent,
-		   VerilogBindingTbl *parent_bindings,
-		   bool is_leaf);
+                   Port *port,
+                   const std::string &net_name,
+                   VerilogBindingTbl *bindings,
+                   Instance *parent,
+                   VerilogBindingTbl *parent_bindings,
+                   bool is_leaf);
+  template <typename... Args>
   void linkWarn(int id,
-                const char *filename,
-		int line,
-		const char *msg, ...)
-    __attribute__((format (printf, 5, 6)));
+                std::string_view filename,
+                int line,
+                std::string_view msg,
+                Args &&...args)
+  {
+    std::string msg_str = sta::formatRuntime(msg, std::forward<Args>(args)...);
+    link_errors_.push_back(new VerilogError(id, filename, line, msg_str, true));
+  }
+  template <typename... Args>
   void linkError(int id,
-                 const char *filename,
-		 int line,
-		 const char *msg, ...)
-    __attribute__((format (printf, 5, 6)));
+                 std::string_view filename,
+                 int line,
+                 std::string_view msg,
+                 Args &&...args)
+  {
+    std::string msg_str = sta::formatRuntime(msg, std::forward<Args>(args)...);
+    link_errors_.push_back(new VerilogError(id, filename, line, msg_str, false));
+  }
   bool reportLinkErrors();
   bool haveLinkErrors();
   Cell *makeBlackBox(VerilogModuleInst *mod_inst,
-		     VerilogModule *parent_module);
+                     VerilogModule *parent_module);
   void makeBlackBoxNamedPorts(Cell *cell,
-			      VerilogModuleInst *mod_inst,
-			      VerilogModule *parent_module);
+                              VerilogModuleInst *mod_inst,
+                              VerilogModule *parent_module);
   void makeBlackBoxOrderedPorts(Cell *cell,
-				VerilogModuleInst *mod_inst,
-				VerilogModule *parent_module);
+                                VerilogModuleInst *mod_inst,
+                                VerilogModule *parent_module);
   bool isBlackBox(Cell *cell);
   bool hasScalarNamedPortRefs(LibertyCell *liberty_cell,
-			      VerilogNetSeq *pins);
+                              VerilogNetSeq *pins);
 
   std::string filename_;
   Report *report_;
   Debug *debug_;
   NetworkReader *network_;
 
-  Library *library_;
-  int black_box_index_;
+  Library *library_{nullptr};
+  int black_box_index_{0};
   VerilogModuleMap module_map_;
   VerilogErrorSeq link_errors_;
   const std::string zero_net_name_;
   const std::string one_net_name_;
   std::string constant10_max_;
   ViewType *view_type_;
-  bool report_stmt_stats_;
-  int module_count_;
-  int inst_mod_count_;
-  int inst_lib_count_;
-  int inst_lib_net_arrays_;
-  int port_names_;
-  int inst_module_names_;
-  int inst_names_;
-  int dcl_count_;
-  int dcl_bus_count_;
-  int dcl_arg_count_;
-  int net_scalar_count_;
-  int net_scalar_names_;
-  int net_bus_names_;
-  int net_part_select_count_;
-  int net_bit_select_count_;
-  int net_port_ref_scalar_count_;
-  int net_port_ref_scalar_net_count_;
-  int net_port_ref_bit_count_;
-  int net_port_ref_part_count_;
-  int net_constant_count_;
-  int assign_count_;
-  int concat_count_;
 };
 
 } // namespace sta
-

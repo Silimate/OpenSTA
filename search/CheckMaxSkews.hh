@@ -1,5 +1,5 @@
 // OpenSTA, Static Timing Analyzer
-// Copyright (c) 2025, Parallax Software, Inc.
+// Copyright (c) 2026, Parallax Software, Inc.
 // 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -24,48 +24,34 @@
 
 #pragma once
 
-#include "GraphClass.hh"
+#include <cstddef>
+#include <vector>
+
 #include "Delay.hh"
-#include "StaState.hh"
-#include "SearchClass.hh"
+#include "GraphClass.hh"
+#include "LibertyClass.hh"
+#include "NetworkClass.hh"
 #include "Path.hh"
+#include "Scene.hh"
+#include "SearchClass.hh"
+#include "StaState.hh"
 
 namespace sta {
-
-class MaxSkewCheckVisitor;
-
-class CheckMaxSkews
-{
-public:
-  explicit CheckMaxSkews(StaState *sta);
-  ~CheckMaxSkews();
-  void clear();
-  // All violating max skew checks.
-  MaxSkewCheckSeq &violations();
-  // Max skew check with the least slack.
-  MaxSkewCheck *minSlackCheck();
-
-protected:
-  void visitMaxSkewChecks(MaxSkewCheckVisitor *visitor);
-  void visitMaxSkewChecks(Vertex *vertex,
-			  MaxSkewCheckVisitor *visitor);
-
-  MaxSkewCheckSeq checks_;
-  StaState *sta_;
-};
 
 class MaxSkewCheck
 {
 public:
+  MaxSkewCheck();
   MaxSkewCheck(Path *clk_path,
-	       Path *ref_path,
-	       TimingArc *check_arc,
-	       Edge *check_edge);
+               Path *ref_path,
+               TimingArc *check_arc,
+               Edge *check_edge);
+  bool isNull() const { return clk_path_ == nullptr; }
   const Path *clkPath() const { return clk_path_; }
   Pin *clkPin(const StaState *sta) const;
   const Path *refPath() const { return ref_path_; }
   Pin *refPin(const StaState *sta) const;
-  Delay skew() const;
+  Delay skew(const StaState *sta) const;
   ArcDelay maxSkew(const StaState *sta) const;
   Slack slack(const StaState *sta) const;
   TimingArc *checkArc() const { return check_arc_; }
@@ -77,15 +63,38 @@ private:
   Edge *check_edge_;
 };
 
+using MaxSkewCheckSeq = std::vector<MaxSkewCheck>;
+
+class CheckMaxSkews
+{
+public:
+  CheckMaxSkews(StaState *sta);
+  void clear();
+  // Return max skew checks.
+  // net=null check all nets
+  MaxSkewCheckSeq &check(const Net *net,
+                         size_t max_count,
+                         bool violators,
+                         const SceneSeq &scenes);
+
+protected:
+  void check(Vertex *vertex,
+             bool violators);
+
+  SceneSet scenes_;
+  MaxSkewCheckSeq checks_;
+  StaState *sta_;
+};
+
 class MaxSkewSlackLess
 {
 public:
-  explicit MaxSkewSlackLess(const StaState *sta);
-  bool operator()(const MaxSkewCheck *check1,
-		  const MaxSkewCheck *check2) const;
+  MaxSkewSlackLess(const StaState *sta);
+  bool operator()(const MaxSkewCheck &check1,
+                  const MaxSkewCheck &check2) const;
 
 protected:
   const StaState *sta_;
 };
 
-} // namespace
+} // namespace sta

@@ -1,66 +1,61 @@
 // OpenSTA, Static Timing Analyzer
-// Copyright (c) 2025, Parallax Software, Inc.
-// 
+// Copyright (c) 2026, Parallax Software, Inc.
+//
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
-// 
+//
 // This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
-// 
+//
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
-// 
+//
 // The origin of this software must not be misrepresented; you must not
 // claim that you wrote the original software.
-// 
+//
 // Altered source versions must be plainly marked as such, and must not be
 // misrepresented as being the original software.
-// 
+//
 // This notice may not be removed or altered from any source distribution.
 
 #include "Levelize.hh"
 
 #include <algorithm>
+#include <cmath>
 #include <deque>
 
-#include "Report.hh"
+#include "ContainerHelpers.hh"
 #include "Debug.hh"
-#include "Stats.hh"
-#include "TimingRole.hh"
-#include "PortDirection.hh"
-#include "Network.hh"
-#include "Sdc.hh"
 #include "Graph.hh"
 #include "GraphCmp.hh"
-#include "SearchPred.hh"
-#include "Variables.hh"
 #include "GraphDelayCalc.hh"
+#include "Mode.hh"
+#include "Network.hh"
+#include "PortDirection.hh"
+#include "Report.hh"
+#include "Sdc.hh"
+#include "Stats.hh"
+#include "TimingRole.hh"
+#include "Variables.hh"
 
 namespace sta {
 
-using std::max;
-
 Levelize::Levelize(StaState *sta) :
   StaState(sta),
-  search_pred_(sta),
-  levelized_(false),
-  levels_valid_(false),
-  max_level_(0),
-  level_space_(10),
-  roots_(graph_),
-  relevelize_from_(graph_),
-  observer_(nullptr)
+  roots_(makeVertexSet(sta)),
+  relevelize_from_(makeVertexSet(sta))
 {
 }
 
 Levelize::~Levelize()
 {
   delete observer_;
-  loops_.deleteContents();
+  for (auto loop : loops_)
+    delete loop;
 }
 
 void
@@ -84,7 +79,9 @@ Levelize::clear()
   roots_.clear();
   relevelize_from_.clear();
   clearLoopEdges();
-  loops_.deleteContentsClear();
+  for (auto loop : loops_)
+    delete loop;
+  loops_.clear();
   loop_edges_.clear();
   max_level_ = 0;
 }
@@ -92,11 +89,8 @@ Levelize::clear()
 void
 Levelize::clearLoopEdges()
 {
-  EdgeSet::Iterator edge_iter(disabled_loop_edges_);
-  while (edge_iter.hasNext()) {
-    Edge *edge = edge_iter.next();
+  for (Edge *edge : disabled_loop_edges_)
     edge->setIsDisabledLoop(false);
-  }
   disabled_loop_edges_.clear();
 }
 
@@ -107,7 +101,7 @@ Levelize::ensureLevelized()
     if (levelized_)
       relevelize();
     else
-      levelize();
+      findLevels();
   }
 }
 
@@ -115,7 +109,7 @@ Levelize::ensureLevelized()
 #define setOnPath(on_path) setVisited2(on_path)
 
 void
-Levelize::levelize()
+Levelize::findLevels()
 {
   Stats stats(debug_, report_);
   debugPrint(debug_, "levelize", 1, "levelize");
@@ -163,8 +157,7 @@ Levelize::findRoots()
   while (vertex_iter.hasNext()) {
     Vertex *vertex = vertex_iter.next();
     if (isRoot(vertex)) {
-      debugPrint(debug_, "levelize", 2, "root %s%s",
-                 vertex->to_string(this).c_str(),
+      debugPrint(debug_, "levelize", 2, "root {}{}", vertex->to_string(this),
                  hasFanout(vertex) ? " fanout" : "");
       roots_.insert(vertex);
     }
@@ -173,11 +166,10 @@ Levelize::findRoots()
     size_t fanout_roots = 0;
     for (Vertex *root : roots_) {
       if (hasFanout(root))
-          fanout_roots++;
+        fanout_roots++;
     }
-    debugPrint(debug_, "levelize", 1, "Found %zu roots %zu with fanout",
-               roots_.size(),
-               fanout_roots);
+    debugPrint(debug_, "levelize", 1, "Found {} roots {} with fanout",
+               roots_.size(), fanout_roots);
   }
 }
 
@@ -186,43 +178,44 @@ Levelize::findRoots()
 bool
 Levelize::isRoot(Vertex *vertex)
 {
-  if (search_pred_.searchTo(vertex)) {
-    VertexInEdgeIterator edge_iter1(vertex, graph_);
-    while (edge_iter1.hasNext()) {
-      Edge *edge = edge_iter1.next();
-      Vertex *from_vertex = edge->from(graph_);
-      if (search_pred_.searchFrom(from_vertex)
-	  && search_pred_.searchThru(edge))
-        return false;
-    }
-    // Levelize bidirect driver as if it was a fanout of the bidirect load.
-    return !(graph_delay_calc_->bidirectDrvrSlewFromLoad(vertex->pin())
-             && vertex->isBidirectDriver());
+  VertexInEdgeIterator edge_iter1(vertex, graph_);
+  while (edge_iter1.hasNext()) {
+    Edge *edge = edge_iter1.next();
+    if (searchThru(edge))
+      return false;
   }
-  else
-    return false;
+  // Levelize bidirect driver as if it was a fanout of the bidirect load.
+  return !(graph_delay_calc_->bidirectDrvrSlewFromLoad(vertex->pin())
+           && vertex->isBidirectDriver());
+}
+
+bool
+Levelize::searchThru(Edge *edge)
+{
+  const TimingRole *role = edge->role();
+  return !role->isTimingCheck() && role != TimingRole::latchDtoQ()
+      && !edge->isDisabledLoop()
+      // Register/latch preset/clr edges are disabled by default.
+      && !(role == TimingRole::regSetClr() && !variables_->presetClrArcsEnabled())
+      && !(edge->isBidirectInstPath() && !variables_->bidirectInstPathsEnabled());
 }
 
 bool
 Levelize::hasFanout(Vertex *vertex)
 {
   bool has_fanout = false;
-  if (search_pred_.searchFrom(vertex)) {
-    VertexOutEdgeIterator edge_iter2(vertex, graph_);
-    while (edge_iter2.hasNext()) {
-      Edge *edge = edge_iter2.next();
-      Vertex *to_vertex = edge->from(graph_);
-      if (search_pred_.searchTo(to_vertex)
-	  && search_pred_.searchThru(edge)) {
-        has_fanout = true;
-        break;
-      }
-    }
-    // Levelize bidirect driver as if it was a fanout of the bidirect load.
-    if (graph_delay_calc_->bidirectDrvrSlewFromLoad(vertex->pin())
-        && !vertex->isBidirectDriver())
+  VertexOutEdgeIterator edge_iter2(vertex, graph_);
+  while (edge_iter2.hasNext()) {
+    Edge *edge = edge_iter2.next();
+    if (searchThru(edge)) {
       has_fanout = true;
+      break;
+    }
   }
+  // Levelize bidirect driver as if it was a fanout of the bidirect load.
+  if (graph_delay_calc_->bidirectDrvrSlewFromLoad(vertex->pin())
+      && !vertex->isBidirectDriver())
+    has_fanout = true;
   return has_fanout;
 }
 
@@ -268,11 +261,10 @@ Levelize::findBackEdges(EdgeSeq &path,
   EdgeSet back_edges;
   while (!stack.empty()) {
     VertexEdgeIterPair vertex_iter = stack.top();
-    Vertex *vertex = vertex_iter.first;
-    VertexOutEdgeIterator *edge_iter = vertex_iter.second;
+    const auto &[vertex, edge_iter] = vertex_iter;
     if (edge_iter->hasNext()) {
       Edge *edge = edge_iter->next();
-      if (search_pred_.searchThru(edge)) {
+      if (searchThru(edge)) {
         Vertex *to_vertex = edge->to(graph_);
         if (!to_vertex->visited()) {
           to_vertex->setVisited(true);
@@ -280,7 +272,7 @@ Levelize::findBackEdges(EdgeSeq &path,
           path.push_back(edge);
           stack.emplace(to_vertex, new VertexOutEdgeIterator(to_vertex, graph_));
         }
-        else if (to_vertex->visited2()) { // on path
+        else if (to_vertex->visited2()) {  // on path
           // Found a back edge (loop).
           recordLoop(edge, path);
           back_edges.insert(edge);
@@ -310,10 +302,10 @@ Levelize::findCycleBackEdges()
   if (unvisited.size() < 100)
     sort(unvisited, VertexNameLess(network_));
   size_t back_edge_count = 0;
-  VertexSet visited(graph_);
+  VertexSet visited = makeVertexSet(this);
   for (Vertex *vertex : unvisited) {
-    if (visited.find(vertex) == visited.end()) {
-      VertexSet path_vertices(graph_);
+    if (!visited.contains(vertex)) {
+      VertexSet path_vertices = makeVertexSet(this);
       EdgeSeq path;
       FindBackEdgesStack stack;
       visited.insert(vertex);
@@ -321,11 +313,11 @@ Levelize::findCycleBackEdges()
       stack.emplace(vertex, new VertexOutEdgeIterator(vertex, graph_));
       EdgeSet back_edges = findBackEdges(path, stack);
       for (Edge *back_edge : back_edges)
-        roots_.insert(back_edge->from(graph_));
+        roots_.insert(back_edge->to(graph_));
       back_edge_count += back_edges.size();
     }
   }
-  debugPrint(debug_, "levelize", 1, "Found %zu cycle back edges", back_edge_count);
+  debugPrint(debug_, "levelize", 1, "Found {} cycle back edges", back_edge_count);
 }
 
 // Find vertices in cycles that are were not accessible from roots.
@@ -336,8 +328,7 @@ Levelize::findUnvisitedVertices()
   VertexIterator vertex_iter(graph_);
   while (vertex_iter.hasNext()) {
     Vertex *vertex = vertex_iter.next();
-    if (!vertex->visited()
-	&& search_pred_.searchFrom(vertex))
+    if (!vertex->visited())
       unvisited.push_back(vertex);
   }
   return unvisited;
@@ -349,34 +340,31 @@ VertexSeq
 Levelize::findTopologicalOrder()
 {
   Stats stats(debug_, report_);
-  std::map<Vertex*, int> in_degree;
+  std::map<Vertex *, int> in_degree;
 
   VertexIterator vertex_iter(graph_);
   while (vertex_iter.hasNext()) {
     Vertex *vertex = vertex_iter.next();
-    if (search_pred_.searchFrom(vertex)) {
-      VertexOutEdgeIterator edge_iter(vertex, graph_);
-      while (edge_iter.hasNext()) {
-        Edge *edge = edge_iter.next();
-        Vertex *to_vertex = edge->to(graph_);
-        if (search_pred_.searchThru(edge)
-            && search_pred_.searchTo(to_vertex))
-          in_degree[to_vertex] += 1;
-        if (edge->role() == TimingRole::latchDtoQ())
-          latch_d_to_q_edges_.insert(edge);
-      }
-      // Levelize bidirect driver as if it was a fanout of the bidirect load.
-      const Pin *pin = vertex->pin();
-      if (graph_delay_calc_->bidirectDrvrSlewFromLoad(pin)
-          && !vertex->isBidirectDriver()) {
-        Vertex *to_vertex = graph_->pinDrvrVertex(pin);;
-        if (search_pred_.searchTo(to_vertex))
-          in_degree[to_vertex] += 1;
-      }
+    VertexOutEdgeIterator edge_iter(vertex, graph_);
+    while (edge_iter.hasNext()) {
+      Edge *edge = edge_iter.next();
+      Vertex *to_vertex = edge->to(graph_);
+      if (searchThru(edge))
+        in_degree[to_vertex] += 1;
+      if (edge->role() == TimingRole::latchDtoQ())
+        latch_d_to_q_edges_.insert(edge);
+    }
+    // Levelize bidirect driver as if it was a fanout of the bidirect load.
+    const Pin *pin = vertex->pin();
+    if (graph_delay_calc_->bidirectDrvrSlewFromLoad(pin)
+        && !vertex->isBidirectDriver()) {
+      Vertex *to_vertex = graph_->pinDrvrVertex(pin);
+      ;
+      in_degree[to_vertex] += 1;
     }
   }
 
-  std::deque<Vertex*> queue;
+  std::deque<Vertex *> queue;
   for (Vertex *root : roots_)
     queue.push_back(root);
 
@@ -385,19 +373,16 @@ Levelize::findTopologicalOrder()
     Vertex *vertex = queue.front();
     queue.pop_front();
     topo_order.push_back(vertex);
-    if (search_pred_.searchFrom(vertex)) {
-      VertexOutEdgeIterator edge_iter(vertex, graph_);
-      while (edge_iter.hasNext()) {
-        Edge *edge = edge_iter.next();
-        Vertex *to_vertex = edge->to(graph_);
-        if (search_pred_.searchThru(edge)
-            && search_pred_.searchTo(to_vertex)) {
-          const auto &to_degree_itr = in_degree.find(to_vertex);
-          int &to_in_degree = to_degree_itr->second;
-          to_in_degree -= 1;
-          if (to_in_degree == 0)
-            queue.push_back(to_vertex);
-        }
+    VertexOutEdgeIterator edge_iter(vertex, graph_);
+    while (edge_iter.hasNext()) {
+      Edge *edge = edge_iter.next();
+      Vertex *to_vertex = edge->to(graph_);
+      if (searchThru(edge)) {
+        const auto &to_degree_itr = in_degree.find(to_vertex);
+        int &to_in_degree = to_degree_itr->second;
+        to_in_degree -= 1;
+        if (to_in_degree == 0)
+          queue.push_back(to_vertex);
       }
     }
     // Levelize bidirect driver as if it was a fanout of the bidirect load.
@@ -405,13 +390,11 @@ Levelize::findTopologicalOrder()
     if (graph_delay_calc_->bidirectDrvrSlewFromLoad(pin)
         && !vertex->isBidirectDriver()) {
       Vertex *to_vertex = graph_->pinDrvrVertex(pin);
-      if (search_pred_.searchTo(to_vertex)) {
-        const auto &degree_itr = in_degree.find(to_vertex);
-        int &in_degree = degree_itr->second;
-        in_degree -= 1;
-        if (in_degree == 0)
-          queue.push_back(to_vertex);
-      }
+      const auto &degree_itr = in_degree.find(to_vertex);
+      int &in_degree = degree_itr->second;
+      in_degree -= 1;
+      if (in_degree == 0)
+        queue.push_back(to_vertex);
     }
   }
 
@@ -420,14 +403,14 @@ Levelize::findTopologicalOrder()
     while (vertex_iter.hasNext()) {
       Vertex *vertex = vertex_iter.next();
       if (in_degree[vertex] != 0)
-        debugPrint(debug_, "levelize", 2, "topological sort missing %s",
-                   vertex->to_string(this).c_str());
+        debugPrint(debug_, "levelize", 2, "topological sort missing {}",
+                   vertex->to_string(this));
     }
   }
   if (debug_->check("levelize", 3)) {
-    report_->reportLine("Topological sort");
+    report_->report("Topological sort");
     for (Vertex *vertex : topo_order)
-      report_->reportLine("%s", vertex->to_string(this).c_str());
+      report_->report("{}", vertex->to_string(this));
   }
   stats.report("Levelize topological sort");
   return topo_order;
@@ -435,16 +418,17 @@ Levelize::findTopologicalOrder()
 
 void
 Levelize::recordLoop(Edge *edge,
-		     EdgeSeq &path)
+                     EdgeSeq &path)
 {
-  debugPrint(debug_, "levelize", 2, "Loop edge %s (%s)",
-             edge->to_string(this).c_str(),
-             edge->role()->to_string().c_str());
+  debugPrint(debug_, "levelize", 2, "Loop edge {} ({})",
+             edge->to_string(this), edge->role()->to_string());
   EdgeSeq *loop_edges = loopEdges(path, edge);
   GraphLoop *loop = new GraphLoop(loop_edges);
   loops_.push_back(loop);
-  if (variables_->dynamicLoopBreaking())
-    sdc_->makeLoopExceptions(loop);
+  if (variables_->dynamicLoopBreaking()) {
+    for (Mode *mode : modes_)
+      mode->sdc()->makeLoopExceptions(loop);
+  }
 
   // Record disabled loop edges so they can be cleared without
   // traversing the entire graph to find them.
@@ -454,28 +438,24 @@ Levelize::recordLoop(Edge *edge,
 
 EdgeSeq *
 Levelize::loopEdges(EdgeSeq &path,
-		    Edge *closing_edge)
+                    Edge *closing_edge)
 {
   debugPrint(debug_, "loop", 2, "Loop");
   EdgeSeq *loop_edges = new EdgeSeq;
   // Skip the "head" of the path up to where closing_edge closes the loop.
   Pin *loop_pin = closing_edge->to(graph_)->pin();
   bool copy = false;
-  EdgeSeq::Iterator edge_iter(path);
-  while (edge_iter.hasNext()) {
-    Edge *edge = edge_iter.next();
+  for (Edge *edge : path) {
     Pin *from_pin = edge->from(graph_)->pin();
     if (from_pin == loop_pin)
       copy = true;
     if (copy) {
-      debugPrint(debug_, "loop", 2, " %s",
-                 edge->to_string(this).c_str());
+      debugPrint(debug_, "loop", 2, " {}", edge->to_string(this));
       loop_edges->push_back(edge);
       loop_edges_.insert(edge);
     }
   }
-  debugPrint(debug_, "loop", 2, " %s",
-             closing_edge->to_string(this).c_str());
+  debugPrint(debug_, "loop", 2, " {}", closing_edge->to_string(this));
   loop_edges->push_back(closing_edge);
   loop_edges_.insert(closing_edge);
   return loop_edges;
@@ -485,12 +465,10 @@ void
 Levelize::reportPath(EdgeSeq &path) const
 {
   bool first_edge = true;
-  EdgeSeq::Iterator edge_iter(path);
-  while (edge_iter.hasNext()) {
-    Edge *edge = edge_iter.next();
+  for (Edge *edge : path) {
     if (first_edge)
-      report_->reportLine(" %s", edge->from(graph_)->to_string(this).c_str());
-    report_->reportLine(" %s", edge->to(graph_)->to_string(this).c_str());
+      report_->report(" {}", edge->from(graph_)->to_string(this));
+    report_->report(" {}", edge->to(graph_)->to_string(this));
     first_edge = false;
   }
 }
@@ -503,25 +481,22 @@ Levelize::assignLevels(VertexSeq &topo_sorted)
   for (Vertex *root : roots_)
     setLevel(root, 0);
   for (Vertex *vertex : topo_sorted) {
-    if (vertex->level() != -1
-	&& search_pred_.searchFrom(vertex)) {
+    if (vertex->level() != -1) {
       VertexOutEdgeIterator edge_iter(vertex, graph_);
       while (edge_iter.hasNext()) {
         Edge *edge = edge_iter.next();
         Vertex *to_vertex = edge->to(graph_);
-        if (search_pred_.searchThru(edge)
-            && search_pred_.searchTo(to_vertex))
-          setLevel(to_vertex, max(to_vertex->level(),
-                                  vertex->level() + level_space_));
+        if (searchThru(edge))
+          setLevel(to_vertex,
+                   std::max(to_vertex->level(), vertex->level() + level_space_));
       }
       // Levelize bidirect driver as if it was a fanout of the bidirect load.
       const Pin *pin = vertex->pin();
       if (graph_delay_calc_->bidirectDrvrSlewFromLoad(pin)
           && !vertex->isBidirectDriver()) {
         Vertex *to_vertex = graph_->pinDrvrVertex(pin);
-        if (search_pred_.searchTo(to_vertex))
-          setLevel(to_vertex, max(to_vertex->level(),
-                                  vertex->level() + level_space_));
+        setLevel(to_vertex,
+                 std::max(to_vertex->level(), vertex->level() + level_space_));
       }
     }
   }
@@ -536,26 +511,28 @@ Levelize::assignLevels(VertexSeq &topo_sorted)
 void
 Levelize::ensureLatchLevels()
 {
-  EdgeSet::Iterator latch_edge_iter(latch_d_to_q_edges_);
-  while (latch_edge_iter.hasNext()) {
-    Edge *edge = latch_edge_iter.next();
+  for (Edge *edge : latch_d_to_q_edges_) {
     Vertex *from = edge->from(graph_);
     Vertex *to = edge->to(graph_);
-    if (from->level() == to->level())
-      setLevel(from, from->level() + level_space_);
+    if (from->level() == to->level()) {
+      Level adjusted_level = from->level() + level_space_;
+      debugPrint(debug_, "levelize", 2, "latch {} {} (adjusted {}) -> {} {}",
+                 from->to_string(this), from->level(), adjusted_level,
+                 to->to_string(this), to->level());
+      setLevel(from, adjusted_level);
+    }
   }
   latch_d_to_q_edges_.clear();
 }
 
 void
-Levelize::setLevel(Vertex  *vertex,
-		   Level level)
+Levelize::setLevel(Vertex *vertex,
+                   Level level)
 {
-  debugPrint(debug_, "levelize", 2, "set level %s %d",
-             vertex->to_string(this).c_str(),
-             level);
+  debugPrint(debug_, "levelize", 3, "set level {} {}",
+             vertex->to_string(this), level);
   vertex->setLevel(level);
-  max_level_ = max(level, max_level_);
+  max_level_ = std::max(level, max_level_);
   if (level >= Graph::vertex_level_max)
     report_->critical(616, "maximum logic level exceeded");
 }
@@ -566,23 +543,6 @@ Levelize::invalid()
   if (levelized_) {
     debugPrint(debug_, "levelize", 1, "levels invalid");
     levelized_ = false;
-    levels_valid_ = false;
-  }
-}
-
-void
-Levelize::invalidFrom(Vertex *vertex)
-{
-  if (levelized_) {
-    debugPrint(debug_, "levelize", 1, "level invalid from %s",
-               vertex->to_string(this).c_str());
-    VertexInEdgeIterator edge_iter(vertex, graph_);
-    while (edge_iter.hasNext()) {
-      Edge *edge = edge_iter.next();
-      Vertex *from_vertex = edge->from(graph_);
-      relevelize_from_.insert(from_vertex);
-    }
-    relevelize_from_.insert(vertex);
     levels_valid_ = false;
   }
 }
@@ -600,8 +560,8 @@ void
 Levelize::relevelizeFrom(Vertex *vertex)
 {
   if (levelized_) {
-    debugPrint(debug_, "levelize", 1, "level invalid from %s",
-               vertex->to_string(this).c_str());
+    debugPrint(debug_, "levelize", 1, "level invalid from {}",
+               vertex->to_string(this));
     relevelize_from_.insert(vertex);
     levels_valid_ = false;
   }
@@ -610,10 +570,9 @@ Levelize::relevelizeFrom(Vertex *vertex)
 void
 Levelize::deleteEdgeBefore(Edge *edge)
 {
-  if (levelized_
-      && loop_edges_.hasKey(edge)) {
-    debugPrint(debug_, "levelize", 2, "delete loop edge %s",
-               edge->to_string(this).c_str());
+  if (levelized_ && loop_edges_.contains(edge)) {
+    debugPrint(debug_, "levelize", 2, "delete loop edge {}",
+               edge->to_string(this));
     disabled_loop_edges_.erase(edge);
     // Relevelize if a loop edge is removed. Incremental levelization
     // fails because the DFS path will be missing.
@@ -634,15 +593,13 @@ void
 Levelize::relevelize()
 {
   for (Vertex *vertex : relevelize_from_) {
-    debugPrint(debug_, "levelize", 1, "relevelize from %s",
-               vertex->to_string(this).c_str());
-    if (search_pred_.searchFrom(vertex)) {
-      if (isRoot(vertex))
-	roots_.insert(vertex);
-      VertexSet path_vertices(graph_);
-      EdgeSeq path;
-      visit(vertex, nullptr, vertex->level(), 1, path_vertices, path);
-    }
+    debugPrint(debug_, "levelize", 2, "relevelize from {}",
+               vertex->to_string(this));
+    if (isRoot(vertex))
+      roots_.insert(vertex);
+    VertexSet path_vertices = makeVertexSet(this);
+    EdgeSeq path;
+    visit(vertex, nullptr, vertex->level(), 1, path_vertices, path);
   }
   ensureLatchLevels();
   levels_valid_ = true;
@@ -651,11 +608,11 @@ Levelize::relevelize()
 
 void
 Levelize::visit(Vertex *vertex,
-		Edge *from,
+                Edge *from,
                 Level level,
-		Level level_space,
+                Level level_space,
                 VertexSet &path_vertices,
-		EdgeSeq &path)
+                EdgeSeq &path)
 {
   Pin *from_pin = vertex->pin();
   setLevelIncr(vertex, level);
@@ -663,32 +620,39 @@ Levelize::visit(Vertex *vertex,
   if (from)
     path.push_back(from);
 
-  if (search_pred_.searchFrom(vertex)) {
-    VertexOutEdgeIterator edge_iter(vertex, graph_);
-    while (edge_iter.hasNext()) {
-      Edge *edge = edge_iter.next();
-      Vertex *to_vertex = edge->to(graph_);
-      if (search_pred_.searchThru(edge)
-	  && search_pred_.searchTo(to_vertex)) {
-        if (path_vertices.find(to_vertex) != path_vertices.end())
-	  // Back edges form feedback loops.
-          recordLoop(edge, path);
-        else if (to_vertex->level() <= level)
-	  visit(to_vertex, edge, level+level_space, level_space,
-		path_vertices, path);
+  VertexOutEdgeIterator edge_iter(vertex, graph_);
+  while (edge_iter.hasNext()) {
+    Edge *edge = edge_iter.next();
+    Vertex *to_vertex = edge->to(graph_);
+    if (searchThru(edge)) {
+      if (path_vertices.contains(to_vertex))
+        // Back edges form feedback loops.
+        recordLoop(edge, path);
+      else if (to_vertex->level() <= level)
+        visit(to_vertex, edge, level + level_space, level_space, path_vertices,
+              path);
+    }
+
+    const TimingRole *role = edge->role();
+    if (role->isLatchDtoQ())
+      latch_d_to_q_edges_.insert(edge);
+    if (role->isLatchEnToQ()) {
+      VertexInEdgeIterator edge_iter2(to_vertex, graph_);
+      while (edge_iter2.hasNext()) {
+        Edge *edge2 = edge_iter2.next();
+        if (edge2->role()->isLatchDtoQ())
+          latch_d_to_q_edges_.insert(edge2);
       }
-      if (edge->role() == TimingRole::latchDtoQ())
-	  latch_d_to_q_edges_.insert(edge);
     }
-    // Levelize bidirect driver as if it was a fanout of the bidirect load.
-    if (graph_delay_calc_->bidirectDrvrSlewFromLoad(from_pin)
-	&& !vertex->isBidirectDriver()) {
-      Vertex *to_vertex = graph_->pinDrvrVertex(from_pin);
-      if (search_pred_.searchTo(to_vertex)
-	  && (to_vertex->level() <= level))
-	visit(to_vertex, nullptr, level+level_space, level_space,
-	      path_vertices, path);
-    }
+  }
+
+  // Levelize bidirect driver as if it was a fanout of the bidirect load.
+  if (graph_delay_calc_->bidirectDrvrSlewFromLoad(from_pin)
+      && !vertex->isBidirectDriver()) {
+    Vertex *to_vertex = graph_->pinDrvrVertex(from_pin);
+    if (to_vertex->level() <= level)
+      visit(to_vertex, nullptr, level + level_space, level_space, path_vertices,
+            path);
   }
   path_vertices.erase(vertex);
   if (from)
@@ -698,24 +662,23 @@ Levelize::visit(Vertex *vertex,
 bool
 Levelize::isDisabledLoop(Edge *edge) const
 {
-  return disabled_loop_edges_.hasKey(edge);
+  return disabled_loop_edges_.contains(edge);
 }
 
 void
-Levelize::setLevelIncr(Vertex  *vertex,
+Levelize::setLevelIncr(Vertex *vertex,
                        Level level)
 {
-  debugPrint(debug_, "levelize", 2, "set level %s %d",
-             vertex->to_string(this).c_str(),
-             level);
+  debugPrint(debug_, "levelize", 2, "set level {} {}",
+             vertex->to_string(this), level);
   if (vertex->level() != level) {
     if (observer_)
       observer_->levelChangedBefore(vertex);
     vertex->setLevel(level);
   }
-  max_level_ = max(level, max_level_);
+  max_level_ = std::max(level, max_level_);
   if (level >= Graph::vertex_level_max)
-    criticalError(617, "maximum logic level exceeded");
+    criticalError(618, "maximum logic level exceeded");
 }
 
 void
@@ -724,24 +687,19 @@ Levelize::checkLevels()
   VertexIterator vertex_iter(graph_);
   while (vertex_iter.hasNext()) {
     Vertex *vertex = vertex_iter.next();
-    if (search_pred_.searchTo(vertex)) {
-      Level level = vertex->level();
-      VertexInEdgeIterator edge_iter1(vertex, graph_);
-      while (edge_iter1.hasNext()) {
-	Edge *edge = edge_iter1.next();
-	Vertex *from_vertex = edge->from(graph_);
-	Level from_level = from_vertex->level();
-	if (search_pred_.searchFrom(from_vertex)
-	    && search_pred_.searchThru(edge)
-	    && from_level >= level
-	    // Loops with no entry edges are all level zero.
-	    && !(from_level == 0 && level == 0))
-	  report_->warn(617, "level check failed %s %d -> %s %d",
-			from_vertex->name(network_),
-			from_vertex->level(),
-			vertex->name(network_),
-			level);
-      }
+    Level level = vertex->level();
+    VertexInEdgeIterator edge_iter1(vertex, graph_);
+    while (edge_iter1.hasNext()) {
+      Edge *edge = edge_iter1.next();
+      Vertex *from_vertex = edge->from(graph_);
+      Level from_level = from_vertex->level();
+      if (searchThru(edge)
+          && from_level >= level
+          // Loops with no entry edges are all level zero.
+          && !(from_level == 0 && level == 0))
+        report_->warn(617, "level check failed {} {} -> {} {}",
+                      from_vertex->name(network_), from_vertex->level(),
+                      vertex->name(network_), level);
     }
   }
 }
@@ -753,22 +711,16 @@ GraphLoop::GraphLoop(EdgeSeq *edges) :
 {
 }
 
-GraphLoop::~GraphLoop()
-{
-  delete edges_;
-}
+GraphLoop::~GraphLoop() { delete edges_; }
 
 bool
 GraphLoop::isCombinational() const
 {
-  EdgeSeq::Iterator edge_iter(edges_);
-  while (edge_iter.hasNext()) {
-    Edge *edge = edge_iter.next();
+  for (Edge *edge : *edges_) {
     const TimingRole *role = edge->role();
-    if (!(role == TimingRole::wire()
-	  || role == TimingRole::combinational()
-	  || role == TimingRole::tristateEnable()
-	  || role == TimingRole::tristateDisable()))
+    if (!(role == TimingRole::wire() || role == TimingRole::combinational()
+          || role == TimingRole::tristateEnable()
+          || role == TimingRole::tristateDisable()))
       return false;
   }
   return true;
@@ -780,14 +732,12 @@ GraphLoop::report(const StaState *sta) const
   Graph *graph = sta->graph();
   Report *report = sta->report();
   bool first_edge = true;
-  EdgeSeq::Iterator loop_edge_iter(edges_);
-  while (loop_edge_iter.hasNext()) {
-    Edge *edge = loop_edge_iter.next();
+  for (Edge *edge : *edges_) {
     if (first_edge)
-      report->reportLine(" %s", edge->from(graph)->to_string(sta).c_str());
-    report->reportLine(" %s", edge->to(graph)->to_string(graph).c_str());
+      report->report(" {}", edge->from(graph)->to_string(sta));
+    report->report(" {}", edge->to(graph)->to_string(sta));
     first_edge = false;
   }
 }
 
-} // namespace
+}  // namespace sta

@@ -1,5 +1,5 @@
 // OpenSTA, Static Timing Analyzer
-// Copyright (c) 2025, Parallax Software, Inc.
+// Copyright (c) 2026, Parallax Software, Inc.
 // 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -25,29 +25,51 @@
 #pragma once
 
 #include "LibertyClass.hh"
+#include "Mode.hh"
 #include "NetworkClass.hh"
 #include "SdcClass.hh"
 #include "StaState.hh"
+#include "Transition.hh"
 
 namespace sta {
 
 InstanceSet
-findRegInstances(ClockSet *clks, const RiseFallBoth *clk_rf,
-		 bool edge_triggered, bool latches, StaState *sta);
+findRegInstances(ClockSet *clks,
+                 const RiseFallBoth *clk_rf,
+                 bool registers,
+                 bool latches,
+                 const Mode *mode,
+                 const StaState *sta);
 PinSet
-findRegDataPins(ClockSet *clks, const RiseFallBoth *clk_rf,
-		bool edge_triggered, bool latches, StaState *sta);
+findRegDataPins(ClockSet *clks,
+                const RiseFallBoth *clk_rf,
+                bool registers,
+                bool latches,
+                const Mode *mode,
+                const StaState *sta);
 PinSet
-findRegClkPins(ClockSet *clks, const RiseFallBoth *clk_rf,
-	       bool edge_triggered, bool latches, StaState *sta);
+findRegClkPins(ClockSet *clks,
+               const RiseFallBoth *clk_rf,
+               bool registers,
+               bool latches,
+               const Mode *mode,
+               const StaState *sta);
 PinSet
-findRegAsyncPins(ClockSet *clks, const RiseFallBoth *clk_rf,
-		 bool edge_triggered, bool latches, StaState *sta);
+findRegAsyncPins(ClockSet *clks,
+                 const RiseFallBoth *clk_rf,
+                 bool registers,
+                 bool latches,
+                 const Mode *mode,
+                 const StaState *sta);
 PinSet
-findRegOutputPins(ClockSet *clks, const RiseFallBoth *clk_rf,
-		  bool edge_triggered, bool latches, StaState *sta);
+findRegOutputPins(ClockSet *clks,
+                  const RiseFallBoth *clk_rf,
+                  bool registers,
+                  bool latches,
+                  const Mode *mode,
+                  const StaState *sta);
 
 void
 initPathSenseThru();
 
-} // namespace
+} // namespace sta

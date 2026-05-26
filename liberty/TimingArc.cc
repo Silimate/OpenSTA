@@ -1,5 +1,5 @@
 // OpenSTA, Static Timing Analyzer
-// Copyright (c) 2025, Parallax Software, Inc.
+// Copyright (c) 2026, Parallax Software, Inc.
 // 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -22,27 +22,36 @@
 // 
 // This notice may not be removed or altered from any source distribution.
 
-#include "TimingModel.hh"
-
-#include "EnumNameMap.hh"
-#include "FuncExpr.hh"
-#include "TimingRole.hh"
-#include "Liberty.hh"
 #include "TimingArc.hh"
-#include "DcalcAnalysisPt.hh"
+
+#include <cstddef>
+#include <memory>
+#include <string>
+#include <string_view>
+#include <utility>
+
+#include "ContainerHelpers.hh"
+#include "Delay.hh"
+#include "EnumNameMap.hh"
+#include "Error.hh"
+#include "FuncExpr.hh"
+#include "LibertyClass.hh"
+#include "Liberty.hh"
+#include "MinMax.hh"
+#include "Sdc.hh"
 #include "TableModel.hh"
+#include "TimingModel.hh"
+#include "TimingRole.hh"
+#include "Transition.hh"
 
 namespace sta {
 
-using std::string;
-using std::make_shared;
-
 static bool
 timingArcsEquiv(const TimingArcSet *set1,
-		const TimingArcSet *set2);
+                const TimingArcSet *set2);
 static bool
 timingArcsLess(const TimingArcSet *set1,
-	       const TimingArcSet *set2);
+               const TimingArcSet *set2);
 
 ////////////////////////////////////////////////////////////////
 
@@ -50,11 +59,6 @@ TimingArcAttrs::TimingArcAttrs() :
   timing_type_(TimingType::combinational),
   timing_sense_(TimingSense::unknown),
   cond_(nullptr),
-  sdf_cond_(nullptr),
-  sdf_cond_start_(nullptr),
-  sdf_cond_end_(nullptr),
-  mode_name_(nullptr),
-  mode_value_(nullptr),
   ocv_arc_depth_(0.0),
   models_{nullptr, nullptr}
 {
@@ -64,11 +68,6 @@ TimingArcAttrs::TimingArcAttrs(TimingSense sense) :
   timing_type_(TimingType::combinational),
   timing_sense_(sense),
   cond_(nullptr),
-  sdf_cond_(nullptr),
-  sdf_cond_start_(nullptr),
-  sdf_cond_end_(nullptr),
-  mode_name_(nullptr),
-  mode_value_(nullptr),
   ocv_arc_depth_(0.0),
   models_{nullptr, nullptr}
 {
@@ -76,15 +75,7 @@ TimingArcAttrs::TimingArcAttrs(TimingSense sense) :
 
 TimingArcAttrs::~TimingArcAttrs()
 {
-  if (cond_)
-    cond_->deleteSubexprs();
-  if (sdf_cond_start_ != sdf_cond_)
-    stringDelete(sdf_cond_start_);
-  if (sdf_cond_end_ != sdf_cond_)
-    stringDelete(sdf_cond_end_);
-  stringDelete(sdf_cond_);
-  stringDelete(mode_name_);
-  stringDelete(mode_value_);
+  delete cond_;
   delete models_[RiseFall::riseIndex()];
   delete models_[RiseFall::fallIndex()];
 }
@@ -108,39 +99,34 @@ TimingArcAttrs::setCond(FuncExpr *cond)
 }
 
 void
-TimingArcAttrs::setSdfCond(const char *cond)
+TimingArcAttrs::setSdfCond(std::string_view cond)
 {
-  stringDelete(sdf_cond_);
-  sdf_cond_ = stringCopy(cond);
+  sdf_cond_ = cond;
   sdf_cond_start_ = sdf_cond_end_ = sdf_cond_;
 }
 
 void
-TimingArcAttrs::setSdfCondStart(const char *cond)
+TimingArcAttrs::setSdfCondStart(std::string_view cond)
 {
-  stringDelete(sdf_cond_start_);
-  sdf_cond_start_ = stringCopy(cond);
+  sdf_cond_start_ = cond;
 }
 
 void
-TimingArcAttrs::setSdfCondEnd(const char *cond)
+TimingArcAttrs::setSdfCondEnd(std::string_view cond)
 {
-  stringDelete(sdf_cond_end_);
-  sdf_cond_end_ = stringCopy(cond);
+  sdf_cond_end_ = cond;
 }
 
 void
-TimingArcAttrs::setModeName(const char *name)
+TimingArcAttrs::setModeName(std::string_view name)
 {
-  stringDelete(mode_name_);
-  mode_name_ = stringCopy(name);
+  mode_name_ = name;
 }
 
 void
-TimingArcAttrs::setModeValue(const char *value)
+TimingArcAttrs::setModeValue(std::string_view value)
 {
-  stringDelete(mode_value_);
-  mode_value_ = stringCopy(value);
+  mode_value_ = value;
 }
 
 TimingModel *
@@ -151,7 +137,7 @@ TimingArcAttrs::model(const RiseFall *rf) const
 
 void
 TimingArcAttrs::setModel(const RiseFall *rf,
-			 TimingModel *model)
+                         TimingModel *model)
 {
   models_[rf->index()] = model;
 }
@@ -177,9 +163,8 @@ TimingArc::intrinsicDelay() const
 {
   GateTimingModel *model = dynamic_cast<GateTimingModel*>(model_);
   if (model) {
-    ArcDelay arc_delay;
-    Slew slew;
-    model->gateDelay(nullptr, 0.0, 0.0, false, arc_delay, slew);
+    float arc_delay, slew;
+    model->gateDelay(nullptr, 0.0, 0.0, arc_delay, slew);
     return arc_delay;
   }
   else
@@ -191,20 +176,20 @@ TimingArc::intrinsicDelay() const
 TimingArcAttrsPtr TimingArcSet::wire_timing_arc_attrs_ = nullptr;
 TimingArcSet *TimingArcSet::wire_timing_arc_set_ = nullptr;
 
-TimingArcSet::TimingArcSet(LibertyCell *cell,
-			   LibertyPort *from,
-			   LibertyPort *to,
-			   LibertyPort *related_out,
-			   const TimingRole *role,
-			   TimingArcAttrsPtr attrs) :
+TimingArcSet::TimingArcSet(LibertyCell *,
+                           LibertyPort *from,
+                           LibertyPort *to,
+                           LibertyPort *related_out,
+                           const TimingRole *role,
+                           TimingArcAttrsPtr attrs,
+                           size_t index) :
   from_(from),
   to_(to),
   related_out_(related_out),
   role_(role),
-  attrs_(attrs),
+  attrs_(std::move(attrs)),
   is_cond_default_(false),
-  index_(cell->addTimingArcSet(this)),
-  is_disabled_constraint_(false),
+  index_(index),
   from_arc1_{nullptr, nullptr},
   from_arc2_{nullptr, nullptr},
   to_arc_{nullptr, nullptr}
@@ -217,19 +202,27 @@ TimingArcSet::TimingArcSet(const TimingRole *role,
   to_(nullptr),
   related_out_(nullptr),
   role_(role),
-  attrs_(attrs),
+  attrs_(std::move(attrs)),
   is_cond_default_(false),
   index_(0),
-  is_disabled_constraint_(false),
   from_arc1_{nullptr, nullptr},
   from_arc2_{nullptr, nullptr},
   to_arc_{nullptr, nullptr}
 {
 }
 
+std::string
+TimingArcSet::to_string() const
+{
+  std::string str = from_->name();
+  str += " -> ";
+  str += to_->name();
+  return str;
+}
+
 TimingArcSet::~TimingArcSet()
 {
-  arcs_.deleteContents();
+  deleteContents(arcs_);
 }
 
 bool
@@ -248,12 +241,13 @@ TimingArcSet::libertyCell() const
     return nullptr;
 }
 
-TimingArcIndex
+size_t
 TimingArcSet::addTimingArc(TimingArc *arc)
 {
-  TimingArcIndex arc_index = arcs_.size();
+  size_t arc_index = arcs_.size();
   // Rise/fall to rise/fall.
-  if (arc_index > RiseFall::index_count * RiseFall::index_count)
+  if (arc_index > static_cast<size_t>(RiseFall::index_count)
+                      * RiseFall::index_count)
     criticalError(243, "timing arc max index exceeded\n");
   arcs_.push_back(arc);
 
@@ -305,6 +299,12 @@ TimingArcSet::setRole(const TimingRole *role)
 }
 
 void
+TimingArcSet::setIndex(size_t index)
+{
+  index_ = index;
+}
+
+void
 TimingArcSet::setIsCondDefault(bool is_default)
 {
   is_cond_default_ = is_default;
@@ -312,9 +312,9 @@ TimingArcSet::setIsCondDefault(bool is_default)
 
 void
 TimingArcSet::arcsFrom(const RiseFall *from_rf,
-		       // Return values.
-		       TimingArc *&arc1,
-		       TimingArc *&arc2) const
+                       // Return values.
+                       TimingArc *&arc1,
+                       TimingArc *&arc2) const
 {
   int rf_index = from_rf->index();
   arc1 = from_arc1_[rf_index];
@@ -343,16 +343,10 @@ TimingArcSet::isRisingFallingEdge() const
     if (from_rf1 == from_rf2)
       return from_rf1;
   }
-  if (arcs_.size() == 1)
+  if (arc_count == 1)
     return arcs_[0]->fromEdge()->asRiseFall();
   else
     return nullptr;
-}
-
-void
-TimingArcSet::setIsDisabledConstraint(bool is_disabled)
-{
-  is_disabled_constraint_ = is_disabled;
 }
 
 float
@@ -366,11 +360,11 @@ TimingArcSet::ocvArcDepth() const
       LibertyCell *cell = from_->libertyCell();
       depth = cell->ocvArcDepth();
       if (depth != 0.0)
-	return depth;
+        return depth;
       else {
-	depth = cell->libertyLibrary()->ocvArcDepth();
-	if (depth != 0.0)
-	  return depth;
+        depth = cell->libertyLibrary()->ocvArcDepth();
+        if (depth != 0.0)
+          return depth;
       }
     }
   }
@@ -380,21 +374,21 @@ TimingArcSet::ocvArcDepth() const
 
 bool
 TimingArcSet::equiv(const TimingArcSet *set1,
-		    const TimingArcSet *set2)
+                    const TimingArcSet *set2)
 {
   return LibertyPort::equiv(set1->from(), set2->from())
     && LibertyPort::equiv(set1->to(), set2->to())
     && set1->role() == set2->role()
     && FuncExpr::equiv(set1->cond(), set2->cond())
-    && stringEqIf(set1->sdfCond(), set2->sdfCond())
-    && stringEqIf(set1->sdfCondStart(), set2->sdfCondStart())
-    && stringEqIf(set1->sdfCondEnd(), set2->sdfCondEnd())
+    && set1->sdfCond() == set2->sdfCond()
+    && set1->sdfCondStart() == set2->sdfCondStart()
+    && set1->sdfCondEnd() == set2->sdfCondEnd()
     && timingArcsEquiv(set1, set2);
 }
 
 static bool
 timingArcsEquiv(const TimingArcSet *arc_set1,
-		const TimingArcSet *arc_set2)
+                const TimingArcSet *arc_set2)
 {
   const TimingArcSeq &arcs1 = arc_set1->arcs();
   const TimingArcSeq &arcs2 = arc_set2->arcs();
@@ -414,14 +408,14 @@ timingArcsEquiv(const TimingArcSet *arc_set1,
 
 bool
 TimingArcSet::less(const TimingArcSet *set1,
-		   const TimingArcSet *set2)
+                   const TimingArcSet *set2)
 {
   return timingArcSetLess(set1, set2);
 }
 
 bool
 timingArcSetLess(const TimingArcSet *set1,
-		 const TimingArcSet *set2)
+                 const TimingArcSet *set2)
 {
   LibertyPort *from1 = set1->from();
   LibertyPort *from2 = set2->from();
@@ -432,45 +426,45 @@ timingArcSetLess(const TimingArcSet *set1,
       const TimingRole *role1 = set1->role();
       const TimingRole *role2 = set2->role();
       if (role1 == role2) {
-	const FuncExpr *cond1 = set1->cond();
-	const FuncExpr *cond2 = set2->cond();
-	if (FuncExpr::equiv(cond1, cond2)) {
-	  const char *sdf_cond1 = set1->sdfCond();
-	  const char *sdf_cond2 = set2->sdfCond();
-	  if (stringEqIf(sdf_cond1, sdf_cond2)) {
-	    const char *sdf_cond_start1 = set1->sdfCondStart();
-	    const char *sdf_cond_start2 = set2->sdfCondStart();
-	    if (stringEqIf(sdf_cond_start1, sdf_cond_start2)) {
-	      const char *sdf_cond_end1 = set1->sdfCondEnd();
-	      const char *sdf_cond_end2 = set2->sdfCondEnd();
-	      if (stringEqIf(sdf_cond_end1, sdf_cond_end2)) {
-		const char *mode_name1 = set1->modeName();
-		const char *mode_name2 = set2->modeName();
-		if (stringEqIf(mode_name1, mode_name2)) {
-		  const char *mode_value1 = set1->modeValue();
-		  const char *mode_value2 = set2->modeValue();
-		  if (stringEqIf(mode_value1, mode_value2))
-		    return timingArcsLess(set1, set2);
-		  else
-		    return stringLessIf(mode_value1, mode_value2);
-		}
-		else
-		  return stringLessIf(mode_name1, mode_name2);
-	      }
-	      else
-		return stringLessIf(sdf_cond_end1, sdf_cond_end2);
-	    }
-	    else
-	      return stringLessIf(sdf_cond_start1, sdf_cond_start2);
-	  }
-	  else
-	    return stringLessIf(sdf_cond1, sdf_cond2);
-	}
-	else
-	  return FuncExpr::less(cond1, cond2);
+        const FuncExpr *cond1 = set1->cond();
+        const FuncExpr *cond2 = set2->cond();
+        if (FuncExpr::equiv(cond1, cond2)) {
+          const std::string &sdf_cond1 = set1->sdfCond();
+          const std::string &sdf_cond2 = set2->sdfCond();
+          if (sdf_cond1 == sdf_cond2) {
+            const std::string &sdf_cond_start1 = set1->sdfCondStart();
+            const std::string &sdf_cond_start2 = set2->sdfCondStart();
+            if (sdf_cond_start1 == sdf_cond_start2) {
+              const std::string &sdf_cond_end1 = set1->sdfCondEnd();
+              const std::string &sdf_cond_end2 = set2->sdfCondEnd();
+              if (sdf_cond_end1 == sdf_cond_end2) {
+                const std::string &mode_name1 = set1->modeName();
+                const std::string &mode_name2 = set2->modeName();
+                if (mode_name1 == mode_name2) {
+                  const std::string &mode_value1 = set1->modeValue();
+                  const std::string &mode_value2 = set2->modeValue();
+                  if (mode_value1 == mode_value2)
+                    return timingArcsLess(set1, set2);
+                  else
+                    return mode_value1 < mode_value2;
+                }
+                else
+                  return mode_name1 < mode_name2;
+              }
+              else
+                return sdf_cond_end1 < sdf_cond_end2;
+            }
+            else
+              return sdf_cond_start1 < sdf_cond_start2;
+          }
+          else
+            return sdf_cond1 < sdf_cond2;
+        }
+        else
+          return FuncExpr::less(cond1, cond2);
       }
       else
-	return TimingRole::less(role1, role2);
+        return TimingRole::less(role1, role2);
     }
     else
       return LibertyPort::less(to1, to2);
@@ -481,7 +475,7 @@ timingArcSetLess(const TimingArcSet *set1,
 
 static bool
 timingArcsLess(const TimingArcSet *arc_set1,
-	       const TimingArcSet *arc_set2)
+               const TimingArcSet *arc_set2)
 {
   const TimingArcSeq &arcs1 = arc_set1->arcs();
   const TimingArcSeq &arcs2 = arc_set2->arcs();
@@ -524,12 +518,12 @@ TimingArcSet::wireArcIndex(const RiseFall *rf)
 void
 TimingArcSet::init()
 {
-  wire_timing_arc_attrs_ = make_shared<TimingArcAttrs>(TimingSense::positive_unate);
+  wire_timing_arc_attrs_ = std::make_shared<TimingArcAttrs>(TimingSense::positive_unate);
   wire_timing_arc_set_ = new TimingArcSet(TimingRole::wire(), wire_timing_arc_attrs_);
   new TimingArc(wire_timing_arc_set_, Transition::rise(),
-		Transition::rise(), nullptr);
+                Transition::rise(), nullptr);
   new TimingArc(wire_timing_arc_set_, Transition::fall(),
-		Transition::fall(), nullptr);
+                Transition::fall(), nullptr);
 }
 
 void
@@ -543,14 +537,13 @@ TimingArcSet::destroy()
 ////////////////////////////////////////////////////////////////
 
 TimingArc::TimingArc(TimingArcSet *set,
-		     const Transition *from_rf,
-		     const Transition *to_rf,
-		     TimingModel *model) :
+                     const Transition *from_rf,
+                     const Transition *to_rf,
+                     TimingModel *model) :
   set_(set),
   from_rf_(from_rf),
   to_rf_(to_rf),
-  model_(model),
-  scaled_models_(nullptr)
+  model_(model)
 {
   index_ = set->addTimingArc(this);
 }
@@ -562,18 +555,18 @@ TimingArc::~TimingArc()
   delete scaled_models_;
 }
 
-string
+std::string
 TimingArc::to_string() const
 {
   if (set_->role()->isWire()) {
-    string str = "wire ";
+    std::string str = "wire ";
     str += from_rf_->to_string();
     str += " -> ";
     str += to_rf_->to_string();
     return str;
   }
   else {
-    string str = set_->from()->name();
+    std::string str = set_->from()->name();
     str += " ";
     str += from_rf_->to_string();
     str += " -> ";
@@ -585,9 +578,10 @@ TimingArc::to_string() const
 }
 
 GateTimingModel *
-TimingArc::gateModel(const DcalcAnalysisPt *dcalc_ap) const
+TimingArc::gateModel(const Scene *scene,
+                     const MinMax *min_max) const
 {
-  return dynamic_cast<GateTimingModel*>(model(dcalc_ap));
+  return dynamic_cast<GateTimingModel*>(model(scene, min_max));
 }
 
 GateTableModel *
@@ -597,34 +591,38 @@ TimingArc::gateTableModel() const
 }
 
 GateTableModel *
-TimingArc::gateTableModel(const DcalcAnalysisPt *dcalc_ap) const
+TimingArc::gateTableModel(const Scene *scene,
+                          const MinMax *min_max) const
 {
-  return dynamic_cast<GateTableModel*>(model(dcalc_ap));
+  return dynamic_cast<GateTableModel*>(model(scene, min_max));
 }
 
 CheckTimingModel *
-TimingArc::checkModel(const DcalcAnalysisPt *dcalc_ap) const
+TimingArc::checkModel(const Scene *scene,
+                      const MinMax *min_max) const
 {
-  return dynamic_cast<CheckTimingModel*>(model(dcalc_ap));
+  return dynamic_cast<CheckTimingModel*>(model(scene, min_max));
 }
 
 TimingModel *
-TimingArc::model(const DcalcAnalysisPt *dcalc_ap) const
+TimingArc::model(const Scene *scene,
+                 const MinMax *min_max) const
 {
-  const TimingArc *corner_arc = cornerArc(dcalc_ap->libertyIndex());
-  ScaledTimingModelMap *scaled_models = corner_arc->scaled_models_;
+  const TimingArc *scene_arc = sceneArc(scene->libertyIndex(min_max));
+  ScaledTimingModelMap *scaled_models = scene_arc->scaled_models_;
   if (scaled_models) {
-    const OperatingConditions *op_cond = dcalc_ap->operatingConditions();
-    TimingModel *scaled_model = scaled_models->findKey(op_cond);
+    const OperatingConditions *op_cond =
+      scene->sdc()->operatingConditions(min_max);
+    TimingModel *scaled_model = findKey(*scaled_models, op_cond);
     if (scaled_model)
       return scaled_model;
   }
-  return corner_arc->model();
+  return scene_arc->model();
 }
 
 void
 TimingArc::addScaledModel(const OperatingConditions *op_cond,
-			  TimingModel *scaled_model)
+                          TimingModel *scaled_model)
 {
   if (scaled_models_ == nullptr)
     scaled_models_ = new ScaledTimingModelMap;
@@ -633,36 +631,36 @@ TimingArc::addScaledModel(const OperatingConditions *op_cond,
 
 bool
 TimingArc::equiv(const TimingArc *arc1,
-		 const TimingArc *arc2)
+                 const TimingArc *arc2)
 {
   return arc1->fromEdge() == arc2->fromEdge()
     && arc1->toEdge() == arc2->toEdge();
 }
 
 void
-TimingArc::setIndex(unsigned index)
+TimingArc::setIndex(size_t index)
 {
   index_ = index;
 }
 
 const TimingArc *
-TimingArc::cornerArc(int ap_index) const
+TimingArc::sceneArc(size_t lib_ap_index) const
 {
-  if (ap_index < static_cast<int>(corner_arcs_.size())) {
-    TimingArc *corner_arc = corner_arcs_[ap_index];
-    if (corner_arc)
-      return corner_arc;
+  if (lib_ap_index < scene_arcs_.size()) {
+    TimingArc *scene_arc = scene_arcs_[lib_ap_index];
+    if (scene_arc)
+      return scene_arc;
   }
   return this;
 }
 
 void
-TimingArc::setCornerArc(TimingArc *corner_arc,
-			int ap_index)
+TimingArc::setSceneArc(TimingArc *scene_arc,
+                        size_t lib_ap_index)
 {
-  if (ap_index >= static_cast<int>(corner_arcs_.size()))
-    corner_arcs_.resize(ap_index + 1);
-  corner_arcs_[ap_index] = corner_arc;
+  if (lib_ap_index >= scene_arcs_.size())
+    scene_arcs_.resize(lib_ap_index + 1);
+  scene_arcs_[lib_ap_index] = scene_arc;
 }
 
 ////////////////////////////////////////////////////////////////
@@ -673,12 +671,12 @@ TimingArc::sense() const
   if ((from_rf_ == Transition::rise()
        && to_rf_ == Transition::rise())
       || (from_rf_ == Transition::fall()
-	  && to_rf_ == Transition::fall()))
+          && to_rf_ == Transition::fall()))
     return TimingSense::positive_unate;
   else if ((from_rf_ == Transition::rise()
        && to_rf_ == Transition::fall())
       || (from_rf_ == Transition::fall()
-	  && to_rf_ == Transition::rise()))
+          && to_rf_ == Transition::rise()))
     return TimingSense::negative_unate;
   else
     return TimingSense::non_unate;
@@ -692,7 +690,7 @@ static EnumNameMap<TimingSense> timing_sense_name_map =
    {TimingSense::unknown, "unknown"}
   };
 
-const char *
+const std::string &
 to_string(TimingSense sense)
 {
   return timing_sense_name_map.find(sense);
@@ -760,14 +758,14 @@ EnumNameMap<TimingType> timing_type_name_map =
    {TimingType::unknown, "unknown"}
   };
 
-const char *
+std::string_view
 timingTypeString(TimingType type)
 {
   return timing_type_name_map.find(type);
 }
 
 TimingType
-findTimingType(const char *type_name)
+findTimingType(std::string_view type_name)
 {
   return timing_type_name_map.find(type_name, TimingType::unknown);
 }
@@ -858,4 +856,4 @@ timingTypeScaleFactorType(TimingType type)
   return ScaleFactorType::unknown;
 }
 
-} // namespace
+} // namespace sta

@@ -1,5 +1,5 @@
 // OpenSTA, Static Timing Analyzer
-// Copyright (c) 2025, Parallax Software, Inc.
+// Copyright (c) 2026, Parallax Software, Inc.
 // 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -30,8 +30,8 @@
 
 namespace sta {
 
-typedef ObjectId VertexId;
+using VertexId = ObjectId;
 
 static constexpr VertexId vertex_id_null = object_id_null;
 
-} // namespace
+} // namespace sta

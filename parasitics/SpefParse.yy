@@ -1,5 +1,5 @@
 // OpenSTA, Static Timing Analyzer
-// Copyright (c) 2025, Parallax Software, Inc.
+// Copyright (c) 2026, Parallax Software, Inc.
 // 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -23,11 +23,11 @@
 // This notice may not be removed or altered from any source distribution.
 
 %{
-#include <cstring>
+#include <string>
+#include <utility>
 
 #include "Report.hh"
 #include "StringUtil.hh"
-#include "StringSeq.hh"
 #include "parasitics/SpefReaderPvt.hh"
 #include "parasitics/SpefScanner.hh"
 
@@ -41,10 +41,26 @@ void
 sta::SpefParse::error(const location_type &loc,
                      const std::string &msg)
 {
-  reader->report()->fileError(164,reader->filename(),
-                              loc.begin.line,"%s",msg.c_str());
+  reader->report()->fileError(1670, reader->filename(), loc.begin.line, "{}", msg);
 }
 %}
+
+%code requires {
+#include <string>
+#include "StringUtil.hh"
+
+namespace sta {
+// Bison's C++ variant skeleton cannot use void as a semantic type.
+struct SpefParseVoid {};
+class SpefReader;
+class SpefScanner;
+class Net;
+class Pin;
+class PortDirection;
+class SpefRspfPi;
+class SpefTriple;
+}
+}
 
 %require  "3.2"
 %skeleton "lalr1.cc"
@@ -56,19 +72,11 @@ sta::SpefParse::error(const location_type &loc,
 %parse-param { SpefScanner *scanner }
 %parse-param { SpefReader *reader }
 %define api.parser.class {SpefParse}
+%define api.value.type variant
 
-%union {
-  char ch;
-  char *string;
-  int integer;
-  float number;
-  sta::StringSeq *string_seq;
-  sta::PortDirection *port_dir;
-  sta::SpefRspfPi *pi;
-  sta::SpefTriple *triple;
-  sta::Pin *pin;
-  sta::Net *net;
-}
+%token <int> INTEGER
+%token <float> FLOAT
+%token <std::string> QSTRING INDEX IDENT NAME
 
 %token SPEF DESIGN DATE VENDOR PROGRAM DESIGN_FLOW
 %token PVERSION DIVIDER DELIMITER
@@ -79,47 +87,41 @@ sta::SpefParse::error(const location_type &loc,
 %token CONN CAP RES INDUC KW_P KW_I KW_N DRIVER CELL C2_R1_C1 LOADS
 %token RC KW_Q KW_K
 
-%token INTEGER FLOAT QSTRING INDEX IDENT NAME
+%type <int> conf cap_id res_id induc_id cap_elem cap_elems
+%type <int> res_elem res_elems induc_elem induc_elems
+%type <int> pos_integer
 
-%type <integer> INTEGER
-%type <number> FLOAT
-%type <string> QSTRING INDEX IDENT NAME
+%type <float> number pos_number threshold
+%type <float> real_component imaginary_component pole poles
+%type <float> residue residues complex_par_value cnumber
 
-%type <integer> conf cap_id res_id induc_id cap_elem cap_elems
-%type <integer> res_elem res_elems induc_elem induc_elems
-%type <integer> pos_integer
+%nterm <sta::SpefParseVoid> name_map_entries name_map_entry net_names
+%nterm <sta::SpefParseVoid> net_name port_entries port_entry pport_entries pport_entry
+%nterm <sta::SpefParseVoid> pport_name pexternal_connection
 
-%type <number> number pos_number threshold
-%type <number> real_component imaginary_component pole poles
-%type <number> residue residues complex_par_value cnumber
+%type <std::string> name_or_index inst_name
+%type <std::string> mapped_item
+%type <std::string> physical_inst port_name pport
+%type <std::string> entity external_connection
+%type <std::string> cell_type
+%type <std::string> driver_cell pnet_ref
+%type <std::string> internal_pdspf_node
+%type <std::string> parasitic_node internal_parasitic_node
 
-%type <string> name_or_index net_name net_names inst_name
-%type <string> name_map_entries name_map_entry mapped_item
-%type <string> physical_inst port_name pport_name port_entry pport_entry
-%type <string> port_entries pport_entries pport
-%type <string> entity external_connection
-%type <string> cell_type
-%type <string> driver_cell pnet_ref
-%type <string> pexternal_connection internal_pdspf_node
-%type <string> parasitic_node internal_parasitic_node
+%type <char> hchar suffix_bus_delim prefix_bus_delim
 
-%type <ch> hchar suffix_bus_delim prefix_bus_delim
+%type <sta::StringSeq *> qstrings
+%type <sta::PortDirection *> direction
 
-%type <string_seq> qstrings
-%type<port_dir> direction
+%type <sta::SpefTriple *> par_value total_cap
 
-%type<triple> par_value total_cap
+%type <sta::SpefRspfPi *> pi_model
 
-%type<pi> pi_model
+%type <sta::Pin *> pin_name driver_pair internal_connection
 
-%type<pin> pin_name driver_pair internal_connection
-
-%type<net> net
+%type <sta::Net *> net
 
 %start file
-
-%{
-%}
 
 %%
 
@@ -185,32 +187,26 @@ header_def:
 
 spef_version:
 	SPEF QSTRING
-	{ sta::stringDelete($2); }
 ;
 
 design_name:
 	DESIGN QSTRING
-	{ sta::stringDelete($2); }
 ;
 
 date:
 	DATE QSTRING
-	{ sta::stringDelete($2); }
 ;
 
 program_name:
 	PROGRAM QSTRING
-	{ sta::stringDelete($2); }
 ;
 
 program_version:
 	PVERSION QSTRING
-	{ sta::stringDelete($2); }
 ;
 
 vendor:
 	VENDOR QSTRING
-	{ sta::stringDelete($2); }
 ;
 
 design_flow:
@@ -221,10 +217,12 @@ design_flow:
 qstrings:
 	QSTRING
 	{ $$ = new sta::StringSeq;
-	  $$->push_back($1);
+	  $$->push_back(std::move($1));
 	}
 |	qstrings QSTRING
-	{ $$->push_back($2); }
+	{ $$ = $1;
+	  $$->push_back(std::move($2));
+	}
 ;
 
 hierarchy_div_def:
@@ -320,7 +318,7 @@ net_names:
 
 net_name:
 	name_or_index
-	{ sta::stringDelete($1); }
+	{ $$ = sta::SpefParseVoid{}; }
 ;
 
 /****************************************************************/
@@ -343,14 +341,12 @@ port_entries:
 
 port_entry:
 	port_name direction conn_attrs
-	{ sta::stringDelete($1); }
+	{ $$ = sta::SpefParseVoid{}; }
 ;
 
 direction:
 	IDENT
-	{ $$ = reader->portDirection($1);
-          sta::stringDelete($1);
-	}
+	{ $$ = reader->portDirection($1); }
 ;
 
 port_name:
@@ -372,15 +368,14 @@ pport_entries:
 
 pport_entry:
 	pport_name IDENT conn_attrs
+	{ $$ = sta::SpefParseVoid{}; }
 ;
 
 pport_name:
 	name_or_index
-	{ sta::stringDelete($1); }
+	{ $$ = sta::SpefParseVoid{}; }
 |	physical_inst ':' pport
-	{ sta::stringDelete($1);
-	  sta::stringDelete($3);
-	}
+	{ $$ = sta::SpefParseVoid{}; }
 ;
 
 pport:
@@ -439,7 +434,6 @@ threshold:
 
 driving_cell:
 	KW_D cell_type
-	{ sta::stringDelete($2); }
 ;
 
 cell_type:
@@ -456,18 +450,8 @@ define_def:
 
 define_entry:
 	DEFINE inst_name entity
-	{ sta::stringDelete($2);
-	  sta::stringDelete($3);
-	}
 |	DEFINE inst_name inst_name entity
-	{ sta::stringDelete($2);
-	  sta::stringDelete($3);
-	  sta::stringDelete($4);
-	}
 |	PDEFINE physical_inst entity
-	{ sta::stringDelete($2);
-	  sta::stringDelete($3);
-	}
 ;
 
 entity:
@@ -499,9 +483,7 @@ d_net:
 
 net:
 	name_or_index
-	{ $$ = reader->findNet($1);
-	  sta::stringDelete($1);
-	}
+	{ $$ = reader->findNet($1); }
 ;
 
 total_cap:
@@ -536,11 +518,9 @@ conn_def:
 
 external_connection:
 	name_or_index
-	{ sta::stringDelete($1); }
+	{ $$ = std::string(); }
 |	physical_inst ':' pport
-	{ sta::stringDelete($1);
-	  sta::stringDelete($3);
-	}
+	{ $$ = std::string(); }
 ;
 
 internal_connection:
@@ -549,9 +529,7 @@ internal_connection:
 
 pin_name:
 	name_or_index
-	{ $$ = reader->findPin($1);
-	  sta::stringDelete($1);
-	}
+	{ $$ = reader->findPin($1); }
 ;
 
 internal_node_coords:
@@ -565,7 +543,7 @@ internal_node_coord:
 
 internal_parasitic_node:
 	name_or_index
-	{ sta::stringDelete($1); }
+	{ $$ = std::string(); }
 ;
 
 /****************************************************************/
@@ -579,6 +557,7 @@ cap_elems:
 	/* empty */
 	{ $$ = 0; }
 |	cap_elems cap_elem
+	{ $$ = $1; }
 ;
 
 cap_elem:
@@ -607,6 +586,7 @@ res_elems:
 	/* empty */
 	{ $$ = 0; }
 |	res_elems res_elem
+	{ $$ = $1; }
 ;
 
 res_elem:
@@ -629,6 +609,7 @@ induc_elems:
 	/* empty */
 	{ $$ = 0; }
 |	induc_elems induc_elem
+	{ $$ = $1; }
 ;
 
 induc_elem:
@@ -656,9 +637,7 @@ driver_reducs:
 
 driver_reduc:
 	driver_pair driver_cell pi_model
-	{ reader->rspfDrvrBegin($1, $3);
-	  sta::stringDelete($2);
-	}
+	{ reader->rspfDrvrBegin($1, $3); }
 	load_desc
 	{ reader->rspfDrvrFinish(); }
 ;
@@ -707,6 +686,7 @@ pole_desc:
 poles:
 	pole
 |	poles pole
+	{ $$ = $2; }
 ;
 
 pole:
@@ -751,7 +731,6 @@ residue:
 d_pnet:
 	D_PNET pnet_ref total_cap routing_conf pconn_sec cap_sec res_sec
                induc_sec END
-	{ sta::stringDelete($2); }
 ;
 
 pnet_ref:
@@ -787,10 +766,7 @@ internal_pnode_coord:
 
 internal_pdspf_node:
 	name_or_index
-	{
-	  sta::stringDelete($1);
-	  $$ = 0;
-	}
+	{ $$ = std::string(); }
 ;
 
 name_or_index:
@@ -803,9 +779,7 @@ name_or_index:
 
 r_pnet:
 	R_PNET pnet_ref total_cap routing_conf END
-	{ sta::stringDelete($2); }
 |	R_PNET pnet_ref total_cap routing_conf pdriver_reduc END
-	{ sta::stringDelete($2); }
 ;
 
 pdriver_reduc:
@@ -822,13 +796,14 @@ number:
 	INTEGER
 	{ $$ = static_cast<float>($1); }
 |	FLOAT
+	{ $$ = $1; }
 ;
 
 pos_integer:
 	INTEGER
 	{ int value = $1;
 	  if (value < 0)
-	    reader->warn(1525, "%d is not positive.", value);
+	    reader->warn(1525, "{} is not positive.", value);
 	  $$ = value;
 	}
 ;
@@ -837,13 +812,13 @@ pos_number:
 	INTEGER
 	{ float value = static_cast<float>($1);
 	  if (value < 0)
-	    reader->warn(1526, "%.4f is not positive.", value);
+	    reader->warn(1526, "{:.4f} is not positive.", value);
 	  $$ = value;
 	}
 |	FLOAT
 	{ float value = static_cast<float>($1);
 	  if (value < 0)
-	    reader->warn(1527, "%.4f is not positive.", value);
+	    reader->warn(1527, "{:.4f} is not positive.", value);
 	  $$ = value;
 	}
 ;

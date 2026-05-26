@@ -1,5 +1,5 @@
 // OpenSTA, Static Timing Analyzer
-// Copyright (c) 2025, Parallax Software, Inc.
+// Copyright (c) 2026, Parallax Software, Inc.
 // 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -26,8 +26,8 @@
 
 #include "MinMax.hh"
 #include "NetworkClass.hh"
-#include "SdcClass.hh"
 #include "RiseFallMinMax.hh"
+#include "SdcClass.hh"
 #include "Transition.hh"
 
 namespace sta {
@@ -39,16 +39,16 @@ public:
   const Clock *clock() const { return clk_; }
   const Pin *pin() const { return pin_; }
   float delay(const RiseFall *rf, const MinMax *min_max,
-	      const EarlyLate *early_late);
+              const EarlyLate *early_late);
   void delay(const RiseFall *rf, const MinMax *min_max,
-	     const EarlyLate *early_late,
-	     // Return values.
-	     float &insertion, bool &exists);
+             const EarlyLate *early_late,
+             // Return values.
+             float &insertion, bool &exists);
   RiseFallMinMax *delays(const EarlyLate *early_late);
   void setDelay(const RiseFall *rf, const MinMax *min_max,
-		const EarlyLate *early_late, float delay);
+                const EarlyLate *early_late, float delay);
   void setDelay(const RiseFallBoth *rf, const MinMaxAll *min_max,
-		const EarlyLateAll *early_late, float delay);
+                const EarlyLateAll *early_late, float delay);
   void setDelays(RiseFallMinMax *delays);
 
 private:
@@ -57,4 +57,4 @@ private:
   RiseFallMinMax delays_[EarlyLate::index_count];
 };
 
-} // namespace
+} // namespace sta

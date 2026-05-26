@@ -1,5 +1,5 @@
 // OpenSTA, Static Timing Analyzer
-// Copyright (c) 2025, Parallax Software, Inc.
+// Copyright (c) 2026, Parallax Software, Inc.
 // 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -24,23 +24,24 @@
 
 #pragma once
 
+#include <map>
 #include <memory>
+#include <string>
+#include <vector>
 
-#include "Vector.hh"
-#include "Transition.hh"
 #include "Delay.hh"
 #include "LibertyClass.hh"
+#include "Transition.hh"
 
 namespace sta {
 
 class TimingArcAttrs;
 class WireTimingArc;
 class GateTableModel;
-class DcalcAnalysisPt;
+class Scene;
 
-typedef int TimingArcIndex;
-typedef Vector<TimingArc*> TimingArcSeq;
-typedef Map<const OperatingConditions*, TimingModel*> ScaledTimingModelMap;
+using TimingArcSeq = std::vector<TimingArc*>;
+using ScaledTimingModelMap = std::map<const OperatingConditions*, TimingModel*>;
 
 enum class TimingType {
   clear,
@@ -82,10 +83,10 @@ enum class TimingType {
   unknown
 };
 
-const char *
+std::string_view
 to_string(TimingType type);
 TimingType
-findTimingType(const char *string);
+findTimingType(std::string_view type_name);
 bool
 timingTypeIsCheck(TimingType type);
 ScaleFactorType
@@ -98,26 +99,26 @@ class TimingArcAttrs
 public:
   TimingArcAttrs();
   TimingArcAttrs(TimingSense sense);
-  virtual ~TimingArcAttrs();
+  ~TimingArcAttrs();
   TimingType timingType() const { return timing_type_; }
   void setTimingType(TimingType type);
   TimingSense timingSense() const { return timing_sense_; }
   void setTimingSense(TimingSense sense);
   FuncExpr *cond() const { return cond_; }
   void setCond(FuncExpr *cond);
-  const char *sdfCond() const { return sdf_cond_; }
-  void setSdfCond(const char *cond);
-  const char *sdfCondStart() const { return sdf_cond_start_; }
-  void setSdfCondStart(const char *cond);
-  const char *sdfCondEnd() const { return sdf_cond_end_; }
-  void setSdfCondEnd(const char *cond);
-  const char *modeName() const { return mode_name_; }
-  void setModeName(const char *name);
-  const char *modeValue() const { return mode_value_; }
-  void setModeValue(const char *value);
+  const std::string &sdfCond() const { return sdf_cond_; }
+  void setSdfCond(std::string_view cond);
+  const std::string &sdfCondStart() const { return sdf_cond_start_; }
+  void setSdfCondStart(std::string_view cond);
+  const std::string &sdfCondEnd() const { return sdf_cond_end_; }
+  void setSdfCondEnd(std::string_view cond);
+  const std::string &modeName() const { return mode_name_; }
+  void setModeName(std::string_view name);
+  const std::string &modeValue() const { return mode_value_; }
+  void setModeValue(std::string_view value);
   TimingModel *model(const RiseFall *rf) const;
   void setModel(const RiseFall *rf,
-		TimingModel *model);
+                TimingModel *model);
   float ocvArcDepth() const { return ocv_arc_depth_; }
   void setOcvArcDepth(float depth);
 
@@ -125,11 +126,11 @@ protected:
   TimingType timing_type_;
   TimingSense timing_sense_;
   FuncExpr *cond_;
-  const char *sdf_cond_;
-  const char *sdf_cond_start_;
-  const char *sdf_cond_end_;
-  const char *mode_name_;
-  const char *mode_value_;
+  std::string sdf_cond_;
+  std::string sdf_cond_start_;
+  std::string sdf_cond_end_;
+  std::string mode_name_;
+  std::string mode_value_;
   float ocv_arc_depth_;
   TimingModel *models_[RiseFall::index_count];
 };
@@ -141,33 +142,32 @@ protected:
 // See ~LibertyCell for delete of TimingArcSet members.
 class TimingArcSet
 {
+  friend class LibertyCell;
+
 public:
-  TimingArcSet(LibertyCell *cell,
-	       LibertyPort *from,
-	       LibertyPort *to,
-	       LibertyPort *related_out,
-	       const TimingRole *role,
-	       TimingArcAttrsPtr attrs);
-  virtual ~TimingArcSet();
+  ~TimingArcSet();
+  std::string to_string() const;
   LibertyCell *libertyCell() const;
   LibertyPort *from() const { return from_; }
   LibertyPort *to() const { return to_; }
   bool isWire() const;
   LibertyPort *relatedOut() const { return related_out_; }
   const TimingRole *role() const { return role_; };
+  TimingType timingType() const { return attrs_->timingType(); }
   TimingSense sense() const;
+  TimingModel *model(const RiseFall *rf) const { return attrs_->model(rf); }
   // Rise/fall if the arc set is rising_edge or falling_edge.
   const RiseFall *isRisingFallingEdge() const;
   size_t arcCount() const { return arcs_.size(); }
   TimingArcSeq &arcs() { return arcs_; }
   // Return 1 or 2 arcs matching from transition.
   void arcsFrom(const RiseFall *from_rf,
-		// Return values.
-		TimingArc *&arc1,
-		TimingArc *&arc2) const;
+                // Return values.
+                TimingArc *&arc1,
+                TimingArc *&arc2) const;
   TimingArc *arcTo(const RiseFall *to_rf) const;
   const TimingArcSeq &arcs() const { return arcs_; }
-  TimingArcIndex addTimingArc(TimingArc *arc);
+  size_t addTimingArc(TimingArc *arc);
   void deleteTimingArc(TimingArc *arc);
   TimingArc *findTimingArc(unsigned arc_index);
   void setRole(const TimingRole *role);
@@ -176,25 +176,25 @@ public:
   // other conditional timing arcs between the same pins.
   bool isCondDefault() const { return is_cond_default_; }
   void setIsCondDefault(bool is_default);
+  const FuncExpr *when() const { return attrs_->cond(); }
   // SDF IOPATHs match sdfCond.
   // sdfCond (IOPATH) reuses sdfCondStart (timing check) variable.
-  const char *sdfCond() const { return attrs_->sdfCondStart(); }
+  const std::string &sdfCond() const { return attrs_->sdfCondStart(); }
   // SDF timing checks match sdfCondStart/sdfCondEnd.
-  const char *sdfCondStart() const { return attrs_->sdfCondStart(); }
-  const char *sdfCondEnd() const { return attrs_->sdfCondEnd(); }
-  const char *modeName() const { return attrs_->modeName(); }
-  const char *modeValue() const { return attrs_->modeValue(); }
+  const std::string &sdfCondStart() const { return attrs_->sdfCondStart(); }
+  const std::string &sdfCondEnd() const { return attrs_->sdfCondEnd(); }
+  const std::string &modeName() const { return attrs_->modeName(); }
+  const std::string &modeValue() const { return attrs_->modeValue(); }
   // Timing arc set index in cell.
-  TimingArcIndex index() const { return index_; }
-  bool isDisabledConstraint() const { return is_disabled_constraint_; }
-  void setIsDisabledConstraint(bool is_disabled);
+  size_t index() const { return index_; }
+  void setIndex(size_t index);
   // OCV arc depth from timing/cell/library.
   float ocvArcDepth() const;
 
   static bool equiv(const TimingArcSet *set1,
-		    const TimingArcSet *set2);
+                    const TimingArcSet *set2);
   static bool less(const TimingArcSet *set1,
-		   const TimingArcSet *set2);
+                   const TimingArcSet *set2);
 
   static void init();
   static void destroy();
@@ -207,6 +207,13 @@ public:
 protected:
   TimingArcSet(const TimingRole *role,
                TimingArcAttrsPtr attrs);
+  TimingArcSet(LibertyCell *cell,
+               LibertyPort *from,
+               LibertyPort *to,
+               LibertyPort *related_out,
+               const TimingRole *role,
+               TimingArcAttrsPtr attrs,
+               size_t index);
 
   LibertyPort *from_;
   LibertyPort *to_;
@@ -216,8 +223,7 @@ protected:
   TimingArcAttrsPtr attrs_;
   TimingArcSeq arcs_;
   bool is_cond_default_;
-  unsigned index_;
-  bool is_disabled_constraint_;
+  size_t index_;
   TimingArc *from_arc1_[RiseFall::index_count];
   TimingArc *from_arc2_[RiseFall::index_count];
   TimingArc *to_arc_[RiseFall::index_count];
@@ -232,9 +238,9 @@ class TimingArc
 {
 public:
   TimingArc(TimingArcSet *set,
-	    const Transition *from_rf,
-	    const Transition *to_rf,
-	    TimingModel *model);
+            const Transition *from_rf,
+            const Transition *to_rf,
+            TimingModel *model);
   ~TimingArc();
   std::string to_string() const;
   LibertyPort *from() const { return set_->from(); }
@@ -245,34 +251,38 @@ public:
   TimingArcSet *set() const { return set_; }
   TimingSense sense() const;
   // Index in TimingArcSet.
-  unsigned index() const { return index_; }
+  size_t index() const { return index_; }
   TimingModel *model() const { return model_; }
-  GateTimingModel *gateModel(const DcalcAnalysisPt *dcalc_ap) const;
-  CheckTimingModel *checkModel(const DcalcAnalysisPt *dcalc_ap) const;
+  GateTimingModel *gateModel(const Scene *scene,
+                             const MinMax *min_max) const;
+  CheckTimingModel *checkModel(const Scene *scene,
+                               const MinMax *min_max) const;
   GateTableModel *gateTableModel() const;
-  GateTableModel *gateTableModel(const DcalcAnalysisPt *dcalc_ap) const;
-  const TimingArc *cornerArc(int ap_index) const;
-  void setCornerArc(TimingArc *corner_arc,
-		    int ap_index);
+  GateTableModel *gateTableModel(const Scene *scene,
+                                 const MinMax *min_max) const;
+  const TimingArc *sceneArc(size_t lib_ap_index) const;
+  void setSceneArc(TimingArc *scene_arc,
+                   size_t lib_ap_index);
   float driveResistance() const;
   ArcDelay intrinsicDelay() const;
 
   static bool equiv(const TimingArc *arc1,
-		    const TimingArc *arc2);
+                    const TimingArc *arc2);
 
 protected:
-  TimingModel *model(const DcalcAnalysisPt *dcalc_ap) const;
-  void setIndex(unsigned index);
+  TimingModel *model(const Scene *scene,
+                     const MinMax *min_max) const;
+  void setIndex(size_t index);
   void addScaledModel(const OperatingConditions *op_cond,
-		      TimingModel *scaled_model);
+                      TimingModel *scaled_model);
 
   TimingArcSet *set_;
   const Transition *from_rf_;
   const Transition *to_rf_;
   unsigned index_;
   TimingModel *model_;
-  ScaledTimingModelMap *scaled_models_;
-  Vector<TimingArc*> corner_arcs_;
+  ScaledTimingModelMap *scaled_models_{nullptr};
+  std::vector<TimingArc*> scene_arcs_;
 
 private:
   friend class LibertyLibrary;
@@ -280,4 +290,4 @@ private:
   friend class TimingArcSet;
 };
 
-} // namespace
+} // namespace sta

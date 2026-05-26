@@ -36,22 +36,22 @@ library (counter) {
       timing() {
         timing_sense : positive_unate;
         timing_type : min_clock_tree_path;
-	cell_rise(scalar) {
+        cell_rise(scalar) {
           values("0.00000");
-	}
-	cell_fall(scalar) {
+        }
+        cell_fall(scalar) {
           values("0.00000");
-	}
+        }
       }
       timing() {
         timing_sense : positive_unate;
         timing_type : max_clock_tree_path;
-	cell_rise(scalar) {
+        cell_rise(scalar) {
           values("0.00000");
-	}
-	cell_fall(scalar) {
+        }
+        cell_fall(scalar) {
           values("0.00000");
-	}
+        }
       }
     }
     pin("reset") {
@@ -60,16 +60,16 @@ library (counter) {
       timing() {
         related_pin : "clk";
         timing_type : hold_rising;
-	rise_constraint(scalar) {
+        rise_constraint(scalar) {
           values("0.29559");
-	}
+        }
       }
       timing() {
         related_pin : "clk";
         timing_type : setup_rising;
-	rise_constraint(scalar) {
+        rise_constraint(scalar) {
           values("-0.22827");
-	}
+        }
       }
     }
     pin("in") {
@@ -78,22 +78,22 @@ library (counter) {
       timing() {
         related_pin : "clk";
         timing_type : hold_rising;
-	rise_constraint(scalar) {
+        rise_constraint(scalar) {
           values("-0.03143");
-	}
-	fall_constraint(scalar) {
+        }
+        fall_constraint(scalar) {
           values("-0.03771");
-	}
+        }
       }
       timing() {
         related_pin : "clk";
         timing_type : setup_rising;
-	rise_constraint(scalar) {
+        rise_constraint(scalar) {
           values("0.05608");
-	}
-	fall_constraint(scalar) {
+        }
+        fall_constraint(scalar) {
           values("0.10489");
-	}
+        }
       }
     }
     pin("out") {
@@ -102,18 +102,18 @@ library (counter) {
       timing() {
         related_pin : "clk";
         timing_type : rising_edge;
-	cell_rise(scalar) {
+        cell_rise(scalar) {
           values("6.24237");
-	}
-	rise_transition(scalar) {
+        }
+        rise_transition(scalar) {
           values("8.46194");
-	}
-	cell_fall(scalar) {
+        }
+        cell_fall(scalar) {
           values("3.79896");
-	}
-	fall_transition(scalar) {
+        }
+        fall_transition(scalar) {
           values("4.53677");
-	}
+        }
       }
     }
   }

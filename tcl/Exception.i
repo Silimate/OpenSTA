@@ -1,5 +1,5 @@
 // OpenSTA, Static Timing Analyzer
-// Copyright (c) 2025, Parallax Software, Inc.
+// Copyright (c) 2026, Parallax Software, Inc.
 // 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -22,11 +22,20 @@
 // 
 // This notice may not be removed or altered from any source distribution.
 
+%{
+#include "Property.hh"
+%}
+
 %exception {
   try { $action }
   catch (std::bad_alloc &) {
     fprintf(stderr, "Error: out of memory.\n");
     exit(1);
+  }
+  catch (sta::PropertyUnknown &excp) {
+    Sta::sta()->report()->warn(9000, "{}", excp.what());
+    Tcl_ResetResult(interp);
+    return TCL_OK;
   }
   catch (ExceptionMsg &excp) {
     if (!excp.suppressed()) {

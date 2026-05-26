@@ -1,5 +1,5 @@
 // OpenSTA, Static Timing Analyzer
-// Copyright (c) 2025, Parallax Software, Inc.
+// Copyright (c) 2026, Parallax Software, Inc.
 // 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -24,6 +24,8 @@
 
 #pragma once
 
+#include <string_view>
+
 namespace sta {
 
 class Report;
@@ -31,9 +33,9 @@ class FuncExpr;
 class LibertyCell;
 
 FuncExpr *
-parseFuncExpr(const char *func,
-	      LibertyCell *cell,
-	      const char *error_msg,
-	      Report *report);
+parseFuncExpr(std::string_view func,
+              const LibertyCell *cell,
+              std::string_view error_msg,
+              Report *report);
 
-} // namespace
+} // namespace sta

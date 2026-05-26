@@ -1,5 +1,5 @@
 // OpenSTA, Static Timing Analyzer
-// Copyright (c) 2025, Parallax Software, Inc.
+// Copyright (c) 2026, Parallax Software, Inc.
 // 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -24,40 +24,48 @@
 
 #pragma once
 
-#include "SdcClass.hh"
+#include <set>
+
 #include "GraphClass.hh"
-#include "SearchClass.hh"
+#include "LibertyClass.hh"
+#include "MinMax.hh"
+#include "Mode.hh"
+#include "NetworkClass.hh"
+#include "SdcClass.hh"
 #include "StaState.hh"
+#include "Transition.hh"
 
 namespace sta {
 
-typedef Set<FuncExpr*> FuncExprSet;
+using FuncExprSet = std::set<FuncExpr*>;
 
 class GatedClk : public StaState
 {
 public:
   GatedClk(const StaState *sta);
 
-  bool isGatedClkEnable(Vertex *vertex) const;
+  bool isGatedClkEnable(Vertex *vertexm,
+                        const Mode *mode) const;
   void isGatedClkEnable(Vertex *enable_vertex,
-			bool &is_gated_clk_enable,
-			const Pin *&clk_pin,
-			LogicValue &logic_active_value) const;
-  void gatedClkEnables(Vertex *clk_vertex,
-		       // Return value.
-		       PinSet &enable_pins);
+                        const Mode *mode,
+                        // Return values.
+                        bool &is_gated_clk_enable,
+                        const Pin *&clk_pin,
+                        LogicValue &logic_active_value) const;
+  PinSet gatedClkEnables(Vertex *clk_vertex,
+                         const Mode *mode);
   const RiseFall *gatedClkActiveTrans(LogicValue active_value,
                                       const MinMax *min_max) const;
 
 protected:
   void isClkGatingFunc(FuncExpr *func,
-		       LibertyPort *enable_port,
-		       LibertyPort *clk_port,
-		       bool &is_clk_gate,
-		       LogicValue &logic_value) const;
+                       LibertyPort *enable_port,
+                       LibertyPort *clk_port,
+                       bool &is_clk_gate,
+                       LogicValue &logic_value) const;
   void functionClkOperands(FuncExpr *root_expr,
-			   FuncExpr *curr_expr,
-			   FuncExprSet &funcs) const;
+                           FuncExpr *curr_expr,
+                           FuncExprSet &funcs) const;
 };
 
-} // namespace
+} // namespace sta

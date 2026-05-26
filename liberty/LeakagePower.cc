@@ -1,5 +1,5 @@
 // OpenSTA, Static Timing Analyzer
-// Copyright (c) 2025, Parallax Software, Inc.
+// Copyright (c) 2026, Parallax Software, Inc.
 // 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -25,7 +25,6 @@
 #include "LeakagePower.hh"
 
 #include "FuncExpr.hh"
-#include "TableModel.hh"
 #include "Liberty.hh"
 
 namespace sta {
@@ -41,10 +40,18 @@ LeakagePower::LeakagePower(LibertyCell *cell,
 {
 }
 
-LeakagePower::~LeakagePower()
+LeakagePower::LeakagePower(LeakagePower &&other) noexcept
 {
-  if (when_)
-    when_->deleteSubexprs();
+  cell_ = other.cell_;
+  related_pg_port_ = other.related_pg_port_;
+  when_ = other.when_;
+  other.when_ = nullptr;
+  power_ = other.power_;
 }
 
-} // namespace
+LeakagePower::~LeakagePower()
+{
+  delete when_;
+}
+
+} // namespace sta

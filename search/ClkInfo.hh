@@ -1,5 +1,5 @@
 // OpenSTA, Static Timing Analyzer
-// Copyright (c) 2025, Parallax Software, Inc.
+// Copyright (c) 2026, Parallax Software, Inc.
 // 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -24,10 +24,19 @@
 
 #pragma once
 
-#include "Transition.hh"
-#include "SearchClass.hh"
-#include "Sdc.hh"
+#include <cstddef>
+#include <string>
+
+#include "Clock.hh"
+#include "Delay.hh"
+#include "GraphClass.hh"
+#include "MinMax.hh"
+#include "NetworkClass.hh"
 #include "Path.hh"
+#include "Sdc.hh"
+#include "SearchClass.hh"
+#include "StaState.hh"
+#include "Transition.hh"
 
 namespace sta {
 
@@ -36,20 +45,23 @@ class Path;
 class ClkInfo
 {
 public:
-  ClkInfo(const ClockEdge *clk_edge,
-	  const Pin *clk_src,
-	  bool is_propagated,
-	  const Pin *gen_clk_src,
-	  bool is_gen_clk_src_path,
-	  const RiseFall *pulse_clk_sense,
-	  Arrival insertion,
-	  float latency,
-	  ClockUncertainties *uncertainties,
-          PathAPIndex path_ap_index,
-	  const Path *crpr_clk_path,
-	  const StaState *sta);
-  ~ClkInfo();
+  ClkInfo(Scene *scene,
+          const ClockEdge *clk_edge,
+          const Pin *clk_src,
+          bool is_propagated,
+          const Pin *gen_clk_src,
+          bool is_gen_clk_src_path,
+          const RiseFall *pulse_clk_sense,
+          Arrival insertion,
+          float latency,
+          const ClockUncertainties *uncertainties,
+          const MinMax *min_max,
+          const Path *crpr_clk_path,
+          const StaState *sta);
   std::string to_string(const StaState *sta) const;
+  Scene *scene() const { return scene_; }
+  const MinMax *minMax() const;
+  int minMaxIndex() const { return min_max_index_; }
   const ClockEdge *clkEdge() const { return clk_edge_; }
   const Clock *clock() const;
   const Pin *clkSrc() const { return clk_src_; }
@@ -61,8 +73,7 @@ public:
   float latency() const { return latency_; }
   Arrival &insertion() { return insertion_; }
   const Arrival &insertion() const { return insertion_; }
-  ClockUncertainties *uncertainties() const { return uncertainties_; }
-  PathAPIndex pathAPIndex() const { return path_ap_index_; }
+  const ClockUncertainties *uncertainties() const { return uncertainties_; }
   // Clock path used for crpr resolution.
   // Null for clocks because the path cannot point to itself.
   Path *crprClkPath(const StaState *sta);
@@ -76,20 +87,21 @@ public:
   const Path *crprClkPathRaw() const;
 
   static int cmp(const ClkInfo *clk_info1,
-		 const ClkInfo *clk_info2,
-		 const StaState *sta);
+                 const ClkInfo *clk_info2,
+                 const StaState *sta);
   static bool equal(const ClkInfo *clk_info1,
-		    const ClkInfo *clk_info2,
-		    const StaState *sta);
+                    const ClkInfo *clk_info2,
+                    const StaState *sta);
 protected:
   void findHash(const StaState *sta);
 
 private:
+  Scene *scene_;
   const ClockEdge *clk_edge_;
   const Pin *clk_src_;
   const Pin *gen_clk_src_;
   Path crpr_clk_path_;
-  ClockUncertainties *uncertainties_;
+  const ClockUncertainties *uncertainties_;
   Arrival insertion_;
   float latency_;
   size_t hash_;
@@ -100,16 +112,15 @@ private:
   bool crpr_path_refs_filter_:1;
   bool is_pulse_clk_:1;
   unsigned int pulse_clk_sense_:RiseFall::index_bit_count;
-  unsigned int path_ap_index_:path_ap_index_bit_count;
+  unsigned int min_max_index_:MinMax::index_bit_count;
 };
 
 class ClkInfoLess
 {
 public:
-  explicit ClkInfoLess(const StaState *sta);
-  ~ClkInfoLess() {}
+  ClkInfoLess(const StaState *sta);
   bool operator()(const ClkInfo *clk_info1,
-		  const ClkInfo *clk_info2) const;
+                  const ClkInfo *clk_info2) const;
 
 protected:
   const StaState *sta_;
@@ -126,10 +137,10 @@ class ClkInfoEqual
 public:
   ClkInfoEqual(const StaState *sta);
   bool operator()(const ClkInfo *clk_info1,
-		  const ClkInfo *clk_info2) const;
+                  const ClkInfo *clk_info2) const;
 
 protected:
   const StaState *sta_;
 };
 
-} // namespace
+} // namespace sta

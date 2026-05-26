@@ -1,5 +1,5 @@
 // OpenSTA, Static Timing Analyzer
-// Copyright (c) 2025, Parallax Software, Inc.
+// Copyright (c) 2026, Parallax Software, Inc.
 // 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -29,7 +29,7 @@
 
 namespace sta {
 
-class Corner;
+class Scene;
 class Parasitic;
 class ParasiticAnalysisPt;
 class StaState;
@@ -37,24 +37,22 @@ class StaState;
 // Reduce parasitic network to pi elmore model for drvr_pin.
 Parasitic *
 reduceToPiElmore(const Parasitic *parasitic_network,
-		 const Pin *drvr_pin,
+                 const Pin *drvr_pin,
                  const RiseFall *rf,
-		 float coupling_cap_factor,
-		 const Corner *corner,
-		 const MinMax *min_max,
-		 const ParasiticAnalysisPt *ap,
-		 StaState *sta);
+                 float coupling_cap_factor,
+                 const Scene *scene,
+                 const MinMax *min_max,
+                 StaState *sta);
 
 // Reduce parasitic network to pi and 2nd order pole/residue models
 // for drvr_pin.
 Parasitic *
 reduceToPiPoleResidue2(const Parasitic *parasitic_network,
-		       const Pin *drvr_pin,
+                       const Pin *drvr_pin,
                        const RiseFall *rf,
-		       float coupling_cap_factor,
-		       const Corner *corner,
-		       const MinMax *min_max,
-		       const ParasiticAnalysisPt *ap,
-		       StaState *sta);
+                       float coupling_cap_factor,
+                       const Scene *scene,
+                       const MinMax *min_max,
+                       StaState *sta);
 
-} // namespace
+} // namespace sta

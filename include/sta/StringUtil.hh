@@ -1,5 +1,5 @@
 // OpenSTA, Static Timing Analyzer
-// Copyright (c) 2025, Parallax Software, Inc.
+// Copyright (c) 2026, Parallax Software, Inc.
 // 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -24,18 +24,25 @@
 
 #pragma once
 
+#include <algorithm>
+#include <cctype>
 #include <cstdarg>
 #include <cstring>
+#include <set>
 #include <string>
+#include <string_view>
+#include <vector>
 
 #include "Machine.hh" // __attribute__
-#include "Vector.hh"
 
 namespace sta {
 
+using StringSeq = std::vector<std::string>;
+using StringSet = std::set<std::string>;
+
 inline bool
 stringEq(const char *str1,
-	 const char *str2)
+         const char *str2)
 {
   return strcmp(str1, str2) == 0;
 }
@@ -43,155 +50,56 @@ stringEq(const char *str1,
 // Compare the first length characters.
 inline bool
 stringEq(const char *str1,
-	 const char *str2,
-	 size_t length)
+         const char *str2,
+         size_t length)
 {
   return strncmp(str1, str2, length) == 0;
-}
-
-inline bool
-stringEqIf(const char *str1,
-	   const char *str2)
-{
-  return (str1 == nullptr && str2 == nullptr)
-    || (str1 && str2 && strcmp(str1, str2) == 0);
 }
 
 // Case sensitive compare the beginning of str1 to str2.
 inline bool
 stringBeginEq(const char *str1,
-	      const char *str2)
+              const char *str2)
 {
   return strncmp(str1, str2, strlen(str2)) == 0;
 }
 
+inline bool
+charEqual(unsigned char c1,
+          unsigned char c2)
+{
+  return std::tolower(c1) == std::tolower(c2);
+}
+
 // Case insensitive compare the beginning of str1 to str2.
 inline bool
-stringBeginEqual(const char *str1,
-		 const char *str2)
+stringBeginEqual(std::string_view str,
+                 std::string_view prefix)
 {
-  return strncasecmp(str1, str2, strlen(str2)) == 0;
+  if (str.size() < prefix.size())
+    return false;
+  return std::ranges::equal(str.substr(0, prefix.size()), prefix, charEqual);
 }
 
 // Case insensitive compare.
 inline bool
-stringEqual(const char *str1,
-	    const char *str2)
+stringEqual(std::string_view s1,
+            std::string_view s2)
 {
-  return strcasecmp(str1, str2) == 0;
+  return std::ranges::equal(s1, s2, charEqual);
 }
 
-inline bool
-stringEqualIf(const char *str1,
-	      const char *str2)
-{
-  return (str1 == nullptr && str2 == nullptr)
-    || (str1 && str2 && strcasecmp(str1, str2) == 0);
-}
-
-inline bool
-stringLess(const char *str1,
-	   const char *str2)
-{
-  return strcmp(str1, str2) < 0;
-}
-
-inline bool
-stringLessIf(const char *str1,
-	     const char *str2)
-{
-  return (str1 == nullptr && str2 != nullptr)
-    || (str1 != nullptr && str2 != nullptr && strcmp(str1, str2) < 0);
-}
-
-class CharPtrLess
-{
-public:
-  bool operator()(const char *string1,
-		  const char *string2) const
-  {
-    return stringLess(string1, string2);
-  }
-};
-
-// Case insensitive comparision.
-class CharPtrCaseLess
-{
-public:
-  bool operator()(const char *string1,
-		  const char *string2) const
-  {
-    return strcasecmp(string1, string2) < 0;
-  }
-};
-
-class StringLessIf
-{
-public:
-  bool operator()(const char *string1,
-		  const char *string2) const
-  {
-    return stringLessIf(string1, string2);
-  }
-};
-
-// strdup using new instead of malloc so delete can be used on the strings.
-char *
-stringCopy(const char *str);
-
-inline void
-stringAppend(char *&str1,
-	     const char *str2)
-{
-  strcpy(str1, str2);
-  str1 += strlen(str2);
-}
-
-void
-stringDeleteCheck(const char *str);
-
-// Delete for strings allocated with new char[].
-inline void
-stringDelete(const char *str)
-{
-  delete [] str;
-}
+std::pair<float, bool>
+stringFloat(const std::string &str);
+std::pair<long long, bool>
+stringLong(const std::string &str,
+          int base = 10);
 
 bool
 isDigits(const char *str);
 
-// Print to a new string.
-// Caller owns returned string.
-char *
-stringPrint(const char *fmt,
-	    ...) __attribute__((format (printf, 1, 2)));
-std::string
-stdstrPrint(const char *fmt,
-	       ...) __attribute__((format (printf, 1, 2)));
-char *
-stringPrintArgs(const char *fmt,
-		va_list args);
-void
-stringPrint(std::string &str,
-	    const char *fmt,
-	    ...) __attribute__((format (printf, 2, 3)));
-// Formated append to std::string.
-void
-stringAppend(std::string &str,
-             const char *fmt,
-             ...) __attribute__((format (printf, 2, 3)));
-
-// Print to a temporary string.
-char *
-stringPrintTmp(const char *fmt,
-	       ...)  __attribute__((format (printf, 1, 2)));
-
-char *
-makeTmpString(size_t length);
-char *
-makeTmpString(std::string &str);
 bool
-isTmpString(const char *str);
+isDigits(std::string_view str);
 
 ////////////////////////////////////////////////////////////////
 
@@ -207,12 +115,9 @@ trimLeft(std::string &str);
 void
 trim(std::string &str);
 
-typedef Vector<std::string> StringVector;
+// Parse text into delimiter separated tokens and skip whitepace.
+StringSeq
+parseTokens(const std::string &text,
+            std::string_view delims = " \t");
 
-void
-split(const std::string &text,
-      const std::string &delims,
-      // Return values.
-      StringVector &tokens);
-
-} // namespace
+} // namespace sta

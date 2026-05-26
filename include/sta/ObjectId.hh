@@ -1,5 +1,5 @@
 // OpenSTA, Static Timing Analyzer
-// Copyright (c) 2025, Parallax Software, Inc.
+// Copyright (c) 2026, Parallax Software, Inc.
 // 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -29,15 +29,15 @@
 namespace sta {
 
 // ObjectId is block index and object index within the block.
-typedef uint32_t ObjectId;
+using ObjectId = uint32_t;
 // Block index.
-typedef uint32_t BlockIdx;
+using BlockIdx = uint32_t;
 // Object index within a block.
-typedef uint32_t ObjectIdx;
+using ObjectIdx = uint32_t;
 
 static constexpr int object_id_bits = sizeof(ObjectId) * 8;
 static constexpr BlockIdx block_idx_null = 0;
 static constexpr ObjectId object_id_null = 0;
 static constexpr ObjectIdx object_idx_null = 0;
 
-} // Namespace
+} // namespace sta

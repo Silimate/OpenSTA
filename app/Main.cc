@@ -27,6 +27,8 @@
 
 #include <stdio.h>
 #include <cstdlib>              // exit
+#include <filesystem>
+#include <string_view>
 #include <tcl.h>
 #if TCL_READLINE
   #include <tclreadline.h>
@@ -38,7 +40,6 @@ namespace sta {
 extern const char *tcl_inits[];
 }
 
-using std::string;
 using sta::stringEq;
 using sta::findCmdLineFlag;
 using sta::Sta;
@@ -47,7 +48,6 @@ using sta::evalTclInit;
 using sta::sourceTclFile;
 using sta::parseThreadsArg;
 using sta::tcl_inits;
-using sta::is_regular_file;
 
 // Swig uses C linkage for init functions.
 extern "C" {
@@ -59,19 +59,19 @@ static char **cmd_argv;
 static const char *init_filename = ".sta";
 
 static void
-showUsage(const char *prog,
-	  const char *init_filename);
+showUsage(std::string_view prog,
+          std::string_view init_filename);
 static int
 tclAppInit(Tcl_Interp *interp);
 static int
 staTclAppInit(int argc,
-	      char *argv[],
-	      const char *init_filename,
-	      Tcl_Interp *interp);
+              char *argv[],
+              std::string_view init_filename,
+              Tcl_Interp *interp);
 static void
 initStaApp(int &argc,
-	   char *argv[],
-	   Tcl_Interp *interp);
+           char *argv[],
+           Tcl_Interp *interp);
 
 int
 main(int argc,
@@ -87,20 +87,11 @@ main(int argc,
   }
   else {
     // Set argc to 1 so Tcl_Main doesn't source any files.
-    // Tcl_Main never returns.
-#if 0
-    // It should be possible to pass argc/argv to staTclAppInit with
-    // a closure but I couldn't get the signature to match Tcl_AppInitProc.
-    Tcl_Main(1, argv, [=](Tcl_Interp *interp)
-		      { sta::staTclAppInit(argc, argv, interp);
-			return 1;
-		      });
-#else
-    // Workaround.
+    // Store argc and argv in static variables for tclAppInit.
     cmd_argc = argc;
     cmd_argv = argv;
+    // Tcl_Main never returns.
     Tcl_Main(1, argv, tclAppInit);
-#endif
     return 0;
   }
 }
@@ -114,9 +105,9 @@ tclAppInit(Tcl_Interp *interp)
 // Tcl init executed inside Tcl_Main.
 static int
 staTclAppInit(int argc,
-	      char *argv[],
-	      const char *init_filename,
-	      Tcl_Interp *interp)
+              char *argv[],
+              std::string_view init_filename,
+              Tcl_Interp *interp)
 {
   // source init.tcl
   if (Tcl_Init(interp) == TCL_ERROR)
@@ -138,10 +129,10 @@ staTclAppInit(int argc,
   if (!findCmdLineFlag(argc, argv, "-no_init")) {
     const char *home = getenv("HOME");
     if (home) {
-      string init_path = home;
+      std::string init_path = home;
       init_path += "/";
-      init_path += init_filename;
-      if (is_regular_file(init_path.c_str()))
+      init_path.append(init_filename);
+      if (std::filesystem::is_regular_file(init_path.c_str()))
         sourceTclFile(init_path.c_str(), true, true, interp);
     }
   }
@@ -157,7 +148,7 @@ staTclAppInit(int argc,
     if (argc == 2) {
       char *cmd_file = argv[1];
       if (cmd_file) {
-	int result = sourceTclFile(cmd_file, false, false, interp);
+        int result = sourceTclFile(cmd_file, false, false, interp);
         if (exit_after_cmd_file) {
           int exit_code = (result == TCL_OK) ? EXIT_SUCCESS : EXIT_FAILURE;
           exit(exit_code);
@@ -174,8 +165,8 @@ staTclAppInit(int argc,
 
 static void
 initStaApp(int &argc,
-	   char *argv[],
-	   Tcl_Interp *interp)
+           char *argv[],
+           Tcl_Interp *interp)
 {
   initSta();
   Sta *sta = new Sta;
@@ -193,15 +184,17 @@ initStaApp(int &argc,
 }
 
 static void
-showUsage(const char *prog,
-	  const char *init_filename)
+showUsage(std::string_view prog,
+          std::string_view init_filename)
 {
-  printf("Usage: %s [-help] [-version] [-no_init] [-exit] cmd_file\n", prog);
-  printf("  -help              show help and exit\n");
-  printf("  -version           show version and exit\n");
-  printf("  -no_init           do not read %s init file\n", init_filename);
-  printf("  -threads count|max use count threads\n");
-  printf("  -no_splash         do not show the license splash at startup\n");
-  printf("  -exit              exit after reading cmd_file\n");
-  printf("  cmd_file           source cmd_file\n");
+  sta::print(stdout, "Usage: {} [-help] [-version] [-no_init] [-exit] cmd_file\n",
+             prog);
+  sta::print(stdout, "  -help              show help and exit\n");
+  sta::print(stdout, "  -version           show version and exit\n");
+  sta::print(stdout, "  -no_init           do not read {} init file\n",
+             init_filename);
+  sta::print(stdout, "  -threads count|max use count threads\n");
+  sta::print(stdout, "  -no_splash         do not show the license splash at startup\n");
+  sta::print(stdout, "  -exit              exit after reading cmd_file\n");
+  sta::print(stdout, "  cmd_file           source cmd_file\n");
 }

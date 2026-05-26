@@ -1,5 +1,5 @@
 // OpenSTA, Static Timing Analyzer
-// Copyright (c) 2025, Parallax Software, Inc.
+// Copyright (c) 2026, Parallax Software, Inc.
 // 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -24,10 +24,13 @@
 
 #pragma once
 
+#include <string>
+#include <string_view>
+#include <vector>
+
 #include "Error.hh"
-#include "Set.hh"
-#include "SdcCmdComment.hh"
 #include "SdcClass.hh"
+#include "SdcCmdComment.hh"
 
 namespace sta {
 
@@ -44,18 +47,18 @@ class ExceptionThru;
 class ExceptionTo;
 class ExceptionState;
 
-typedef Vector<ExceptionPath*> ExceptionPathSeq;
+using ExceptionPathSeq = std::vector<ExceptionPath*>;
 
 class ExceptionPath : public SdcCmdComment
 {
 public:
   ExceptionPath(ExceptionFrom *from,
-		ExceptionThruSeq *thrus,
-		ExceptionTo *to,
-		const MinMaxAll *min_max,
-		bool own_pts,
-		int priority,
-		const char *comment);
+                ExceptionThruSeq *thrus,
+                ExceptionTo *to,
+                const MinMaxAll *min_max,
+                bool own_pts,
+                int priority,
+                std::string_view comment);
   virtual ~ExceptionPath();
   size_t id() const { return id_; }
   void setId(size_t id);
@@ -67,7 +70,8 @@ public:
   virtual bool isGroupPath() const { return false; }
   virtual bool isFilter() const { return false; }
   virtual ExceptionPathType type() const = 0;
-  virtual const char *asString(const Network *network) const;
+  virtual std::string to_string(const Network *network) const;
+  virtual std::string_view typeString() const = 0;
   ExceptionFrom *from() const { return from_; }
   ExceptionThruSeq *thrus() const { return thrus_; }
   ExceptionTo *to() const { return to_; }
@@ -76,14 +80,14 @@ public:
                      const Network *network) const;
   const MinMaxAll *minMax() const { return min_max_; }
   virtual bool matches(const MinMax *min_max,
-		       bool exact) const;
+                       bool exact) const;
   bool matchesFirstPt(const RiseFall *to_rf,
-		      const MinMax *min_max);
+                      const MinMax *min_max);
   ExceptionState *firstState();
   virtual bool resetMatch(ExceptionFrom *from,
-			  ExceptionThruSeq *thrus,
-			  ExceptionTo *to,
-			  const MinMaxAll *min_max,
+                          ExceptionThruSeq *thrus,
+                          ExceptionTo *to,
+                          const MinMaxAll *min_max,
                           const Network *network);
   // The priority remains the same even though pin/clock/net/inst objects
   // are added to the exceptions points during exception merging because
@@ -105,22 +109,22 @@ public:
   // they cannot be coded into the priority.
   virtual bool tighterThan(ExceptionPath *exception) const = 0;
   static int fromThruToPriority(ExceptionFrom *from,
-  				ExceptionThruSeq *thrus,
-				ExceptionTo *to);
+                                ExceptionThruSeq *thrus,
+                                ExceptionTo *to);
   size_t hash() const;
   size_t hash(ExceptionPt *missing_pt) const;
   // Mergeable properties (independent of exception points).
   virtual bool mergeable(ExceptionPath *exception) const;
   bool mergeablePts(ExceptionPath *exception) const;
   bool mergeablePts(ExceptionPath *exception2,
-		    ExceptionPt *missing_pt2,
-		    ExceptionPt *&missing_pt) const;
+                    ExceptionPt *missing_pt2,
+                    ExceptionPt *&missing_pt) const;
   // Overrides properties (independent of exception points).
   virtual bool overrides(ExceptionPath *exception) const = 0;
   virtual ExceptionPath *clone(ExceptionFrom *from,
-			       ExceptionThruSeq *thrus,
-			       ExceptionTo *to,
-			       bool own_pts) = 0;
+                               ExceptionThruSeq *thrus,
+                               ExceptionTo *to,
+                               bool own_pts) = 0;
   void deleteInstance(const Instance *inst,
                       const Network *network);
 
@@ -129,14 +133,13 @@ public:
   virtual int pathMultiplier() const { return 0; }
   virtual float delay() const { return 0.0; }
   virtual float margin() const { return 0.0; }
-  virtual const char *name() const { return nullptr; }
+  virtual std::string_view name() const { return {}; }
   virtual bool isDefault() const { return false; }
   virtual bool ignoreClkLatency() const { return false; }
   virtual bool breakPath() const { return false; }
 
 protected:
-  virtual const char *typeString() const = 0;
-  const char *fromThruToString(const Network *network) const;
+  std::string fromThruToString(const Network *network) const;
   void makeStates();
 
   ExceptionFrom *from_;
@@ -145,7 +148,7 @@ protected:
   const MinMaxAll *min_max_;
   bool own_pts_;
   int priority_;
-  size_t id_;                   // Unique ID assigned by Sdc.
+  size_t id_{0};                   // Unique ID assigned by Sdc.
   ExceptionState *states_;
 };
 
@@ -154,29 +157,29 @@ class FalsePath : public ExceptionPath
 {
 public:
   FalsePath(ExceptionFrom *from,
-	    ExceptionThruSeq *thrus,
-	    ExceptionTo *to,
-	    const MinMaxAll *min_max,
-	    bool own_pts,
-	    const char *comment);
+            ExceptionThruSeq *thrus,
+            ExceptionTo *to,
+            const MinMaxAll *min_max,
+            bool own_pts,
+            std::string_view comment);
   FalsePath(ExceptionFrom *from,
-	    ExceptionThruSeq *thrus,
-	    ExceptionTo *to,
-	    const MinMaxAll *min_max,
-	    bool own_pts,
-	    int priority,
-	    const char *comment);
-  virtual ExceptionPath *clone(ExceptionFrom *from,
-			       ExceptionThruSeq *thrus,
-			       ExceptionTo *to,
-			       bool own_pts);
-  virtual bool isFalse() const { return true; }
-  virtual ExceptionPathType type() const { return ExceptionPathType::false_path; }
-  virtual const char *typeString() const;
-  virtual bool mergeable(ExceptionPath *exception) const;
-  virtual bool overrides(ExceptionPath *exception) const;
-  virtual int typePriority() const;
-  virtual bool tighterThan(ExceptionPath *exception) const;
+            ExceptionThruSeq *thrus,
+            ExceptionTo *to,
+            const MinMaxAll *min_max,
+            bool own_pts,
+            int priority,
+            std::string_view comment);
+  ExceptionPath *clone(ExceptionFrom *from,
+                       ExceptionThruSeq *thrus,
+                       ExceptionTo *to,
+                       bool own_pts) override;
+  bool isFalse() const override { return true; }
+  ExceptionPathType type() const override { return ExceptionPathType::false_path; }
+  std::string_view typeString() const override;
+  bool mergeable(ExceptionPath *exception) const override;
+  bool overrides(ExceptionPath *exception) const override;
+  int typePriority() const override;
+  bool tighterThan(ExceptionPath *exception) const override;
 };
 
 // Loop paths are false paths used to disable paths around
@@ -185,11 +188,11 @@ class LoopPath : public FalsePath
 {
 public:
   LoopPath(ExceptionThruSeq *thrus,
-	   bool own_pts);
-  virtual bool isLoop() const { return true; }
-  virtual ExceptionPathType type() const { return ExceptionPathType::loop; }
-  virtual const char *typeString() const;
-  virtual bool mergeable(ExceptionPath *exception) const;
+           bool own_pts);
+  bool isLoop() const override { return true; }
+  ExceptionPathType type() const override { return ExceptionPathType::loop; }
+  std::string_view typeString() const override;
+  bool mergeable(ExceptionPath *exception) const override;
 };
 
 // set_max_delay/set_min_delay
@@ -197,29 +200,29 @@ class PathDelay : public ExceptionPath
 {
 public:
   PathDelay(ExceptionFrom *from,
-	    ExceptionThruSeq *thrus,
-	    ExceptionTo *to,
-	    const MinMax *min_max,
-	    bool ignore_clk_latency,
+            ExceptionThruSeq *thrus,
+            ExceptionTo *to,
+            const MinMax *min_max,
+            bool ignore_clk_latency,
             bool break_path,
-	    float delay,
-	    bool own_pts,
-	    const char *comment);
-  virtual ExceptionPath *clone(ExceptionFrom *from,
-			       ExceptionThruSeq *thrus,
-			       ExceptionTo *to,
-			       bool own_pts);
-  virtual bool isPathDelay() const { return true; }
-  virtual ExceptionPathType type() const { return ExceptionPathType::path_delay; }
-  virtual const char *asString(const Network *network) const;
-  virtual const char *typeString() const;
-  virtual bool mergeable(ExceptionPath *exception) const;
-  virtual bool overrides(ExceptionPath *exception) const;
-  virtual float delay() const { return delay_; }
-  virtual int typePriority() const;
-  virtual bool tighterThan(ExceptionPath *exception) const;
-  virtual bool ignoreClkLatency() const { return ignore_clk_latency_; }
-  virtual bool breakPath() const { return break_path_; }
+            float delay,
+            bool own_pts,
+            std::string_view comment);
+  ExceptionPath *clone(ExceptionFrom *from,
+                       ExceptionThruSeq *thrus,
+                       ExceptionTo *to,
+                       bool own_pts) override;
+  bool isPathDelay() const override { return true; }
+  ExceptionPathType type() const override { return ExceptionPathType::path_delay; }
+  std::string to_string(const Network *network) const override;
+  std::string_view typeString() const override;
+  bool mergeable(ExceptionPath *exception) const override;
+  bool overrides(ExceptionPath *exception) const override;
+  float delay() const override { return delay_; }
+  int typePriority() const override;
+  bool tighterThan(ExceptionPath *exception) const override;
+  bool ignoreClkLatency() const override { return ignore_clk_latency_; }
+  bool breakPath() const override { return break_path_; }
 
 protected:
   bool ignore_clk_latency_;
@@ -260,31 +263,31 @@ class MultiCyclePath : public ExceptionPath
 {
 public:
   MultiCyclePath(ExceptionFrom *from,
-		 ExceptionThruSeq *thrus,
-		 ExceptionTo *to,
-		 const MinMaxAll *min_max,
-		 bool use_end_clk,
-		 int path_multiplier,
-		 bool own_pts,
-		 const char *comment);
-  virtual ExceptionPath *clone(ExceptionFrom *from,
-			       ExceptionThruSeq *thrus,
-			       ExceptionTo *to,
-			       bool own_pts);
-  virtual bool isMultiCycle() const { return true; }
-  virtual ExceptionPathType type() const { return ExceptionPathType::multi_cycle; }
-  virtual bool matches(const MinMax *min_max,
-		       bool exactly) const;
-  virtual const char *asString(const Network *network) const;
-  virtual const char *typeString() const;
-  virtual bool mergeable(ExceptionPath *exception) const;
-  virtual bool overrides(ExceptionPath *exception) const;
-  virtual bool useEndClk() const { return use_end_clk_; }
-  virtual int pathMultiplier(const MinMax *min_max) const;
-  virtual int pathMultiplier() const { return path_multiplier_; }
-  virtual int priority(const MinMax *min_max) const;
-  virtual int typePriority() const;
-  virtual bool tighterThan(ExceptionPath *exception) const;
+                 ExceptionThruSeq *thrus,
+                 ExceptionTo *to,
+                 const MinMaxAll *min_max,
+                 bool use_end_clk,
+                 int path_multiplier,
+                 bool own_pts,
+                 std::string_view comment);
+  ExceptionPath *clone(ExceptionFrom *from,
+                       ExceptionThruSeq *thrus,
+                       ExceptionTo *to,
+                       bool own_pts) override;
+  bool isMultiCycle() const override { return true; }
+  ExceptionPathType type() const override { return ExceptionPathType::multi_cycle; }
+  bool matches(const MinMax *min_max,
+               bool exactly) const override;
+  std::string to_string(const Network *network) const override;
+  std::string_view typeString() const override;
+  bool mergeable(ExceptionPath *exception) const override;
+  bool overrides(ExceptionPath *exception) const override;
+  bool useEndClk() const override { return use_end_clk_; }
+  int pathMultiplier(const MinMax *min_max) const;  // overload, not override
+  int pathMultiplier() const override { return path_multiplier_; }
+  int priority(const MinMax *min_max) const override;
+  int typePriority() const override;
+  bool tighterThan(ExceptionPath *exception) const override;
 
   using ExceptionPath::priority;
 
@@ -298,54 +301,53 @@ class FilterPath : public ExceptionPath
 {
 public:
   FilterPath(ExceptionFrom *from,
-	     ExceptionThruSeq *thrus,
-	     ExceptionTo *to,
-	     bool own_pts);
-  virtual ExceptionPath *clone(ExceptionFrom *from,
-			       ExceptionThruSeq *thrus,
-			       ExceptionTo *to,
-			       bool own_pts);
-  virtual bool isFilter() const { return true; }
-  virtual ExceptionPathType type() const { return ExceptionPathType::filter; }
-  virtual const char *typeString() const;
-  virtual bool mergeable(ExceptionPath *exception) const;
-  virtual bool overrides(ExceptionPath *exception) const;
-  virtual bool resetMatch(ExceptionFrom *from,
-			  ExceptionThruSeq *thrus,
-			  ExceptionTo *to,
-			  const MinMaxAll *min_max,
-                          const Network *network);
-  virtual int typePriority() const;
-  virtual bool tighterThan(ExceptionPath *exception) const;
+             ExceptionThruSeq *thrus,
+             ExceptionTo *to,
+             bool own_pts);
+  ExceptionPath *clone(ExceptionFrom *from,
+                       ExceptionThruSeq *thrus,
+                       ExceptionTo *to,
+                       bool own_pts) override;
+  bool isFilter() const override { return true; }
+  ExceptionPathType type() const override { return ExceptionPathType::filter; }
+  std::string_view typeString() const override;
+  bool mergeable(ExceptionPath *exception) const override;
+  bool overrides(ExceptionPath *exception) const override;
+  bool resetMatch(ExceptionFrom *from,
+                  ExceptionThruSeq *thrus,
+                  ExceptionTo *to,
+                  const MinMaxAll *min_max,
+                  const Network *network) override;
+  int typePriority() const override;
+  bool tighterThan(ExceptionPath *exception) const override;
 };
 
 class GroupPath : public ExceptionPath
 {
 public:
-  GroupPath(const char *name,
-	    bool is_default,
-	    ExceptionFrom *from,
-	    ExceptionThruSeq *thrus,
-	    ExceptionTo *to,
-	    bool own_pts,
-	    const char *comment);
-  virtual ~GroupPath();
-  virtual ExceptionPath *clone(ExceptionFrom *from,
-			       ExceptionThruSeq *thrus,
-			       ExceptionTo *to,
-			       bool own_pts);
-  virtual bool isGroupPath() const { return true; }
-  virtual ExceptionPathType type() const { return ExceptionPathType::group_path; }
-  virtual const char *typeString() const;
-  virtual bool mergeable(ExceptionPath *exception) const;
-  virtual bool overrides(ExceptionPath *exception) const;
-  virtual int typePriority() const;
-  virtual bool tighterThan(ExceptionPath *exception) const;
-  virtual const char *name()  const { return name_; }
-  virtual bool isDefault() const { return is_default_; }
+  GroupPath(std::string_view name,
+            bool is_default,
+            ExceptionFrom *from,
+            ExceptionThruSeq *thrus,
+            ExceptionTo *to,
+            bool own_pts,
+            std::string_view comment);
+  ExceptionPath *clone(ExceptionFrom *from,
+                       ExceptionThruSeq *thrus,
+                       ExceptionTo *to,
+                       bool own_pts) override;
+  bool isGroupPath() const override { return true; }
+  ExceptionPathType type() const override { return ExceptionPathType::group_path; }
+  std::string_view typeString() const override;
+  bool mergeable(ExceptionPath *exception) const override;
+  bool overrides(ExceptionPath *exception) const override;
+  int typePriority() const override;
+  bool tighterThan(ExceptionPath *exception) const override;
+  std::string_view name() const override { return name_; }
+  bool isDefault() const override { return is_default_; }
 
 protected:
-  const char *name_;
+  std::string name_;
   bool is_default_;
 };
 
@@ -354,8 +356,8 @@ class ExceptionPt
 {
 public:
   ExceptionPt(const RiseFallBoth *rf,
-	      bool own_pts);
-  virtual ~ExceptionPt() {};
+              bool own_pts);
+  virtual ~ExceptionPt() = default;
   virtual bool isFrom() const { return false; }
   virtual bool isThru() const { return false; }
   virtual bool isTo() const { return false; }
@@ -373,7 +375,7 @@ public:
   // All pins and instance/net pins.
   virtual PinSet allPins(const Network *network) = 0;
   virtual int typePriority() const = 0;
-  virtual const char *asString(const Network *network) const = 0;
+  virtual std::string to_string(const Network *network) const = 0;
   virtual size_t objectCount() const = 0;
   virtual void addPin(const Pin *pin,
                       const Network *network) = 0;
@@ -395,10 +397,10 @@ protected:
   bool own_pts_;
   // Hash is cached because there may be many objects to speed up
   // exception merging.
-  size_t hash_;
+  size_t hash_{0};
 
-  // Maximum number of objects for asString() to show.
-  static const int as_string_max_objects_;
+  // Maximum number of objects for to_string() to show.
+  static const int to_string_max_objects_;
   static const size_t hash_clk  =  3;
   static const size_t hash_pin  =  5;
   static const size_t hash_net  =  7;
@@ -410,44 +412,44 @@ class ExceptionFromTo : public ExceptionPt
 public:
   ExceptionFromTo(PinSet *pins,
                   ClockSet *clks,
-		  InstanceSet *insts,
-		  const RiseFallBoth *rf,
-		  bool own_pts,
+                  InstanceSet *insts,
+                  const RiseFallBoth *rf,
+                  bool own_pts,
                   const Network *network);
-  ~ExceptionFromTo();
-  virtual PinSet *pins() { return pins_; }
+  ~ExceptionFromTo() override;
+  PinSet *pins() override { return pins_; }
   bool hasPins() const;
-  ClockSet *clks() { return clks_; }
+  ClockSet *clks() override { return clks_; }
   bool hasClocks() const;
-  InstanceSet *instances() { return insts_; }
+  InstanceSet *instances() override { return insts_; }
   bool hasInstances() const;
-  virtual NetSet *nets() { return nullptr; }
-  virtual EdgePinsSet *edges() { return nullptr; }
+  NetSet *nets() override { return nullptr; }
+  EdgePinsSet *edges() override { return nullptr; }
   bool hasObjects() const;
   void deleteObjects(ExceptionFromTo *pt,
                      const Network *network);
-  virtual PinSet allPins(const Network *network);
+  PinSet allPins(const Network *network) override;
   bool equal(ExceptionFromTo *from_to) const;
-  virtual int compare(ExceptionPt *pt,
-		      const Network *network) const;
-  virtual void mergeInto(ExceptionPt *pt,
-                         const Network *network);
-  virtual const char *asString(const Network *network) const;
-  virtual size_t objectCount() const;
+  int compare(ExceptionPt *pt,
+              const Network *network) const override;
+  void mergeInto(ExceptionPt *pt,
+                 const Network *network) override;
+  std::string to_string(const Network *network) const override;
+  size_t objectCount() const override;
   void deleteClock(Clock *clk);
-  virtual void addPin(const Pin *pin,
-                      const Network *network);
-  virtual void addClock(Clock *clk);
-  virtual void addInstance(const Instance *inst,
-                           const Network *network);
-  virtual void addNet(const Net *,
-                      const Network *) {}
-  virtual void addEdge(const EdgePins &,
-                       const Network *) {}
-  virtual void connectPinAfter(PinSet *,
-			       Network *) {}
-  virtual void deletePinBefore(const Pin *,
-                               Network *);
+  void addPin(const Pin *pin,
+              const Network *network) override;
+  void addClock(Clock *clk) override;
+  void addInstance(const Instance *inst,
+                   const Network *network) override;
+  void addNet(const Net *,
+              const Network *) override {}
+  void addEdge(const EdgePins &,
+               const Network *) override {}
+  void connectPinAfter(PinSet *,
+		       Network *) override {}
+  void deletePinBefore(const Pin *,
+                       Network *) override;
   void deleteInstance(const Instance *inst,
                       const Network *network);
 
@@ -467,65 +469,65 @@ class ExceptionFrom : public ExceptionFromTo
 {
 public:
   ExceptionFrom(PinSet *pins,
-		ClockSet *clks,
-		InstanceSet *insts,
-		const RiseFallBoth *rf,
-		bool own_pts,
+                ClockSet *clks,
+                InstanceSet *insts,
+                const RiseFallBoth *rf,
+                bool own_pts,
                 const Network *network);
   ExceptionFrom *clone(const Network *network);
-  virtual bool isFrom() const { return true; }
+  bool isFrom() const override { return true; }
   bool intersectsPts(ExceptionFrom *from,
                      const Network *network) const;
-  virtual int typePriority() const { return 0; }
+  int typePriority() const override { return 0; }
 
 protected:
-  virtual const char *cmdKeyword() const;
-  virtual void findHash(const Network *network);
+  const char *cmdKeyword() const override;
+  void findHash(const Network *network) override;
 };
 
 class ExceptionTo : public ExceptionFromTo
 {
 public:
   ExceptionTo(PinSet *pins,
-	      ClockSet *clks,
-	      InstanceSet *insts,
-	      // -to|-rise_to|-fall_to
-	      const RiseFallBoth *rf,
-	      // -rise|-fall endpoint transition.
-	      const RiseFallBoth *end_rf,
-	      bool own_pts,
+              ClockSet *clks,
+              InstanceSet *insts,
+              // -to|-rise_to|-fall_to
+              const RiseFallBoth *rf,
+              // -rise|-fall endpoint transition.
+              const RiseFallBoth *end_rf,
+              bool own_pts,
               const Network *network);
   ExceptionTo *clone(const Network *network);
-  virtual bool isTo() const { return true; }
-  const char *asString(const Network *network) const;
+  bool isTo() const override { return true; }
+  std::string to_string(const Network *network) const override;
   const RiseFallBoth *endTransition() { return end_rf_; }
   bool intersectsPts(ExceptionTo *to,
                      const Network *network) const;
-  virtual int typePriority() const { return 1; }
+  int typePriority() const override { return 1; }
   bool matches(const Pin *pin,
- 	       const ClockEdge *clk_edge, 
- 	       const RiseFall *end_rf,
- 	       const Network *network) const;
+               const ClockEdge *clk_edge, 
+               const RiseFall *end_rf,
+               const Network *network) const;
   bool matches(const Pin *pin,
-	       const RiseFall *end_rf) const;
+               const RiseFall *end_rf) const;
   bool matches(const Clock *clk) const;
   bool matches(const Pin *pin,
                const RiseFall *end_rf,
                const Network *network) const;
   bool matchesFilter(const Pin *pin,
-		     const ClockEdge *clk_edge,
-		     const RiseFall *end_rf,
-		     const Network *network) const;
-  virtual int compare(ExceptionPt *pt,
-                      const Network *network) const;
+                     const ClockEdge *clk_edge,
+                     const RiseFall *end_rf,
+                     const Network *network) const;
+  int compare(ExceptionPt *pt,
+              const Network *network) const override;
 
 protected:
   bool matches(const Pin *pin,
-	       const ClockEdge *clk_edge,
-	       const RiseFall *end_rf,
-	       bool inst_matches_reg_clk_pin,
-	       const Network *network) const;
-  virtual const char *cmdKeyword() const;
+               const ClockEdge *clk_edge,
+               const RiseFall *end_rf,
+               bool inst_matches_reg_clk_pin,
+               const Network *network) const;
+  const char *cmdKeyword() const override;
 
   // -rise|-fall endpoint transition.
   const RiseFallBoth *end_rf_;
@@ -535,55 +537,55 @@ class ExceptionThru : public ExceptionPt
 {
 public:
   ExceptionThru(PinSet *pins,
-		NetSet *nets,
-		InstanceSet *insts,
-		const RiseFallBoth *rf,
-		bool own_pts,
-		const Network *network);
-  ~ExceptionThru();
+                NetSet *nets,
+                InstanceSet *insts,
+                const RiseFallBoth *rf,
+                bool own_pts,
+                const Network *network);
+  ~ExceptionThru() override;
   ExceptionThru *clone(const Network *network);
-  virtual const char *asString(const Network *network) const;
-  virtual bool isThru() const { return true; }
-  PinSet *pins() { return pins_; }
-  EdgePinsSet *edges() { return edges_; }
-  NetSet *nets() { return nets_; }
-  InstanceSet *instances() { return insts_; }
-  virtual ClockSet *clks() { return nullptr; }
+  std::string to_string(const Network *network) const override;
+  bool isThru() const override { return true; }
+  PinSet *pins() override { return pins_; }
+  EdgePinsSet *edges() override { return edges_; }
+  NetSet *nets() override { return nets_; }
+  InstanceSet *instances() override { return insts_; }
+  ClockSet *clks() override { return nullptr; }
   bool hasObjects() const;
   void deleteObjects(ExceptionThru *pt,
                      const Network *network);
-  virtual PinSet allPins(const Network *network);
+  PinSet allPins(const Network *network) override;
   bool matches(const Pin *from_pin,
-	       const Pin *to_pin,
-	       const RiseFall *to_rf,
-	       const Network *network);
+               const Pin *to_pin,
+               const RiseFall *to_rf,
+               const Network *network);
   bool equal(ExceptionThru *thru) const;
-  virtual int compare(ExceptionPt *pt,
-		      const Network *network) const;
-  virtual void mergeInto(ExceptionPt *pt,
-                         const Network *network);
+  int compare(ExceptionPt *pt,
+              const Network *network) const override;
+  void mergeInto(ExceptionPt *pt,
+                 const Network *network) override;
   bool intersectsPts(ExceptionThru *thru,
                      const Network *network) const;
-  virtual int typePriority() const { return 2; }
-  virtual size_t objectCount() const;
-  virtual void connectPinAfter(PinSet *drvrs,
-			       Network *network);
-  virtual void deletePinBefore(const Pin *pin,
-                               Network *network);
+  int typePriority() const override { return 2; }
+  size_t objectCount() const override;
+  void addPin(const Pin *pin,
+              const Network *network) override;
+  void addEdge(const EdgePins &edge,
+               const Network *network) override;
+  void addNet(const Net *net,
+              const Network *network) override;
+  void addInstance(const Instance *inst,
+                   const Network *network) override;
+  void addClock(Clock *) override {}
+  void connectPinAfter(PinSet *drvrs,
+		       Network *network) override;
+  void deletePinBefore(const Pin *pin,
+                       Network *network) override;
   void deleteInstance(const Instance *inst,
                       const Network *network);
 
 protected:
   void findHash(const Network *network);
-  virtual void addPin(const Pin *pin,
-                      const Network *network);
-  virtual void addEdge(const EdgePins &edge,
-                       const Network *network);
-  virtual void addNet(const Net *net,
-                      const Network *network);
-  virtual void addInstance(const Instance *inst,
-                           const Network *network);
-  virtual void addClock(Clock *) {}
   void deletePin(const Pin *pin,
                  const Network *network);
   void deleteEdge(const EdgePins &edge);
@@ -594,45 +596,45 @@ protected:
   void makeNetEdges(const Network *network);
   void makeInstEdges(const Network *network);
   void makeHpinEdges(const Pin *pin,
-		     const Network *network);
+                     const Network *network);
   void makePinEdges(const Pin *pin,
-		    const Network *network);
+                    const Network *network);
   void makeNetEdges(const Net *net,
-		    const Network *network);
+                    const Network *network);
   void makeInstEdges(Instance *inst,
-		     Network *network);
+                     Network *network);
   void deletePinEdges(const Pin *pin,
-		      Network *network);
+                      Network *network);
   void deleteNetEdges(Net *net,
-		      const Network *network);
+                      const Network *network);
   void deleteInstEdges(Instance *inst,
-		       Network *network);
+                       Network *network);
 
   // Leaf/port pins.
   PinSet *pins_;
   // Graph edges that traverse thru hierarchical pins.
-  EdgePinsSet *edges_;
+  EdgePinsSet *edges_{nullptr};
   NetSet *nets_;
   InstanceSet *insts_;
 };
 
 ExceptionThruSeq *
 exceptionThrusClone(ExceptionThruSeq *thrus,
-		    const Network *network);
+                    const Network *network);
 
 // Iterate uniformly across exception from/thru/to's.
 class ExceptionPtIterator
 {
 public:
-  explicit ExceptionPtIterator(const ExceptionPath *exception);
+  ExceptionPtIterator(const ExceptionPath *exception);
   bool hasNext();
   ExceptionPt *next();
 
 private:
   const ExceptionPath *exception_;
-  bool from_done_;
-  ExceptionThruSeq::Iterator thru_iter_;
-  bool to_done_;
+  bool from_done_{false};
+  ExceptionThruSeq::iterator thru_iter_;
+  bool to_done_{false};
 };
 
 // Visitor for exception point sets expanded into single object paths.
@@ -647,13 +649,12 @@ class ExpandedExceptionVisitor
 {
 public:
   ExpandedExceptionVisitor(ExceptionPath *exception,
-			   const Network *network);
-  virtual ~ExpandedExceptionVisitor() {}
+                           const Network *network);
   void visitExpansions();
   // From/thrus/to have a single exception point (pin/instance/net/clock).
   virtual void visit(ExceptionFrom *from,
-		     ExceptionThruSeq *thrus,
-		     ExceptionTo *to) = 0;
+                     ExceptionThruSeq *thrus,
+                     ExceptionTo *to) = 0;
 
 protected:
   ExceptionPath *exception_;
@@ -663,10 +664,10 @@ private:
   void expandFrom();
   void expandThrus(ExceptionFrom *expanded_from);
   void expandThru(ExceptionFrom *expanded_from,
-		  size_t next_thru_idx,
-		  ExceptionThruSeq *expanded_thrus);
+                  size_t next_thru_idx,
+                  ExceptionThruSeq *expanded_thrus);
   void expandTo(ExceptionFrom *expanded_from,
-		ExceptionThruSeq *expanded_thrus);
+                ExceptionThruSeq *expanded_thrus);
 };
 
 // States used by tags to know what exception points have been seen
@@ -675,15 +676,15 @@ class ExceptionState
 {
 public:
   ExceptionState(ExceptionPath *exception,
-		 ExceptionThru *next_thru,
-		 int index);
+                 ExceptionThru *next_thru,
+                 int index);
   ExceptionPath *exception() { return exception_; }
   const ExceptionPath *exception() const { return exception_; }
   bool matchesNextThru(const Pin *from_pin,
-		       const Pin *to_pin,
-		       const RiseFall *to_rf,
-		       const MinMax *min_max,
-		       const Network *network) const;
+                       const Pin *to_pin,
+                       const RiseFall *to_rf,
+                       const MinMax *min_max,
+                       const Network *network) const;
   bool isComplete() const;
   ExceptionThru *nextThru() const { return next_thru_; }
   ExceptionState *nextState() const { return next_state_; }
@@ -694,19 +695,19 @@ public:
 private:
   ExceptionPath *exception_;
   ExceptionThru *next_thru_;
-  ExceptionState *next_state_;
+  ExceptionState *next_state_{nullptr};
   int index_;
 };
 
-bool
-exceptionStateLess(const ExceptionState *state1,
-		   const ExceptionState *state2);
+int
+exceptionStateCmp(const ExceptionState *state1,
+                  const ExceptionState *state2);
 
 // Exception thrown by check.
 class EmptyExpceptionPt : public Exception
 {
 public:
-  virtual const char *what() const noexcept;
+  const char *what() const noexcept override;
 };
 
 class ExceptionPathLess
@@ -714,7 +715,7 @@ class ExceptionPathLess
 public:
   ExceptionPathLess(const Network *network);
   bool operator()(const ExceptionPath *except1,
-		  const ExceptionPath *except2) const;
+                  const ExceptionPath *except2) const;
 
 private:
   const Network *network_;
@@ -723,7 +724,7 @@ private:
 // Throws EmptyExpceptionPt it finds an empty exception point.
 void
 checkFromThrusTo(ExceptionFrom *from,
-		 ExceptionThruSeq *thrus,
-		 ExceptionTo *to);
+                 ExceptionThruSeq *thrus,
+                 ExceptionTo *to);
 
-} // namespace
+} // namespace sta

@@ -1,5 +1,5 @@
 // OpenSTA, Static Timing Analyzer
-// Copyright (c) 2025, Parallax Software, Inc.
+// Copyright (c) 2026, Parallax Software, Inc.
 // 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -24,13 +24,15 @@
 
 #pragma once
 
-#include "Map.hh"
-#include "Set.hh"
-#include "Vector.hh"
+#include <map>
+#include <set>
+#include <vector>
+
 #include "LibertyClass.hh"
-#include "NetworkClass.hh"
 #include "MinMaxValues.hh"
+#include "NetworkClass.hh"
 #include "PinPair.hh"
+#include "Transition.hh"
 
 namespace sta {
 
@@ -67,12 +69,12 @@ class PortDelay;
 enum class AnalysisType { single, bc_wc, ocv };
 
 enum class ExceptionPathType { false_path, loop, multi_cycle, path_delay,
-			       path_margin,
-			       group_path, filter, any};
+                               path_margin,
+                               group_path, filter, any};
 
 enum class ClockSense { positive, negative, stop };
 
-typedef std::pair<const Clock*, const Clock*> ClockPair;
+using ClockPair = std::pair<const Clock*, const Clock*>;
 
 class ClockIndexLess
 {
@@ -81,26 +83,26 @@ public:
                   const Clock *clk2) const;
 };
 
-typedef Vector<float> FloatSeq;
-typedef Vector<int> IntSeq;
-typedef Vector<Clock*> ClockSeq;
-typedef ClockSeq::ConstIterator ClockSeqIterator;
-typedef std::vector<const Clock*> ConstClockSeq;
-typedef Set<Clock*, ClockIndexLess> ClockSet;
-typedef std::set<const Clock*, ClockIndexLess> ConstClockSet;
-typedef ClockSet ClockGroup;
-typedef Vector<PinSet*> PinSetSeq;
-typedef MinMax SetupHold;
-typedef MinMaxAll SetupHoldAll;
-typedef Vector<ExceptionThru*> ExceptionThruSeq;
-typedef Set<LibertyPortPair, LibertyPortPairLess> LibertyPortPairSet;
-typedef Map<const Instance*, DisabledInstancePorts*> DisabledInstancePortsMap;
-typedef Map<LibertyCell*, DisabledCellPorts*> DisabledCellPortsMap;
-typedef MinMaxValues<float> ClockUncertainties;
-typedef std::set<ExceptionPath*> ExceptionPathSet;
-typedef PinPair EdgePins;
-typedef PinPairSet EdgePinsSet;
-typedef Map<const Pin*, LogicValue> LogicValueMap;
+using FloatSeq = std::vector<float>;
+using IntSeq = std::vector<int>;
+using ClockSeq = std::vector<Clock*>;
+using ClockSeqIterator = VectorIterator<ClockSeq, Clock*>;
+using ConstClockSeq = std::vector<const Clock*>;
+using ClockSet = std::set<Clock*, ClockIndexLess>;
+using ConstClockSet = std::set<const Clock*, ClockIndexLess>;
+using ClockGroup = ClockSet;
+using PinSetSeq = std::vector<PinSet*>;
+using SetupHold = MinMax;
+using SetupHoldAll = MinMaxAll;
+using ExceptionThruSeq = std::vector<ExceptionThru*>;
+using LibertyPortPairSet = std::set<LibertyPortPair, LibertyPortPairLess>;
+using DisabledInstancePortsMap = std::map<const Instance*, DisabledInstancePorts*>;
+using DisabledCellPortsMap = std::map<LibertyCell*, DisabledCellPorts*>;
+using ClockUncertainties = MinMaxValues<float>;
+using ExceptionPathSet = std::set<ExceptionPath*>;
+using EdgePins = PinPair;
+using EdgePinsSet = PinPairSet;
+using LogicValueMap = std::map<const Pin*, LogicValue>;
 
 class ClockSetLess
 {
@@ -109,7 +111,7 @@ public:
                   const ClockSet *set2) const;
 };
 
-typedef Set<ClockGroup*, ClockSetLess> ClockGroupSet;
+using ClockGroupSet = std::set<ClockGroup*, ClockSetLess>;
 
 // For Search.
 class ExceptionState;
@@ -122,16 +124,18 @@ public:
 };
 
 class ExceptionPath;
-typedef Set<ExceptionState*, ExceptionStateLess> ExceptionStateSet;
+using ExceptionStateSet = std::set<ExceptionState*, ExceptionStateLess>;
 
 // Constraint applies to clock or data paths.
 enum class PathClkOrData { clk, data };
 
-const int path_clk_or_data_count = 2;
+const size_t path_clk_or_data_count = 2;
 
 enum class TimingDerateType { cell_delay, cell_check, net_delay };
-constexpr int timing_derate_type_count = 3;
+constexpr size_t timing_derate_type_count = 3;
 enum class TimingDerateCellType { cell_delay, cell_check };
-constexpr int timing_derate_cell_type_count = 2;
+constexpr size_t timing_derate_cell_type_count = 2;
 
-} // namespace
+using DriveCellSlews = std::array<float, RiseFall::index_count>;
+
+} // namespace sta

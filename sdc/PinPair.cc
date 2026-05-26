@@ -1,5 +1,5 @@
 // OpenSTA, Static Timing Analyzer
-// Copyright (c) 2025, Parallax Software, Inc.
+// Copyright (c) 2026, Parallax Software, Inc.
 // 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -35,7 +35,7 @@ PinPairLess::PinPairLess(const Network *network) :
 
 bool
 PinPairLess::operator()(const PinPair &pair1,
-			const PinPair &pair2) const
+                        const PinPair &pair2) const
 {
   const Pin *pair1_pin1 = pair1.first;
   const Pin *pair1_pin2 = pair1.second;
@@ -52,7 +52,7 @@ PinPairLess::operator()(const PinPair &pair1,
 
 bool
 PinPairEqual::operator()(const PinPair &pair1,
-			 const PinPair &pair2) const
+                         const PinPair &pair2) const
 {
   return pair1.first == pair2.first
     && pair1.second == pair2.second;
@@ -73,8 +73,8 @@ PinPairHash::operator()(const PinPair &pair) const
 }
 
 PinPairSet::PinPairSet(const Network *network) :
-  Set<PinPair, PinPairLess>(PinPairLess(network))
+  std::set<PinPair, PinPairLess>(PinPairLess(network))
 {
 }
 
-} // namespace
+} // namespace sta

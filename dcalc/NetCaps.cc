@@ -1,5 +1,5 @@
 // OpenSTA, Static Timing Analyzer
-// Copyright (c) 2025, Parallax Software, Inc.
+// Copyright (c) 2026, Parallax Software, Inc.
 // 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -26,14 +26,10 @@
 
 namespace sta {
 
-NetCaps::NetCaps()
-{
-}
-
 NetCaps::NetCaps(float pin_cap,
-		 float wire_cap,
-		 float fanout,
-		 bool has_net_load) :
+                 float wire_cap,
+                 float fanout,
+                 bool has_net_load) :
   pin_cap_(pin_cap),
   wire_cap_(wire_cap),
   fanout_(fanout),
@@ -43,9 +39,9 @@ NetCaps::NetCaps(float pin_cap,
 
 void
 NetCaps::init(float pin_cap,
-	      float wire_cap,
-	      float fanout,
-	      bool has_net_load)
+              float wire_cap,
+              float fanout,
+              bool has_net_load)
 {
   pin_cap_ = pin_cap;
   wire_cap_ = wire_cap;
@@ -53,4 +49,4 @@ NetCaps::init(float pin_cap,
   has_net_load_ = has_net_load;
 }
 
-} // namespace
+} // namespace sta

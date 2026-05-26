@@ -1,5 +1,5 @@
 // OpenSTA, Static Timing Analyzer
-// Copyright (c) 2025, Parallax Software, Inc.
+// Copyright (c) 2026, Parallax Software, Inc.
 // 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -24,44 +24,15 @@
 
 #include "StringUtil.hh"
 
-#include <limits>
-#include <cctype>
-#include <cstdio>
-#include <cstdlib> // exit
-#include <csignal> // signal
-#include <array>
 #include <algorithm>
-
-#include "Machine.hh"
-#include "Mutex.hh"
+#include <cctype>
+#include <cerrno>
+#include <charconv>
+#include <cstdlib>
+#include <system_error>
+#include <version>
 
 namespace sta {
-
-using std::max;
-using std::string;
-
-static void
-stringPrintTmp(const char *fmt,
-	       va_list args,
-	       // Return values.
-	       char *&str,
-	       size_t &length);
-static void
-getTmpString(// Return values.
-	     char *&str,
-	     size_t &length);
-
-char *
-stringCopy(const char *str)
-{
-  if (str) {
-    char *copy = new char[strlen(str) + 1];
-    strcpy(copy, str);
-    return copy;
-  }
-  else
-    return nullptr;
-}
 
 bool
 isDigits(const char *str)
@@ -73,220 +44,100 @@ isDigits(const char *str)
   return true;
 }
 
-////////////////////////////////////////////////////////////////
-
-// print for c++ strings.
-void
-stringPrint(string &str,
-	    const char *fmt,
-	    ...)
-{
-  va_list args;
-  va_start(args, fmt);
-  char *tmp;
-  size_t tmp_length;
-  stringPrintTmp(fmt, args, tmp, tmp_length);
-  va_end(args);
-  str = tmp;
-}
-
-void
-stringAppend(string &str,
-             const char *fmt,
-             ...)
-{
-  va_list args;
-  va_start(args, fmt);
-  char *tmp;
-  size_t tmp_length;
-  stringPrintTmp(fmt, args, tmp, tmp_length);
-  va_end(args);
-  str += tmp;
-}
-
-string
-stdstrPrint(const char *fmt,
-	    ...)
-{
-  va_list args;
-  va_start(args, fmt);
-  char *tmp;
-  size_t tmp_length;
-  stringPrintTmp(fmt, args, tmp, tmp_length);
-  va_end(args);
-  return tmp;
-}
-
-char *
-stringPrint(const char *fmt,
-	    ...)
-{
-  va_list args;
-  va_start(args, fmt);
-  char *result = stringPrintArgs(fmt, args);
-  va_end(args);
-  return result;
-}
-
-char *
-stringPrintArgs(const char *fmt,
-		va_list args)
-{
-  char *tmp;
-  size_t tmp_length;
-  stringPrintTmp(fmt, args, tmp, tmp_length);
-  char *result = new char[tmp_length + 1];
-  strcpy(result, tmp);
-  return result;
-}
-
-char *
-stringPrintTmp(const char *fmt,
-	       ...)
-{
-  va_list args;
-  va_start(args, fmt);
-  char *tmp;
-  size_t tmp_length;
-  stringPrintTmp(fmt, args, tmp, tmp_length);
-  va_end(args);
-  return tmp;
-}
-
-static void
-stringPrintTmp(const char *fmt,
-	       va_list args,
-	       // Return values.
-	       char *&tmp,
-	       // strlen(tmp), not including terminating '\0'.
-	       size_t &tmp_length)
-{
-  size_t tmp_length1;
-  getTmpString(tmp, tmp_length1);
-
-  va_list args_copy;
-  va_copy(args_copy, args);
-  // Returned length does NOT include trailing '\0'.
-  tmp_length = vsnprint(tmp, tmp_length1, fmt, args_copy);
-  va_end(args_copy);
-
-  if (tmp_length >= tmp_length1) {
-    tmp_length1 = tmp_length + 1;
-    tmp = makeTmpString(tmp_length1);
-    va_copy(args_copy, args);
-    tmp_length = vsnprint(tmp, tmp_length1, fmt, args_copy);
-    va_end(args_copy);
-  }
-}
-
-////////////////////////////////////////////////////////////////
-
-static constexpr size_t tmp_string_count = 256;
-static constexpr size_t tmp_string_initial_length = 256;
-thread_local static std::array<char*, tmp_string_count> tmp_strings;
-thread_local static std::array<size_t, tmp_string_count> tmp_string_lengths;
-thread_local static int tmp_string_next = 0;
-
-static void
-getTmpString(// Return values.
-	     char *&str,
-	     size_t &length)
-{
-  if (tmp_string_next == tmp_string_count)
-    tmp_string_next = 0;
-  str = tmp_strings[tmp_string_next];
-  length = tmp_string_lengths[tmp_string_next];
-  if (str == nullptr) {
-    str = tmp_strings[tmp_string_next] = new char[tmp_string_initial_length];
-    length = tmp_string_lengths[tmp_string_next] = tmp_string_initial_length;
-  }
-  tmp_string_next++;
-}
-
-char *
-makeTmpString(size_t length)
-{
-  if (tmp_string_next == tmp_string_count)
-    tmp_string_next = 0;
-  char *tmp_str = tmp_strings[tmp_string_next];
-  size_t tmp_length = tmp_string_lengths[tmp_string_next];
-  if (tmp_length < length) {
-    // String isn't long enough.  Make a new one.
-    delete [] tmp_str;
-    tmp_length = max(tmp_string_initial_length, length);
-    tmp_str = new char[tmp_length];
-    tmp_strings[tmp_string_next] = tmp_str;
-    tmp_string_lengths[tmp_string_next] = tmp_length;
-  }
-  tmp_string_next++;
-  return tmp_str;
-}
-
-char *
-makeTmpString(string &str)
-{
-  char *tmp = makeTmpString(str.length() + 1);
-  strcpy(tmp, str.c_str());
-  return tmp;
-}
-
-void
-stringDeleteCheck(const char *str)
-{
-  if (isTmpString(str)) {
-    printf("Critical error: stringDelete for tmp string.");
-    raise(SIGABRT);
-  }
-}
-
 bool
-isTmpString(const char *str)
+isDigits(std::string_view str)
 {
-  if (!tmp_strings.empty()) {
-    for (size_t i = 0; i < tmp_string_count; i++) {
-      if (str == tmp_strings[i])
-        return true;
-    }
+  for (char ch : str) {
+    if (!isdigit(ch))
+      return false;
   }
-  return false;
+  return true;
 }
 
-////////////////////////////////////////////////////////////////
-
-void
-trimRight(string &str)
+// Wrapper for the absurdly named std::from_chars.
+std::pair<float, bool>
+stringFloat(const std::string &str)
 {
-  str.erase(str.find_last_not_of(" ") + 1);
+  float value;
+  // OsX 15.xx and earlier clang do not support std::from_chars.
+#if defined(__cpp_lib_to_chars) && __cpp_lib_to_chars >= 201611L
+  auto [ptr, ec] = std::from_chars(str.data(), str.data() + str.size(), value);
+  if (ec == std::errc()
+      && *ptr == '\0')
+    return {value, true};
+  else
+    return {0.0, false};
+#else
+  char *ptr;
+  errno = 0;
+  value = strtof(str.data(), &ptr);
+  if (errno != 0 || *ptr != '\0')
+    return {0.0, false};
+  else
+    return {value, true};
+#endif
+}
+
+std::pair<long long, bool>
+stringLong(const std::string &str,
+           int base)
+{
+  long long value;
+#if defined(__cpp_lib_to_chars) && __cpp_lib_to_chars >= 201611L
+  auto [ptr, ec] = std::from_chars(str.data(), str.data() + str.size(), value, base);
+
+  // Check for success and that we consumed the entire string
+  if (ec == std::errc() && ptr == str.data() + str.size())
+    return {value, true};
+  else
+    return {0LL, false};
+#else
+  char *ptr;
+  errno = 0;
+  // strtoll handles "long long" specifically
+  value = std::strtoll(str.data(), &ptr, base);
+
+  if (errno == ERANGE || *ptr != '\0' || ptr == str.data())
+    return {0LL, false};
+  else
+    return {value, true};
+#endif
 }
 
 void
-trimLeft(string &str)
+trimRight(std::string &str)
+{
+  str.erase(str.find_last_not_of(' ') + 1);
+}
+
+void
+trimLeft(std::string &str)
 {
   str.erase(0, str.find_first_not_of(" "));
 }
 
 void
-trim(string &str)
+trim(std::string &str)
 {
   trimLeft(str);
   trimRight(str);
 }
 
-void
-split(const string &text,
-      const string &delims,
-      // Return values.
-      StringVector &tokens)
+StringSeq
+parseTokens(const std::string &text,
+            std::string_view delims)
 {
+  StringSeq tokens;
   auto start = text.find_first_not_of(delims);
   auto end = text.find_first_of(delims, start);
-  while (end != string::npos) {
+  while (end != std::string::npos) {
     tokens.push_back(text.substr(start, end - start));
     start = text.find_first_not_of(delims, end);
     end = text.find_first_of(delims, start);
   }
-  if (start != string::npos)
+  if (start != std::string::npos)
     tokens.push_back(text.substr(start));
+  return tokens;
 }
 
-} // namespace
+} // namespace sta

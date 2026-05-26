@@ -1,5 +1,5 @@
 // OpenSTA, Static Timing Analyzer
-// Copyright (c) 2025, Parallax Software, Inc.
+// Copyright (c) 2026, Parallax Software, Inc.
 // 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -22,8 +22,6 @@
 // 
 // This notice may not be removed or altered from any source distribution.
 
-%module write_gate_spice
-
 %{
 
 #include "spice/WritePathSpice.hh"
@@ -33,13 +31,13 @@
 %inline %{
 
 void
-write_path_spice_cmd(Path *path,
-		     const char *spice_filename,
-		     const char *subckt_filename,
-		     const char *lib_subckt_filename,
-		     const char *model_filename,
-		     const char *power_name,
-		     const char *gnd_name,
+write_path_spice_cmd(const Path *path,
+                     const char *spice_filename,
+                     const char *subckt_filename,
+                     const char *lib_subckt_filename,
+                     const char *model_filename,
+                     const char *power_name,
+                     const char *gnd_name,
                      CircuitSim ckt_sim)
 {
   Sta *sta = Sta::sta();

@@ -1,5 +1,5 @@
 // OpenSTA, Static Timing Analyzer
-// Copyright (c) 2025, Parallax Software, Inc.
+// Copyright (c) 2026, Parallax Software, Inc.
 // 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -43,9 +43,7 @@ class LibExprScanner : public LibExprFlexLexer
 {
 public:
   LibExprScanner(std::istringstream &stream);
-  virtual ~LibExprScanner() {}
-
-  virtual int lex(LibExprParse::semantic_type *const yylval);
+  virtual int lex(LibExprParse::semantic_type *yylval);
   // YY_DECL defined in LibertyLex.ll
   // Method body created by flex in LibertyLex.cc
 
@@ -57,4 +55,4 @@ private:
   std::string token_;
 };
 
-} // namespace
+} // namespace sta

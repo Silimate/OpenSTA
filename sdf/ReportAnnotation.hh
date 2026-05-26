@@ -1,5 +1,5 @@
 // OpenSTA, Static Timing Analyzer
-// Copyright (c) 2025, Parallax Software, Inc.
+// Copyright (c) 2026, Parallax Software, Inc.
 // 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -27,30 +27,33 @@
 namespace sta {
 
 class StaState;
+class Scene;
 
 void
-reportAnnotatedDelay(bool report_cells,
-		     bool report_nets,
-		     bool report_in_ports,
-		     bool report_out_ports,
-		     int max_lines,
-		     bool list_annotated,
-		     bool list_unannotated,
-		     bool report_constant_arcs,
-		     StaState *sta);
+reportAnnotatedDelay(const Scene *scene,
+                     bool report_cells,
+                     bool report_nets,
+                     bool report_in_ports,
+                     bool report_out_ports,
+                     int max_lines,
+                     bool report_annotated,
+                     bool report_unannotated,
+                     bool report_constant_arcs,
+                     StaState *sta);
 void
-reportAnnotatedCheck(bool report_setup,
-		     bool report_hold,
-		     bool report_recovery,
-		     bool report_removal,
-		     bool report_nochange,
-		     bool report_width,
-		     bool report_period,
-		     bool report_max_skew,
-		     int max_lines,
-		     bool list_annotated,
-		     bool list_unannotated,
-		     bool report_constant_arcs,
-		     StaState *sta);
+reportAnnotatedCheck(const Scene *scene,
+                     bool report_setup,
+                     bool report_hold,
+                     bool report_recovery,
+                     bool report_removal,
+                     bool report_nochange,
+                     bool report_width,
+                     bool report_period,
+                     bool report_max_skew,
+                     int max_lines,
+                     bool report_annotated,
+                     bool report_unannotated,
+                     bool report_constant_arcs,
+                     StaState *sta);
 
-} // namespace
+} // namespace sta

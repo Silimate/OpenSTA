@@ -1,5 +1,5 @@
 // OpenSTA, Static Timing Analyzer
-// Copyright (c) 2025, Parallax Software, Inc.
+// Copyright (c) 2026, Parallax Software, Inc.
 // 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -31,8 +31,7 @@
 namespace sta {
 
 class StaState;
-class Corner;
-class DcalcAnalysisPt;
+class Scene;
 class ArcDcalcArg;
 
 // Abstract class for delay calculation waveforms for ploting.
@@ -47,9 +46,10 @@ public:
 
 protected:
   Waveform inputWaveform(ArcDcalcArg &dcalc_arg,
-                         const DcalcAnalysisPt *dcalc_ap,
+                         const Scene *scene,
+                         const MinMax *min_max,
                          const StaState *sta);
 };
 
-} // namespace
+} // namespace sta
 

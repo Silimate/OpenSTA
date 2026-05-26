@@ -1,5 +1,5 @@
 // OpenSTA, Static Timing Analyzer
-// Copyright (c) 2025, Parallax Software, Inc.
+// Copyright (c) 2026, Parallax Software, Inc.
 // 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -25,11 +25,12 @@
 #pragma once
 
 #include <functional>
+#include <map>
+#include <string_view>
+#include <vector>
 
-#include "Vector.hh"
-#include "Map.hh"
-#include "StringUtil.hh"
 #include "NetworkClass.hh"
+#include "StringUtil.hh"
 
 // The classes defined in this file are a contrete implementation of
 // the library API.  They can be used by a reader to construct classes
@@ -45,48 +46,46 @@ class PatternMatch;
 class LibertyCell;
 class LibertyPort;
 
-typedef Map<std::string, ConcreteCell*> ConcreteCellMap;
-typedef Vector<ConcretePort*> ConcretePortSeq;
-typedef Map<std::string, ConcretePort*> ConcretePortMap;
-typedef ConcreteCellMap::ConstIterator ConcreteLibraryCellIterator;
-typedef ConcretePortSeq::ConstIterator ConcreteCellPortIterator;
-typedef ConcretePortSeq::ConstIterator ConcretePortMemberIterator;
+using ConcreteCellMap = std::map<std::string, ConcreteCell*, std::less<>>;
+using ConcretePortSeq = std::vector<ConcretePort*>;
+using ConcretePortMap = std::map<std::string, ConcretePort*, std::less<>>;
+using ConcreteLibraryCellIterator = MapIterator<ConcreteCellMap, ConcreteCell*>;
+using ConcreteCellPortIterator = VectorIterator<ConcretePortSeq, ConcretePort*>;
+using ConcretePortMemberIterator = VectorIterator<ConcretePortSeq, ConcretePort*>;
 
 class ConcreteLibrary
 {
 public:
-  explicit ConcreteLibrary(const char *name,
-			   const char *filename,
-			   bool is_liberty);
+  ConcreteLibrary(std::string_view name,
+                  std::string_view filename,
+                  bool is_liberty);
   virtual ~ConcreteLibrary();
-  const char *name() const { return name_.c_str(); }
-  void setName(const char *name);
+  const std::string &name() const { return name_; }
   ObjectId id() const { return id_; }
   bool isLiberty() const { return is_liberty_; }
-  const char *filename() const { return filename_.c_str(); }
+  const std::string &filename() const { return filename_; }
   void addCell(ConcreteCell *cell);
-  ConcreteCell *makeCell(const char *name,
-			 bool is_leaf,
-			 const char *filename);
+  ConcreteCell *makeCell(std::string_view name,
+                         bool is_leaf,
+                         std::string_view filename);
   void deleteCell(ConcreteCell *cell);
   ConcreteLibraryCellIterator *cellIterator() const;
-  ConcreteCell *findCell(const char *name) const;
+  ConcreteCell *findCell(std::string_view name) const;
   CellSeq findCellsMatching(const PatternMatch *pattern) const;
   char busBrktLeft() const { return bus_brkt_left_; }
   char busBrktRight() const { return bus_brkt_right_; }
   void setBusBrkts(char left,
-		   char right);
+                   char right);
 
 protected:
-  void renameCell(ConcreteCell *cell,
-		  const char *cell_name);
+  void removeCell(ConcreteCell *cell);
 
   std::string name_;
   ObjectId id_;
   std::string filename_;
   bool is_liberty_;
-  char bus_brkt_left_;
-  char bus_brkt_right_;
+  char bus_brkt_left_{'['};
+  char bus_brkt_right_{']'};
   ConcreteCellMap cell_map_;
 
 private:
@@ -98,77 +97,77 @@ class ConcreteCell
 public:
   // Use ConcreteLibrary::deleteCell.
   virtual ~ConcreteCell();
-  const char *name() const { return name_.c_str(); }
+  const std::string &name() const { return name_; }
   ObjectId id() const { return id_; }
-  const char *filename() const { return filename_.c_str(); }
+  const std::string &filename() const { return filename_; }
   ConcreteLibrary *library() const { return library_; }
   LibertyCell *libertyCell() const { return liberty_cell_; }
   void setLibertyCell(LibertyCell *cell);
   void *extCell() const { return ext_cell_; }
   void setExtCell(void *ext_cell);
   int portBitCount() const { return port_bit_count_; }
-  ConcretePort *findPort(const char *name) const;
+  ConcretePort *findPort(std::string_view name) const;
   PortSeq findPortsMatching(const PatternMatch *pattern) const;
   ConcreteCellPortIterator *portIterator() const;
   ConcreteCellPortBitIterator *portBitIterator() const;
   bool isLeaf() const { return is_leaf_; }
   void setIsLeaf(bool is_leaf);
-  void setAttribute(const std::string &key,
-                    const std::string &value);
-  std::string getAttribute(const std::string &key) const;
+  void setAttribute(std::string_view key,
+                    std::string_view value);
+  std::string getAttribute(std::string_view key) const;
   const AttributeMap &attributeMap() const { return attribute_map_; }
 
   // Cell acts as port factory.
-  ConcretePort *makePort(const char *name);
+  ConcretePort *makePort(std::string_view name);
   // Bus port.
-  ConcretePort *makeBusPort(const char *name,
-			    int from_index,
-			    int to_index);
+  ConcretePort *makeBusPort(std::string_view name,
+                            int from_index,
+                            int to_index);
   // Bundle port.
-  ConcretePort *makeBundlePort(const char *name,
-			       ConcretePortSeq *members);
+  ConcretePort *makeBundlePort(std::string_view name,
+                               ConcretePortSeq *members);
   // Group previously defined bus bit ports together.
-  void groupBusPorts(const char bus_brkt_left,
-		     const char bus_brkt_right,
-                     std::function<bool(const char*)> port_msb_first);
+  void groupBusPorts(char bus_brkt_left,
+                     char bus_brkt_right,
+                     const std::function<bool(std::string_view)> &port_msb_first);
   size_t portCount() const;
-  void setName(const char *name);
-  void addPort(ConcretePort *port);
+  void setName(std::string_view name);
+  virtual void addPort(ConcretePort *port);
   void addPortBit(ConcretePort *port);
 
 protected:
-  ConcreteCell(const char *name,
-	       const char *filename,
+  ConcreteCell(std::string_view name,
+               std::string_view filename,
                bool is_leaf,
                ConcreteLibrary *library);
-  ConcretePort *makeBusPort(const char *name,
-			    int from_index,
-			    int to_index,
-			    ConcretePortSeq *members);
+  ConcretePort *makeBusPort(std::string_view name,
+                            int from_index,
+                            int to_index,
+                            ConcretePortSeq *members);
   void makeBusPortBits(ConcretePort *bus_port,
-		       const char *name,
-		       int from_index,
-		       int to_index);
+                       std::string_view bus_name,
+                       int from_index,
+                       int to_index);
   // Bus port bit (internal to makeBusPortBits).
-  ConcretePort *makePort(const char *bit_name,
-			 int bit_index);
+  ConcretePort *makePort(std::string_view bit_name,
+                         int bit_index);
   void makeBusPortBit(ConcretePort *bus_port,
-		      const char *name,
-		      int index);
+                      std::string_view bus_name,
+                      int index);
 
   std::string name_;
   ObjectId id_;
   // Filename is optional.
   std::string filename_;
   ConcreteLibrary *library_;
-  LibertyCell *liberty_cell_;
+  LibertyCell *liberty_cell_{nullptr};
   // External application cell.
-  void *ext_cell_;
+  void *ext_cell_{nullptr};
   // Non-bus and bus ports (but no expanded bus bit ports).
   ConcretePortSeq ports_;
   ConcretePortMap port_map_;
   // Port bit count (expanded buses).
-  int port_bit_count_;
+  int port_bit_count_{0};
   bool is_leaf_;
   AttributeMap attribute_map_;
 
@@ -181,9 +180,9 @@ class ConcretePort
 {
 public:
   virtual ~ConcretePort();
-  const char *name() const { return name_.c_str(); }
+  const std::string &name() const { return name_; }
   ObjectId id() const { return id_; }
-  const char *busName() const;
+  std::string busName() const;
   Cell *cell() const;
   ConcreteLibrary *library() const { return cell_->library(); }
   PortDirection *direction() const { return direction_; }
@@ -231,22 +230,22 @@ public:
 
 protected:
   // Constructors for factory in cell class.
-  ConcretePort(const char *name,
+  ConcretePort(std::string_view name,
                bool is_bus,
-	       int from_index,
-	       int to_index,
-	       bool is_bundle,
-	       ConcretePortSeq *member_ports,
+               int from_index,
+               int to_index,
+               bool is_bundle,
+               ConcretePortSeq *member_ports,
                ConcreteCell *cell);
 
   std::string name_;
   ObjectId id_;
   ConcreteCell *cell_;
   PortDirection *direction_;
-  LibertyPort *liberty_port_;
+  LibertyPort *liberty_port_{nullptr};
   // External application port.
-  void *ext_port_;
-  int pin_index_;
+  void *ext_port_{nullptr};
+  int pin_index_{-1};
   bool is_bundle_;
   bool is_bus_;
   int from_index_;
@@ -254,7 +253,7 @@ protected:
   // Expanded bus bit ports (ordered by from_index_ to to_index_)
   // or bundle member ports.
   ConcretePortSeq *member_ports_;
-  ConcretePort *bundle_port_;
+  ConcretePort *bundle_port_{nullptr};
 
 private:
   friend class ConcreteCell;
@@ -263,16 +262,17 @@ private:
 class ConcreteCellPortBitIterator : public Iterator<ConcretePort*>
 {
 public:
-  explicit ConcreteCellPortBitIterator(const ConcreteCell *cell);
-  virtual bool hasNext();
-  virtual ConcretePort *next();
+  ConcreteCellPortBitIterator(const ConcreteCell *cell);
+  bool hasNext() override;
+  ConcretePort *next() override;
 
 private:
   void findNext();
 
-  ConcretePortSeq::ConstIterator port_iter_;
-  ConcretePortMemberIterator *member_iter_;
-  ConcretePort *next_;
+  const ConcretePortSeq &ports_;
+  ConcretePortSeq::const_iterator port_iter_;
+  ConcretePortMemberIterator *member_iter_{nullptr};
+  ConcretePort *next_{nullptr};
 };
 
-} // Namespace
+} // namespace sta

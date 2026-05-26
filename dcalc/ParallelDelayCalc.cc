@@ -1,5 +1,5 @@
 // OpenSTA, Static Timing Analyzer
-// Copyright (c) 2025, Parallax Software, Inc.
+// Copyright (c) 2026, Parallax Software, Inc.
 // 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -24,17 +24,15 @@
 
 #include "ParallelDelayCalc.hh"
 
-#include "TimingArc.hh"
-#include "Corner.hh"
-#include "Network.hh"
 #include "Graph.hh"
-#include "Sdc.hh"
-#include "Liberty.hh"
 #include "GraphDelayCalc.hh"
+#include "Liberty.hh"
+#include "Network.hh"
+#include "Scene.hh"
+#include "Sdc.hh"
+#include "TimingArc.hh"
 
 namespace sta {
-
-using std::vector;
 
 ParallelDelayCalc::ParallelDelayCalc(StaState *sta):
   DelayCalcBase(sta)
@@ -44,56 +42,59 @@ ParallelDelayCalc::ParallelDelayCalc(StaState *sta):
 ArcDcalcResultSeq
 ParallelDelayCalc::gateDelays(ArcDcalcArgSeq &dcalc_args,
                               const LoadPinIndexMap &load_pin_index_map,
-                              const DcalcAnalysisPt *dcalc_ap)
+                              const Scene *scene,
+                              const MinMax *min_max)
 {
   if (dcalc_args.size() == 1) {
     ArcDcalcArg &dcalc_arg = dcalc_args[0];
     ArcDcalcResult dcalc_result =  gateDelay(dcalc_arg.drvrPin(), dcalc_arg.arc(),
                                              dcalc_arg.inSlew(), dcalc_arg.loadCap(),
                                              dcalc_arg.parasitic(),
-                                             load_pin_index_map, dcalc_ap);
+                                             load_pin_index_map,
+                                             scene, min_max);
     ArcDcalcResultSeq dcalc_results;
     dcalc_results.push_back(dcalc_result);
     return dcalc_results;
   }
-  return gateDelaysParallel(dcalc_args, load_pin_index_map, dcalc_ap);
+  return gateDelaysParallel(dcalc_args, load_pin_index_map, scene, min_max);
 }
 
 ArcDcalcResultSeq
 ParallelDelayCalc::gateDelaysParallel(ArcDcalcArgSeq &dcalc_args,
                                       const LoadPinIndexMap &load_pin_index_map,
-                                      const DcalcAnalysisPt *dcalc_ap)
+                                      const Scene *scene,
+                                      const MinMax *min_max)
 {
   size_t drvr_count = dcalc_args.size();
   ArcDcalcResultSeq dcalc_results(drvr_count);
   Slew slew_sum = 0.0;
   ArcDelay load_delay_sum = 0.0;
-  vector<ArcDelay> intrinsic_delays(dcalc_args.size());
-  vector<ArcDelay> load_delays(dcalc_args.size());
+  std::vector<ArcDelay> intrinsic_delays(dcalc_args.size());
+  std::vector<ArcDelay> load_delays(dcalc_args.size());
   for (size_t drvr_idx = 0; drvr_idx < drvr_count; drvr_idx++) {
     ArcDcalcArg &dcalc_arg = dcalc_args[drvr_idx];
     ArcDcalcResult &dcalc_result = dcalc_results[drvr_idx];
     const Pin *drvr_pin = dcalc_arg.drvrPin();
     const TimingArc *arc = dcalc_arg.arc();
-    Slew in_slew = dcalc_arg.inSlew();
+    const Slew &in_slew = dcalc_arg.inSlew();
 
     ArcDcalcResult intrinsic_result = gateDelay(drvr_pin, arc, in_slew, 0.0, nullptr,
-                                                load_pin_index_map, dcalc_ap);
+                                                load_pin_index_map, scene, min_max);
     ArcDelay intrinsic_delay = intrinsic_result.gateDelay();
     intrinsic_delays[drvr_idx] = intrinsic_result.gateDelay();
 
     ArcDcalcResult gate_result = gateDelay(drvr_pin, arc, in_slew, dcalc_arg.loadCap(),
                                            dcalc_arg.parasitic(),
-                                           load_pin_index_map, dcalc_ap);
+                                           load_pin_index_map, scene, min_max);
     ArcDelay gate_delay = gate_result.gateDelay();
     Slew drvr_slew = gate_result.drvrSlew();
-    ArcDelay load_delay = gate_delay - intrinsic_delay;
+    ArcDelay load_delay = delayDiff(gate_delay, intrinsic_delay, this);
     load_delays[drvr_idx] = load_delay;
 
-    if (!delayZero(load_delay))
-      load_delay_sum += 1.0 / load_delay;
-    if (!delayZero(drvr_slew))
-      slew_sum += 1.0 / drvr_slew;
+    if (!delayZero(load_delay, this))
+      delayIncr(load_delay_sum, delayDiv(1.0, load_delay, this), this);
+    if (!delayZero(drvr_slew, this))
+      delayIncr(slew_sum, delayDiv(1.0, drvr_slew, this), this);
 
     dcalc_result.setLoadCount(load_pin_index_map.size());
     for (const auto &[load_pin, load_idx] : load_pin_index_map) {
@@ -102,17 +103,19 @@ ParallelDelayCalc::gateDelaysParallel(ArcDcalcArgSeq &dcalc_args,
     }
   }
 
-  ArcDelay gate_load_delay = delayZero(load_delay_sum)
+  ArcDelay gate_load_delay = delayZero(load_delay_sum, this)
     ? delay_zero
-    : 1.0 / load_delay_sum;
-  ArcDelay drvr_slew = delayZero(slew_sum) ? delay_zero : 1.0 / slew_sum;
+    : delayDiv(1.0, load_delay_sum, this);
+  ArcDelay drvr_slew = delayZero(slew_sum, this)
+    ? delay_zero
+    : delayDiv(1.0, slew_sum, this);
 
   for (size_t drvr_idx = 0; drvr_idx < drvr_count; drvr_idx++) {
     ArcDcalcResult &dcalc_result = dcalc_results[drvr_idx];
-    dcalc_result.setGateDelay(intrinsic_delays[drvr_idx] + gate_load_delay);
+    dcalc_result.setGateDelay(delaySum(intrinsic_delays[drvr_idx], gate_load_delay, this));
     dcalc_result.setDrvrSlew(drvr_slew);
   }
   return dcalc_results;
 }
 
-} // namespace
+} // namespace sta

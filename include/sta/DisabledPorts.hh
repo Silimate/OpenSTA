@@ -1,5 +1,5 @@
 // OpenSTA, Static Timing Analyzer
-// Copyright (c) 2025, Parallax Software, Inc.
+// Copyright (c) 2026, Parallax Software, Inc.
 // 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -24,9 +24,11 @@
 
 #pragma once
 
-#include "Map.hh"
-#include "NetworkClass.hh"
+#include <set>
+#include <vector>
+
 #include "LibertyClass.hh"
+#include "NetworkClass.hh"
 #include "SdcClass.hh"
 
 namespace sta {
@@ -35,16 +37,15 @@ class TimingRole;
 class DisabledCellPorts;
 class DisabledInstancePorts;
 
-typedef Vector<DisabledInstancePorts*> DisabledInstancePortsSeq;
-typedef Vector<DisabledCellPorts*> DisabledCellPortsSeq;
-typedef Vector<LibertyPortPair> LibertyPortPairSeq;
-typedef Set<TimingArcSet*> TimingArcSetSet;
+using DisabledInstancePortsSeq = std::vector<DisabledInstancePorts*>;
+using DisabledCellPortsSeq = std::vector<DisabledCellPorts*>;
+using LibertyPortPairSeq = std::vector<LibertyPortPair>;
+using TimingArcSetSet = std::set<TimingArcSet*, TimingArcSetLess>;
 
 // Base class for disabled cell and instance ports.
 class DisabledPorts
 {
 public:
-  DisabledPorts();
   ~DisabledPorts();
   void setDisabledAll();
   void removeDisabledAll();
@@ -56,19 +57,19 @@ public:
                          LibertyPort *to);
   void removeDisabledFromTo(LibertyPort *from,
                             LibertyPort *to);
-  bool isDisabled(LibertyPort *from,
-                  LibertyPort *to,
-                  const TimingRole *role);
+  [[nodiscard]] bool isDisabled(LibertyPort *from,
+                                 LibertyPort *to,
+                                 const TimingRole *role);
   LibertyPortPairSet *fromTo() const { return from_to_; }
   LibertyPortSet *from() const { return from_; }
   LibertyPortSet *to() const { return to_; }
-  bool all() const { return all_; }
+  [[nodiscard]] bool all() const { return all_; }
 
 private:
-  bool all_;
-  LibertyPortSet *from_;
-  LibertyPortSet *to_;
-  LibertyPortPairSet *from_to_;
+  bool all_{false};
+  LibertyPortSet *from_{nullptr};
+  LibertyPortSet *to_{nullptr};
+  LibertyPortPairSet *from_to_{nullptr};
 };
 
 // set_disable_timing cell [-from] [-to]
@@ -80,14 +81,14 @@ public:
   LibertyCell *cell() const { return cell_; }
   void setDisabled(TimingArcSet *arc_set);
   void removeDisabled(TimingArcSet *arc_set);
-  bool isDisabled(TimingArcSet *arc_set) const;
+  [[nodiscard]] bool isDisabled(TimingArcSet *arc_set) const;
   TimingArcSetSet *timingArcSets() const { return arc_sets_; }
 
   using DisabledPorts::isDisabled;
 
 private:
   LibertyCell *cell_;
-  TimingArcSetSet *arc_sets_;
+  TimingArcSetSet *arc_sets_{nullptr};
 };
 
 // set_disable_timing instance [-from] [-to]
@@ -102,11 +103,11 @@ private:
 };
 
 DisabledCellPortsSeq
-sortByName(DisabledCellPortsMap *cell_map);
+sortByName(const DisabledCellPortsMap *cell_map);
 DisabledInstancePortsSeq
 sortByPathName(const DisabledInstancePortsMap *inst_map,
                const Network *network);
 LibertyPortPairSeq
 sortByName(const LibertyPortPairSet *set);
 
-} // namespace
+} // namespace sta

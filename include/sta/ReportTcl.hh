@@ -1,5 +1,5 @@
 // OpenSTA, Static Timing Analyzer
-// Copyright (c) 2025, Parallax Software, Inc.
+// Copyright (c) 2026, Parallax Software, Inc.
 // 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -43,38 +43,38 @@ class ReportTcl : public Report
 {
 public:
   ReportTcl();
-  virtual ~ReportTcl();
-  virtual void logBegin(const char *filename);
-  virtual void logEnd();
-  virtual void redirectFileBegin(const char *filename);
-  virtual void redirectFileAppendBegin(const char *filename);
-  virtual void redirectFileEnd();
-  virtual void redirectStringBegin();
-  virtual const char *redirectStringEnd();
+  ~ReportTcl() override;
+  void logBegin(std::string_view filename) override;
+  void logEnd() override;
+  void redirectFileBegin(std::string_view filename) override;
+  void redirectFileAppendBegin(std::string_view filename) override;
+  void redirectFileEnd() override;
+  void redirectStringBegin() override;
+  const char *redirectStringEnd() override;
   // This must be called after the Tcl interpreter has been constructed.
   // It makes the encapsulated channels.
-  virtual void setTclInterp(Tcl_Interp *interp);
+  void setTclInterp(Tcl_Interp *interp) override;
 
 protected:
-  virtual size_t printConsole(const char *buffer,
-                              size_t length);
+  size_t printConsole(const char *buffer,
+                      size_t length) override;
   void flush();
 
 private:
   Tcl_ChannelType *makeEncapChannelType(Tcl_Channel channel,
-					char *channel_name,
-					Tcl_DriverOutputProc output_proc);
+                                        char *channel_name,
+                                        Tcl_DriverOutputProc output_proc);
   size_t printTcl(Tcl_Channel channel,
                   const char *buffer,
                   size_t length);
 
-  Tcl_Interp *interp_;
+  Tcl_Interp *interp_{nullptr};
   // The original tcl channels.
-  Tcl_Channel tcl_stdout_;
-  Tcl_Channel tcl_stderr_;
+  Tcl_Channel tcl_stdout_{nullptr};
+  Tcl_Channel tcl_stderr_{nullptr};
   // Encapsulated channels that print on this object.
-  Tcl_Channel tcl_encap_stdout_;
-  Tcl_Channel tcl_encap_stderr_;
+  Tcl_Channel tcl_encap_stdout_{nullptr};
+  Tcl_Channel tcl_encap_stderr_{nullptr};
 };
 
-} // namespace
+} // namespace sta

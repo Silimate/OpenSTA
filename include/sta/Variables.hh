@@ -1,5 +1,5 @@
 // OpenSTA, Static Timing Analyzer
-// Copyright (c) 2025, Parallax Software, Inc.
+// Copyright (c) 2026, Parallax Software, Inc.
 // 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -24,6 +24,8 @@
 
 #pragma once
 
+#include "PocvMode.hh"
+
 namespace sta {
 
 enum class CrprMode { same_pin, same_transition };
@@ -32,7 +34,6 @@ enum class CrprMode { same_pin, same_transition };
 class Variables
 {
 public:
-  Variables();
   // TCL variable sta_crpr_enabled.
   bool crprEnabled() const { return crpr_enabled_; }
   void setCrprEnabled(bool enabled);
@@ -54,10 +55,6 @@ public:
   // Enable/disable timing from bidirect pins back into the instance.
   bool bidirectInstPathsEnabled() const { return bidirect_inst_paths_enabled_; }
   void setBidirectInstPathsEnabled(bool enabled);
-  // TCL variable sta_bidirect_net_paths_enabled.
-  // Enable/disable timing from bidirect driver pins to their own loads.
-  bool bidirectNetPathsEnabled() const { return bidirect_net_paths_enabled_; }
-  void setBidirectNetPathsEnabled(bool enabled);
   // TCL variable sta_recovery_removal_checks_enabled.
   bool recoveryRemovalChecksEnabled() const { return recovery_removal_checks_enabled_; }
   void setRecoveryRemovalChecksEnabled(bool enabled);
@@ -76,8 +73,11 @@ public:
   // TCL variable sta_input_port_default_clock.
   bool useDefaultArrivalClock() { return use_default_arrival_clock_; }
   void setUseDefaultArrivalClock(bool enable);
-  bool pocvEnabled() const { return pocv_enabled_; }
-  void setPocvEnabled(bool enabled);
+  bool pocvEnabled() const;
+  PocvMode pocvMode() const { return pocv_mode_; }
+  void setPocvMode(PocvMode mode);
+  float pocvQuantile() const { return pocv_quantile_; }
+  void setPocvQuantile(float quantile);
 
   // SILIMATE ADDITIONS
   // TCL variable sta_boolean_props_as_int.
@@ -104,29 +104,29 @@ public:
 
 
 private:
-  bool crpr_enabled_;
-  CrprMode crpr_mode_;
-  bool propagate_gated_clock_enable_;
-  bool preset_clr_arcs_enabled_;
-  bool cond_default_arcs_enabled_;
-  bool bidirect_net_paths_enabled_;
-  bool bidirect_inst_paths_enabled_;
-  bool recovery_removal_checks_enabled_;
-  bool gated_clk_checks_enabled_;
-  bool clk_thru_tristate_enabled_;
-  bool dynamic_loop_breaking_;
-  bool propagate_all_clks_;
-  bool use_default_arrival_clock_;
-  bool pocv_enabled_;
+  bool crpr_enabled_{true};
+  CrprMode crpr_mode_{CrprMode::same_pin};
+  bool propagate_gated_clock_enable_{true};
+  bool preset_clr_arcs_enabled_{false};
+  bool cond_default_arcs_enabled_{true};
+  bool bidirect_inst_paths_enabled_{false};
+  bool recovery_removal_checks_enabled_{true};
+  bool gated_clk_checks_enabled_{true};
+  bool clk_thru_tristate_enabled_{false};
+  bool dynamic_loop_breaking_{false};
+  bool propagate_all_clks_{false};
+  bool use_default_arrival_clock_{false};
+  PocvMode pocv_mode_{PocvMode::scalar};
+  float pocv_quantile_{3.0};
 
-  // SILIMATE ADDITIONS
-  bool boolean_props_as_int_;
-  bool direction_props_short_;
-  bool liberty_line_debug_;
-  bool no_inv_delay_calc_;
-  bool no_inv_power_calc_;
-  bool strip_escaped_bus_;
-  bool enable_collections_;
+  // SILIMATE:
+  bool boolean_props_as_int_{true};
+  bool direction_props_short_{false};
+  bool liberty_line_debug_{false};
+  bool no_inv_delay_calc_{false};
+  bool no_inv_power_calc_{false};
+  bool strip_escaped_bus_{false};
+  bool enable_collections_{false};
 };
 
-} // namespace
+} // namespace sta

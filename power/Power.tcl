@@ -1,5 +1,5 @@
 # OpenSTA, Static Timing Analyzer
-# Copyright (c) 2025, Parallax Software, Inc.
+# Copyright (c) 2026, Parallax Software, Inc.
 # 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -33,7 +33,7 @@ namespace eval sta {
 define_cmd_args "report_power" \
   { [-instances instances]\
       [-highest_power_instances count]\
-      [-corner corner]\
+      [-scene scene]\
       [-digits digits]\
       [-format format]\
       [> filename] [>> filename] }
@@ -42,7 +42,8 @@ proc_redirect report_power {
   global sta_report_default_digits
 
   parse_key_args "report_power" args \
-    keys {-instances -highest_power_instances -corner -digits -format} flags {}
+    keys {-instances -highest_power_instances -corner -scene -format -digits}\
+    flags {}
 
   check_argc_eq0 "report_power" $args
 
@@ -55,7 +56,7 @@ proc_redirect report_power {
   } else {
     set digits $sta_report_default_digits
   }
-  set corner [parse_corner keys]
+  set scene [parse_scene keys]
 
   if { [info exists keys(-format)] } {
     set format $keys(-format)
@@ -69,24 +70,24 @@ proc_redirect report_power {
   if { [info exists keys(-instances)] } {
     set insts [get_instances_error "-instances" $keys(-instances)]
     if { $format == "json" } {
-      report_power_insts_json $insts $corner $digits
+      report_power_insts_json $insts $scene $digits
     } else {
-      report_power_insts $insts $corner $digits
+      report_power_insts $insts $scene $digits
     }
   } elseif { [info exists keys(-highest_power_instances)] } {
     set count $keys(-highest_power_instances)
     check_positive_integer "-highest_power_instances" $count
-    set insts [highest_power_instances $count $corner]
+    set insts [highest_power_instances $count $scene]
     if { $format == "json" } {
-      report_power_insts_json $insts $corner $digits
+      report_power_insts_json $insts $scene $digits
     } else {
-      report_power_insts $insts $corner $digits
+      report_power_insts $insts $scene $digits
     }
   } else {
     if { $format == "json" } {
-      report_power_design_json $corner $digits
+      report_power_design_json $scene $digits
     } else {
-      report_power_design $corner $digits
+      report_power_design $scene $digits
     }
   }
 }
@@ -95,11 +96,11 @@ define_cmd_args "report_internal_power_components" { [> filename] [>> filename] 
 proc_redirect report_internal_power_components {
   global sta_report_default_digits
   # Set the default corner
-  set corner [cmd_corner]
+  set scene [cmd_scene]
   if { ![liberty_libraries_exist] } {
     sta_error 304 "No liberty libraries have been read."
   }
-  set power_result [internal_power_components $corner]
+  set power_result [internal_power_components $scene]
   report_line $power_result
 }
 
@@ -375,11 +376,11 @@ proc report_power_inst { inst power_result field_width digits {report_format "te
 ################################################################
 
 define_cmd_args "set_power_activity" { [-global]\
-					 [-input]\
-					 [-input_ports ports]\
-					 [-pins pins]\
-					 [-activity activity | -density density]\
-					 [-duty duty]\
+                                         [-input]\
+                                         [-input_ports ports]\
+                                         [-pins pins]\
+                                         [-activity activity | -density density]\
+                                         [-duty duty]\
                                          [-clock clock]}
 
 proc set_power_activity { args } {
@@ -405,7 +406,7 @@ proc set_power_activity { args } {
         sta_error 307 "-activity requires a clock to be defined"
       }
     }
-    set density [expr $activity / [clock_min_period]]
+    set density [expr $activity / [clock_min_period [cmd_mode_name]]]
   }
 
   if { [info exists keys(-density)] } {
@@ -435,7 +436,7 @@ proc set_power_activity { args } {
     set ports [get_ports_error "input_ports" $keys(-input_ports)]
     foreach port $ports {
       if { [get_property $port "direction"] == "input" || [get_property $port "direction"] == "in" } {
-	if { [is_clock_src [sta::get_port_pin $port]] } {
+        if { [is_clock_src [get_port_pin $port]] } {
           sta_warn 310 "activity cannot be set on clock ports."
         } else {
           set_power_input_port_activity $port $density $duty
@@ -476,7 +477,7 @@ proc unset_power_activity { args } {
     set ports [get_ports_error "input_ports" $keys(-input_ports)]
     foreach port $ports {
       if { [get_property $port "direction"] == "input" } {
-	if { [is_clock_src [sta::get_port_pin $port]] } {
+        if { [is_clock_src [get_port_pin $port]] } {
           sta_warn 303 "activity cannot be set on clock ports."
         } else {
           unset_power_input_port_activity $port
@@ -513,11 +514,11 @@ proc read_power_activities { args } {
 
 ################################################################
 
-define_cmd_args "read_vcd" { [-scope scope] [-start_time start_time] [-end_time end_time] filename }
+define_cmd_args "read_vcd" { [-scope scope] [-mode mode_name] [-start_time start_time] [-end_time end_time] filename }
 
 proc read_vcd { args } {
   parse_key_args "read_vcd" args \
-    keys {-scope -start_time -end_time} flags {}
+    keys {-scope -mode_name -start_time -end_time} flags {}
 
   check_argc_eq1 "read_vcd" $args
   set filename [file nativename [lindex $args 0]]
@@ -535,16 +536,18 @@ proc read_vcd { args } {
   if { [info exists keys(-end_time)] } {
     set end_time $keys(-end_time)
   }
-  read_vcd_file $filename $scope $start_time $end_time
+  set mode_name [cmd_mode_name]
+  if { [info exists keys(-mode)] } {
+    set mode_name $keys(-mode)
+  }
+  read_vcd_file $filename $scope $mode_name $start_time $end_time
 }
-
 ################################################################
 
 define_cmd_args "read_saif" { [-scope scope] filename }
 
 proc read_saif { args } {
   parse_key_args "read_saif" args keys {-scope} flags {}
-
   check_argc_eq1 "read_saif" $args
   set filename [file nativename [lindex $args 0]]
   set scope ""
@@ -571,15 +574,19 @@ proc_redirect report_activity_annotation {
 ################################################################
 
 proc power_find_nan { } {
-  set corner [cmd_corner]
+  set scene [cmd_scene]
   foreach inst [network_leaf_instances] {
-    set power_result [instance_power $inst $corner]
+    set power_result [instance_power $inst $scene]
     lassign $power_result internal switching leakage total
     if { [is_nan $internal] || [is_nan $switching] || [is_nan $leakage] } {
       report_line "[get_full_name $inst] $internal $switching $leakage"
       break
     }
   }
+}
+
+proc is_nan { str } {
+  return  [string match "*NaN" $str]
 }
 
 # sta namespace end.

@@ -1,5 +1,5 @@
 // OpenSTA, Static Timing Analyzer
-// Copyright (c) 2025, Parallax Software, Inc.
+// Copyright (c) 2026, Parallax Software, Inc.
 // 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -24,30 +24,30 @@
 
 #pragma once
 
-#include <vector>
-#include <map>
 #include <Eigen/SparseCore>
 #include <Eigen/SparseLU>
+#include <array>
+#include <map>
+#include <vector>
 
-#include "Map.hh"
-#include "LumpedCapDelayCalc.hh"
 #include "ArcDcalcWaveforms.hh"
+#include "LumpedCapDelayCalc.hh"
 #include "Parasitics.hh"
 
 namespace sta {
 
 class ArcDelayCalc;
 class StaState;
-class Corner;
+class Scene;
 
-typedef Map<const Pin*, size_t, PinIdLess> PinNodeMap;
-typedef std::map<const ParasiticNode*, size_t, ParasiticNodeLess> NodeIndexMap;
-typedef Map<const Pin*, size_t> PortIndexMap;
-typedef Eigen::SparseMatrix<double> MatrixSd;
-typedef Map<const Pin*, Eigen::VectorXd, PinIdLess> PinLMap;
-typedef std::map<const Pin*, FloatSeq, PinIdLess> WatchPinValuesMap;
+using PinNodeMap = std::map<const Pin*, size_t, PinIdLess>;
+using NodeIndexMap = std::map<const ParasiticNode*, size_t, ParasiticNodeLess>;
+using PortIndexMap = std::map<const Pin*, size_t>;
+using MatrixSd = Eigen::SparseMatrix<double>;
+using PinLMap = std::map<const Pin*, Eigen::VectorXd, PinIdLess>;
+using WatchPinValuesMap = std::map<const Pin*, FloatSeq, PinIdLess>;
 
-typedef Table1 Waveform;
+using Waveform = Table;
 
 ArcDelayCalc *
 makePrimaDelayCalc(StaState *sta);
@@ -58,43 +58,53 @@ class PrimaDelayCalc : public DelayCalcBase,
 public:
   PrimaDelayCalc(StaState *sta);
   PrimaDelayCalc(const PrimaDelayCalc &dcalc);
-  ~PrimaDelayCalc();
+  ~PrimaDelayCalc() override;
   ArcDelayCalc *copy() override;
   void copyState(const StaState *sta) override;
-  const char *name() const override { return "prima"; }
+  std::string_view name() const override { return "prima"; }
   void setPrimaReduceOrder(size_t order);
   Parasitic *findParasitic(const Pin *drvr_pin,
                            const RiseFall *rf,
-                           const DcalcAnalysisPt *dcalc_ap) override;
+                           const Scene *scene,
+                           const MinMax *min_max) override;
   bool reduceSupported() const override { return false; }
   Parasitic *reduceParasitic(const Parasitic *parasitic_network,
                              const Pin *drvr_pin,
                              const RiseFall *rf,
-                             const DcalcAnalysisPt *dcalc_ap) override;
+                             const Scene *scene,
+                             const MinMax *min_max) override;
   ArcDcalcResult inputPortDelay(const Pin *drvr_pin,
                                 float in_slew,
                                 const RiseFall *rf,
                                 const Parasitic *parasitic,
                                 const LoadPinIndexMap &load_pin_index_map,
-                                const DcalcAnalysisPt *dcalc_ap) override;
+                                const Scene *scene,
+                                const MinMax *min_max) override;
   ArcDcalcResult gateDelay(const Pin *drvr_pin,
                            const TimingArc *arc,
                            const Slew &in_slew,
                            float load_cap,
                            const Parasitic *parasitic,
                            const LoadPinIndexMap &load_pin_index_map,
-                           const DcalcAnalysisPt *dcalc_ap) override;
+                           const Scene *scene,
+                           const MinMax *min_max) override;
   ArcDcalcResultSeq gateDelays(ArcDcalcArgSeq &dcalc_args,
                                const LoadPinIndexMap &load_pin_index_map,
-                               const DcalcAnalysisPt *dcalc_ap) override;
+                               const Scene *scene,
+                               const MinMax *min_max) override;
   std::string reportGateDelay(const Pin *drvr_pin,
                               const TimingArc *arc,
                               const Slew &in_slew,
                               float load_cap,
                               const Parasitic *parasitic,
                               const LoadPinIndexMap &load_pin_index_map,
-                              const DcalcAnalysisPt *dcalc_ap,
+                              const Scene *scene,
+                              const MinMax *min_max,
                               int digits) override;
+  bool checkArgs(ArcDcalcArgSeq &dcalc_args,
+                 const Scene *scene,
+                 const MinMax *min_max);
+  std::string failureReason();
 
   // Record waveform for drvr/load pin.
   void watchPin(const Pin *pin) override;
@@ -103,6 +113,10 @@ public:
   Waveform watchWaveform(const Pin *pin) override;
   
 protected:
+  void delaySlewPocv(ArcDcalcArg &dcalc_arg,
+                     size_t drvr_idx,
+                     ArcDelay &gate_delay,
+                     Slew &drvr_slew);
   ArcDcalcResultSeq tableDcalcResults();
   void simulate();
   void simulate1(const MatrixSd &G,
@@ -110,7 +124,7 @@ protected:
                  const Eigen::MatrixXd &B,
                  const Eigen::VectorXd &x_init,
                  const Eigen::MatrixXd &x_to_v,
-                 const size_t order);
+                 size_t order);
   double maxTime();
   double timeStep();
   float driverResistance();
@@ -147,31 +161,33 @@ protected:
                      const Pin *drvr_pin,
                      const RiseFall *drvr_rf,
                      const Pin *load_pin,
-                     const Corner *corner,
+                     const Scene *scene,
                      const MinMax *min_max);
   void primaReduce();
   void primaReduce2();
 
-  void reportMatrix(const char *name,
+  void reportMatrix(std::string_view name,
                     MatrixSd &matrix);
-  void reportMatrix(const char *name,
+  void reportMatrix(std::string_view name,
                     Eigen::MatrixXd &matrix);
-  void reportMatrix(const char *name,
+  void reportMatrix(std::string_view name,
                     Eigen::VectorXd &matrix);
-  void reportVector(const char *name,
+  void reportVector(std::string_view name,
                     std::vector<double> &matrix);
   void reportMatrix(MatrixSd &matrix);
   void reportMatrix(Eigen::MatrixXd &matrix);
   void reportMatrix(Eigen::VectorXd &matrix);
   void reportVector(std::vector<double> &matrix);
 
-  ArcDcalcArgSeq *dcalc_args_;
+  ArcDcalcArgSeq *dcalc_args_{nullptr};
   size_t drvr_count_;
   float load_cap_;
-  const DcalcAnalysisPt *dcalc_ap_;
-  const Parasitic *parasitic_network_;
+  const Scene *scene_{nullptr};
+  const MinMax *min_max_{nullptr};
+  Parasitics *parasitics_{nullptr};
+  const Parasitic *parasitic_network_{nullptr};
   const RiseFall *drvr_rf_;
-  const LoadPinIndexMap *load_pin_index_map_;
+  const LoadPinIndexMap *load_pin_index_map_{nullptr};
 
   PinNodeMap pin_node_map_;     // Parasitic pin -> array index
   NodeIndexMap node_index_map_; // Parasitic node -> array index
@@ -195,7 +211,7 @@ protected:
   Eigen::VectorXd u_;
 
   // Prima reduced MNA eqns
-  size_t prima_order_;
+  size_t prima_order_{3};
   Eigen::MatrixXd Vq_;
   MatrixSd Gq_;
   MatrixSd Cq_;
@@ -208,15 +224,17 @@ protected:
 
   // Indexed by driver index.
   std::vector<double> ceff_;
+  // Ceff at Vth
+  std::vector<double> ceff_vth_;
   std::vector<double> drvr_current_;
 
   double time_step_;
   double time_step_prev_;
 
   // Waveform recording.
-  bool make_waveforms_;
-  const Pin *waveform_drvr_pin_;
-  const Pin *waveform_load_pin_;
+  bool make_waveforms_{false};
+  const Pin *waveform_drvr_pin_{nullptr};
+  const Pin *waveform_load_pin_{nullptr};
   FloatSeq drvr_voltages_;
   FloatSeq load_voltages_;
   WatchPinValuesMap watch_pin_values_;
@@ -231,7 +249,7 @@ protected:
   static constexpr size_t threshold_vth = 1;
   static constexpr size_t threshold_vh = 2;
   static constexpr size_t measure_threshold_count_ = 3;
-  typedef std::array<double, measure_threshold_count_> ThresholdTimes;
+  using ThresholdTimes = std::array<double, measure_threshold_count_>;
   // Vl Vth Vh
   ThresholdTimes measure_thresholds_;
   // Indexed by node number.
@@ -240,7 +258,10 @@ protected:
   // Delay calculator to use when ccs waveforms are missing from liberty.
   ArcDelayCalc *table_dcalc_;
 
+  const char *failure_reason_;
+  ArcDcalcArg *failure_arg_;
+
   using ArcDelayCalc::reduceParasitic;
 };
 
-} // namespacet
+} // namespace sta

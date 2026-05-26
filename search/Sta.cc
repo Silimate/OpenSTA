@@ -1,109 +1,127 @@
 // OpenSTA, Static Timing Analyzer
-// Copyright (c) 2025, Parallax Software, Inc.
-// 
+// Copyright (c) 2026, Parallax Software, Inc.
+//
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
-// 
+//
 // This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
-// 
+//
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
-// 
+//
 // The origin of this software must not be misrepresented; you must not
 // claim that you wrote the original software.
-// 
+//
 // Altered source versions must be plainly marked as such, and must not be
 // misrepresented as being the original software.
-// 
+//
 // This notice may not be removed or altered from any source distribution.
 
 #include "Sta.hh"
 
-#include <memory>
-#include <unordered_map>
+#include <algorithm>
+#include <cstddef>
+#include <map>
+#include <string>
 
-#include "Machine.hh"
-#include "DispatchQueue.hh"
-#include "ReportTcl.hh"
-#include "Debug.hh"
-#include "Stats.hh"
-#include "Fuzzy.hh"
-#include "Units.hh"
-#include "TimingArc.hh"
-#include "FuncExpr.hh"
-#include "EquivCells.hh"
-#include "Liberty.hh"
-#include "liberty/LibertyReader.hh"
-#include "LibertyWriter.hh"
-#include "SdcNetwork.hh"
-#include "MakeConcreteNetwork.hh"
-#include "PortDirection.hh"
-#include "VerilogReader.hh"
-#include "Graph.hh"
-#include "GraphCmp.hh"
-#include "Sdc.hh"
-#include "Variables.hh"
-#include "WriteSdc.hh"
-#include "ExceptionPath.hh"
-#include "MakeConcreteParasitics.hh"
-#include "Parasitics.hh"
-#include "parasitics/SpefReader.hh"
-#include "parasitics/ReportParasiticAnnotation.hh"
-#include "DelayCalc.hh"
 #include "ArcDelayCalc.hh"
-#include "GraphDelayCalc.hh"
-#include "sdf/SdfWriter.hh"
-#include "Levelize.hh"
-#include "Sim.hh"
-#include "ClkInfo.hh"
-#include "TagGroup.hh"
-#include "PathAnalysisPt.hh"
-#include "Corner.hh"
-#include "Search.hh"
-#include "GatedClk.hh"
-#include "Latches.hh"
-#include "PathGroup.hh"
-#include "CheckTiming.hh"
-#include "CheckSlewLimits.hh"
-#include "CheckFanoutLimits.hh"
-#include "CheckCapacitanceLimits.hh"
-#include "CheckMinPulseWidths.hh"
-#include "CheckMinPeriods.hh"
+#include "CheckCapacitances.hh"
+#include "CheckFanouts.hh"
 #include "CheckMaxSkews.hh"
-#include "ClkSkew.hh"
+#include "CheckMinPeriods.hh"
+#include "CheckMinPulseWidths.hh"
+#include "CheckSlews.hh"
+#include "CheckTiming.hh"
+#include "CircuitSim.hh"
+#include "ClkInfo.hh"
 #include "ClkLatency.hh"
-#include "FindRegister.hh"
-#include "ReportPath.hh"
-#include "Genclks.hh"
 #include "ClkNetwork.hh"
-#include "power/Power.hh"
-#include "VisitPathEnds.hh"
-#include "PathExpanded.hh"
+#include "ClkSkew.hh"
+#include "ContainerHelpers.hh"
+#include "Debug.hh"
+#include "Delay.hh"
+#include "DelayCalc.hh"
+#include "DelayNormal.hh"
+#include "DelayScalar.hh"
+#include "DelaySkewNormal.hh"
+#include "DispatchQueue.hh"
+#include "EquivCells.hh"
+#include "ExceptionPath.hh"
+#include "FindRegister.hh"
+#include "Format.hh"
+#include "FuncExpr.hh"
+#include "Fuzzy.hh"
+#include "Genclks.hh"
+#include "Graph.hh"
+#include "GraphClass.hh"
+#include "GraphCmp.hh"
+#include "GraphDelayCalc.hh"
+#include "Latches.hh"
+#include "Levelize.hh"
+#include "Liberty.hh"
+#include "LibertyClass.hh"
+#include "LibertyWriter.hh"
+#include "Machine.hh"
+#include "MakeConcreteNetwork.hh"
 #include "MakeTimingModel.hh"
+#include "MinMax.hh"
+#include "Mode.hh"
+#include "Network.hh"
+#include "NetworkClass.hh"
+#include "Parasitics.hh"
+#include "PathExpanded.hh"
+#include "PathGroup.hh"
+#include "PatternMatch.hh"
+#include "PocvMode.hh"
+#include "PortDirection.hh"
+#include "PowerClass.hh"
+#include "ReportPath.hh"
+#include "ReportTcl.hh"
+#include "RiseFallMinMaxDelay.hh"
+#include "Scene.hh"
+#include "Sdc.hh"
+#include "SdcClass.hh"
+#include "SdcNetwork.hh"
+#include "Search.hh"
+#include "SearchClass.hh"
+#include "SearchPred.hh"
+#include "Sim.hh"
+#include "Stats.hh"
+#include "StringUtil.hh"
+#include "TagGroup.hh"
+#include "TimingArc.hh"
+#include "TimingRole.hh"
+#include "Units.hh"
+#include "Variables.hh"
+#include "VerilogReader.hh"
+#include "VisitPathEnds.hh"
+#include "Wireload.hh"
+#include "liberty/LibertyReader.hh"
+#include "parasitics/ConcreteParasitics.hh"
+#include "parasitics/ReportParasiticAnnotation.hh"
+#include "parasitics/SpefReader.hh"
+#include "power/Power.hh"
+#include "sdc/WriteSdc.hh"
+#include "sdf/SdfReader.hh"
+#include "sdf/SdfWriter.hh"
 #include "spice/WritePathSpice.hh"
 
 namespace sta {
 
-using std::string;
-using std::min;
-using std::max;
-
-static const ClockEdge *clk_edge_wildcard = reinterpret_cast<ClockEdge*>(1);
-
 static bool
 libertyPortCapsEqual(const LibertyPort *port1,
-		     const LibertyPort *port2);
+                     const LibertyPort *port2);
 static bool
 hasDisabledArcs(Edge *edge,
-		Graph *graph);
+                const Mode *mode);
 static InstanceSet
 pinInstances(PinSet &pins,
-	     const Network *network);
+             const Network *network);
 
 ////////////////////////////////////////////////////////////////
 //
@@ -118,17 +136,16 @@ pinInstances(PinSet &pins,
 class StaDelayCalcObserver : public DelayCalcObserver
 {
 public:
-  explicit StaDelayCalcObserver(Search *search);
-  virtual void delayChangedFrom(Vertex *vertex);
-  virtual void delayChangedTo(Vertex *vertex);
-  virtual void checkDelayChangedTo(Vertex *vertex);
+  StaDelayCalcObserver(Search *search);
+  void delayChangedFrom(Vertex *vertex) override;
+  void delayChangedTo(Vertex *vertex) override;
+  void checkDelayChangedTo(Vertex *vertex) override;
 
 private:
   Search *search_;
 };
 
 StaDelayCalcObserver::StaDelayCalcObserver(Search *search) :
-  DelayCalcObserver(),
   search_(search)
 {
 }
@@ -156,26 +173,14 @@ StaDelayCalcObserver::checkDelayChangedTo(Vertex *vertex)
 class StaSimObserver : public SimObserver
 {
 public:
-  StaSimObserver(GraphDelayCalc *graph_delay_calc,
-		 Levelize *levelize,
-		 Search *search);
-  virtual void valueChangeAfter(Vertex *vertex);
-  virtual void faninEdgesChangeAfter(Vertex *vertex);
-  virtual void fanoutEdgesChangeAfter(Vertex *vertex);
-
-private:
-  GraphDelayCalc *graph_delay_calc_;
-  Levelize *levelize_;
-  Search *search_;
+  StaSimObserver(StaState *sta);
+  void valueChangeAfter(const Pin *pin) override;
+  void faninEdgesChangeAfter(const Pin *pin) override;
+  void fanoutEdgesChangeAfter(const Pin *pin) override;
 };
 
-StaSimObserver::StaSimObserver(GraphDelayCalc *graph_delay_calc,
-			       Levelize *levelize,
-			       Search *search) :
-  SimObserver(),
-  graph_delay_calc_(graph_delay_calc),
-  levelize_(levelize),
-  search_(search)
+StaSimObserver::StaSimObserver(StaState *sta) :
+  SimObserver(sta)
 {
 }
 
@@ -184,43 +189,33 @@ StaSimObserver::StaSimObserver(GraphDelayCalc *graph_delay_calc,
 // because the search predicate does not search through constants.
 // This observer makes sure the delays and arrivals are invalidated.
 void
-StaSimObserver::valueChangeAfter(Vertex *vertex)
+StaSimObserver::valueChangeAfter(const Pin *pin)
 {
-  graph_delay_calc_->delayInvalid(vertex);
-  search_->arrivalInvalid(vertex);
-  search_->requiredInvalid(vertex);
-  search_->endpointInvalid(vertex);
-  levelize_->invalidFrom(vertex);
+  Vertex *vertex = graph_->pinDrvrVertex(pin);
+  if (vertex) {
+    search_->arrivalInvalid(vertex);
+    search_->requiredInvalid(vertex);
+    search_->endpointInvalid(vertex);
+  }
 }
 
 void
-StaSimObserver::faninEdgesChangeAfter(Vertex *vertex)
+StaSimObserver::faninEdgesChangeAfter(const Pin *pin)
 {
-  graph_delay_calc_->delayInvalid(vertex);
+  Vertex *vertex = graph_->pinDrvrVertex(pin);
   search_->arrivalInvalid(vertex);
   search_->endpointInvalid(vertex);
 }
 
 void
-StaSimObserver::fanoutEdgesChangeAfter(Vertex *vertex)
+StaSimObserver::fanoutEdgesChangeAfter(const Pin *pin)
 {
+  Vertex *vertex = graph_->pinDrvrVertex(pin);
   search_->requiredInvalid(vertex);
   search_->endpointInvalid(vertex);
 }
 
 ////////////////////////////////////////////////////////////////
-
-class StaLevelizeObserver : public LevelizeObserver
-{
-public:
-  StaLevelizeObserver(Search *search, GraphDelayCalc *graph_delay_calc);
-  void levelsChangedBefore() override;
-  void levelChangedBefore(Vertex *vertex) override;
-
-private:
-  Search *search_;
-  GraphDelayCalc *graph_delay_calc_;
-};
 
 StaLevelizeObserver::StaLevelizeObserver(Search *search,
                                          GraphDelayCalc *graph_delay_calc) :
@@ -271,33 +266,6 @@ deleteAllMemory()
 
 ////////////////////////////////////////////////////////////////
 
-// Singleton used by TCL commands.
-Sta *Sta::sta_;
-
-Sta::Sta() :
-  StaState(),
-  current_instance_(nullptr),
-  cmd_corner_(nullptr),
-  verilog_reader_(nullptr),
-  check_timing_(nullptr),
-  check_slew_limits_(nullptr),
-  check_fanout_limits_(nullptr),
-  check_capacitance_limits_(nullptr),
-  check_min_pulse_widths_(nullptr),
-  check_min_periods_(nullptr),
-  check_max_skews_(nullptr),
-  clk_skews_(nullptr),
-  report_path_(nullptr),
-  power_(nullptr),
-  update_genclks_(false),
-  equiv_cells_(nullptr),
-  graph_sdc_annotated_(false),
-  // Default to same parasitics for all corners.
-  parasitics_per_corner_(false),
-  properties_(this)
-{
-}
-
 void
 Sta::makeComponents()
 {
@@ -306,35 +274,32 @@ Sta::makeComponents()
   makeDebug();
   makeUnits();
   makeNetwork();
-  makeSdc();
   makeLevelize();
-  makeParasitics();
-  makeCorners();
+  makeDefaultScene();
   makeArcDelayCalc();
   makeGraphDelayCalc();
-  makeSim();
   makeSearch();
   makeLatches();
-  makeClkNetwork();
   makeSdcNetwork();
   makeReportPath();
   makePower();
   makeClkSkews();
+  makeCheckTiming();
+  delay_ops_ = new DelayOpsScalar();
 
   setCmdNamespace1(CmdNamespace::sdc);
   setThreadCount1(defaultThreadCount());
   updateComponentsState();
 
   makeObservers();
-  // This must follow updateComponentsState.
-  makeParasiticAnalysisPts();
 }
 
 void
 Sta::makeObservers()
 {
   graph_delay_calc_->setObserver(new StaDelayCalcObserver(search_));
-  sim_->setObserver(new StaSimObserver(graph_delay_calc_, levelize_, search_));
+  for (Mode *mode : modes_)
+    mode->sim()->setObserver(new StaSimObserver(this));
   levelize_->setObserver(new StaLevelizeObserver(search_, graph_delay_calc_));
 }
 
@@ -369,20 +334,17 @@ Sta::updateComponentsState()
   sdc_network_->copyState(this);
   if (graph_)
     graph_->copyState(this);
-  sdc_->copyState(this);
-  corners_->copyState(this);
+  for (Mode *mode : modes_)
+    mode->copyState(this);
   levelize_->copyState(this);
-  parasitics_->copyState(this);
   arc_delay_calc_->copyState(this);
-  sim_->copyState(this);
   search_->copyState(this);
   latches_->copyState(this);
   graph_delay_calc_->copyState(this);
   report_path_->copyState(this);
-  if (check_timing_)
-    check_timing_->copyState(this);
-  clk_network_->copyState(this);
+  check_timing_->copyState(this);
   clk_skews_->copyState(this);
+
   if (power_)
     power_->copyState(this);
 }
@@ -412,21 +374,9 @@ Sta::makeNetwork()
 }
 
 void
-Sta::makeSdc()
-{
-  sdc_ = new Sdc(this);
-}
-
-void
 Sta::makeLevelize()
 {
   levelize_ = new Levelize(this);
-}
-
-void
-Sta::makeParasitics()
-{
-  parasitics_ = makeConcreteParasitics(this);
 }
 
 void
@@ -439,12 +389,6 @@ void
 Sta::makeGraphDelayCalc()
 {
   graph_delay_calc_ = new GraphDelayCalc(this);
-}
-
-void
-Sta::makeSim()
-{
-  sim_ = new Sim(this);
 }
 
 void
@@ -472,21 +416,21 @@ Sta::makeCheckTiming()
 }
 
 void
-Sta::makeCheckSlewLimits()
+Sta::makeCheckSlews()
 {
-  check_slew_limits_ = new CheckSlewLimits(this);
+  check_slews_ = new CheckSlews(this);
 }
 
 void
-Sta::makeCheckFanoutLimits()
+Sta::makeCheckFanouts()
 {
-  check_fanout_limits_ = new CheckFanoutLimits(this);
+  check_fanouts_ = new CheckFanouts(this);
 }
 
 void
-Sta::makeCheckCapacitanceLimits()
+Sta::makeCheckCapacitances()
 {
-  check_capacitance_limits_ = new CheckCapacitanceLimits(this);
+  check_capacitances_ = new CheckCapacitances(this);
 }
 
 void
@@ -511,12 +455,6 @@ void
 Sta::makeReportPath()
 {
   report_path_ = new ReportPath(this);
-}
-
-void
-Sta::makeClkNetwork()
-{
-  clk_network_ = new ClkNetwork(this);
 }
 
 void
@@ -545,14 +483,13 @@ Sta::sta()
 
 Sta::~Sta()
 {
-  delete variables_;
   // Verilog modules refer to the network in the sta so it has
   // to deleted before the network.
   delete verilog_reader_;
   // Delete "top down" to minimize chance of referencing deleted memory.
-  delete check_slew_limits_;
-  delete check_fanout_limits_;
-  delete check_capacitance_limits_;
+  delete check_slews_;
+  delete check_fanouts_;
+  delete check_capacitances_;
   delete check_min_pulse_widths_;
   delete check_min_periods_;
   delete check_max_skews_;
@@ -562,45 +499,54 @@ Sta::~Sta()
   // Sdc references search filter, so delete search first.
   delete search_;
   delete latches_;
-  delete parasitics_;
   delete arc_delay_calc_;
   delete graph_delay_calc_;
-  delete sim_;
   delete levelize_;
-  delete sdc_;
-  delete corners_;
   delete graph_;
   delete sdc_network_;
   delete network_;
   delete debug_;
   delete units_;
   delete report_;
-  delete clk_network_;
   delete power_;
   delete equiv_cells_;
   delete dispatch_queue_;
+  delete variables_;
+  delete delay_ops_;
+  deleteContents(parasitics_name_map_);
+  deleteContents(modes_);
+  deleteContents(scenes_);
 }
 
 void
 Sta::clear()
 {
-  clkPinsInvalid();
-  // Constraints reference search filter, so clear search first.
-  search_->clear();
-  sdc_->clear();
-  graph_sdc_annotated_ = false;
-  // corners are NOT cleared because they are used to index liberty files.
+  clearNonSdc();
+  for (Mode *mode : modes_)
+    mode->sdc()->clear();
+}
+
+void
+Sta::clearNonSdc()
+{
+  // Sdc holds search filter, so clear search first.
   levelize_->clear();
-  if (parasitics_)
-    parasitics_->clear();
+  deleteParasitics();
   graph_delay_calc_->clear();
-  sim_->clear();
   power_->clear();
   if (check_min_pulse_widths_)
     check_min_pulse_widths_->clear();
   if (check_min_periods_)
     check_min_periods_->clear();
   clk_skews_->clear();
+
+  // scenes are NOT cleared because they are used to index liberty files.
+  for (Mode *mode : modes_) {
+    mode->clkNetwork()->clkPinsInvalid();
+    mode->sim()->clear();
+  }
+  search_->clear();
+
   delete graph_;
   graph_ = nullptr;
   current_instance_ = nullptr;
@@ -608,26 +554,80 @@ Sta::clear()
   updateComponentsState();
 }
 
+Sdc *
+Sta::cmdSdc() const
+{
+  return cmd_mode_->sdc();
+}
+
+void
+Sta::setCmdMode(std::string_view mode_name)
+{
+  Mode *mode = findKey(mode_name_map_, std::string(mode_name));
+  if (mode) {
+    // Sync scene with mode. Note that multiple scenes can share a mode.
+    Scene *mode_scene = nullptr;
+    for (Scene *scene : scenes_) {
+      if (scene->mode() == mode) {
+        if (mode_scene) {
+          report_->warn(1556, "multiple scenes reference mode {}", mode_name);
+          break;
+        }
+        mode_scene = scene;
+      }
+    }
+    if (mode_scene)
+      cmd_scene_ = mode_scene;
+    cmd_mode_ = mode;
+  }
+  else {
+    if (modes_.size() == 1 && modes_[0]->name() == "default") {
+      // No need for default mode if one is defined.
+      delete modes_[0];
+      mode_name_map_.clear();
+      modes_.clear();
+    }
+    Mode *mode = new Mode(mode_name, mode_name_map_.size(), this);
+    mode_name_map_[std::string(mode_name)] = mode;
+    modes_.push_back(mode);
+    mode->sim()->setMode(mode);
+    mode->sim()->setObserver(new StaSimObserver(this));
+    cmd_mode_ = mode;
+
+    if (scenes_.size() == 1 && scenes_[0]->name() == "default")
+      scenes_[0]->setMode(mode);
+    updateComponentsState();
+  }
+}
+
+Mode *
+Sta::findMode(std::string_view mode_name) const
+{
+  return findStringKey(mode_name_map_, mode_name);
+}
+
+ModeSeq
+Sta::findModes(const std::string &name) const
+{
+  ModeSeq matches;
+  PatternMatch pattern(name);
+  for (Mode *mode : modes_) {
+    if (pattern.match(mode->name()))
+      matches.push_back(mode);
+  }
+  return matches;
+}
+
 void
 Sta::networkChanged()
 {
-  // Everything else from clear().
-  search_->clear();
-  levelize_->clear();
-  if (parasitics_)
-    parasitics_->clear();
-  graph_delay_calc_->clear();
-  sim_->clear();
-  if (check_min_pulse_widths_)
-    check_min_pulse_widths_->clear();
-  if (check_min_periods_)
-    check_min_periods_->clear();
-  clk_skews_->clear();
-  delete graph_;
-  graph_ = nullptr;
-  graph_sdc_annotated_ = false;
-  current_instance_ = nullptr;
-  updateComponentsState();
+  clear();
+}
+
+void
+Sta::networkChangedNonSdc()
+{
+  clearNonSdc();
 }
 
 void
@@ -661,12 +661,12 @@ Sta::setCmdNamespace1(CmdNamespace namespc)
 {
   cmd_namespace_ = namespc;
   switch (cmd_namespace_) {
-  case CmdNamespace::sta:
-    cmd_network_ = network_;
-    break;
-  case CmdNamespace::sdc:
-    cmd_network_ = sdc_network_;
-    break;
+    case CmdNamespace::sta:
+      cmd_network_ = network_;
+      break;
+    case CmdNamespace::sdc:
+      cmd_network_ = sdc_network_;
+      break;
   }
 }
 
@@ -688,14 +688,13 @@ Sta::setCurrentInstance(Instance *inst)
 ////////////////////////////////////////////////////////////////
 
 LibertyLibrary *
-Sta::readLiberty(const char *filename,
-		 Corner *corner,
-		 const MinMaxAll *min_max,
-		 bool infer_latches)
+Sta::readLiberty(std::string_view filename,
+                 Scene *scene,
+                 const MinMaxAll *min_max,
+                 bool infer_latches)
 {
   Stats stats(debug_, report_);
-  LibertyLibrary *library = readLibertyFile(filename, corner, min_max,
-                                            infer_latches);
+  LibertyLibrary *library = readLibertyFile(filename, scene, min_max, infer_latches);
   if (library
       // The default library is the first library read.
       // This corresponds to a link_path of '*'.
@@ -709,46 +708,33 @@ Sta::readLiberty(const char *filename,
 }
 
 LibertyLibrary *
-Sta::readLibertyFile(const char *filename,
-		     Corner *corner,
-		     const MinMaxAll *min_max,
-		     bool infer_latches)
+Sta::readLibertyFile(std::string_view filename,
+                     Scene *scene,
+                     const MinMaxAll *min_max,
+                     bool infer_latches)
 {
-  LibertyLibrary *liberty = sta::readLibertyFile(filename, infer_latches,
-						 network_);
+  LibertyLibrary *liberty = sta::readLibertyFile(filename, infer_latches, network_);
   if (liberty) {
     // Don't map liberty cells if they are redefined by reading another
     // library with the same cell names.
-    if (min_max == MinMaxAll::all()) {
-      readLibertyAfter(liberty, corner, MinMax::min());
-      readLibertyAfter(liberty, corner, MinMax::max());
-    }
-    else
-      readLibertyAfter(liberty, corner, min_max->asMinMax());
+    readLibertyAfter(liberty, scene, min_max);
     network_->readLibertyAfter(liberty);
   }
   return liberty;
 }
 
-LibertyLibrary *
-Sta::readLibertyFile(const char *filename,
-		     bool infer_latches)
-{
-  return sta::readLibertyFile(filename, infer_latches, network_);
-}
-
 void
 Sta::readLibertyAfter(LibertyLibrary *liberty,
-		      Corner *corner,
-		      const MinMax *min_max)
+                      Scene *scene,
+                      const MinMaxAll *min_max)
 {
-  corner->addLiberty(liberty, min_max);
-  LibertyLibrary::makeCornerMap(liberty, corner->libertyIndex(min_max),
-				network_, report_);
+  for (const MinMax *mm : min_max->range())
+    scene->addLiberty(liberty, mm);
+  LibertyLibrary::makeSceneMap(liberty, scene, min_max, network_, report_);
 }
 
 bool
-Sta::readVerilog(const char *filename)
+Sta::readVerilog(std::string_view filename)
 {
   NetworkReader *network = networkReader();
   if (network) {
@@ -776,18 +762,34 @@ Sta::linkDesign(const char *top_cell_name,
 {
   clear();
   Stats stats(debug_, report_);
-  bool status = network_->linkNetwork(top_cell_name,
-				      make_black_boxes,
-				      report_);
+  bool status = network_->linkNetwork(top_cell_name, make_black_boxes, report_);
   stats.report("Link");
   return status;
 }
 
 ////////////////////////////////////////////////////////////////
 
+bool 
+Sta::readSdf(std::string_view filename,
+             std::string_view path,
+             Scene *scene,
+             bool unescaped_dividers,
+             bool incremental_only,
+             MinMaxAll *cond_use)
+{
+  ensureLibLinked();
+  ensureGraph();
+  bool success = sta::readSdf(filename, path, scene, unescaped_dividers,
+                              incremental_only, cond_use, this);
+  search_->arrivalsInvalid();
+  return success;
+}
+
+////////////////////////////////////////////////////////////////
+
 void
 Sta::setDebugLevel(const char *what,
-		   int level)
+                   int level)
 {
   debug_->setLevel(what, level);
 }
@@ -795,83 +797,90 @@ Sta::setDebugLevel(const char *what,
 ////////////////////////////////////////////////////////////////
 
 void
-Sta::setAnalysisType(AnalysisType analysis_type)
+Sta::setAnalysisType(AnalysisType analysis_type,
+                     Sdc *sdc)
 {
-  if (analysis_type != sdc_->analysisType()) {
-    sdc_->setAnalysisType(analysis_type);
+  if (analysis_type != sdc->analysisType()) {
+    sdc->setAnalysisType(analysis_type);
     delaysInvalid();
     search_->deletePathGroups();
-    corners_->analysisTypeChanged();
     if (graph_)
-      graph_->setDelayCount(corners_->dcalcAnalysisPtCount());
+      graph_->setDelayCount(dcalcAnalysisPtCount());
   }
 }
 
 OperatingConditions *
-Sta::operatingConditions(const MinMax *min_max) const
+Sta::operatingConditions(const MinMax *min_max,
+                         const Sdc *sdc) const
 {
-  return sdc_->operatingConditions(min_max);
+  return sdc->operatingConditions(min_max);
 }
 
 void
 Sta::setOperatingConditions(OperatingConditions *op_cond,
-			    const MinMaxAll *min_max)
+                            const MinMaxAll *min_max,
+                            Sdc *sdc)
 {
-  sdc_->setOperatingConditions(op_cond, min_max);
-  corners_->operatingConditionsChanged();
+  sdc->setOperatingConditions(op_cond, min_max);
   delaysInvalid();
 }
 
 const Pvt *
 Sta::pvt(Instance *inst,
-	 const MinMax *min_max)
+         const MinMax *min_max,
+         Sdc *sdc)
 {
-  return sdc_->pvt(inst, min_max);
+  return sdc->pvt(inst, min_max);
 }
 
 void
 Sta::setPvt(Instance *inst,
-	    const MinMaxAll *min_max,
-	    float process,
-	    float voltage,
-	    float temperature)
+            const MinMaxAll *min_max,
+            float process,
+            float voltage,
+            float temperature,
+            Sdc *sdc)
 {
   Pvt pvt(process, voltage, temperature);
-  setPvt(inst, min_max, pvt);
+  setPvt(inst, min_max, pvt, sdc);
 }
 
 void
 Sta::setPvt(const Instance *inst,
-	    const MinMaxAll *min_max,
-	    const Pvt &pvt)
+            const MinMaxAll *min_max,
+            const Pvt &pvt,
+            Sdc *sdc)
 {
-  sdc_->setPvt(inst, min_max, pvt);
+  sdc->setPvt(inst, min_max, pvt);
   delaysInvalidFrom(inst);
 }
 
 void
 Sta::setVoltage(const MinMax *min_max,
-                float voltage)
+                float voltage,
+                Sdc *sdc)
 {
-  sdc_->setVoltage(min_max, voltage);
+  sdc->setVoltage(min_max, voltage);
 }
 
 void
 Sta::setVoltage(const Net *net,
                 const MinMax *min_max,
-                float voltage)
+                float voltage,
+                Sdc *sdc)
 {
-  sdc_->setVoltage(net, min_max, voltage);
+  sdc->setVoltage(net, min_max, voltage);
 }
 
 void
 Sta::setTimingDerate(TimingDerateType type,
-		     PathClkOrData clk_data,
-		     const RiseFallBoth *rf,
-		     const EarlyLate *early_late,
-		     float derate)
+                     PathClkOrData clk_data,
+                     const RiseFallBoth *rf,
+                     const EarlyLate *early_late,
+                     float derate,
+                     Sdc *sdc)
 {
-  sdc_->setTimingDerate(type, clk_data, rf, early_late, derate);
+  sdc->setTimingDerate(type, clk_data, rf, early_late, derate);
   // Delay calculation results are still valid.
   // The search derates delays while finding arrival times.
   search_->arrivalsInvalid();
@@ -879,12 +888,13 @@ Sta::setTimingDerate(TimingDerateType type,
 
 void
 Sta::setTimingDerate(const Net *net,
-		     PathClkOrData clk_data,
-		     const RiseFallBoth *rf,
-		     const EarlyLate *early_late,
-		     float derate)
+                     PathClkOrData clk_data,
+                     const RiseFallBoth *rf,
+                     const EarlyLate *early_late,
+                     float derate,
+                     Sdc *sdc)
 {
-  sdc_->setTimingDerate(net, clk_data, rf, early_late, derate);
+  sdc->setTimingDerate(net, clk_data, rf, early_late, derate);
   // Delay calculation results are still valid.
   // The search derates delays while finding arrival times.
   search_->arrivalsInvalid();
@@ -892,13 +902,14 @@ Sta::setTimingDerate(const Net *net,
 
 void
 Sta::setTimingDerate(const Instance *inst,
-		     TimingDerateCellType type,
-		     PathClkOrData clk_data,
-		     const RiseFallBoth *rf,
-		     const EarlyLate *early_late,
-		     float derate)
+                     TimingDerateCellType type,
+                     PathClkOrData clk_data,
+                     const RiseFallBoth *rf,
+                     const EarlyLate *early_late,
+                     float derate,
+                     Sdc *sdc)
 {
-  sdc_->setTimingDerate(inst, type, clk_data, rf, early_late, derate);
+  sdc->setTimingDerate(inst, type, clk_data, rf, early_late, derate);
   // Delay calculation results are still valid.
   // The search derates delays while finding arrival times.
   search_->arrivalsInvalid();
@@ -906,22 +917,23 @@ Sta::setTimingDerate(const Instance *inst,
 
 void
 Sta::setTimingDerate(const LibertyCell *cell,
-		     TimingDerateCellType type,
-		     PathClkOrData clk_data,
-		     const RiseFallBoth *rf,
-		     const EarlyLate *early_late,
-		     float derate)
+                     TimingDerateCellType type,
+                     PathClkOrData clk_data,
+                     const RiseFallBoth *rf,
+                     const EarlyLate *early_late,
+                     float derate,
+                     Sdc *sdc)
 {
-  sdc_->setTimingDerate(cell, type, clk_data, rf, early_late, derate);
+  sdc->setTimingDerate(cell, type, clk_data, rf, early_late, derate);
   // Delay calculation results are still valid.
   // The search derates delays while finding arrival times.
   search_->arrivalsInvalid();
 }
 
 void
-Sta::unsetTimingDerate()
+Sta::unsetTimingDerate(Sdc *sdc)
 {
-  sdc_->unsetTimingDerate();
+  sdc->unsetTimingDerate();
   // Delay calculation results are still valid.
   // The search derates delays while finding arrival times.
   search_->arrivalsInvalid();
@@ -929,300 +941,334 @@ Sta::unsetTimingDerate()
 
 void
 Sta::setInputSlew(const Port *port,
-		  const RiseFallBoth *rf,
-		  const MinMaxAll *min_max,
-		  float slew)
+                  const RiseFallBoth *rf,
+                  const MinMaxAll *min_max,
+                  float slew,
+                  Sdc *sdc)
 {
-  sdc_->setInputSlew(port, rf, min_max, slew);
+  sdc->setInputSlew(port, rf, min_max, slew);
   delaysInvalidFrom(port);
 }
 
 void
 Sta::setDriveCell(const LibertyLibrary *library,
-		  const LibertyCell *cell,
-		  const Port *port,
-		  const LibertyPort *from_port,
-		  float *from_slews,
-		  const LibertyPort *to_port,
-		  const RiseFallBoth *rf,
-		  const MinMaxAll *min_max)
+                  const LibertyCell *cell,
+                  const Port *port,
+                  const LibertyPort *from_port,
+                  const DriveCellSlews &from_slews,
+                  const LibertyPort *to_port,
+                  const RiseFallBoth *rf,
+                  const MinMaxAll *min_max,
+                  Sdc *sdc)
 {
-  sdc_->setDriveCell(library, cell, port, from_port, from_slews, to_port,
-		     rf, min_max);
+  sdc->setDriveCell(library, cell, port, from_port, from_slews, to_port, rf,
+                    min_max);
   delaysInvalidFrom(port);
 }
 
 void
 Sta::setDriveResistance(const Port *port,
-			const RiseFallBoth *rf,
-			const MinMaxAll *min_max,
-			float res)
+                        const RiseFallBoth *rf,
+                        const MinMaxAll *min_max,
+                        float res,
+                        Sdc *sdc)
 {
-  sdc_->setDriveResistance(port, rf, min_max, res);
+  sdc->setDriveResistance(port, rf, min_max, res);
   delaysInvalidFrom(port);
 }
 
 void
 Sta::setLatchBorrowLimit(const Pin *pin,
-			 float limit)
+                         float limit,
+                         Sdc *sdc)
 {
-  sdc_->setLatchBorrowLimit(pin, limit);
+  sdc->setLatchBorrowLimit(pin, limit);
   search_->requiredInvalid(pin);
 }
 
 void
 Sta::setLatchBorrowLimit(const Instance *inst,
-			 float limit)
+                         float limit,
+                         Sdc *sdc)
 {
-  sdc_->setLatchBorrowLimit(inst, limit);
+  sdc->setLatchBorrowLimit(inst, limit);
   search_->requiredInvalid(inst);
 }
 
 void
 Sta::setLatchBorrowLimit(const Clock *clk,
-			 float limit)
+                         float limit,
+                         Sdc *sdc)
 {
-  sdc_->setLatchBorrowLimit(clk, limit);
+  sdc->setLatchBorrowLimit(clk, limit);
   search_->arrivalsInvalid();
 }
 
 void
 Sta::setMinPulseWidth(const RiseFallBoth *rf,
-		      float min_width)
+                      float min_width,
+                      Sdc *sdc)
 {
-  sdc_->setMinPulseWidth(rf, min_width);
+  sdc->setMinPulseWidth(rf, min_width);
 }
 
 void
 Sta::setMinPulseWidth(const Pin *pin,
-		      const RiseFallBoth *rf,
-		      float min_width)
+                      const RiseFallBoth *rf,
+                      float min_width,
+                      Sdc *sdc)
 {
-  sdc_->setMinPulseWidth(pin, rf, min_width);
+  sdc->setMinPulseWidth(pin, rf, min_width);
 }
 
 void
 Sta::setMinPulseWidth(const Instance *inst,
-		      const RiseFallBoth *rf,
-		      float min_width)
+                      const RiseFallBoth *rf,
+                      float min_width,
+                      Sdc *sdc)
 {
-  sdc_->setMinPulseWidth(inst, rf, min_width);
+  sdc->setMinPulseWidth(inst, rf, min_width);
 }
 
 void
 Sta::setMinPulseWidth(const Clock *clk,
-		      const RiseFallBoth *rf,
-		      float min_width)
+                      const RiseFallBoth *rf,
+                      float min_width,
+                      Sdc *sdc)
 {
-  sdc_->setMinPulseWidth(clk, rf, min_width);
+  sdc->setMinPulseWidth(clk, rf, min_width);
 }
 
 void
-Sta::setWireloadMode(WireloadMode mode)
+Sta::setWireloadMode(WireloadMode mode,
+                     Sdc *sdc)
 {
-  sdc_->setWireloadMode(mode);
+  sdc->setWireloadMode(mode);
   delaysInvalid();
 }
 
 void
 Sta::setWireload(Wireload *wireload,
-		 const MinMaxAll *min_max)
+                 const MinMaxAll *min_max,
+                 Sdc *sdc)
 {
-  sdc_->setWireload(wireload, min_max);
+  sdc->setWireload(wireload, min_max);
   delaysInvalid();
 }
 
 void
 Sta::setWireloadSelection(WireloadSelection *selection,
-			  const MinMaxAll *min_max)
+                          const MinMaxAll *min_max,
+                          Sdc *sdc)
 {
-  sdc_->setWireloadSelection(selection, min_max);
+  sdc->setWireloadSelection(selection, min_max);
   delaysInvalid();
 }
 
 void
 Sta::setSlewLimit(Clock *clk,
-		  const RiseFallBoth *rf,
-		  const PathClkOrData clk_data,
-		  const MinMax *min_max,
-		  float slew)
+                  const RiseFallBoth *rf,
+                  PathClkOrData clk_data,
+                  const MinMax *min_max,
+                  float slew,
+                  Sdc *sdc)
 {
-  sdc_->setSlewLimit(clk, rf, clk_data, min_max, slew);
+  sdc->setSlewLimit(clk, rf, clk_data, min_max, slew);
 }
 
 void
 Sta::setSlewLimit(Port *port,
-		  const MinMax *min_max,
-		  float slew)
+                  const MinMax *min_max,
+                  float slew,
+                  Sdc *sdc)
 {
-  sdc_->setSlewLimit(port, min_max, slew);
+  sdc->setSlewLimit(port, min_max, slew);
 }
 
 void
 Sta::setSlewLimit(Cell *cell,
-		  const MinMax *min_max,
-		  float slew)
+                  const MinMax *min_max,
+                  float slew,
+                  Sdc *sdc)
 {
-  sdc_->setSlewLimit(cell, min_max, slew);
+  sdc->setSlewLimit(cell, min_max, slew);
 }
 
 void
 Sta::setCapacitanceLimit(Cell *cell,
-			 const MinMax *min_max,
-			 float cap)
+                         const MinMax *min_max,
+                         float cap,
+                         Sdc *sdc)
 {
-  sdc_->setCapacitanceLimit(cell, min_max, cap);
+  sdc->setCapacitanceLimit(cell, min_max, cap);
 }
 
 void
 Sta::setCapacitanceLimit(Port *port,
-			 const MinMax *min_max,
-			 float cap)
+                         const MinMax *min_max,
+                         float cap,
+                         Sdc *sdc)
 {
-  sdc_->setCapacitanceLimit(port, min_max, cap);
+  sdc->setCapacitanceLimit(port, min_max, cap);
 }
 
 void
 Sta::setCapacitanceLimit(Pin *pin,
-			 const MinMax *min_max,
-			 float cap)
+                         const MinMax *min_max,
+                         float cap,
+                         Sdc *sdc)
 {
-  sdc_->setCapacitanceLimit(pin, min_max, cap);
+  sdc->setCapacitanceLimit(pin, min_max, cap);
 }
 
 void
 Sta::setFanoutLimit(Cell *cell,
-		    const MinMax *min_max,
-		    float fanout)
+                    const MinMax *min_max,
+                    float fanout,
+                    Sdc *sdc)
 {
-  sdc_->setFanoutLimit(cell, min_max, fanout);
+  sdc->setFanoutLimit(cell, min_max, fanout);
 }
 
 void
 Sta::setFanoutLimit(Port *port,
-		    const MinMax *min_max,
-		    float fanout)
+                    const MinMax *min_max,
+                    float fanout,
+                    Sdc *sdc)
 {
-  sdc_->setFanoutLimit(port, min_max, fanout);
+  sdc->setFanoutLimit(port, min_max, fanout);
 }
 
 void
-Sta::setMaxArea(float area)
+Sta::setMaxArea(float area,
+                Sdc *sdc)
 {
-  sdc_->setMaxArea(area);
+  sdc->setMaxArea(area);
 }
 
 void
-Sta::setMaxDynamicPower(float power)
+Sta::setMaxDynamicPower(float power,
+                        Sdc *sdc)
 {
-  sdc_->setMaxDynamicPower(power);
+  sdc->setMaxDynamicPower(power);
 }
 
 void
-Sta::setMaxLeakagePower(float power)
+Sta::setMaxLeakagePower(float power,
+                        Sdc *sdc)
 {
-  sdc_->setMaxLeakagePower(power);
+  sdc->setMaxLeakagePower(power);
 }
 
 void
-Sta::makeClock(const char *name,
-	       PinSet *pins,
-	       bool add_to_pins,
-	       float period,
-	       FloatSeq *waveform,
-	       char *comment)
+Sta::makeClock(std::string_view name,
+               const PinSet &pins,
+               bool add_to_pins,
+               float period,
+               const FloatSeq &waveform,
+               std::string_view comment,
+               const Mode *mode)
 {
-  sdc_->makeClock(name, pins, add_to_pins, period, waveform, comment);
+  mode->sdc()->makeClock(name, pins, add_to_pins, period, waveform, comment);
   update_genclks_ = true;
   search_->arrivalsInvalid();
   power_->activitiesInvalid();
+  mode->clkNetwork()->clkPinsInvalid();
 }
 
 void
-Sta::makeGeneratedClock(const char *name,
-			PinSet *pins,
-			bool add_to_pins,
-			Pin *src_pin,
-			Clock *master_clk,
-			int divide_by,
-			int multiply_by,
-			float duty_cycle,
-			bool invert,
-			bool combinational,
-			IntSeq *edges,
-			FloatSeq *edge_shifts,
-			char *comment)
+Sta::makeGeneratedClock(std::string_view name,
+                        const PinSet &pins,
+                        bool add_to_pins,
+                        Pin *src_pin,
+                        Clock *master_clk,
+                        int divide_by,
+                        int multiply_by,
+                        float duty_cycle,
+                        bool invert,
+                        bool combinational,
+                        const IntSeq &edges,
+                        const FloatSeq &edge_shifts,
+                        std::string_view comment,
+                        const Mode *mode)
 {
-  sdc_->makeGeneratedClock(name, pins, add_to_pins,
-			   src_pin, master_clk,
-			   divide_by, multiply_by, duty_cycle,
-			   invert, combinational,
-			   edges, edge_shifts, comment);
+  mode->sdc()->makeGeneratedClock(name, pins, add_to_pins, src_pin, master_clk,
+                                  divide_by, multiply_by, duty_cycle, invert,
+                                  combinational, edges, edge_shifts, comment);
   update_genclks_ = true;
   search_->arrivalsInvalid();
   power_->activitiesInvalid();
+  mode->clkNetwork()->clkPinsInvalid();
 }
 
 void
-Sta::removeClock(Clock *clk)
+Sta::removeClock(Clock *clk,
+                 Sdc *sdc)
 {
-  sdc_->removeClock(clk);
+  sdc->removeClock(clk);
   search_->arrivalsInvalid();
   power_->activitiesInvalid();
 }
 
 bool
-Sta::isClockSrc(const Pin *pin) const
+Sta::isClockSrc(const Pin *pin,
+                const Sdc *sdc) const
 {
-  return sdc_->isClock(pin);
+  return sdc->isClock(pin);
 }
 
 void
-Sta::setPropagatedClock(Clock *clk)
+Sta::setPropagatedClock(Clock *clk,
+                        const Mode *mode)
 {
-  sdc_->setPropagatedClock(clk);
+  mode->sdc()->setPropagatedClock(clk);
   delaysInvalid();
-  clkPinsInvalid();
+  mode->clkNetwork()->clkPinsInvalid();
 }
 
 void
-Sta::removePropagatedClock(Clock *clk)
+Sta::removePropagatedClock(Clock *clk,
+                           const Mode *mode)
 {
-  sdc_->removePropagatedClock(clk);
+  mode->sdc()->removePropagatedClock(clk);
   delaysInvalid();
-  clkPinsInvalid();
+  mode->clkNetwork()->clkPinsInvalid();
 }
 
 void
-Sta::setPropagatedClock(Pin *pin)
+Sta::setPropagatedClock(Pin *pin,
+                        const Mode *mode)
 {
-  sdc_->setPropagatedClock(pin);
+  mode->sdc()->setPropagatedClock(pin);
   delaysInvalid();
-  clkPinsInvalid();
+  mode->clkNetwork()->clkPinsInvalid();
 }
 
 void
-Sta::removePropagatedClock(Pin *pin)
+Sta::removePropagatedClock(Pin *pin,
+                           const Mode *mode)
 {
-  sdc_->removePropagatedClock(pin);
+  mode->sdc()->removePropagatedClock(pin);
   delaysInvalid();
-  clkPinsInvalid();
+  mode->clkNetwork()->clkPinsInvalid();
 }
 
 void
 Sta::setClockSlew(Clock *clk,
-		  const RiseFallBoth *rf,
-		  const MinMaxAll *min_max,
-		  float slew)
+                  const RiseFallBoth *rf,
+                  const MinMaxAll *min_max,
+                  float slew,
+                  Sdc *sdc)
 {
-  sdc_->setClockSlew(clk, rf, min_max, slew);
+  sdc->setClockSlew(clk, rf, min_max, slew);
   clockSlewChanged(clk);
 }
 
 void
-Sta::removeClockSlew(Clock *clk)
+Sta::removeClockSlew(Clock *clk,
+                     Sdc *sdc)
 {
-  sdc_->removeClockSlew(clk);
+  sdc->removeClockSlew(clk);
   clockSlewChanged(clk);
 }
 
@@ -1236,66 +1282,51 @@ Sta::clockSlewChanged(Clock *clk)
 
 void
 Sta::setClockLatency(Clock *clk,
-		     Pin *pin,
-		     const RiseFallBoth *rf,
-		     const MinMaxAll *min_max,
-		     float delay)
+                     Pin *pin,
+                     const RiseFallBoth *rf,
+                     const MinMaxAll *min_max,
+                     float delay,
+                     Sdc *sdc)
 {
-  sdcChangedGraph();
-  sdc_->setClockLatency(clk, pin, rf, min_max, delay);
+  sdc->setClockLatency(clk, pin, rf, min_max, delay);
   search_->arrivalsInvalid();
 }
 
 void
-Sta::sdcChangedGraph()
-{
-  if (graph_sdc_annotated_)
-    sdc_->removeGraphAnnotations();
-  graph_sdc_annotated_ = false;
-}
-
-void
-Sta::ensureGraphSdcAnnotated()
-{
-  if (!graph_sdc_annotated_) {
-    sdc_->annotateGraph();
-    graph_sdc_annotated_ = true;
-  }
-}
-
-void
 Sta::removeClockLatency(const Clock *clk,
-			const Pin *pin)
+                        const Pin *pin,
+                        Sdc *sdc)
 {
-  sdcChangedGraph();
-  sdc_->removeClockLatency(clk, pin);
+  sdc->removeClockLatency(clk, pin);
   search_->arrivalsInvalid();
 }
 
 void
 Sta::setClockInsertion(const Clock *clk,
-		       const Pin *pin,
-		       const RiseFallBoth *rf,
-		       const MinMaxAll *min_max,
-		       const EarlyLateAll *early_late,
-		       float delay)
+                       const Pin *pin,
+                       const RiseFallBoth *rf,
+                       const MinMaxAll *min_max,
+                       const EarlyLateAll *early_late,
+                       float delay,
+                       Sdc *sdc)
 {
-  sdc_->setClockInsertion(clk, pin, rf, min_max, early_late, delay);
+  sdc->setClockInsertion(clk, pin, rf, min_max, early_late, delay);
   search_->arrivalsInvalid();
 }
 
 void
 Sta::removeClockInsertion(const Clock *clk,
-			  const Pin *pin)
+                          const Pin *pin,
+                          Sdc *sdc)
 {
-  sdc_->removeClockInsertion(clk, pin);
+  sdc->removeClockInsertion(clk, pin);
   search_->arrivalsInvalid();
 }
 
 void
 Sta::setClockUncertainty(Clock *clk,
-			 const SetupHoldAll *setup_hold,
-			 float uncertainty)
+                         const SetupHoldAll *setup_hold,
+                         float uncertainty)
 {
   clk->setUncertainty(setup_hold, uncertainty);
   search_->arrivalsInvalid();
@@ -1303,7 +1334,7 @@ Sta::setClockUncertainty(Clock *clk,
 
 void
 Sta::removeClockUncertainty(Clock *clk,
-			    const SetupHoldAll *setup_hold)
+                            const SetupHoldAll *setup_hold)
 {
   clk->removeUncertainty(setup_hold);
   search_->arrivalsInvalid();
@@ -1311,97 +1342,126 @@ Sta::removeClockUncertainty(Clock *clk,
 
 void
 Sta::setClockUncertainty(Pin *pin,
-			 const SetupHoldAll *setup_hold,
-			 float uncertainty)
+                         const SetupHoldAll *setup_hold,
+                         float uncertainty,
+                         Sdc *sdc)
 {
-  sdc_->setClockUncertainty(pin, setup_hold, uncertainty);
+  sdc->setClockUncertainty(pin, setup_hold, uncertainty);
   search_->arrivalsInvalid();
 }
 
 void
 Sta::removeClockUncertainty(Pin *pin,
-			    const SetupHoldAll *setup_hold)
+                            const SetupHoldAll *setup_hold,
+                            Sdc *sdc)
 {
-  sdc_->removeClockUncertainty(pin, setup_hold);
+  sdc->removeClockUncertainty(pin, setup_hold);
   search_->arrivalsInvalid();
 }
 
 void
 Sta::setClockUncertainty(Clock *from_clk,
-			 const RiseFallBoth *from_rf,
-			 Clock *to_clk,
-			 const RiseFallBoth *to_rf,
-			 const SetupHoldAll *setup_hold,
-			 float uncertainty)
+                         const RiseFallBoth *from_rf,
+                         Clock *to_clk,
+                         const RiseFallBoth *to_rf,
+                         const SetupHoldAll *setup_hold,
+                         float uncertainty,
+                         Sdc *sdc)
 {
-  sdc_->setClockUncertainty(from_clk, from_rf, to_clk, to_rf,
-			    setup_hold, uncertainty);
+  sdc->setClockUncertainty(from_clk, from_rf, to_clk, to_rf, setup_hold,
+                           uncertainty);
   search_->arrivalsInvalid();
 }
 
 void
 Sta::removeClockUncertainty(Clock *from_clk,
-			    const RiseFallBoth *from_rf,
-			    Clock *to_clk,
-			    const RiseFallBoth *to_rf,
-			    const SetupHoldAll *setup_hold)
+                            const RiseFallBoth *from_rf,
+                            Clock *to_clk,
+                            const RiseFallBoth *to_rf,
+                            const SetupHoldAll *setup_hold,
+                            Sdc *sdc)
 {
-  sdc_->removeClockUncertainty(from_clk, from_rf, to_clk, to_rf, setup_hold);
+  sdc->removeClockUncertainty(from_clk, from_rf, to_clk, to_rf, setup_hold);
   search_->arrivalsInvalid();
 }
 
 ClockGroups *
-Sta::makeClockGroups(const char *name,
-		     bool logically_exclusive,
-		     bool physically_exclusive,
-		     bool asynchronous,
-		     bool allow_paths,
-		     const char *comment)
+Sta::makeClockGroups(std::string_view name,
+                     bool logically_exclusive,
+                     bool physically_exclusive,
+                     bool asynchronous,
+                     bool allow_paths,
+                     std::string_view comment,
+                     Sdc *sdc)
 {
-  ClockGroups *groups = sdc_->makeClockGroups(name,
-					      logically_exclusive,
-					      physically_exclusive,
-					      asynchronous,
-					      allow_paths,
-					      comment);
+  ClockGroups *groups = sdc->makeClockGroups(name, logically_exclusive,
+                                             physically_exclusive,
+                                             asynchronous, allow_paths,
+                                             comment);
   search_->requiredsInvalid();
   return groups;
 }
 
 void
-Sta::removeClockGroupsLogicallyExclusive(const char *name)
+Sta::removeClockGroupsLogicallyExclusive(Sdc *sdc)
 {
-  sdc_->removeClockGroupsLogicallyExclusive(name);
+  sdc->removeClockGroupsLogicallyExclusive();
   search_->requiredsInvalid();
 }
 
 void
-Sta::removeClockGroupsPhysicallyExclusive(const char *name)
+Sta::removeClockGroupsLogicallyExclusive(const std::string &name,
+                                         Sdc *sdc)
 {
-  sdc_->removeClockGroupsPhysicallyExclusive(name);
+  sdc->removeClockGroupsLogicallyExclusive(name);
   search_->requiredsInvalid();
 }
 
 void
-Sta::removeClockGroupsAsynchronous(const char *name)
+Sta::removeClockGroupsPhysicallyExclusive(Sdc *sdc)
 {
-  sdc_->removeClockGroupsAsynchronous(name);
+  sdc->removeClockGroupsPhysicallyExclusive();
+  search_->requiredsInvalid();
+}
+
+void
+Sta::removeClockGroupsPhysicallyExclusive(const std::string &name,
+                                          Sdc *sdc)
+{
+  sdc->removeClockGroupsPhysicallyExclusive(name);
+  search_->requiredsInvalid();
+}
+
+void
+Sta::removeClockGroupsAsynchronous(Sdc *sdc)
+{
+  sdc->removeClockGroupsAsynchronous();
+  search_->requiredsInvalid();
+}
+
+void
+Sta::removeClockGroupsAsynchronous(const std::string &name,
+                                   Sdc *sdc)
+{
+  sdc->removeClockGroupsAsynchronous(name);
   search_->requiredsInvalid();
 }
 
 void
 Sta::makeClockGroup(ClockGroups *clk_groups,
-		    ClockSet *clks)
+                    ClockSet *clks,
+                    Sdc *sdc)
 {
-  sdc_->makeClockGroup(clk_groups, clks);
+  sdc->makeClockGroup(clk_groups, clks);
 }
 
 void
 Sta::setClockSense(PinSet *pins,
-		   ClockSet *clks,
-		   ClockSense sense)
+                   ClockSet *clks,
+                   ClockSense sense,
+                   Sdc *sdc)
 {
-  sdc_->setClockSense(pins, clks, sense);
+  sdc->setClockSense(pins, clks, sense);
   search_->arrivalsInvalid();
 }
 
@@ -1409,104 +1469,104 @@ Sta::setClockSense(PinSet *pins,
 
 void
 Sta::setClockGatingCheck(const RiseFallBoth *rf,
-			 const SetupHold *setup_hold,
-			 float margin)
+                         const SetupHold *setup_hold,
+                         float margin,
+                         Sdc *sdc)
 {
-  sdc_->setClockGatingCheck(rf, setup_hold, margin);
+  sdc->setClockGatingCheck(rf, setup_hold, margin);
   search_->arrivalsInvalid();
 }
 
 void
 Sta::setClockGatingCheck(Clock *clk,
-			 const RiseFallBoth *rf,
-			 const SetupHold *setup_hold,
-			 float margin)
+                         const RiseFallBoth *rf,
+                         const SetupHold *setup_hold,
+                         float margin,
+                         Sdc *sdc)
 {
-  sdc_->setClockGatingCheck(clk, rf, setup_hold, margin);
+  sdc->setClockGatingCheck(clk, rf, setup_hold, margin);
   search_->arrivalsInvalid();
 }
 
 void
 Sta::setClockGatingCheck(Instance *inst,
-			 const RiseFallBoth *rf,
-			 const SetupHold *setup_hold,
-			 float margin,
-			 LogicValue active_value)
+                         const RiseFallBoth *rf,
+                         const SetupHold *setup_hold,
+                         float margin,
+                         LogicValue active_value,
+                         Sdc *sdc)
 {
-  sdc_->setClockGatingCheck(inst, rf, setup_hold, margin,active_value);
+  sdc->setClockGatingCheck(inst, rf, setup_hold, margin, active_value);
   search_->arrivalsInvalid();
 }
 
 void
 Sta::setClockGatingCheck(Pin *pin,
-			 const RiseFallBoth *rf,
-			 const SetupHold *setup_hold,
-			 float margin,
-			 LogicValue active_value)
+                         const RiseFallBoth *rf,
+                         const SetupHold *setup_hold,
+                         float margin,
+                         LogicValue active_value,
+                         Sdc *sdc)
 {
-  sdc_->setClockGatingCheck(pin, rf, setup_hold, margin,active_value);
+  sdc->setClockGatingCheck(pin, rf, setup_hold, margin, active_value);
   search_->arrivalsInvalid();
 }
 
 void
 Sta::setDataCheck(Pin *from,
-		  const RiseFallBoth *from_rf,
-		  Pin *to,
-		  const RiseFallBoth *to_rf,
-		  Clock *clk,
-		  const SetupHoldAll *setup_hold,
-		  float margin)
+                  const RiseFallBoth *from_rf,
+                  Pin *to,
+                  const RiseFallBoth *to_rf,
+                  Clock *clk,
+                  const SetupHoldAll *setup_hold,
+                  float margin,
+                  Sdc *sdc)
 {
-  sdcChangedGraph();
-  sdc_->setDataCheck(from, from_rf, to, to_rf, clk, setup_hold,margin);
+  sdc->setDataCheck(from, from_rf, to, to_rf, clk, setup_hold, margin);
   search_->requiredInvalid(to);
 }
 
 void
 Sta::removeDataCheck(Pin *from,
-		     const RiseFallBoth *from_rf,
-		     Pin *to,
-		     const RiseFallBoth *to_rf,
-		     Clock *clk,
-		     const SetupHoldAll *setup_hold)
+                     const RiseFallBoth *from_rf,
+                     Pin *to,
+                     const RiseFallBoth *to_rf,
+                     Clock *clk,
+                     const SetupHoldAll *setup_hold,
+                     Sdc *sdc)
 {
-  sdc_->removeDataCheck(from, from_rf, to, to_rf, clk, setup_hold);
+  sdc->removeDataCheck(from, from_rf, to, to_rf, clk, setup_hold);
   search_->requiredInvalid(to);
 }
 
 ////////////////////////////////////////////////////////////////
 
 void
-Sta::disable(Pin *pin)
+Sta::disable(Pin *pin,
+             Sdc *sdc)
 {
-  sdcChangedGraph();
-  sdc_->disable(pin);
-  // Levelization respects disabled edges.
-  levelize_->invalid();
+  sdc->disable(pin);
   graph_delay_calc_->delayInvalid(pin);
   search_->arrivalsInvalid();
 }
 
 void
-Sta::removeDisable(Pin *pin)
+Sta::removeDisable(Pin *pin,
+                   Sdc *sdc)
 {
-  sdcChangedGraph();
-  sdc_->removeDisable(pin);
+  sdc->removeDisable(pin);
   disableAfter();
-  // Levelization respects disabled edges.
-  levelize_->invalid();
   graph_delay_calc_->delayInvalid(pin);
   search_->arrivalsInvalid();
 }
 
 void
 Sta::disable(Instance *inst,
-	     LibertyPort *from,
-	     LibertyPort *to)
+             LibertyPort *from,
+             LibertyPort *to,
+             Sdc *sdc)
 {
-  sdcChangedGraph();
-  sdc_->disable(inst, from, to);
-
+  sdc->disable(inst, from, to);
   if (from) {
     Pin *from_pin = network_->findPin(inst, from);
     graph_delay_calc_->delayInvalid(from_pin);
@@ -1523,19 +1583,16 @@ Sta::disable(Instance *inst,
     }
     delete pin_iter;
   }
-  // Levelization respects disabled edges.
-  levelize_->invalid();
   search_->arrivalsInvalid();
 }
 
 void
 Sta::removeDisable(Instance *inst,
-		   LibertyPort *from,
-		   LibertyPort *to)
+                   LibertyPort *from,
+                   LibertyPort *to,
+                   Sdc *sdc)
 {
-  sdcChangedGraph();
-  sdc_->removeDisable(inst, from, to);
-
+  sdc->removeDisable(inst, from, to);
   if (from) {
     Pin *from_pin = network_->findPin(inst, from);
     graph_delay_calc_->delayInvalid(from_pin);
@@ -1552,100 +1609,105 @@ Sta::removeDisable(Instance *inst,
     }
     delete pin_iter;
   }
-  // Levelization respects disabled edges.
-  levelize_->invalid();
   search_->arrivalsInvalid();
 }
 
 void
 Sta::disable(LibertyCell *cell,
-	     LibertyPort *from,
-	     LibertyPort *to)
+             LibertyPort *from,
+             LibertyPort *to,
+             Sdc *sdc)
 {
-  sdc_->disable(cell, from, to);
+  sdc->disable(cell, from, to);
   disableAfter();
 }
 
 void
 Sta::removeDisable(LibertyCell *cell,
-		   LibertyPort *from,
-		   LibertyPort *to)
+                   LibertyPort *from,
+                   LibertyPort *to,
+                   Sdc *sdc)
 {
-  sdc_->removeDisable(cell, from, to);
+  sdc->removeDisable(cell, from, to);
   disableAfter();
 }
 
 void
-Sta::disable(LibertyPort *port)
+Sta::disable(LibertyPort *port,
+             Sdc *sdc)
 {
-  sdcChangedGraph();
-  sdc_->disable(port);
+  sdc->disable(port);
   disableAfter();
 }
 
 void
-Sta::removeDisable(LibertyPort *port)
+Sta::removeDisable(LibertyPort *port,
+                   Sdc *sdc)
 {
-  sdcChangedGraph();
-  sdc_->removeDisable(port);
+  sdc->removeDisable(port);
   disableAfter();
 }
 
 void
-Sta::disable(Port *port)
+Sta::disable(Port *port,
+             Sdc *sdc)
 {
-  sdc_->disable(port);
+  sdc->disable(port);
   disableAfter();
 }
 
 void
-Sta::removeDisable(Port *port)
+Sta::removeDisable(Port *port,
+                   Sdc *sdc)
 {
-  sdc_->removeDisable(port);
+  sdc->removeDisable(port);
   disableAfter();
 }
 
 void
-Sta::disable(Edge *edge)
+Sta::disable(Edge *edge,
+             Sdc *sdc)
 {
-  sdc_->disable(edge);
+  sdc->disable(edge);
   disableAfter();
 }
 
 void
-Sta::removeDisable(Edge *edge)
+Sta::removeDisable(Edge *edge,
+                   Sdc *sdc)
 {
-  sdc_->removeDisable(edge);
+  sdc->removeDisable(edge);
   disableAfter();
 }
 
 void
-Sta::disable(TimingArcSet *arc_set)
+Sta::disable(TimingArcSet *arc_set,
+             Sdc *sdc)
 {
-  sdc_->disable(arc_set);
+  sdc->disable(arc_set);
   disableAfter();
 }
 
 void
-Sta::removeDisable(TimingArcSet *arc_set)
+Sta::removeDisable(TimingArcSet *arc_set,
+                   Sdc *sdc)
 {
-  sdc_->removeDisable(arc_set);
+  sdc->removeDisable(arc_set);
   disableAfter();
 }
 
 void
 Sta::disableAfter()
 {
-  // Levelization respects disabled edges.
-  levelize_->invalid();
   delaysInvalid();
 }
 
 ////////////////////////////////////////////////////////////////
 
 EdgeSeq
-Sta::disabledEdges()
+Sta::disabledEdges(const Mode *mode)
 {
+  const Sdc *sdc = mode->sdc();
   ensureLevelized();
   EdgeSeq disabled_edges;
   VertexIterator vertex_iter(graph_);
@@ -1654,65 +1716,67 @@ Sta::disabledEdges()
     VertexOutEdgeIterator edge_iter(vertex, graph_);
     while (edge_iter.hasNext()) {
       Edge *edge = edge_iter.next();
-      if (isDisabledConstant(edge)
-	  || isDisabledCondDefault(edge)
-	  || isDisabledConstraint(edge)
-	  || edge->isDisabledLoop()
-	  || isDisabledPresetClr(edge))
-	disabled_edges.push_back(edge);
+      if (isDisabledConstant(edge, mode) || isDisabledCondDefault(edge)
+          || isDisabledConstraint(edge, sdc) || edge->isDisabledLoop()
+          || isDisabledPresetClr(edge))
+        disabled_edges.push_back(edge);
     }
   }
   return disabled_edges;
 }
 
-
 EdgeSeq
-Sta::disabledEdgesSorted()
+Sta::disabledEdgesSorted(const Mode *mode)
 {
-  EdgeSeq disabled_edges = disabledEdges();
+  EdgeSeq disabled_edges = disabledEdges(mode);
   sortEdges(&disabled_edges, network_, graph_);
   return disabled_edges;
 }
 
 bool
-Sta::isDisabledConstraint(Edge *edge)
+Sta::isDisabledConstraint(Edge *edge,
+                          const Sdc *sdc)
 {
   Pin *from_pin = edge->from(graph_)->pin();
   Pin *to_pin = edge->to(graph_)->pin();
-  const Instance *inst = network_->instance(from_pin);
-  TimingArcSet *arc_set = edge->timingArcSet();
-  return sdc_->isDisabled(from_pin)
-    || sdc_->isDisabled(to_pin)
-    || sdc_->isDisabled(inst, from_pin, to_pin, edge->role())
-    || sdc_->isDisabled(edge)
-    || sdc_->isDisabled(arc_set);
+  return sdc->isDisabledConstraint(from_pin) || sdc->isDisabledConstraint(to_pin)
+      || sdc->isDisabledConstraint(edge);
 }
 
 bool
-Sta::isDisabledConstant(Edge *edge)
+Sta::isConstant(const Pin *pin,
+                const Mode *mode) const
 {
-  sim_->ensureConstantsPropagated();
+  Sim *sim = mode->sim();
+  sim->ensureConstantsPropagated();
+  return sim->isConstant(pin);
+}
+
+bool
+Sta::isDisabledConstant(Edge *edge,
+                        const Mode *mode)
+{
+  Sim *sim = mode->sim();
+  sim->ensureConstantsPropagated();
   const TimingRole *role = edge->role();
   Vertex *from_vertex = edge->from(graph_);
   Pin *from_pin = from_vertex->pin();
   Vertex *to_vertex = edge->to(graph_);
   Pin *to_pin = to_vertex->pin();
   const Instance *inst = network_->instance(from_pin);
-  return sim_->logicZeroOne(from_vertex)
-    || sim_->logicZeroOne(to_vertex)
-    || (!role->isWire()
-	&& (isCondDisabled(edge, inst, from_pin, to_pin, network_, sim_)
-	    || isModeDisabled(edge, inst, network_, sim_)
-	    || hasDisabledArcs(edge, graph_)));
+  return sim->isConstant(from_vertex) || sim->isConstant(to_vertex)
+      || (!role->isWire()
+          && (sim->isDisabledCond(edge, inst, from_pin, to_pin)
+              || sim->isDisabledMode(edge, inst) || hasDisabledArcs(edge, mode)));
 }
 
 static bool
 hasDisabledArcs(Edge *edge,
-		Graph *graph)
+                const Mode *mode)
 {
   TimingArcSet *arc_set = edge->timingArcSet();
   for (TimingArc *arc : arc_set->arcs()) {
-    if (!searchThru(edge, arc, graph))
+    if (!searchThru(edge, arc, mode))
       return true;
   }
   return false;
@@ -1725,39 +1789,38 @@ Sta::isDisabledLoop(Edge *edge) const
 }
 
 PinSet
-Sta::disabledConstantPins(Edge *edge)
+Sta::disabledConstantPins(Edge *edge,
+                          const Mode *mode)
 {
-  sim_->ensureConstantsPropagated();
+  Sim *sim = mode->sim();
+  sim->ensureConstantsPropagated();
   PinSet pins(network_);
   Vertex *from_vertex = edge->from(graph_);
   Pin *from_pin = from_vertex->pin();
   Vertex *to_vertex = edge->to(graph_);
   const Pin *to_pin = to_vertex->pin();
-  if (sim_->logicZeroOne(from_vertex))
+  if (sim->isConstant(from_vertex))
     pins.insert(from_pin);
   if (edge->role()->isWire()) {
-    if (sim_->logicZeroOne(to_vertex))
+    if (sim->isConstant(to_vertex))
       pins.insert(to_pin);
   }
   else {
     const Instance *inst = network_->instance(to_pin);
     bool is_disabled;
     FuncExpr *disable_cond;
-    isCondDisabled(edge, inst, from_pin, to_pin, network_, sim_,
-		   is_disabled, disable_cond);
+    sim->isDisabledCond(edge, inst, from_pin, to_pin, is_disabled, disable_cond);
     if (is_disabled)
-      exprConstantPins(disable_cond, inst, pins);
-    isModeDisabled(edge, inst, network_, sim_,
-		   is_disabled, disable_cond);
+      exprConstantPins(disable_cond, inst, mode, pins);
+    sim->isDisabledMode(edge, inst, is_disabled, disable_cond);
     if (is_disabled)
-      exprConstantPins(disable_cond, inst, pins);
-    if (hasDisabledArcs(edge, graph_)) {
+      exprConstantPins(disable_cond, inst, mode, pins);
+    if (hasDisabledArcs(edge, mode)) {
       LibertyPort *to_port = network_->libertyPort(to_pin);
       if (to_port) {
-	FuncExpr *func = to_port->function();
-	if (func
-	    && sim_->functionSense(inst, from_pin, to_pin) != edge->sense())
-	  exprConstantPins(func, inst, pins);
+        FuncExpr *func = to_port->function();
+        if (func && sim->functionSense(inst, from_pin, to_pin) != edge->sense())
+          exprConstantPins(func, inst, mode, pins);
       }
     }
   }
@@ -1765,27 +1828,29 @@ Sta::disabledConstantPins(Edge *edge)
 }
 
 TimingSense
-Sta::simTimingSense(Edge *edge)
+Sta::simTimingSense(Edge *edge,
+                    const Mode *mode)
 {
   Pin *from_pin = edge->from(graph_)->pin();
   Pin *to_pin = edge->to(graph_)->pin();
   Instance *inst = network_->instance(from_pin);
-  return sim_->functionSense(inst, from_pin, to_pin);
+  return mode->sim()->functionSense(inst, from_pin, to_pin);
 }
 
 void
 Sta::exprConstantPins(FuncExpr *expr,
                       const Instance *inst,
+                      const Mode *mode,
+                      // Return value.
                       PinSet &pins)
 {
-  FuncExprPortIterator port_iter(expr);
-  while (port_iter.hasNext()) {
-    LibertyPort *port = port_iter.next();
+  LibertyPortSet ports = expr->ports();
+  for (LibertyPort *port : ports) {
     Pin *pin = network_->findPin(inst, port);
     if (pin) {
-      LogicValue value = sim_->logicValue(pin);
+      LogicValue value = mode->sim()->simValue(pin);
       if (value != LogicValue::unknown)
-	pins.insert(pin);
+        pins.insert(pin);
     }
   }
 }
@@ -1793,75 +1858,71 @@ Sta::exprConstantPins(FuncExpr *expr,
 bool
 Sta::isDisabledBidirectInstPath(Edge *edge) const
 {
-  return !variables_->bidirectInstPathsEnabled()
-    && edge->isBidirectInstPath();
-}
-
-bool
-Sta::isDisabledBidirectNetPath(Edge *edge) const
-{
-  return !variables_->bidirectNetPathsEnabled()
-    && edge->isBidirectNetPath();
+  return !variables_->bidirectInstPathsEnabled() && edge->isBidirectInstPath();
 }
 
 bool
 Sta::isDisabledPresetClr(Edge *edge) const
 {
   return !variables_->presetClrArcsEnabled()
-    && edge->role() == TimingRole::regSetClr();
+      && edge->role() == TimingRole::regSetClr();
 }
 
 void
-Sta::disableClockGatingCheck(Instance *inst)
+Sta::disableClockGatingCheck(Instance *inst,
+                             Sdc *sdc)
 {
-  sdc_->disableClockGatingCheck(inst);
+  sdc->disableClockGatingCheck(inst);
   search_->endpointsInvalid();
 }
 
 void
-Sta::disableClockGatingCheck(Pin *pin)
+Sta::disableClockGatingCheck(Pin *pin,
+                             Sdc *sdc)
 {
-  sdc_->disableClockGatingCheck(pin);
+  sdc->disableClockGatingCheck(pin);
   search_->endpointsInvalid();
 }
 
 void
-Sta::disableClockGatingCheck(LibertyCell *cell)
+Sta::disableClockGatingCheck(LibertyCell *cell,
+                             Sdc *sdc)
 {
-  sdc_->disableClockGatingCheck(cell);
+  sdc->disableClockGatingCheck(cell);
   search_->endpointsInvalid();
 }
 
 void
-Sta::removeDisableClockGatingCheck(Instance *inst)
+Sta::removeDisableClockGatingCheck(Instance *inst,
+                                   Sdc *sdc)
 {
-  sdc_->removeDisableClockGatingCheck(inst);
+  sdc->removeDisableClockGatingCheck(inst);
   search_->endpointsInvalid();
 }
 
 void
-Sta::removeDisableClockGatingCheck(Pin *pin)
+Sta::removeDisableClockGatingCheck(Pin *pin,
+                                   Sdc *sdc)
 {
-  sdc_->removeDisableClockGatingCheck(pin);
+  sdc->removeDisableClockGatingCheck(pin);
   search_->endpointsInvalid();
 }
 
 void
-Sta::removeDisableClockGatingCheck(LibertyCell *cell)
+Sta::removeDisableClockGatingCheck(LibertyCell *cell,
+                                   Sdc *sdc)
 {
-  sdc_->removeDisableClockGatingCheck(cell);
+  sdc->removeDisableClockGatingCheck(cell);
   search_->endpointsInvalid();
 }
 
 void
 Sta::setLogicValue(Pin *pin,
-		   LogicValue value)
+                   LogicValue value,
+                   Mode *mode)
 {
-  sdc_->setLogicValue(pin, value);
-  // Levelization respects constant disabled edges.
-  levelize_->invalid();
-  power_->activitiesInvalid();
-  sim_->constantsInvalid();
+  mode->sdc()->setLogicValue(pin, value);
+  mode->sim()->constantsInvalid();
   // Constants disable edges which isolate downstream vertices of the
   // graph from the delay calculator's BFS search.  This means that
   // simply invaldating the delays downstream from the constant pin
@@ -1869,32 +1930,32 @@ Sta::setLogicValue(Pin *pin,
   // calculator searched thru disabled edges but ignored their
   // results.
   delaysInvalid();
+  power_->activitiesInvalid();
 }
 
 void
 Sta::setCaseAnalysis(Pin *pin,
-		     LogicValue value)
+                     LogicValue value,
+                     Mode *mode)
 {
-  sdc_->setCaseAnalysis(pin, value);
-  power_->activitiesInvalid();
   // Levelization respects constant disabled edges.
-  levelize_->invalid();
-  sim_->constantsInvalid();
+  mode->sdc()->setCaseAnalysis(pin, value);
+  mode->sim()->constantsInvalid();
   // Constants disable edges which isolate downstream vertices of the
   // graph from the delay calculator's BFS search.  This means that
   // simply invaldating the delays downstream from the constant pin
   // fails.  This could be handled incrementally by invalidating delays
   // on the output of gates one level downstream.
   delaysInvalid();
+  power_->activitiesInvalid();
 }
 
 void
-Sta::removeCaseAnalysis(Pin *pin)
+Sta::removeCaseAnalysis(Pin *pin,
+                        Mode *mode)
 {
-  sdc_->removeCaseAnalysis(pin);
-  // Levelization respects constant disabled edges.
-  levelize_->invalid();
-  sim_->constantsInvalid();
+  mode->sdc()->removeCaseAnalysis(pin);
+  mode->sim()->constantsInvalid();
   // Constants disable edges which isolate downstream vertices of the
   // graph from the delay calculator's BFS search.  This means that
   // simply invaldating the delays downstream from the constant pin
@@ -1905,104 +1966,105 @@ Sta::removeCaseAnalysis(Pin *pin)
 
 void
 Sta::setInputDelay(const Pin *pin,
-		   const RiseFallBoth *rf,
-		   const Clock *clk,
-		   const RiseFall *clk_rf,
-		   const Pin *ref_pin,
-		   bool source_latency_included,
-		   bool network_latency_included,
-		   const MinMaxAll *min_max,
-		   bool add,
-		   float delay)
+                   const RiseFallBoth *rf,
+                   const Clock *clk,
+                   const RiseFall *clk_rf,
+                   const Pin *ref_pin,
+                   bool source_latency_included,
+                   bool network_latency_included,
+                   const MinMaxAll *min_max,
+                   bool add,
+                   float delay,
+                   Sdc *sdc)
 {
-  sdc_->setInputDelay(pin, rf, clk, clk_rf, ref_pin,
-		      source_latency_included, network_latency_included,
-		      min_max, add, delay);
+  sdc->setInputDelay(pin, rf, clk, clk_rf, ref_pin, source_latency_included,
+                     network_latency_included, min_max, add, delay);
 
   search_->arrivalInvalid(pin);
 }
 
-void 
+void
 Sta::removeInputDelay(const Pin *pin,
-		      const RiseFallBoth *rf,
-		      const Clock *clk,
-		      const RiseFall *clk_rf,
-		      const MinMaxAll *min_max)
+                      const RiseFallBoth *rf,
+                      const Clock *clk,
+                      const RiseFall *clk_rf,
+                      const MinMaxAll *min_max,
+                      Sdc *sdc)
 {
-  sdc_->removeInputDelay(pin, rf, clk, clk_rf, min_max);
+  sdc->removeInputDelay(pin, rf, clk, clk_rf, min_max);
   search_->arrivalInvalid(pin);
 }
 
 void
 Sta::setOutputDelay(const Pin *pin,
-		    const RiseFallBoth *rf,
-		    const Clock *clk,
-		    const RiseFall *clk_rf,
-		    const Pin *ref_pin,
-		    bool source_latency_included,
-		    bool network_latency_included,
-		    const MinMaxAll *min_max,
-		    bool add,
-		    float delay)
+                    const RiseFallBoth *rf,
+                    const Clock *clk,
+                    const RiseFall *clk_rf,
+                    const Pin *ref_pin,
+                    bool source_latency_included,
+                    bool network_latency_included,
+                    const MinMaxAll *min_max,
+                    bool add,
+                    float delay,
+                    Sdc *sdc)
 {
-  sdc_->setOutputDelay(pin, rf, clk, clk_rf, ref_pin,
-		       source_latency_included,network_latency_included,
-		       min_max, add, delay);
-  sdcChangedGraph();
+  sdc->setOutputDelay(pin, rf, clk, clk_rf, ref_pin, source_latency_included,
+                      network_latency_included, min_max, add, delay);
   search_->requiredInvalid(pin);
 }
 
-void 
+void
 Sta::removeOutputDelay(const Pin *pin,
-		       const RiseFallBoth *rf,
-		       const Clock *clk,
-		       const RiseFall *clk_rf,
-		       const MinMaxAll *min_max)
+                       const RiseFallBoth *rf,
+                       const Clock *clk,
+                       const RiseFall *clk_rf,
+                       const MinMaxAll *min_max,
+                       Sdc *sdc)
 {
-  sdc_->removeOutputDelay(pin, rf, clk, clk_rf, min_max);
-  sdcChangedGraph();
+  sdc->removeOutputDelay(pin, rf, clk, clk_rf, min_max);
   search_->arrivalInvalid(pin);
 }
 
 void
 Sta::makeFalsePath(ExceptionFrom *from,
-		   ExceptionThruSeq *thrus,
-		   ExceptionTo *to,
-		   const MinMaxAll *min_max,
-		   const char *comment)
+                   ExceptionThruSeq *thrus,
+                   ExceptionTo *to,
+                   const MinMaxAll *min_max,
+                   std::string_view comment,
+                   Sdc *sdc)
 {
-  sdc_->makeFalsePath(from, thrus, to, min_max, comment);
+  sdc->makeFalsePath(from, thrus, to, min_max, comment);
   search_->arrivalsInvalid();
 }
 
 void
 Sta::makeMulticyclePath(ExceptionFrom *from,
-			ExceptionThruSeq *thrus,
-			ExceptionTo *to,
-			const MinMaxAll *min_max,
-			bool use_end_clk,
-			int path_multiplier,
-			const char *comment)
+                        ExceptionThruSeq *thrus,
+                        ExceptionTo *to,
+                        const MinMaxAll *min_max,
+                        bool use_end_clk,
+                        int path_multiplier,
+                        std::string_view comment,
+                        Sdc *sdc)
 {
-  sdc_->makeMulticyclePath(from, thrus, to, min_max,
-			   use_end_clk, path_multiplier,
-			   comment);
+  sdc->makeMulticyclePath(from, thrus, to, min_max, use_end_clk, path_multiplier,
+                          comment);
   search_->arrivalsInvalid();
 }
 
 void
 Sta::makePathDelay(ExceptionFrom *from,
-		   ExceptionThruSeq *thrus,
-		   ExceptionTo *to,
-		   const MinMax *min_max,
-		   bool ignore_clk_latency,
+                   ExceptionThruSeq *thrus,
+                   ExceptionTo *to,
+                   const MinMax *min_max,
+                   bool ignore_clk_latency,
                    bool break_path,
-		   float delay,
-		   const char *comment)
+                   float delay,
+                   std::string_view comment,
+                   Sdc *sdc)
 {
-  sdc_->makePathDelay(from, thrus, to, min_max,
-		      ignore_clk_latency, break_path,
-                      delay, comment);
+  sdc->makePathDelay(from, thrus, to, min_max, ignore_clk_latency, break_path, delay,
+                     comment);
   search_->endpointsInvalid();
   search_->arrivalsInvalid();
 }
@@ -2021,86 +2083,91 @@ Sta::makePathMargin(ExceptionFrom *from,
 
 void
 Sta::resetPath(ExceptionFrom *from,
-	       ExceptionThruSeq *thrus,
-	       ExceptionTo *to,
-	       const MinMaxAll *min_max)
+               ExceptionThruSeq *thrus,
+               ExceptionTo *to,
+               const MinMaxAll *min_max,
+               Sdc *sdc)
 {
-  sdc_->resetPath(from, thrus, to, min_max);
+  sdc->resetPath(from, thrus, to, min_max);
   search_->arrivalsInvalid();
 }
 
 void
-Sta::makeGroupPath(const char *name,
-		   bool is_default,
-		   ExceptionFrom *from,
-		   ExceptionThruSeq *thrus,
-		   ExceptionTo *to,
-		   const char *comment)
+Sta::makeGroupPath(std::string_view name,
+                   bool is_default,
+                   ExceptionFrom *from,
+                   ExceptionThruSeq *thrus,
+                   ExceptionTo *to,
+                   std::string_view comment,
+                   Sdc *sdc)
 {
-  sdc_->makeGroupPath(name, is_default, from, thrus, to, comment);
+  sdc->makeGroupPath(name, is_default, from, thrus, to, comment);
   search_->arrivalsInvalid();
 }
 
 bool
-Sta::isGroupPathName(const char *group_name)
+Sta::isGroupPathName(std::string_view group_name,
+                     const Sdc *sdc)
 {
-  return isPathGroupName(group_name);
+  return isPathGroupName(group_name, sdc);
 }
 
 bool
-Sta::isPathGroupName(const char *group_name) const
+Sta::isPathGroupName(std::string_view group_name,
+                     const Sdc *sdc) const
 {
-  return sdc_->findClock(group_name)
-    || sdc_->isGroupPathName(group_name)
-    || stringEq(group_name, PathGroups::asyncPathGroupName())
-    || stringEq(group_name, PathGroups::pathDelayGroupName())
-    || stringEq(group_name, PathGroups::gatedClkGroupName())
-    || stringEq(group_name, PathGroups::unconstrainedGroupName());
+  return sdc->findClock(group_name) || sdc->isGroupPathName(group_name)
+      || group_name == PathGroups::asyncPathGroupName()
+      || group_name == PathGroups::pathDelayGroupName()
+      || group_name == PathGroups::gatedClkGroupName()
+      || group_name == PathGroups::unconstrainedGroupName();
 }
 
-StdStringSeq
-Sta::pathGroupNames() const
+StringSeq
+Sta::pathGroupNames(const Sdc *sdc) const
 {
-  StdStringSeq names;
-  for (const Clock *clk : *sdc_->clocks())
+  StringSeq names;
+  for (const Clock *clk : sdc->clocks())
     names.push_back(clk->name());
 
-  for (auto const &[name, group] : sdc_->groupPaths())
+  for (auto const &[name, group] : sdc->groupPaths())
     names.push_back(name);
 
-  names.push_back(PathGroups::asyncPathGroupName());
-  names.push_back(PathGroups::pathDelayGroupName());
-  names.push_back(PathGroups::gatedClkGroupName());
-  names.push_back(PathGroups::unconstrainedGroupName());
+  names.emplace_back(PathGroups::asyncPathGroupName());
+  names.emplace_back(PathGroups::pathDelayGroupName());
+  names.emplace_back(PathGroups::gatedClkGroupName());
+  names.emplace_back(PathGroups::unconstrainedGroupName());
   return names;
 }
 
 ExceptionFrom *
 Sta::makeExceptionFrom(PinSet *from_pins,
-		       ClockSet *from_clks,
-		       InstanceSet *from_insts,
-		       const RiseFallBoth *from_rf)
+                       ClockSet *from_clks,
+                       InstanceSet *from_insts,
+                       const RiseFallBoth *from_rf,
+                       const Sdc *sdc)
 {
-  return sdc_->makeExceptionFrom(from_pins, from_clks, from_insts,
-				 from_rf);
+  return sdc->makeExceptionFrom(from_pins, from_clks, from_insts, from_rf);
 }
 
 void
 Sta::checkExceptionFromPins(ExceptionFrom *from,
-			    const char *file,
-			    int line) const
+                            std::string_view filename,
+                            int line,
+                            const Sdc *sdc) const
 {
   if (from) {
-    PinSet::ConstIterator pin_iter(from->pins());
-    while (pin_iter.hasNext()) {
-      const Pin *pin = pin_iter.next();
-      if (!sdc_->isExceptionStartpoint(pin)) {
-	if (line)
-	  report_->fileWarn(1554, file, line, "'%s' is not a valid start point.",
-			    cmd_network_->pathName(pin));
-	else
-	  report_->warn(1550, "'%s' is not a valid start point.",
-			cmd_network_->pathName(pin));
+    PinSet *pins = from->pins();
+    if (pins) {
+      for (const Pin *pin : *pins) {
+        if (!sdc->isExceptionStartpoint(pin)) {
+          if (line)
+            report_->fileWarn(1554, filename, line, "'{}' is not a valid start point.",
+                              cmd_network_->pathName(pin));
+          else
+            report_->warn(1550, "'{}' is not a valid start point.",
+                          cmd_network_->pathName(pin));
+        }
       }
     }
   }
@@ -2114,11 +2181,12 @@ Sta::deleteExceptionFrom(ExceptionFrom *from)
 
 ExceptionThru *
 Sta::makeExceptionThru(PinSet *pins,
-		       NetSet *nets,
-		       InstanceSet *insts,
-		       const RiseFallBoth *rf)
+                       NetSet *nets,
+                       InstanceSet *insts,
+                       const RiseFallBoth *rf,
+                       const Sdc *sdc)
 {
-  return sdc_->makeExceptionThru(pins, nets, insts, rf);
+  return sdc->makeExceptionThru(pins, nets, insts, rf);
 }
 
 void
@@ -2129,12 +2197,13 @@ Sta::deleteExceptionThru(ExceptionThru *thru)
 
 ExceptionTo *
 Sta::makeExceptionTo(PinSet *to_pins,
-		     ClockSet *to_clks,
-		     InstanceSet *to_insts,
-		     const RiseFallBoth *rf,
-		     const RiseFallBoth *end_rf)
+                     ClockSet *to_clks,
+                     InstanceSet *to_insts,
+                     const RiseFallBoth *rf,
+                     const RiseFallBoth *end_rf,
+                     const Sdc *sdc)
 {
-  return sdc_->makeExceptionTo(to_pins, to_clks, to_insts, rf, end_rf);
+  return sdc->makeExceptionTo(to_pins, to_clks, to_insts, rf, end_rf);
 }
 
 void
@@ -2145,82 +2214,83 @@ Sta::deleteExceptionTo(ExceptionTo *to)
 
 void
 Sta::checkExceptionToPins(ExceptionTo *to,
-			  const char *file,
-			  int line) const
+                          const char *file,
+                          int line,
+                          const Sdc *sdc) const
 {
   if (to) {
-    PinSet::Iterator pin_iter(to->pins());
-    while (pin_iter.hasNext()) {
-      const Pin *pin = pin_iter.next();
-      if (!sdc_->isExceptionEndpoint(pin)) {
-	if (line)
-	  report_->fileWarn(1551, file, line, "'%s' is not a valid endpoint.",
-			    cmd_network_->pathName(pin));
-	else
-	  report_->warn(1552, "'%s' is not a valid endpoint.",
-			cmd_network_->pathName(pin));
+    PinSet *pins = to->pins();
+    if (pins) {
+      for (const Pin *pin : *pins) {
+        if (!sdc->isExceptionEndpoint(pin)) {
+          if (line)
+            report_->fileWarn(1551, file, line, "'{}' is not a valid endpoint.",
+                              cmd_network_->pathName(pin));
+          else
+            report_->warn(1552, "'{}' is not a valid endpoint.",
+                          cmd_network_->pathName(pin));
+        }
       }
     }
   }
 }
 
 void
-Sta::removeConstraints()
-{
-  levelize_->invalid();
-  graph_delay_calc_->clear();
-  search_->clear();
-  sim_->constantsInvalid();
-  if (graph_)
-    sdc_->removeGraphAnnotations();
-  sdc_->clear();
-  clk_network_->clear();
-}
-
-void
-Sta::constraintsChanged()
-{
-  levelize_->invalid();
-  delaysInvalid();
-  sim_->constantsInvalid();
-}
-
-void
-Sta::writeSdc(const char *filename,
-	      bool leaf,
-	      bool native,
-	      int digits,
+Sta::writeSdc(std::string_view filename,
+              std::string_view mode_name,
+              bool leaf,
+              bool native,
+              int digits,
               bool gzip,
-	      bool no_timestamp)
+              bool no_timestamp)
+{
+  Mode *mode = findMode(mode_name);
+  if (mode)
+    writeSdc(mode->sdc(), filename, leaf, native, digits, gzip, no_timestamp);
+  else
+    report_->warn(1561, "mode {} not found.", mode_name);
+}
+
+void
+Sta::writeSdc(const Sdc *sdc,
+              std::string_view filename,
+              bool leaf,
+              bool native,
+              int digits,
+              bool gzip,
+              bool no_timestamp)
 {
   ensureLibLinked();
-  sta::writeSdc(network_->topInstance(), filename, "write_sdc",
-		leaf, native, digits, gzip, no_timestamp, sdc_);
+  sta::writeSdc(sdc, network_->topInstance(), filename, "write_sdc", leaf, native,
+                digits, gzip, no_timestamp);
 }
 
 ////////////////////////////////////////////////////////////////
 
 CheckErrorSeq &
-Sta::checkTiming(bool no_input_delay,
-		 bool no_output_delay,
-		 bool reg_multiple_clks,
-		 bool reg_no_clks,
-		 bool unconstrained_endpoints,
-		 bool loops,
-		 bool generated_clks)
+Sta::checkTiming(const Mode *mode,
+                 bool no_input_delay,
+                 bool no_output_delay,
+                 bool reg_multiple_clks,
+                 bool reg_no_clks,
+                 bool unconstrained_endpoints,
+                 bool loops,
+                 bool generated_clks)
 {
-  searchPreamble();
-  if (unconstrained_endpoints)
-    // Only need non-clock arrivals for unconstrained_endpoints.
+  if (unconstrained_endpoints) {
+    // Only need non-clock arrivals to find unconstrained_endpoints.
+    searchPreamble();
     search_->findAllArrivals();
-  else
-    search_->findClkArrivals();
-  if (check_timing_ == nullptr)
-    makeCheckTiming();
-  return check_timing_->check(no_input_delay, no_output_delay,
-			      reg_multiple_clks, reg_no_clks,
-			      unconstrained_endpoints,
-			      loops, generated_clks);
+  }
+  else {
+    ensureGraph();
+    ensureLevelized();
+    mode->sim()->ensureConstantsPropagated();
+    mode->clkNetwork()->ensureClkNetwork();
+  }
+  return check_timing_->check(mode, no_input_delay, no_output_delay,
+                              reg_multiple_clks, reg_no_clks,
+                              unconstrained_endpoints, loops, generated_clks);
 }
 
 ////////////////////////////////////////////////////////////////
@@ -2234,9 +2304,7 @@ Sta::crprEnabled() const
 void
 Sta::setCrprEnabled(bool enabled)
 {
-  // Pessimism is only relevant for on_chip_variation analysis.
-  if (sdc_->analysisType() == AnalysisType::ocv
-      && enabled != variables_->crprEnabled())
+  if (enabled != variables_->crprEnabled())
     search_->arrivalsInvalid();
   variables_->setCrprEnabled(enabled);
 }
@@ -2251,32 +2319,81 @@ void
 Sta::setCrprMode(CrprMode mode)
 {
   // Pessimism is only relevant for on_chip_variation analysis.
-  if (sdc_->analysisType() == AnalysisType::ocv
-      && variables_->crprEnabled()
-      && variables_->crprMode() != mode)
+  if (variables_->crprEnabled() && variables_->crprMode() != mode)
     search_->arrivalsInvalid();
   variables_->setCrprMode(mode);
 }
 
-bool
-Sta::pocvEnabled() const
+PocvMode
+Sta::pocvMode() const
 {
-  return variables_->pocvEnabled();
+  return variables_->pocvMode();
 }
 
 void
-Sta::setPocvEnabled(bool enabled)
+Sta::setPocvMode(PocvMode mode)
 {
-  if (enabled != variables_->pocvEnabled())
+  if (mode != variables_->pocvMode()) {
+    variables_->setPocvMode(mode);
+
+    delete delay_ops_;
+    switch (mode) {
+    case PocvMode::scalar:
+    default:
+      delay_ops_ = new DelayOpsScalar();
+      break;
+    case PocvMode::normal:
+      checkLibrarayPocv();
+      delay_ops_ = new  DelayOpsNormal();
+      break;
+    case PocvMode::skew_normal:
+      checkLibrarayPocv();
+      delay_ops_ = new DelayOpsSkewNormal();
+      break;
+    }
+    updateComponentsState();
     delaysInvalid();
-  variables_->setPocvEnabled(enabled);
+  }
 }
 
 void
-Sta::setSigmaFactor(float factor)
+Sta::checkLibrarayPocv()
 {
-  if (!fuzzyEqual(factor, sigma_factor_)) {
-    sigma_factor_ = factor;
+  LibertyLibraryIterator *lib_iter = network_->libertyLibraryIterator();
+  while (lib_iter->hasNext()) {
+    LibertyLibrary *lib = lib_iter->next();
+    LibertyCellIterator cell_iter(lib);
+    while (cell_iter.hasNext()) {
+      LibertyCell *cell = cell_iter.next();
+      for (const TimingArcSet *arc_set : cell->timingArcSets()) {
+        for (const TimingArc *arc : arc_set->arcs()) {
+          GateTableModel *gate_model = arc->gateTableModel();
+          if (gate_model) {
+            const TableModels *models = gate_model->delayModels();
+            if (models->sigma(EarlyLate::early()) != nullptr) {
+              delete lib_iter;
+              return;
+            }
+          }
+        }
+      }
+    }
+  }
+  delete lib_iter;
+  report_->warn(1578, "No liberty POCV/LVF models found.");
+}
+
+float
+Sta::pocvQuantile()
+{
+  return variables_->pocvQuantile();
+}
+
+void
+Sta::setPocvQuantile(float quantile)
+{
+  if (!fuzzyEqual(quantile, variables_->pocvQuantile())) {
+    variables_->setPocvQuantile(quantile);
     search_->arrivalsInvalid();
     updateComponentsState();
   }
@@ -2344,25 +2461,10 @@ Sta::setBidirectInstPathsEnabled(bool enabled)
 }
 
 bool
-Sta::bidirectNetPathsEnabled() const
-{
-  return variables_->bidirectNetPathsEnabled();
-}
-
-void
-Sta::setBidirectNetPathsEnabled(bool enabled)
-{
-  if (variables_->bidirectNetPathsEnabled() != enabled) {
-    delaysInvalid();
-    variables_->setBidirectNetPathsEnabled(enabled);
-  }
-}
-
-bool
 Sta::recoveryRemovalChecksEnabled() const
 {
   return variables_->recoveryRemovalChecksEnabled();
-} 
+}
 
 void
 Sta::setRecoveryRemovalChecksEnabled(bool enabled)
@@ -2398,11 +2500,12 @@ void
 Sta::setDynamicLoopBreaking(bool enable)
 {
   if (variables_->dynamicLoopBreaking() != enable) {
-    if (levelize_->levelized()) {
+    for (Mode *mode : modes_) {
+      Sdc *sdc = mode->sdc();
       if (enable)
-	sdc_->makeLoopExceptions();
+        sdc->makeLoopExceptions();
       else
-	sdc_->deleteLoopExceptions();
+        sdc->deleteLoopExceptions();
     }
     search_->arrivalsInvalid();
     variables_->setDynamicLoopBreaking(enable);
@@ -2537,54 +2640,220 @@ Sta::setEnableCollections(bool enable)
 
 ////////////////////////////////////////////////////////////////
 
-Corner *
-Sta::findCorner(const char *corner_name)
-{
-  return corners_->findCorner(corner_name);
-}
-
-bool
-Sta::multiCorner()
-{
-  return corners_->multiCorner();
-}
-
-// Init one corner named "default".
+// Init one scene named "default".
 void
-Sta::makeCorners()
+Sta::makeDefaultScene()
 {
-  corners_ = new Corners(this);
-  StringSet corner_names;
-  corner_names.insert("default");
-  corners_->makeCorners(&corner_names);
-  cmd_corner_ = corners_->findCorner(0);
-  sdc_->makeCornersAfter(corners_);
+  std::string name("default");
+  StringSeq scene_names;
+  scene_names.emplace_back(name);
+  Parasitics *parasitics = makeConcreteParasitics(name, "");
+
+  Mode *mode = new Mode(name, 0, this);
+  modes_.push_back(mode);
+  mode_name_map_[name] = mode;
+  mode->sim()->setMode(mode);
+  mode->sim()->setObserver(new StaSimObserver(this));
+
+  deleteScenes();
+  makeScene(name, mode, parasitics);
+
+  cmd_scene_ = scenes_[0];
+  cmd_mode_ = mode;
 }
 
+// define_corners (before read_liberty).
 void
-Sta::makeCorners(StringSet *corner_names)
+Sta::makeScenes(const StringSeq &scene_names)
 {
-  if (corner_names->size() > corner_count_max)
-    report_->error(1553, "maximum corner count exceeded");
-  sdc_->makeCornersBefore();
-  parasitics_->deleteParasitics();
-  corners_->makeCorners(corner_names);
-  makeParasiticAnalysisPts();
-  cmd_corner_ = corners_->findCorner(0);
+  if (scene_names.size() > scene_count_max)
+    report_->error(1553, "maximum scene count exceeded");
+  Parasitics *parasitics = findParasitics("default");
+  Mode *mode = modes_[0];
+  mode->sdc()->makeSceneBefore();
+  mode->clear();
+
+  deleteScenes();
+  for (const std::string &name : scene_names)
+    makeScene(name, mode, parasitics);
+
+  cmd_scene_ = scenes_[0];
   updateComponentsState();
-  sdc_->makeCornersAfter(corners_);
-}
-
-Corner *
-Sta::cmdCorner() const
-{
-  return cmd_corner_;
+  if (graph_)
+    graph_->makeSceneAfter();
 }
 
 void
-Sta::setCmdCorner(Corner *corner)
+Sta::makeScene(const std::string &name,
+               const std::string &mode_name,
+               const StringSeq &liberty_min_files,
+               const StringSeq &liberty_max_files,
+               const std::string &spef_min_file,
+               const std::string &spef_max_file)
 {
-  cmd_corner_ = corner;
+  Mode *mode = findMode(mode_name);
+  if (mode) {
+    Parasitics *parasitics_default = findParasitics("default");
+    Parasitics *parasitics_min = parasitics_default;
+    Parasitics *parasitics_max = parasitics_default;
+    if (!spef_min_file.empty() && !spef_max_file.empty()) {
+      parasitics_min = findParasitics(spef_min_file);
+      parasitics_max = findParasitics(spef_max_file);
+      if (parasitics_min == nullptr)
+        report_->error(1558, "Spef file {} not found.", spef_min_file);
+      if (parasitics_max == nullptr && spef_max_file != spef_min_file)
+        report_->error(1559, "Spef file {} not found.", spef_max_file);
+    }
+
+    mode->sdc()->makeSceneBefore();
+    Scene *scene = makeScene(name, mode, parasitics_min, parasitics_max);
+    updateComponentsState();
+    if (graph_)
+      graph_->makeSceneAfter();
+    updateSceneLiberty(scene, liberty_min_files, liberty_max_files);
+    cmd_scene_ = scene;
+  }
+  else
+    report_->error(1572, "mode {} not found.", mode_name);
+}
+
+Scene *
+Sta::makeScene(const std::string &name,
+               Mode *mode,
+               Parasitics *parasitics)
+{
+  Scene *scene = new Scene(name, scenes_.size(), mode, parasitics);
+  scene_name_map_[name] = scene;
+  scenes_.push_back(scene);
+  mode->addScene(scene);
+  return scene;
+}
+
+void
+Sta::deleteScenes()
+{
+  for (Scene *scene : scenes_) {
+    scene->mode()->removeScene(scene);
+    delete scene;
+  }
+  scenes_.clear();
+  scene_name_map_.clear();
+}
+
+Scene *
+Sta::makeScene(const std::string &name,
+               Mode *mode,
+               Parasitics *parasitics_min,
+               Parasitics *parasitics_max)
+{
+  if (scenes_.size() == 1 && findScene("default"))
+    deleteScenes();
+
+  Scene *scene = new Scene(name, scenes_.size(), mode,
+                           parasitics_min, parasitics_max);
+  scene_name_map_[name] = scene;
+  scenes_.push_back(scene);
+  mode->addScene(scene);
+  return scene;
+}
+
+Scene *
+Sta::findScene(const std::string &name) const
+{
+  return findKey(scene_name_map_, name);
+}
+
+SceneSeq
+Sta::findScenes(const std::string &name) const
+{
+  SceneSeq matches;
+  PatternMatch pattern(name);
+  for (Scene *scene : scenes_) {
+    if (pattern.match(scene->name()))
+      matches.push_back(scene);
+  }
+  return matches;
+}
+
+SceneSeq
+Sta::findScenes(const std::string &name,
+                ModeSeq &modes) const
+{
+  SceneSeq matches;
+  PatternMatch pattern(name);
+  for (Mode *mode : modes) {
+    for (Scene *scene : mode->scenes()) {
+      if (pattern.match(scene->name()))
+        matches.push_back(scene);
+    }
+  }
+  return matches;
+}
+
+void
+Sta::updateSceneLiberty(Scene *scene,
+                        const StringSeq &liberty_min_files,
+                        const StringSeq &liberty_max_files)
+{
+  if (liberty_min_files == liberty_max_files)
+    updateSceneLiberty(scene, liberty_max_files, MinMaxAll::minMax());
+  else {
+    updateSceneLiberty(scene, liberty_min_files, MinMaxAll::min());
+    updateSceneLiberty(scene, liberty_max_files, MinMaxAll::max());
+  }
+}
+
+void
+Sta::updateSceneLiberty(Scene *scene,
+                        const StringSeq &liberty_files,
+                        const MinMaxAll *min_max)
+{
+  for (const std::string &lib_file : liberty_files) {
+    LibertyLibrary *lib = network_->findLiberty(lib_file);
+    if (lib == nullptr)
+      lib = network_->findLibertyFilename(lib_file);
+    if (lib)
+      LibertyLibrary::makeSceneMap(lib, scene, min_max, network_, report_);
+    else
+      report_->warn(1555, "liberty name/filename {} not found.", lib_file);
+  }
+}
+
+void
+Sta::updateLibertyScenes()
+{
+  for (Scene *scene : scenes_) {
+    LibertyLibraryIterator *iter = network_->libertyLibraryIterator();
+    while (iter->hasNext()) {
+      LibertyLibrary *lib = iter->next();
+      LibertyLibrary::makeSceneMap(lib, scene, MinMaxAll::minMax(),
+                                   network_, report_);
+    }
+  }
+}
+
+Scene *
+Sta::cmdScene() const
+{
+  return cmd_scene_;
+}
+
+void
+Sta::setCmdScene(Scene *scene)
+{
+  cmd_scene_ = scene;
+  cmd_mode_ = scene->mode();
+}
+
+SceneSeq
+Sta::makeSceneSeq(Scene *scene) const
+{
+  SceneSeq scenes;
+  if (scene)
+    scenes.push_back(scene);
+  else
+    scenes = scenes_;
+  return scenes;
 }
 
 ////////////////////////////////////////////////////////////////
@@ -2594,55 +2863,54 @@ Sta::setCmdCorner(Corner *corner)
 // PathEnds are owned by Search PathGroups and deleted on next call.
 PathEndSeq
 Sta::findPathEnds(ExceptionFrom *from,
-		  ExceptionThruSeq *thrus,
-		  ExceptionTo *to,
-		  bool unconstrained,
-		  const Corner *corner,
-		  const MinMaxAll *min_max,
-		  int group_path_count,
-		  int endpoint_path_count,
-		  bool unique_pins,
-		  bool unique_edges,
-		  float slack_min,
-		  float slack_max,
-		  bool sort_by_slack,
-		  PathGroupNameSet *group_names,
-		  bool setup,
-		  bool hold,
-		  bool recovery,
-		  bool removal,
-		  bool clk_gating_setup,
-		  bool clk_gating_hold)
+                  ExceptionThruSeq *thrus,
+                  ExceptionTo *to,
+                  bool unconstrained,
+                  const SceneSeq &scenes,
+                  const MinMaxAll *min_max,
+                  int group_path_count,
+                  int endpoint_path_count,
+                  bool unique_pins,
+                  bool unique_edges,
+                  float slack_min,
+                  float slack_max,
+                  bool sort_by_slack,
+                  StringSeq &group_names,
+                  bool setup,
+                  bool hold,
+                  bool recovery,
+                  bool removal,
+                  bool clk_gating_setup,
+                  bool clk_gating_hold)
 {
   searchPreamble();
   clk_skews_->clear();
-  return search_->findPathEnds(from, thrus, to, unconstrained,
-			       corner, min_max, group_path_count,
-			       endpoint_path_count,
-			       unique_pins, unique_edges,
-			       slack_min, slack_max,
-			       sort_by_slack, group_names,
-			       setup, hold,
-			       recovery, removal,
-			       clk_gating_setup, clk_gating_hold);
+  return search_->findPathEnds(from, thrus, to, unconstrained, scenes, min_max,
+                               group_path_count, endpoint_path_count, unique_pins,
+                               unique_edges, slack_min, slack_max, sort_by_slack,
+                               group_names, setup, hold, recovery, removal,
+                               clk_gating_setup, clk_gating_hold);
 }
 
 ////////////////////////////////////////////////////////////////
 
 // Overall flow:
 //  make graph
-//  propagate constants
 //  levelize
 //  delay calculation
 //  update generated clocks
+//  propagate constants
 //  find arrivals
 
 void
 Sta::searchPreamble()
 {
   findDelays();
+  for (Mode *mode : modes_) {
+    mode->sim()->ensureConstantsPropagated();
+    mode->sdc()->searchPreamble();
+  }
   updateGeneratedClks();
-  sdc_->searchPreamble();
   // Delete results from last findPathEnds because they point to filtered arrivals.
   search_->deletePathGroups();
   search_->deleteFilteredArrivals();
@@ -2655,29 +2923,39 @@ Sta::setReportPathFormat(ReportPathFormat format)
 }
 
 void
-Sta::setReportPathFieldOrder(StringSeq *field_names)
+Sta::setReportPathFieldOrder(const StringSeq &field_names)
 {
   report_path_->setReportFieldOrder(field_names);
 }
 
 void
-Sta::setReportPathFields(bool report_input_pin,
-                         bool report_hier_pins,
-			 bool report_net,
-			 bool report_cap,
-			 bool report_slew,
-			 bool report_fanout,
-			 bool report_src_attr)
+Sta::setReportPathFields(const StringSeq &fields)
 {
-  report_path_->setReportFields(report_input_pin, report_hier_pins, report_net,
-                                report_cap, report_slew, report_fanout,
-                                report_src_attr);
+  report_path_->setReportFields(fields);
 }
 
 ReportField *
-Sta::findReportPathField(const char *name)
+Sta::findReportPathField(std::string_view name)
 {
   return report_path_->findField(name);
+}
+
+ReportField *
+Sta::findReportPathFieldAbrev(std::string_view name)
+{
+  return report_path_->findFieldAbrev(name);
+}
+
+void
+Sta::makeReportPathField(std::string_view name,
+                         std::string_view name_abrev,
+                         std::string_view title,
+                         size_t width,
+                         bool left_justify,
+                         Unit *unit,
+                         const ReportFieldGetValue &get_value)
+{
+  report_path_->makeField(name, name_abrev, title, width, left_justify, unit, get_value);
 }
 
 void
@@ -2690,12 +2968,6 @@ void
 Sta::setReportPathNoSplit(bool no_split)
 {
   report_path_->setNoSplit(no_split);
-}
-
-void
-Sta::setReportPathSigmas(bool report_sigmas)
-{
-  report_path_->setReportSigmas(report_sigmas);
 }
 
 void
@@ -2736,9 +3008,10 @@ Sta::reportPathEnd(PathEnd *end)
 
 void
 Sta::reportPathEnd(PathEnd *end,
-                   PathEnd *prev_end)
+                   PathEnd *prev_end,
+                   bool last)
 {
-  report_path_->reportPathEnd(end, prev_end);
+  report_path_->reportPathEnd(end, prev_end, last);
 }
 
 void
@@ -2766,24 +3039,22 @@ Sta::updateTiming(bool full)
 
 void
 Sta::reportClkSkew(ConstClockSeq &clks,
-		   const Corner *corner,
-		   const SetupHold *setup_hold,
+                   const SceneSeq &scenes,
+                   const SetupHold *setup_hold,
                    bool include_internal_latency,
-		   int digits)
+                   int digits)
 {
   clkSkewPreamble();
-  clk_skews_->reportClkSkew(clks, corner, setup_hold,
-                            include_internal_latency, digits);
+  clk_skews_->reportClkSkew(clks, scenes, setup_hold, include_internal_latency,
+                            digits);
 }
 
-float
+Delay
 Sta::findWorstClkSkew(const SetupHold *setup_hold,
                       bool include_internal_latency)
 {
-
   clkSkewPreamble();
-  return clk_skews_->findWorstClkSkew(nullptr, setup_hold,
-                                      include_internal_latency);
+  return clk_skews_->findWorstClkSkew(scenes_, setup_hold, include_internal_latency);
 }
 
 void
@@ -2802,22 +3073,23 @@ Sta::makeClkSkews()
 
 void
 Sta::reportClkLatency(ConstClockSeq &clks,
-                      const Corner *corner,
+                      const SceneSeq &scenes,
                       bool include_internal_latency,
                       int digits)
 {
   ensureClkArrivals();
   ClkLatency clk_latency(this);
-  clk_latency.reportClkLatency(clks, corner, include_internal_latency, digits);
+  clk_latency.reportClkLatency(clks, scenes, include_internal_latency, digits);
 }
 
 ClkDelays
 Sta::findClkDelays(const Clock *clk,
+                   const Scene *scene,
                    bool include_internal_latency)
 {
   ensureClkArrivals();
   ClkLatency clk_latency(this);
-  return clk_latency.findClkDelays(clk, nullptr, include_internal_latency);
+  return clk_latency.findClkDelays(clk, scene, include_internal_latency);
 }
 
 ////////////////////////////////////////////////////////////////
@@ -2844,17 +3116,7 @@ Sta::ensureClkArrivals()
 
 ////////////////////////////////////////////////////////////////
 
-PinSet
-Sta::startpointPins()
-{
-  ensureGraph();
-  PinSet pins(network_);
-  VertexPinCollector visitor(pins);
-  search_->visitStartpoints(&visitor);
-  return pins;
-}
-
-VertexSet *
+VertexSet &
 Sta::endpoints()
 {
   ensureGraph();
@@ -2866,7 +3128,7 @@ Sta::endpointPins()
 {
   ensureGraph();
   PinSet pins(network_);
-  for (Vertex *vertex : *search_->endpoints())
+  for (Vertex *vertex : search_->endpoints())
     pins.insert(vertex->pin());
   return pins;
 }
@@ -2875,8 +3137,8 @@ int
 Sta::endpointViolationCount(const MinMax *min_max)
 {
   int violations = 0;
-  for (Vertex *end : *search_->endpoints()) {
-    if (delayLess(vertexSlack(end, min_max), 0.0, this))
+  for (Vertex *end : search_->endpoints()) {
+    if (delayLess(slack(end, min_max), 0.0, this))
       violations++;
   }
   return violations;
@@ -2894,33 +3156,17 @@ Sta::findRequireds()
 
 ////////////////////////////////////////////////////////////////
 
-VertexPathIterator *
-Sta::vertexPathIterator(Vertex *vertex,
-			const RiseFall *rf,
-			const PathAnalysisPt *path_ap)
-{
-  return new VertexPathIterator(vertex, rf, path_ap, this);
-}
-
-VertexPathIterator *
-Sta::vertexPathIterator(Vertex *vertex,
-			const RiseFall *rf,
-			const MinMax *min_max)
-{
-  return new VertexPathIterator(vertex, rf, min_max, this);
-}
-
 Path *
 Sta::vertexWorstArrivalPath(Vertex *vertex,
-			    const MinMax *min_max)
+                            const MinMax *min_max)
 {
   return vertexWorstArrivalPath(vertex, nullptr, min_max);
 }
 
 Path *
 Sta::vertexWorstArrivalPath(Vertex *vertex,
-			    const RiseFall *rf,
-			    const MinMax *min_max)
+                            const RiseFall *rf,
+                            const MinMax *min_max)
 {
   Path *worst_path = nullptr;
   Arrival worst_arrival = min_max->initValue();
@@ -2929,7 +3175,7 @@ Sta::vertexWorstArrivalPath(Vertex *vertex,
     Path *path = path_iter.next();
     Arrival arrival = path->arrival();
     if (!path->tag(this)->isGenClkSrcPath()
-	&& delayGreater(arrival, worst_arrival, min_max, this)) {
+        && delayGreater(arrival, worst_arrival, min_max, this)) {
       worst_arrival = arrival;
       worst_path = path;
     }
@@ -2957,7 +3203,7 @@ Sta::vertexWorstRequiredPath(Vertex *vertex,
     Path *path = path_iter.next();
     const Required path_req = path->required();
     if (!path->tag(this)->isGenClkSrcPath()
-	&& delayGreater(path_req, worst_req, req_min_max, this)) {
+        && delayGreater(path_req, worst_req, req_min_max, this)) {
       worst_req = path_req;
       worst_path = path;
     }
@@ -2967,8 +3213,8 @@ Sta::vertexWorstRequiredPath(Vertex *vertex,
 
 Path *
 Sta::vertexWorstSlackPath(Vertex *vertex,
-			  const RiseFall *rf,
-			  const MinMax *min_max)
+                          const RiseFall *rf,
+                          const MinMax *min_max)
 {
   Path *worst_path = nullptr;
   Slack min_slack = MinMax::min()->initValue();
@@ -2976,8 +3222,7 @@ Sta::vertexWorstSlackPath(Vertex *vertex,
   while (path_iter.hasNext()) {
     Path *path = path_iter.next();
     Slack slack = path->slack(this);
-    if (!path->tag(this)->isGenClkSrcPath()
-	&& delayLess(slack, min_slack, this)) {
+    if (!path->tag(this)->isGenClkSrcPath() && delayLess(slack, min_slack, this)) {
       min_slack = slack;
       worst_path = path;
     }
@@ -2987,332 +3232,161 @@ Sta::vertexWorstSlackPath(Vertex *vertex,
 
 Path *
 Sta::vertexWorstSlackPath(Vertex *vertex,
-			  const MinMax *min_max)
+                          const MinMax *min_max)
 
 {
   return vertexWorstSlackPath(vertex, nullptr, min_max);
 }
 
 Arrival
-Sta::pinArrival(const Pin *pin,
-                const RiseFall *rf,
-                const MinMax *min_max)
+Sta::arrival(const Pin *pin,
+             const RiseFallBoth *rf,
+             const MinMax *min_max)
 {
   Vertex *vertex, *bidirect_vertex;
   graph_->pinVertices(pin, vertex, bidirect_vertex);
-  Arrival arrival;
+  Arrival worst_arrival = min_max->initValue();
   if (vertex)
-    arrival = vertexArrival(vertex, rf, clk_edge_wildcard, nullptr, min_max);
+    worst_arrival = arrival(vertex, rf, scenes_, min_max);
   if (bidirect_vertex) {
-    Arrival arrival1 = vertexArrival(bidirect_vertex, rf, clk_edge_wildcard,
-                                     nullptr, min_max);
-    if (delayLess(arrival1, arrival, this))
-      arrival = arrival1;
+    Arrival arrival2 = arrival(bidirect_vertex, rf, scenes_, min_max);
+    if (delayGreater(arrival2, worst_arrival, min_max, this))
+      worst_arrival = arrival2;
   }
-  return arrival;
+  return worst_arrival;
 }
 
 Arrival
-Sta::vertexArrival(Vertex *vertex,
-                   const MinMax *min_max)
-{
-  return vertexArrival(vertex, nullptr, clk_edge_wildcard, nullptr, min_max);
-}
-
-Arrival
-Sta::vertexArrival(Vertex *vertex,
-		   const RiseFall *rf,
-		   const PathAnalysisPt *path_ap)
-{
-  return vertexArrival(vertex, rf, clk_edge_wildcard, path_ap, nullptr);
-}
-
-Arrival
-Sta::vertexArrival(Vertex *vertex,
-		   const RiseFall *rf,
-		   const ClockEdge *clk_edge,
-		   const PathAnalysisPt *path_ap,
-                   const MinMax *min_max)
+Sta::arrival(Vertex *vertex,
+             const RiseFallBoth *rf,
+             const SceneSeq &scenes,
+             const MinMax *min_max)
 {
   searchPreamble();
   search_->findArrivals(vertex->level());
-  if (min_max == nullptr)
-    min_max = path_ap->pathMinMax();
+  const SceneSet scenes_set = Scene::sceneSet(scenes);
   Arrival arrival = min_max->initValue();
-  VertexPathIterator path_iter(vertex, rf, path_ap, this);
+  VertexPathIterator path_iter(vertex, this);
   while (path_iter.hasNext()) {
     Path *path = path_iter.next();
     const Arrival &path_arrival = path->arrival();
     const ClkInfo *clk_info = path->clkInfo(search_);
-    if ((clk_edge == clk_edge_wildcard
-	 || clk_info->clkEdge() == clk_edge)
-	&& !clk_info->isGenClkSrcPath()
-	&& delayGreater(path->arrival(), arrival, min_max, this))
+    if (!clk_info->isGenClkSrcPath()
+        && (rf == RiseFallBoth::riseFall()
+            || path->transition(this)->asRiseFallBoth() == rf)
+        && path->minMax(this) == min_max && scenes_set.contains(path->scene(this))
+        && delayGreater(path->arrival(), arrival, min_max, this))
       arrival = path_arrival;
   }
   return arrival;
 }
 
 Required
-Sta::vertexRequired(Vertex *vertex,
-		    const MinMax *min_max)
-{
-  return vertexRequired(vertex, nullptr, clk_edge_wildcard, nullptr, min_max);
-}
-
-Required
-Sta::vertexRequired(Vertex *vertex,
-		    const RiseFall *rf,
-		    const MinMax *min_max)
-{
-  return vertexRequired(vertex, rf, clk_edge_wildcard, nullptr, min_max);
-}
-
-Required
-Sta::vertexRequired(Vertex *vertex,
-		    const RiseFall *rf,
-		    const PathAnalysisPt *path_ap)
-{
-  return vertexRequired(vertex, rf, clk_edge_wildcard, path_ap, nullptr);
-}
-
-Required
-Sta::vertexRequired(Vertex *vertex,
-		    const RiseFall *rf,
-		    const ClockEdge *clk_edge,
-		    const PathAnalysisPt *path_ap)
-{
-  return vertexRequired(vertex, rf, clk_edge, path_ap, nullptr);
-}
-
-Required
-Sta::vertexRequired(Vertex *vertex,
-		    const RiseFall *rf,
-		    const ClockEdge *clk_edge,
-		    const PathAnalysisPt *path_ap,
-		    const MinMax *min_max)
+Sta::required(Vertex *vertex,
+              const RiseFallBoth *rf,
+              const SceneSeq &scenes,
+              const MinMax *min_max)
 {
   findRequired(vertex);
-  const MinMax *req_min_max = min_max
-    ? min_max->opposite()
-    : path_ap->pathMinMax()->opposite();
+  const SceneSet scenes_set = Scene::sceneSet(scenes);
+  const MinMax *req_min_max = min_max->opposite();
   Required required = req_min_max->initValue();
-  VertexPathIterator path_iter(vertex, rf, path_ap, min_max, this);
+  VertexPathIterator path_iter(vertex, this);
   while (path_iter.hasNext()) {
     const Path *path = path_iter.next();
     const Required path_required = path->required();
-    if ((clk_edge == clk_edge_wildcard
-	 || path->clkEdge(search_) == clk_edge)
-	&& delayGreater(path_required, required, req_min_max, this))
+    if ((rf == RiseFallBoth::riseFall()
+         || path->transition(this)->asRiseFallBoth() == rf)
+        && path->minMax(this) == min_max && scenes_set.contains(path->scene(this))
+        && delayGreater(path_required, required, req_min_max, this))
       required = path_required;
   }
   return required;
 }
 
+////////////////////////////////////////////////////////////////
+
 Slack
-Sta::netSlack(const Net *net,
-	      const MinMax *min_max)
+Sta::slack(const Net *net,
+           const MinMax *min_max)
 {
   ensureGraph();
-  Slack slack = MinMax::min()->initValue();
+  Slack min_slack = MinMax::min()->initValue();
   NetConnectedPinIterator *pin_iter = network_->connectedPinIterator(net);
   while (pin_iter->hasNext()) {
     const Pin *pin = pin_iter->next();
     if (network_->isLoad(pin)) {
       Vertex *vertex = graph_->pinLoadVertex(pin);
-      Slack pin_slack = vertexSlack(vertex, min_max);
-      if (delayLess(pin_slack, slack, this))
-	slack = pin_slack;
+      Slack pin_slack = slack(vertex, min_max);
+      if (delayLess(pin_slack, min_slack, this))
+        min_slack = pin_slack;
     }
   }
   delete pin_iter;
-  return slack;
+  return min_slack;
 }
 
 Slack
-Sta::pinSlack(const Pin *pin,
-	      const MinMax *min_max)
+Sta::slack(const Pin *pin,
+           const RiseFallBoth *rf,
+           const SceneSeq &scenes,
+           const MinMax *min_max)
 {
   ensureGraph();
   Vertex *vertex, *bidirect_drvr_vertex;
   graph_->pinVertices(pin, vertex, bidirect_drvr_vertex);
-  Slack slack = MinMax::min()->initValue();
+  Slack min_slack = MinMax::min()->initValue();
   if (vertex)
-    slack = vertexSlack(vertex, min_max);
+    min_slack = slack(vertex, rf, scenes, min_max);
   if (bidirect_drvr_vertex) {
-    Slack slack1 = vertexSlack(bidirect_drvr_vertex, min_max);
-    if (delayLess(slack1, slack, this))
-      slack = slack1;
+    Slack slack1 = slack(bidirect_drvr_vertex, rf, scenes, min_max);
+    if (delayLess(slack1, min_slack, this))
+      min_slack = slack1;
   }
-  return slack;
+  return min_slack;
 }
 
 Slack
-Sta::pinSlack(const Pin *pin,
-	      const RiseFall *rf,
-	      const MinMax *min_max)
+Sta::slack(Vertex *vertex,
+           const MinMax *min_max)
 {
-  ensureGraph();
-  Vertex *vertex, *bidirect_drvr_vertex;
-  graph_->pinVertices(pin, vertex, bidirect_drvr_vertex);
-  Slack slack = MinMax::min()->initValue();
-  if (vertex)
-    slack = vertexSlack(vertex, rf, min_max);
-  if (bidirect_drvr_vertex) {
-    Slack slack1 = vertexSlack(bidirect_drvr_vertex, rf, min_max);
-    if (delayLess(slack1, slack, this))
-      slack = slack1;
-  }
-  return slack;
-}
-
-////////////////////////////////////////////////////////////////
-
-class EndpointPathEndVisitor : public PathEndVisitor
-{
-public:
-  EndpointPathEndVisitor(const std::string &path_group_name,
-			 const MinMax *min_max,
-			 const StaState *sta);
-  PathEndVisitor *copy() const;
-  void visit(PathEnd *path_end);
-  Slack slack() const { return slack_; }
-
-private:
-  const std::string &path_group_name_;
-  const MinMax *min_max_;
-  Slack slack_;
-  const StaState *sta_;
-};
-
-EndpointPathEndVisitor::EndpointPathEndVisitor(const std::string &path_group_name,
-					       const MinMax *min_max,
-					       const StaState *sta) :
-  path_group_name_(path_group_name),
-  min_max_(min_max),
-  slack_(MinMax::min()->initValue()),
-  sta_(sta)
-{
-}
-
-PathEndVisitor *
-EndpointPathEndVisitor::copy() const
-{
-  return new EndpointPathEndVisitor(path_group_name_, min_max_, sta_);
-}
-
-void
-EndpointPathEndVisitor::visit(PathEnd *path_end)
-{
-  if (path_end->minMax(sta_) == min_max_) {
-    StdStringSeq group_names = PathGroups::pathGroupNames(path_end, sta_);
-    for (std::string &group_name : group_names) {
-      if (group_name == path_group_name_) {
-	Slack end_slack = path_end->slack(sta_);
-	if (delayLess(end_slack, slack_, sta_))
-	  slack_ = end_slack;
-      }
-    }
-  }
+  return slack(vertex, RiseFallBoth::riseFall(), scenes_, min_max);
 }
 
 Slack
-Sta::endpointSlack(const Pin *pin,
-		   const std::string &path_group_name,
-		   const MinMax *min_max)
+Sta::slack(Vertex *vertex,
+           const RiseFall *rf,
+           const MinMax *min_max)
 {
-  ensureGraph();
-  Vertex *vertex = graph_->pinLoadVertex(pin);
-  if (vertex) {
-    findRequired(vertex);
-    VisitPathEnds visit_ends(this);
-    EndpointPathEndVisitor path_end_visitor(path_group_name, min_max, this);
-    visit_ends.visitPathEnds(vertex, &path_end_visitor);
-    return path_end_visitor.slack();
-  }
-  else
-    return INF;
+  return slack(vertex, rf->asRiseFallBoth(), scenes_, min_max);
 }
 
-////////////////////////////////////////////////////////////////
-
 Slack
-Sta::vertexSlack(Vertex *vertex,
-		 const MinMax *min_max)
+Sta::slack(Vertex *vertex,
+           const RiseFallBoth *rf,
+           const SceneSeq &scenes,
+           const MinMax *min_max)
 {
   findRequired(vertex);
-  Slack slack = MinMax::min()->initValue();
+  const SceneSet scenes_set = Scene::sceneSet(scenes);
+  const MinMax *min = MinMax::min();
+  Slack slack = min->initValue();
   VertexPathIterator path_iter(vertex, this);
   while (path_iter.hasNext()) {
     Path *path = path_iter.next();
-    if (path->minMax(this) == min_max) {
-      Slack path_slack = path->slack(this);
-      if (delayLess(path_slack, slack, this))
-	slack = path_slack;
-    }
-  }
-  return slack;
-}
-
-Slack
-Sta::vertexSlack(Vertex *vertex,
-		 const RiseFall *rf,
-		 const MinMax *min_max)
-{
-  findRequired(vertex);
-  Slack slack = MinMax::min()->initValue();
-  VertexPathIterator path_iter(vertex, rf, min_max, this);
-  while (path_iter.hasNext()) {
-    Path *path = path_iter.next();
     Slack path_slack = path->slack(this);
-    if (delayLess(path_slack, slack, this))
-      slack = path_slack;
-  }
-  return slack;
-}
-
-Slack
-Sta::vertexSlack(Vertex *vertex,
-		 const RiseFall *rf,
-		 const PathAnalysisPt *path_ap)
-{
-  findRequired(vertex);
-  return vertexSlack1(vertex, rf, clk_edge_wildcard, path_ap);
-}
-
-Slack
-Sta::vertexSlack(Vertex *vertex,
-		 const RiseFall *rf,
-		 const ClockEdge *clk_edge,
-		 const PathAnalysisPt *path_ap)
-{
-  findRequired(vertex);
-  return vertexSlack1(vertex, rf, clk_edge, path_ap);
-}
-
-Slack
-Sta::vertexSlack1(Vertex *vertex,
-		  const RiseFall *rf,
-		  const ClockEdge *clk_edge,
-		  const PathAnalysisPt *path_ap)
-{
-  const MinMax *min = MinMax::min();
-  Slack slack = min->initValue();
-  VertexPathIterator path_iter(vertex, rf, path_ap, this);
-  while (path_iter.hasNext()) {
-    Path *path = path_iter.next();
-    Slack path_slack = path->slack(this);
-    if ((clk_edge == clk_edge_wildcard
-	 || path->clkEdge(search_) == clk_edge)
-	&& delayLess(path_slack, slack, this))
+    if ((rf == RiseFallBoth::riseFall()
+         || path->transition(this)->asRiseFallBoth() == rf)
+        && path->minMax(this) == min_max && scenes_set.contains(path->scene(this))
+        && delayLess(path_slack, slack, this))
       slack = path_slack;
   }
   return slack;
 }
 
 void
-Sta::vertexSlacks(Vertex *vertex,
-		  Slack (&slacks)[RiseFall::index_count][MinMax::index_count])
+Sta::slacks(Vertex *vertex,
+            Slack (&slacks)[RiseFall::index_count][MinMax::index_count])
 {
   findRequired(vertex);
   for (int rf_index : RiseFall::rangeIndex()) {
@@ -3333,6 +3407,196 @@ Sta::vertexSlacks(Vertex *vertex,
 
 ////////////////////////////////////////////////////////////////
 
+class EndpointPathEndVisitor : public PathEndVisitor
+{
+public:
+  EndpointPathEndVisitor(std::string_view path_group_name,
+                         const MinMax *min_max,
+                         const StaState *sta);
+  PathEndVisitor *copy() const override;
+  void visit(PathEnd *path_end) override;
+  Slack slack() const { return slack_; }
+
+private:
+  std::string_view path_group_name_;
+  const MinMax *min_max_;
+  Slack slack_;
+  const StaState *sta_;
+};
+
+EndpointPathEndVisitor::EndpointPathEndVisitor(std::string_view path_group_name,
+                                               const MinMax *min_max,
+                                               const StaState *sta) :
+  path_group_name_(path_group_name),
+  min_max_(min_max),
+  slack_(MinMax::min()->initValue()),
+  sta_(sta)
+{
+}
+
+PathEndVisitor *
+EndpointPathEndVisitor::copy() const
+{
+  return new EndpointPathEndVisitor(*this);
+}
+
+void
+EndpointPathEndVisitor::visit(PathEnd *path_end)
+{
+  if (path_end->minMax(sta_) == min_max_) {
+    StringSeq group_names = PathGroups::pathGroupNames(path_end, sta_);
+    for (std::string &group_name : group_names) {
+      if (group_name == path_group_name_) {
+        Slack end_slack = path_end->slack(sta_);
+        if (delayLess(end_slack, slack_, sta_))
+          slack_ = end_slack;
+      }
+    }
+  }
+}
+
+Slack
+Sta::endpointSlack(const Pin *pin,
+                   std::string_view path_group_name,
+                   const MinMax *min_max)
+{
+  ensureGraph();
+  Vertex *vertex = graph_->pinLoadVertex(pin);
+  if (vertex) {
+    findRequired(vertex);
+    VisitPathEnds visit_ends(this);
+    EndpointPathEndVisitor path_end_visitor(path_group_name, min_max, this);
+    visit_ends.visitPathEnds(vertex, &path_end_visitor);
+    return path_end_visitor.slack();
+  }
+  else
+    return INF;
+}
+
+////////////////////////////////////////////////////////////////
+
+void
+Sta::reportArrivalWrtClks(const Pin *pin,
+                          const Scene *scene,
+                          bool report_variance,
+                          int digits)
+{
+  searchPreamble();
+  reportDelaysWrtClks(pin, scene, report_variance, digits, false,
+                      [] (const Path *path) {
+                        return path->arrival();
+                      });
+}
+
+void
+Sta::reportRequiredWrtClks(const Pin *pin,
+                           const Scene *scene,
+                           bool report_variance,
+                           int digits)
+{
+  reportDelaysWrtClks(pin, scene, report_variance, digits, true,
+                      [] (const Path *path) {
+                        return path->required();
+                      });
+}
+
+void
+Sta::reportSlackWrtClks(const Pin *pin,
+                        const Scene *scene,
+                        bool report_variance,
+                        int digits)
+{
+  reportDelaysWrtClks(pin, scene, report_variance, digits, true,
+                      [this] (const Path *path) {
+                        return path->slack(this);
+                      });
+}
+
+void
+Sta::reportDelaysWrtClks(const Pin *pin,
+                         const Scene *scene,
+                         bool report_variance,
+                         int digits,
+                         bool find_required,
+                         const PathDelayFunc &get_path_delay)
+{
+  ensureGraph();
+  Vertex *vertex, *bidir_vertex;
+  graph_->pinVertices(pin, vertex, bidir_vertex);
+  if (vertex)
+    reportDelaysWrtClks(vertex, scene, report_variance, digits,
+                        find_required, get_path_delay);
+  if (bidir_vertex)
+    reportDelaysWrtClks(vertex, scene, report_variance, digits,
+                        find_required, get_path_delay);
+}
+
+void
+Sta::reportDelaysWrtClks(Vertex *vertex,
+                         const Scene *scene,
+                         bool report_variance,
+                         int digits,
+                         bool find_required,
+                         const PathDelayFunc &get_path_delay)
+{
+  if (find_required)
+    findRequired(vertex);
+  else
+    search_->findArrivals(vertex->level());
+  const Sdc *sdc = scene->sdc();
+  DelaysWrtClks clk_delays = search_->delaysWrtClks(vertex, scene, get_path_delay);
+  reportDelaysWrtClks(nullptr, report_variance, digits, clk_delays);
+  const ClockEdge *default_clk_edge = sdc->defaultArrivalClock()->edge(RiseFall::rise());
+  reportDelaysWrtClks(default_clk_edge, report_variance, digits, clk_delays);
+  for (const Clock *clk : sdc->sortedClocks()) {
+    for (const RiseFall *rf : RiseFall::range()) {
+      const ClockEdge *clk_edge = clk->edge(rf);
+      reportDelaysWrtClks(clk_edge, report_variance, digits, clk_delays);
+    }
+  }
+}
+
+void
+Sta::reportDelaysWrtClks(const ClockEdge *clk_edge,
+                         bool report_variance,
+                         int digits,
+                         DelaysWrtClks &clk_delays)
+{
+  const RiseFallMinMaxDelay &delays = clk_delays[clk_edge];
+  if (!delays.empty()) {
+    std::string clk_name;
+    if (clk_edge)
+      clk_name = sta::format("({})", clk_edge->name());
+    report_->report("{} r {}:{} f {}:{}", clk_name,
+                    formatDelay(RiseFall::rise(), MinMax::min(),
+                                delays, report_variance, digits),
+                    formatDelay(RiseFall::rise(), MinMax::max(),
+                                delays, report_variance, digits),
+                    formatDelay(RiseFall::fall(), MinMax::min(),
+                                delays, report_variance, digits),
+                    formatDelay(RiseFall::fall(), MinMax::max(),
+                                delays, report_variance, digits));
+  }
+}
+
+std::string
+Sta::formatDelay(const RiseFall *rf,
+                 const MinMax *min_max,
+                 const RiseFallMinMaxDelay &delays,
+                 bool report_variance,
+                 int digits)
+{
+  Delay delay;
+  bool exists;
+  delays.value(rf, min_max, delay, exists);
+  if (exists)
+    return delayAsString(delay, min_max, report_variance, digits, this);
+  else
+    return "---";
+}
+
+////////////////////////////////////////////////////////////////
+
 class MinPeriodEndVisitor : public PathEndVisitor
 {
 public:
@@ -3340,8 +3604,8 @@ public:
                       bool include_port_paths,
                       StaState *sta);
   MinPeriodEndVisitor(const MinPeriodEndVisitor &) = default;
-  virtual PathEndVisitor *copy() const;
-  virtual void visit(PathEnd *path_end);
+  PathEndVisitor *copy() const override;
+  void visit(PathEnd *path_end) override;
   float minPeriod() const { return min_period_; }
 
 private:
@@ -3350,7 +3614,7 @@ private:
   const Clock *clk_;
   bool include_port_paths_;
   StaState *sta_;
-  float min_period_;
+  float min_period_{0.0};
 };
 
 MinPeriodEndVisitor::MinPeriodEndVisitor(const Clock *clk,
@@ -3358,8 +3622,7 @@ MinPeriodEndVisitor::MinPeriodEndVisitor(const Clock *clk,
                                          StaState *sta) :
   clk_(clk),
   include_port_paths_(include_port_paths),
-  sta_(sta),
-  min_period_(0)
+  sta_(sta)
 {
 }
 
@@ -3377,10 +3640,8 @@ MinPeriodEndVisitor::visit(PathEnd *path_end)
   const ClockEdge *src_edge = path_end->sourceClkEdge(sta_);
   const ClockEdge *tgt_edge = path_end->targetClkEdge(sta_);
   PathEnd::Type end_type = path_end->type();
-  if ((end_type == PathEnd::Type::check
-       || end_type == PathEnd::Type::output_delay)
-      && path->minMax(sta_) == MinMax::max()
-      && src_edge->clock() == clk_
+  if ((end_type == PathEnd::Type::check || end_type == PathEnd::Type::output_delay)
+      && path->minMax(sta_) == MinMax::max() && src_edge->clock() == clk_
       && tgt_edge->clock() == clk_
       // Only consider rise/rise and fall/fall paths.
       && src_edge->transition() == tgt_edge->transition()
@@ -3389,8 +3650,8 @@ MinPeriodEndVisitor::visit(PathEnd *path_end)
           || !(network->isTopLevelPort(path->pin(sta_))
                || pathIsFromInputPort(path_end)))) {
     Slack slack = path_end->slack(sta_);
-    float period = clk_->period() - delayAsFloat(slack);
-    min_period_ = max(min_period_, period);
+    float period = clk_->period() - delayAsFloat(slack, MinMax::min(), sta_);
+    min_period_ = std::max(min_period_, period);
   }
 }
 
@@ -3413,7 +3674,7 @@ Sta::findClkMinPeriod(const Clock *clk,
   search_->findArrivals();
   VisitPathEnds visit_ends(this);
   MinPeriodEndVisitor min_period_visitor(clk, include_port_paths, this);
-  for (Vertex *vertex : *search_->endpoints()) {
+  for (Vertex *vertex : search_->endpoints()) {
     findRequired(vertex);
     visit_ends.visitPathEnds(vertex, &min_period_visitor);
   }
@@ -3429,7 +3690,7 @@ Sta::findRequired(Vertex *vertex)
   search_->findAllArrivals();
   if (search_->isEndpoint(vertex)
       // Need to include downstream required times if there is fanout.
-      && !hasFanout(vertex, search_->searchAdj(), graph_))
+      && !hasFanout(vertex, search_->searchAdj(), graph_, cmd_mode_))
     search_->seedRequired(vertex);
   else
     search_->findRequireds(vertex->level());
@@ -3443,11 +3704,11 @@ Sta::totalNegativeSlack(const MinMax *min_max)
 }
 
 Slack
-Sta::totalNegativeSlack(const Corner *corner,
-			const MinMax *min_max)
+Sta::totalNegativeSlack(const Scene *scene,
+                        const MinMax *min_max)
 {
   searchPreamble();
-  return search_->totalNegativeSlack(corner, min_max);
+  return search_->totalNegativeSlack(scene, min_max);
 }
 
 Slack
@@ -3462,43 +3723,43 @@ Sta::worstSlack(const MinMax *min_max)
 
 void
 Sta::worstSlack(const MinMax *min_max,
-		// Return values.
-		Slack &worst_slack,
-		Vertex *&worst_vertex)
+                // Return values.
+                Slack &worst_slack,
+                Vertex *&worst_vertex)
 {
   searchPreamble();
   search_->worstSlack(min_max, worst_slack, worst_vertex);
 }
 
 void
-Sta::worstSlack(const Corner *corner,
-		const MinMax *min_max,
-		// Return values.
-		Slack &worst_slack,
-		Vertex *&worst_vertex)
+Sta::worstSlack(const Scene *scene,
+                const MinMax *min_max,
+                // Return values.
+                Slack &worst_slack,
+                Vertex *&worst_vertex)
 {
   searchPreamble();
-  return search_->worstSlack(corner, min_max, worst_slack, worst_vertex);
+  search_->worstSlack(scene, min_max, worst_slack, worst_vertex);
 }
 
 ////////////////////////////////////////////////////////////////
 
-string
+std::string
 Sta::reportDelayCalc(Edge *edge,
-		     TimingArc *arc,
-		     const Corner *corner,
-		     const MinMax *min_max,
-		     int digits)
+                     TimingArc *arc,
+                     const Scene *scene,
+                     const MinMax *min_max,
+                     int digits)
 {
   findDelays();
-  return graph_delay_calc_->reportDelayCalc(edge, arc, corner, min_max, digits);
+  return graph_delay_calc_->reportDelayCalc(edge, arc, scene, min_max, digits);
 }
 
 void
-Sta::setArcDelayCalc(const char *delay_calc_name)
+Sta::setArcDelayCalc(std::string_view delay_calc_name)
 {
   delete arc_delay_calc_;
-  arc_delay_calc_ = makeDelayCalc(delay_calc_name, sta_);
+  arc_delay_calc_ = makeDelayCalc(std::string(delay_calc_name), sta_);
   // Update pointers to arc_delay_calc.
   updateComponentsState();
   delaysInvalid();
@@ -3528,8 +3789,9 @@ Sta::findDelays(Level level)
 void
 Sta::delayCalcPreamble()
 {
-  ensureLibLinked();
-  ensureClkNetwork();
+  ensureLevelized();
+  for (Mode *mode : modes_)
+    mode->clkNetwork()->ensureClkNetwork();
 }
 
 void
@@ -3540,28 +3802,32 @@ Sta::setIncrementalDelayTolerance(float tol)
 
 ArcDelay
 Sta::arcDelay(Edge *edge,
-	      TimingArc *arc,
-	      const DcalcAnalysisPt *dcalc_ap)
+              TimingArc *arc,
+              DcalcAPIndex ap_index)
 {
   findDelays(edge->to(graph_));
-  return graph_->arcDelay(edge, arc, dcalc_ap->index());
+  return graph_->arcDelay(edge, arc, ap_index);
 }
 
 bool
 Sta::arcDelayAnnotated(Edge *edge,
-		       TimingArc *arc,
-		       DcalcAnalysisPt *dcalc_ap)
+                       TimingArc *arc,
+                       const Scene *scene,
+                       const MinMax *min_max)
 {
-  return graph_->arcDelayAnnotated(edge, arc, dcalc_ap->index());
+  DcalcAPIndex ap_index = scene->dcalcAnalysisPtIndex(min_max);
+  return graph_->arcDelayAnnotated(edge, arc, ap_index);
 }
 
 void
 Sta::setArcDelayAnnotated(Edge *edge,
-			  TimingArc *arc,
-			  DcalcAnalysisPt *dcalc_ap,
-			  bool annotated)
+                          TimingArc *arc,
+                          const Scene *scene,
+                          const MinMax *min_max,
+                          bool annotated)
 {
-  graph_->setArcDelayAnnotated(edge, arc, dcalc_ap->index(), annotated);
+  DcalcAPIndex ap_index = scene->dcalcAnalysisPtIndex(min_max);
+  graph_->setArcDelayAnnotated(edge, arc, ap_index, annotated);
   Vertex *to = edge->to(graph_);
   search_->arrivalInvalid(to);
   search_->requiredInvalid(edge->from(graph_));
@@ -3570,49 +3836,17 @@ Sta::setArcDelayAnnotated(Edge *edge,
 }
 
 Slew
-Sta::vertexSlew(Vertex *vertex,
-		const RiseFall *rf,
-                const Corner *corner,
-                const MinMax *min_max)
-{
-  findDelays(vertex);
-  const DcalcAnalysisPt *dcalc_ap = corner->findDcalcAnalysisPt(min_max);
-  return graph_->slew(vertex, rf, dcalc_ap->index());
-}
-
-Slew
-Sta::vertexSlew(Vertex *vertex,
-		const RiseFall *rf,
-		const DcalcAnalysisPt *dcalc_ap)
-{
-  findDelays(vertex);
-  return graph_->slew(vertex, rf, dcalc_ap->index());
-}
-
-Slew
-Sta::vertexSlew(Vertex *vertex,
-		const RiseFall *rf,
-		const MinMax *min_max)
+Sta::slew(Vertex *vertex,
+          const RiseFallBoth *rf,
+          const SceneSeq &scenes,
+          const MinMax *min_max)
 {
   findDelays(vertex);
   Slew mm_slew = min_max->initValue();
-  for (const DcalcAnalysisPt *dcalc_ap : corners_->dcalcAnalysisPts()) {
-    Slew slew = graph_->slew(vertex, rf, dcalc_ap->index());
-    if (delayGreater(slew, mm_slew, min_max, this))
-      mm_slew = slew;
-  }
-  return mm_slew;
-}
-
-Slew
-Sta::vertexSlew(Vertex *vertex,
-                const MinMax *min_max)
-{
-  findDelays(vertex);
-  Slew mm_slew = min_max->initValue();
-  for (const DcalcAnalysisPt *dcalc_ap : corners_->dcalcAnalysisPts()) {
-    for (const RiseFall *rf : RiseFall::range()) {
-      Slew slew = graph_->slew(vertex, rf, dcalc_ap->index());
+  for (const Scene *scene : scenes) {
+    DcalcAPIndex ap_index = scene->dcalcAnalysisPtIndex(min_max);
+    for (const RiseFall *rf : rf->range()) {
+      Slew slew = graph_->slew(vertex, rf, ap_index);
       if (delayGreater(slew, mm_slew, min_max, this))
         mm_slew = slew;
     }
@@ -3661,7 +3895,7 @@ Sta::ensureGraph()
 void
 Sta::makeGraph()
 {
-  graph_ = new Graph(this, 2, corners_->dcalcAnalysisPtCount());
+  graph_ = new Graph(this, dcalcAnalysisPtCount());
   graph_->makeGraph();
 }
 
@@ -3669,11 +3903,13 @@ void
 Sta::ensureLevelized()
 {
   ensureGraph();
-  ensureGraphSdcAnnotated();
-  // Need constant propagation before levelization to know edges that
-  // are disabled by constants.
-  sim_->ensureConstantsPropagated();
   levelize_->ensureLevelized();
+}
+
+void
+Sta::setLevelizeObserver(LevelizeObserver *observer)
+{
+  levelize_->setObserver(observer);
 }
 
 void
@@ -3681,18 +3917,22 @@ Sta::updateGeneratedClks()
 {
   if (update_genclks_) {
     ensureLevelized();
-    bool gen_clk_changed = true;
-    while (gen_clk_changed) {
-      gen_clk_changed = false;
-      for (Clock *clk : sdc_->clks()) {
-	if (clk->isGenerated() && !clk->waveformValid()) {
-	  search_->genclks()->ensureMaster(clk);
-	  Clock *master_clk = clk->masterClk();
-	  if (master_clk && master_clk->waveformValid()) {
-	    clk->generate(master_clk);
-	    gen_clk_changed = true;
-	  }
-	}
+    for (Mode *mode : modes_) {
+      Genclks *genclks = mode->genclks();
+      Sdc *sdc = mode->sdc();
+      bool gen_clk_changed = true;
+      while (gen_clk_changed) {
+        gen_clk_changed = false;
+        for (Clock *clk : sdc->clocks()) {
+          if (clk->isGenerated() && !clk->waveformValid()) {
+            genclks->ensureMaster(clk, sdc);
+            Clock *master_clk = clk->masterClk();
+            if (master_clk && master_clk->waveformValid()) {
+              clk->generate(master_clk);
+              gen_clk_changed = true;
+            }
+          }
+        }
       }
     }
   }
@@ -3719,18 +3959,6 @@ Sta::graphLoops()
   return levelize_->loops();
 }
 
-PathAnalysisPt *
-Sta::pathAnalysisPt(Path *path)
-{
-  return path->pathAnalysisPt(this);
-}
-
-DcalcAnalysisPt *
-Sta::pathDcalcAnalysisPt(Path *path)
-{
-  return pathAnalysisPt(path)->dcalcAnalysisPt();
-}
-
 Vertex *
 Sta::maxPathCountVertex() const
 {
@@ -3749,7 +3977,7 @@ Sta::maxPathCountVertex() const
 }
 
 int
-Sta::vertexPathCount(Vertex  *vertex) const
+Sta::vertexPathCount(Vertex *vertex) const
 {
   TagGroup *tag_group = search_->tagGroup(vertex);
   if (tag_group)
@@ -3790,15 +4018,14 @@ Sta::clkInfoCount() const
 
 void
 Sta::setArcDelay(Edge *edge,
-		 TimingArc *arc,
-		 const Corner *corner,
-		 const MinMaxAll *min_max,
-		 ArcDelay delay)
+                 TimingArc *arc,
+                 const Scene *scene,
+                 const MinMaxAll *min_max,
+                 ArcDelay delay)
 {
   ensureGraph();
   for (const MinMax *mm : min_max->range()) {
-    const DcalcAnalysisPt *dcalc_ap = corner->findDcalcAnalysisPt(mm);
-    DcalcAPIndex ap_index = dcalc_ap->index();
+    DcalcAPIndex ap_index = scene->dcalcAnalysisPtIndex(mm);
     graph_->setArcDelay(edge, arc, ap_index, delay);
     // Don't let delay calculation clobber the value.
     graph_->setArcDelayAnnotated(edge, arc, ap_index, true);
@@ -3813,15 +4040,14 @@ Sta::setArcDelay(Edge *edge,
 
 void
 Sta::setAnnotatedSlew(Vertex *vertex,
-		      const Corner *corner,
-		      const MinMaxAll *min_max,
-		      const RiseFallBoth *rf,
-		      float slew)
+                      const Scene *scene,
+                      const MinMaxAll *min_max,
+                      const RiseFallBoth *rf,
+                      float slew)
 {
   ensureGraph();
   for (const MinMax *mm : min_max->range()) {
-    const DcalcAnalysisPt *dcalc_ap = corner->findDcalcAnalysisPt(mm);
-    DcalcAPIndex ap_index = dcalc_ap->index();
+    DcalcAPIndex ap_index = scene->dcalcAnalysisPtIndex(mm);
     for (const RiseFall *rf1 : rf->range()) {
       graph_->setSlew(vertex, rf1, ap_index, slew);
       // Don't let delay calculation clobber the value.
@@ -3832,18 +4058,18 @@ Sta::setAnnotatedSlew(Vertex *vertex,
 }
 
 void
-Sta::writeSdf(const char *filename,
-	      const Corner *corner,
-	      char divider,
-	      bool include_typ,
+Sta::writeSdf(std::string_view filename,
+              const Scene *scene,
+              char divider,
+              bool include_typ,
               int digits,
-	      bool gzip,
-	      bool no_timestamp,
-	      bool no_version)
+              bool gzip,
+              bool no_timestamp,
+              bool no_version)
 {
   findDelays();
-  sta::writeSdf(filename, corner, divider, include_typ, digits, gzip,
-                no_timestamp, no_version, this);
+  sta::writeSdf(filename, scene, divider, include_typ, digits, gzip, no_timestamp,
+                no_version, this);
 }
 
 void
@@ -3856,50 +4082,55 @@ Sta::removeDelaySlewAnnotations()
 }
 
 LogicValue
-Sta::simLogicValue(const Pin *pin)
+Sta::simLogicValue(const Pin *pin,
+                   const Mode *mode)
 {
   ensureGraph();
-  sim_->ensureConstantsPropagated();
-  return sim_->logicValue(pin);
+  Sim *sim = mode->sim();
+  sim->ensureConstantsPropagated();
+  return sim->simValue(pin);
 }
+
+////////////////////////////////////////////////////////////////
+
+// These constants are mode/sdc independent.
 
 void
 Sta::findLogicConstants()
 {
   ensureGraph();
-  sim_->findLogicConstants();
+  // Sdc independent constants so any mode should return the same values.
+  Sim *sim = cmd_mode_->sim();
+  sim->findLogicConstants();
 }
 
 void
 Sta::clearLogicConstants()
 {
-  sim_->clear();
+  Sim *sim = cmd_mode_->sim();
+  sim->clear();
 }
+
+////////////////////////////////////////////////////////////////
 
 void
 Sta::setPortExtPinCap(const Port *port,
-		      const RiseFallBoth *rf,
-                      const Corner *corner,
-		      const MinMaxAll *min_max,
-		      float cap)
+                      const RiseFallBoth *rf,
+                      const MinMaxAll *min_max,
+                      float cap,
+                      Sdc *sdc)
 {
   for (const RiseFall *rf1 : rf->range()) {
-    for (const MinMax *mm : min_max->range()) {
-      if (corner == nullptr) {
-        for (const Corner *corner : *corners_)
-          sdc_->setPortExtPinCap(port, rf1, corner, mm, cap);
-      }
-      else
-        sdc_->setPortExtPinCap(port, rf1, corner, mm, cap);
-    }
+    for (const MinMax *mm : min_max->range())
+      sdc->setPortExtPinCap(port, rf1, mm, cap);
   }
   delaysInvalidFromFanin(port);
 }
 
 void
 Sta::portExtCaps(const Port *port,
-                 const Corner *corner,
                  const MinMax *min_max,
+                 const Sdc *sdc,
                  float &pin_cap,
                  float &wire_cap,
                  int &fanout)
@@ -3914,10 +4145,8 @@ Sta::portExtCaps(const Port *port,
     float pin_cap1, wire_cap1;
     int fanout1;
     bool pin_exists1, wire_exists1, fanout_exists1;
-    sdc_->portExtCap(port, rf, corner, min_max,
-                     pin_cap1, pin_exists1,
-                     wire_cap1, wire_exists1,
-                     fanout1, fanout_exists1);
+    sdc->portExtCap(port, rf, min_max, pin_cap1, pin_exists1, wire_cap1,
+                    wire_exists1, fanout1, fanout_exists1);
     if (pin_exists1) {
       pin_cap = min_max->minMax(pin_cap, pin_cap1);
       pin_exists = true;
@@ -3941,94 +4170,74 @@ Sta::portExtCaps(const Port *port,
 
 void
 Sta::setPortExtWireCap(const Port *port,
-		       bool subtract_pin_cap,
-		       const RiseFallBoth *rf,
-                       const Corner *corner,
-		       const MinMaxAll *min_max,
-		       float cap)
+                       const RiseFallBoth *rf,
+                       const MinMaxAll *min_max,
+                       float cap,
+                       Sdc *sdc)
 {
   for (const RiseFall *rf1 : rf->range()) {
-    for (const MinMax *mm : min_max->range()) {
-      if (corner == nullptr) {
-        for (const Corner *corner : *corners_)
-          sdc_->setPortExtWireCap(port, subtract_pin_cap, rf1, corner, mm, cap);
-      }
-      else
-        sdc_->setPortExtWireCap(port, subtract_pin_cap, rf1, corner, mm, cap);
-    }
+    for (const MinMax *mm : min_max->range())
+      sdc->setPortExtWireCap(port, rf1, mm, cap);
   }
   delaysInvalidFromFanin(port);
 }
 
 void
-Sta::removeNetLoadCaps() const
+Sta::removeNetLoadCaps(Sdc *sdc) const
 {
-  sdc_->removeNetLoadCaps();
+  sdc->removeNetLoadCaps();
   delaysInvalid();
 }
 
 void
 Sta::setPortExtFanout(const Port *port,
-		      int fanout,
-                      const Corner *corner,
-		      const MinMaxAll *min_max)
+                      int fanout,
+                      const MinMaxAll *min_max,
+                      Sdc *sdc)
 {
-  for (const MinMax *mm : min_max->range()) {
-    if (corner == nullptr) {
-      for (const Corner *corner : *corners_)
-        sdc_->setPortExtFanout(port, corner, mm, fanout);
-    }
-    else
-      sdc_->setPortExtFanout(port, corner, mm, fanout);
-  }
+  for (const MinMax *mm : min_max->range())
+    sdc->setPortExtFanout(port, mm, fanout);
   delaysInvalidFromFanin(port);
 }
 
 void
 Sta::setNetWireCap(const Net *net,
-		   bool subtract_pin_cap,
-		   const Corner *corner,
-		   const MinMaxAll *min_max,
-		   float cap)
+                   bool subtract_pin_cap,
+                   const MinMaxAll *min_max,
+                   float cap,
+                   Sdc *sdc)
 {
-  for (const MinMax *mm : min_max->range()) {
-    if (corner == nullptr) {
-      for (const Corner *corner : *corners_)
-        sdc_->setNetWireCap(net, subtract_pin_cap, corner, mm, cap);
-    }
-    else
-      sdc_->setNetWireCap(net, subtract_pin_cap, corner, mm, cap);
-  }
+  for (const MinMax *mm : min_max->range())
+    sdc->setNetWireCap(net, subtract_pin_cap, mm, cap);
   delaysInvalidFromFanin(net);
 }
 
 void
 Sta::connectedCap(const Pin *drvr_pin,
-		  const RiseFall *rf,
-		  const Corner *corner,
-		  const MinMax *min_max,
-		  float &pin_cap,
-		  float &wire_cap) const
+                  const RiseFall *rf,
+                  const Scene *scene,
+                  const MinMax *min_max,
+                  float &pin_cap,
+                  float &wire_cap) const
 {
-  const DcalcAnalysisPt *dcalc_ap = corner->findDcalcAnalysisPt(min_max);
-  graph_delay_calc_->loadCap(drvr_pin, rf, dcalc_ap, pin_cap, wire_cap);
+  graph_delay_calc_->loadCap(drvr_pin, rf, scene, min_max, pin_cap, wire_cap);
 }
 
 void
 Sta::connectedCap(const Net *net,
-		  Corner *corner,
-		  const MinMax *min_max,
-		  float &pin_cap,
-		  float &wire_cap) const
+                  Scene *scene,
+                  const MinMax *min_max,
+                  float &pin_cap,
+                  float &wire_cap) const
 {
   const Pin *drvr_pin = findNetParasiticDrvrPin(net);
   if (drvr_pin) {
     pin_cap = min_max->initValue();
     wire_cap = min_max->initValue();
-    for (const Corner *corner : makeCornerSeq(corner)) {
+    for (const Scene *scene : makeSceneSeq(scene)) {
       for (const RiseFall *rf : RiseFall::range()) {
         float pin_cap1, wire_cap1;
-        connectedCap(drvr_pin, rf, corner, min_max, pin_cap1, wire_cap1);
+        connectedCap(drvr_pin, rf, scene, min_max, pin_cap1, wire_cap1);
         pin_cap = min_max->minMax(pin_cap, pin_cap1);
         wire_cap = min_max->minMax(wire_cap, wire_cap1);
       }
@@ -4040,28 +4249,19 @@ Sta::connectedCap(const Net *net,
   }
 }
 
-CornerSeq
-Sta::makeCornerSeq(Corner *corner) const
-{
-  CornerSeq corners;
-  if (corner)
-    corners.push_back(corner);
-  else
-    corners = corners_->corners();
-  return corners;
-}
-
 float
 Sta::capacitance(const LibertyPort *port,
-                 Corner *corner,
+                 Scene *scene,
                  const MinMax *min_max)
 {
-  OperatingConditions *op_cond = operatingConditions(min_max);
   float cap = min_max->initValue();
-  for (const Corner *corner : makeCornerSeq(corner)) {
-    const LibertyPort *corner_port = port->cornerPort(corner, min_max);
+  for (const Scene *scene : makeSceneSeq(scene)) {
+    const Sdc *sdc = scene->sdc();
+    OperatingConditions *op_cond = operatingConditions(min_max, sdc);
+    const LibertyPort *scene_port = port->scenePort(scene, min_max);
     for (const RiseFall *rf : RiseFall::range())
-      cap = min_max->minMax(cap, corner_port->capacitance(rf, min_max, op_cond, op_cond));
+      cap = min_max->minMax(cap,
+                            scene_port->capacitance(rf, min_max, op_cond, op_cond));
   }
   return cap;
 }
@@ -4088,78 +4288,100 @@ Sta::findNetParasiticDrvrPin(const Net *net) const
 
 void
 Sta::setResistance(const Net *net,
-		   const MinMaxAll *min_max,
-		   float res)
+                   const MinMaxAll *min_max,
+                   float res,
+                   Sdc *sdc)
 {
-  sdc_->setResistance(net, min_max, res);
+  sdc->setResistance(net, min_max, res);
 }
 
 ////////////////////////////////////////////////////////////////
 
 bool
-Sta::readSpef(const char *filename,
-	      Instance *instance,
-              const Corner *corner,
-	      const MinMaxAll *min_max,
-	      bool pin_cap_included,
-	      bool keep_coupling_caps,
-	      float coupling_cap_factor,
-	      bool reduce)
+Sta::readSpef(std::string_view name,
+              std::string_view filename,
+              Instance *instance,
+              Scene *scene,  // -scene deprecated 11/20/2025
+              const MinMaxAll *min_max,
+              bool pin_cap_included,
+              bool keep_coupling_caps,
+              float coupling_cap_factor,
+              bool reduce)
 {
   ensureLibLinked();
-  setParasiticAnalysisPts(corner != nullptr);
-  const MinMax *ap_min_max = (min_max == MinMaxAll::all())
-    ? MinMax::max()
-    : min_max->asMinMax();
-  const Corner *ap_corner = corner ? corner : corners_->corners()[0];
-  ParasiticAnalysisPt *ap = ap_corner->findParasiticAnalysisPt(ap_min_max);
-  bool success = readSpefFile(filename, instance, ap,
-			      pin_cap_included, keep_coupling_caps,
-                              coupling_cap_factor, reduce,
-			      corner, min_max, this);
+  Parasitics *parasitics = nullptr;
+  // Use -name to distinguish rel 2.7 args for compatibility.
+  if (name.empty()) {
+    std::string spef_name = "default";
+    if (scene || min_max != MinMaxAll::minMax()) {
+      if (scene)
+        spef_name = scene->name();
+      if (min_max != MinMaxAll::minMax()) {
+        spef_name += "_";
+        spef_name += min_max->to_string();
+      }
+      parasitics = makeConcreteParasitics(spef_name, std::string(filename));
+    }
+    else
+      parasitics = findParasitics(spef_name);
+    if (scene)
+      scene->setParasitics(parasitics, min_max);
+    else {
+      parasitics = findParasitics(spef_name);
+      for (Scene *scene : scenes_)
+        scene->setParasitics(parasitics, min_max);
+    }
+  }
+  else {
+    parasitics = findParasitics(std::string(name));
+    if (parasitics == nullptr)
+      parasitics = makeConcreteParasitics(std::string(name), std::string(filename));
+  }
+
+  bool success = readSpefFile(filename, instance, pin_cap_included,
+                              keep_coupling_caps, coupling_cap_factor, reduce,
+                              scene, min_max, parasitics, this);
   delaysInvalid();
   return success;
 }
 
-void
-Sta::setParasiticAnalysisPts(bool per_corner)
+Parasitics *
+Sta::findParasitics(const std::string &name)
 {
-  if (per_corner != parasitics_per_corner_) {
-    deleteParasitics();
-    parasitics_per_corner_ = per_corner;
-    makeParasiticAnalysisPts();
-  }
+  return findKey(parasitics_name_map_, name);
 }
 
 void
-Sta::makeParasiticAnalysisPts()
-{
-  corners_->makeParasiticAnalysisPts(parasitics_per_corner_);
-}
-
-void
-Sta::reportParasiticAnnotation(bool report_unannotated,
-                               const Corner *corner)
+Sta::reportParasiticAnnotation(const std::string &spef_name,
+                               bool report_unannotated)
 {
   ensureLibLinked();
   ensureGraph();
-  sta::reportParasiticAnnotation(report_unannotated, corner, this);
+  Parasitics *parasitics = nullptr;
+  if (!spef_name.empty()) {
+    parasitics = findParasitics(spef_name);
+    if (parasitics == nullptr)
+      report_->error(1560, "spef {} not found.", spef_name);
+  }
+  else
+    parasitics = cmd_scene_->parasitics(MinMax::max());
+  sta::reportParasiticAnnotation(parasitics, report_unannotated, cmd_scene_, this);
 }
 
 void
 Sta::findPiElmore(Pin *drvr_pin,
-		  const RiseFall *rf,
-		  const MinMax *min_max,
-		  float &c2,
-		  float &rpi,
-		  float &c1,
-		  bool &exists) const
+                  const RiseFall *rf,
+                  const MinMax *min_max,
+                  float &c2,
+                  float &rpi,
+                  float &c1,
+                  bool &exists) const
 {
-  Corner *corner = cmd_corner_;
-  const ParasiticAnalysisPt *ap = corner->findParasiticAnalysisPt(min_max);
-  Parasitic *pi_elmore = parasitics_->findPiElmore(drvr_pin, rf, ap);
+  Scene *scene = cmd_scene_;
+  const Parasitics *parasitics = scene->parasitics(min_max);
+  Parasitic *pi_elmore = parasitics->findPiElmore(drvr_pin, rf, min_max);
   if (pi_elmore) {
-    parasitics_->piModel(pi_elmore, c2, rpi, c1);
+    parasitics->piModel(pi_elmore, c2, rpi, c1);
     exists = true;
   }
   else
@@ -4168,50 +4390,50 @@ Sta::findPiElmore(Pin *drvr_pin,
 
 void
 Sta::makePiElmore(Pin *drvr_pin,
-		  const RiseFall *rf,
-		  const MinMaxAll *min_max,
-		  float c2,
-		  float rpi,
-		  float c1)
+                  const RiseFall *rf,
+                  const MinMaxAll *min_max,
+                  float c2,
+                  float rpi,
+                  float c1)
 {
-  const Corner *corner = cmd_corner_;
+  const Scene *scene = cmd_scene_;
   for (const MinMax *mm : min_max->range()) {
-    ParasiticAnalysisPt *ap = corner->findParasiticAnalysisPt(mm);
-    parasitics_->makePiElmore(drvr_pin, rf, ap, c2, rpi, c1);
+    Parasitics *parasitics = scene->parasitics(mm);
+    parasitics->makePiElmore(drvr_pin, rf, mm, c2, rpi, c1);
   }
   delaysInvalidFrom(drvr_pin);
 }
 
 void
 Sta::findElmore(Pin *drvr_pin,
-		Pin *load_pin,
-		const RiseFall *rf,
-		const MinMax *min_max,
-		float &elmore,
-		bool &exists) const
+                Pin *load_pin,
+                const RiseFall *rf,
+                const MinMax *min_max,
+                float &elmore,
+                bool &exists) const
 {
-  Corner *corner = cmd_corner_;
-  const ParasiticAnalysisPt *ap = corner->findParasiticAnalysisPt(min_max);
-  Parasitic *pi_elmore = parasitics_->findPiElmore(drvr_pin, rf, ap);
+  Scene *scene = cmd_scene_;
+  const Parasitics *parasitics = scene->parasitics(min_max);
+  Parasitic *pi_elmore = parasitics->findPiElmore(drvr_pin, rf, min_max);
   if (pi_elmore)
-    parasitics_->findElmore(pi_elmore, load_pin, elmore, exists);
+    parasitics->findElmore(pi_elmore, load_pin, elmore, exists);
   else
     exists = false;
 }
 
 void
 Sta::setElmore(Pin *drvr_pin,
-	       Pin *load_pin,
-	       const RiseFall *rf,
-	       const MinMaxAll *min_max,
-	       float elmore)
+               Pin *load_pin,
+               const RiseFall *rf,
+               const MinMaxAll *min_max,
+               float elmore)
 {
-  const Corner *corner = cmd_corner_;
+  const Scene *scene = cmd_scene_;
   for (const MinMax *mm : min_max->range()) {
-    const ParasiticAnalysisPt *ap = corner->findParasiticAnalysisPt(mm);
-    Parasitic *pi_elmore = parasitics_->findPiElmore(drvr_pin, rf, ap);
+    Parasitics *parasitics = scene->parasitics(mm);
+    Parasitic *pi_elmore = parasitics->findPiElmore(drvr_pin, rf, mm);
     if (pi_elmore)
-      parasitics_->setElmore(pi_elmore, load_pin, elmore);
+      parasitics->setElmore(pi_elmore, load_pin, elmore);
   }
   delaysInvalidFrom(drvr_pin);
 }
@@ -4219,17 +4441,47 @@ Sta::setElmore(Pin *drvr_pin,
 void
 Sta::deleteParasitics()
 {
-  parasitics_->deleteParasitics();
+  Parasitics *parasitics_default = findParasitics("default");
+  for (auto &[name, parasitics] : parasitics_name_map_) {
+    if (parasitics != parasitics_default)
+      delete parasitics;
+  }
+  parasitics_name_map_.clear();
+
+  parasitics_name_map_[parasitics_default->name()] = parasitics_default;
+  parasitics_default->clear();
+
+  for (Scene *scene : scenes_)
+    scene->setParasitics(parasitics_default, MinMaxAll::minMax());
+
   delaysInvalid();
+}
+
+Parasitics *
+Sta::makeConcreteParasitics(std::string_view name,
+                            std::string_view filename)
+{
+  // Free the prior entry to avoid leaking it on overwrite.
+  std::string key(name);
+  auto it = parasitics_name_map_.find(key);
+  if (it != parasitics_name_map_.end()) {
+    delete it->second;
+    parasitics_name_map_.erase(it);
+  }
+  Parasitics *parasitics = new ConcreteParasitics(name, filename, this);
+  parasitics_name_map_[key] = parasitics;
+  return parasitics;
 }
 
 Parasitic *
 Sta::makeParasiticNetwork(const Net *net,
                           bool includes_pin_caps,
-                          const ParasiticAnalysisPt *ap)
+                          const Scene *scene,
+                          const MinMax *min_max)
 {
-  Parasitic *parasitic = parasitics_->makeParasiticNetwork(net, includes_pin_caps, ap);
-  delaysInvalidFromFanin(const_cast<Net*>(net));
+  Parasitics *parasitics = scene->parasitics(min_max);
+  Parasitic *parasitic = parasitics->makeParasiticNetwork(net, includes_pin_caps);
+  delaysInvalidFromFanin(net);
   return parasitic;
 }
 
@@ -4248,13 +4500,13 @@ Sta::makeParasiticNetwork(const Net *net,
 NetworkEdit *
 Sta::networkCmdEdit()
 {
-  return dynamic_cast<NetworkEdit*>(cmd_network_);
+  return dynamic_cast<NetworkEdit *>(cmd_network_);
 }
 
 Instance *
 Sta::makeInstance(const char *name,
-		  LibertyCell *cell,
-		  Instance *parent)
+                  LibertyCell *cell,
+                  Instance *parent)
 {
   NetworkEdit *network = networkCmdEdit();
   Instance *inst = network->makeInstance(cell, name, parent);
@@ -4273,7 +4525,7 @@ Sta::deleteInstance(Instance *inst)
 
 void
 Sta::replaceCell(Instance *inst,
-		 LibertyCell *to_lib_cell)
+                 LibertyCell *to_lib_cell)
 {
   Cell *to_cell = network_->cell(to_lib_cell);
   replaceCell(inst, to_cell, to_lib_cell);
@@ -4281,7 +4533,7 @@ Sta::replaceCell(Instance *inst,
 
 void
 Sta::replaceCell(Instance *inst,
-		 Cell *to_cell)
+                 Cell *to_cell)
 {
   LibertyCell *to_lib_cell = network_->libertyCell(to_cell);
   replaceCell(inst, to_cell, to_lib_cell);
@@ -4289,8 +4541,8 @@ Sta::replaceCell(Instance *inst,
 
 void
 Sta::replaceCell(Instance *inst,
-		 Cell *to_cell,
-		 LibertyCell *to_lib_cell)
+                 Cell *to_cell,
+                 LibertyCell *to_lib_cell)
 {
   NetworkEdit *network = networkCmdEdit();
   LibertyCell *from_lib_cell = network->libertyCell(inst);
@@ -4310,7 +4562,7 @@ Sta::replaceCell(Instance *inst,
 
 Net *
 Sta::makeNet(const char *name,
-	     Instance *parent)
+             Instance *parent)
 {
   NetworkEdit *network = networkCmdEdit();
   Net *net = network->makeNet(name, parent);
@@ -4328,8 +4580,8 @@ Sta::deleteNet(Net *net)
 
 void
 Sta::connectPin(Instance *inst,
-		Port *port,
-		Net *net)
+                Port *port,
+                Net *net)
 {
   NetworkEdit *network = networkCmdEdit();
   Pin *pin = network->connect(inst, port, net);
@@ -4338,8 +4590,8 @@ Sta::connectPin(Instance *inst,
 
 void
 Sta::connectPin(Instance *inst,
-		LibertyPort *port,
-		Net *net)
+                LibertyPort *port,
+                Net *net)
 {
   NetworkEdit *network = networkCmdEdit();
   Pin *pin = network->connect(inst, port, net);
@@ -4359,7 +4611,7 @@ Sta::makePortPin(const char *port_name,
                  PortDirection *dir)
 {
   ensureLinked();
-  NetworkReader *network = dynamic_cast<NetworkReader*>(network_);
+  NetworkReader *network = dynamic_cast<NetworkReader *>(network_);
   Instance *top_inst = network->topInstance();
   Cell *top_cell = network->cell(top_inst);
   Port *port = network->makePort(top_cell, port_name);
@@ -4367,7 +4619,7 @@ Sta::makePortPin(const char *port_name,
   Pin *pin = network->makePin(top_inst, port, nullptr);
   makePortPinAfter(pin);
 }
- 
+
 ////////////////////////////////////////////////////////////////
 //
 // Network edit before/after methods.
@@ -4377,7 +4629,7 @@ Sta::makePortPin(const char *port_name,
 void
 Sta::makeInstanceAfter(const Instance *inst)
 {
-  debugPrint(debug_, "network_edit", 1, "make instance %s",
+  debugPrint(debug_, "network_edit", 1, "make instance {}",
              sdc_network_->pathName(inst));
   if (graph_) {
     LibertyCell *lib_cell = network_->libertyCell(inst);
@@ -4390,7 +4642,6 @@ Sta::makeInstanceAfter(const Instance *inst)
         if (pin) {
           Vertex *vertex, *bidir_drvr_vertex;
           graph_->makePinVertices(pin, vertex, bidir_drvr_vertex);
-
         }
       }
       graph_->makeInstanceEdges(inst);
@@ -4410,7 +4661,7 @@ Sta::makePortPinAfter(Pin *pin)
 
 void
 Sta::replaceEquivCellBefore(const Instance *inst,
-			    const LibertyCell *to_cell)
+                            const LibertyCell *to_cell)
 {
   if (graph_) {
     InstancePinIterator *pin_iter = network_->pinIterator(inst);
@@ -4434,15 +4685,16 @@ Sta::replaceEquivCellBefore(const Instance *inst,
               if (to_set)
                 edge->setTimingArcSet(to_set);
               else
-                report_->critical(1555, "corresponding timing arc set not found in equiv cells");
+                report_->critical(
+                    1556, "corresponding timing arc set not found in equiv cells");
             }
           }
         }
         else {
           // Force delay calculation on output pins.
           Vertex *vertex = graph_->pinDrvrVertex(pin);
-	  if (vertex)
-	    graph_delay_calc_->delayInvalid(vertex);
+          if (vertex)
+            graph_delay_calc_->delayInvalid(vertex);
         }
       }
     }
@@ -4457,8 +4709,10 @@ Sta::replaceEquivCellAfter(const Instance *inst)
     InstancePinIterator *pin_iter = network_->pinIterator(inst);
     while (pin_iter->hasNext()) {
       Pin *pin = pin_iter->next();
-      if (network_->direction(pin)->isAnyInput())
-	parasitics_->loadPinCapacitanceChanged(pin);
+      if (network_->direction(pin)->isAnyInput()) {
+        for (auto [name, parasitics] : parasitics_name_map_)
+          parasitics->loadPinCapacitanceChanged(pin);
+      }
     }
     delete pin_iter;
     clk_skews_->clear();
@@ -4468,16 +4722,15 @@ Sta::replaceEquivCellAfter(const Instance *inst)
 
 void
 Sta::replaceCellPinInvalidate(const LibertyPort *from_port,
-			      Vertex *vertex,
-			      const LibertyCell *to_cell)
+                              Vertex *vertex,
+                              const LibertyCell *to_cell)
 {
   LibertyPort *to_port = to_cell->findLibertyPort(from_port->name());
   if (to_port == nullptr
       || (!libertyPortCapsEqual(to_port, from_port)
           // If this is an ideal clock pin, do not invalidate
           // arrivals and delay calc on the clock pin driver.
-          && !(to_port->isClock()
-               && idealClockMode())))
+          && !(to_port->isClock() && idealClockMode())))
     // Input port capacitance changed, so invalidate delay
     // calculation from input driver.
     delaysInvalidFromFanin(vertex);
@@ -4488,30 +4741,33 @@ Sta::replaceCellPinInvalidate(const LibertyPort *from_port,
 bool
 Sta::idealClockMode()
 {
-  for (Clock *clk : sdc_->clks()) {
-    if (clk->isPropagated())
-      return false;
+  for (Mode *mode : modes_) {
+    Sdc *sdc = mode->sdc();
+    for (Clock *clk : sdc->clocks()) {
+      if (clk->isPropagated())
+        return false;
+    }
   }
   return true;
 }
 
 static bool
 libertyPortCapsEqual(const LibertyPort *port1,
-		     const LibertyPort *port2)
+                     const LibertyPort *port2)
 {
   return port1->capacitance(RiseFall::rise(), MinMax::min())
-    == port2->capacitance(RiseFall::rise(), MinMax::min())
-    && port1->capacitance(RiseFall::rise(), MinMax::max())
-    == port2->capacitance(RiseFall::rise(), MinMax::max())
-    && port1->capacitance(RiseFall::fall(), MinMax::min())
-    == port2->capacitance(RiseFall::fall(), MinMax::min())
-    && port1->capacitance(RiseFall::fall(), MinMax::max())
-    == port2->capacitance(RiseFall::fall(), MinMax::max());
+      == port2->capacitance(RiseFall::rise(), MinMax::min())
+      && port1->capacitance(RiseFall::rise(), MinMax::max())
+      == port2->capacitance(RiseFall::rise(), MinMax::max())
+      && port1->capacitance(RiseFall::fall(), MinMax::min())
+      == port2->capacitance(RiseFall::fall(), MinMax::min())
+      && port1->capacitance(RiseFall::fall(), MinMax::max())
+      == port2->capacitance(RiseFall::fall(), MinMax::max());
 }
 
 void
 Sta::replaceCellBefore(const Instance *inst,
-		       const LibertyCell *to_cell)
+                       const LibertyCell *to_cell)
 {
   if (graph_) {
     // Delete all graph edges between instance pins.
@@ -4520,16 +4776,16 @@ Sta::replaceCellBefore(const Instance *inst,
       Pin *pin = pin_iter->next();
       LibertyPort *port = network_->libertyPort(pin);
       if (port->direction()->isAnyInput()) {
-	Vertex *vertex = graph_->pinLoadVertex(pin);
-	replaceCellPinInvalidate(port, vertex, to_cell);
+        Vertex *vertex = graph_->pinLoadVertex(pin);
+        replaceCellPinInvalidate(port, vertex, to_cell);
 
-	VertexOutEdgeIterator edge_iter(vertex, graph_);
-	while (edge_iter.hasNext()) {
-	  Edge *edge = edge_iter.next();
-	  Vertex *to_vertex = edge->to(graph_);
-	  if (network_->instance(to_vertex->pin()) == inst)
-	    deleteEdge(edge);
-	}
+        VertexOutEdgeIterator edge_iter(vertex, graph_);
+        while (edge_iter.hasNext()) {
+          Edge *edge = edge_iter.next();
+          Vertex *to_vertex = edge->to(graph_);
+          if (network_->instance(to_vertex->pin()) == inst)
+            deleteEdge(edge);
+        }
       }
     }
     delete pin_iter;
@@ -4544,9 +4800,12 @@ Sta::replaceCellAfter(const Instance *inst)
     InstancePinIterator *pin_iter = network_->pinIterator(inst);
     while (pin_iter->hasNext()) {
       Pin *pin = pin_iter->next();
-      sim_->pinSetFuncAfter(pin);
-      if (network_->direction(pin)->isAnyInput())
-	parasitics_->loadPinCapacitanceChanged(pin);
+      for (const Mode *mode : modes_)
+        mode->sim()->pinSetFuncAfter(pin);
+      if (network_->direction(pin)->isAnyInput()) {
+        for (auto [name, parasitics] : parasitics_name_map_)
+          parasitics->loadPinCapacitanceChanged(pin);
+      }
     }
     delete pin_iter;
   }
@@ -4555,7 +4814,7 @@ Sta::replaceCellAfter(const Instance *inst)
 void
 Sta::connectPinAfter(const Pin *pin)
 {
-  debugPrint(debug_, "network_edit", 1, "connect %s to %s",
+  debugPrint(debug_, "network_edit", 1, "connect {} to {}",
              sdc_network_->pathName(pin),
              sdc_network_->pathName(network_->net(pin)));
   if (graph_) {
@@ -4563,11 +4822,11 @@ Sta::connectPinAfter(const Pin *pin)
       graph_->makeWireEdgesThruPin(pin);
       EdgesThruHierPinIterator edge_iter(pin, network_, graph_);
       while (edge_iter.hasNext()) {
-	Edge *edge = edge_iter.next();
-	if (edge->role()->isWire()) {
-	  connectDrvrPinAfter(edge->from(graph_));
-	  connectLoadPinAfter(edge->to(graph_));
-	}
+        Edge *edge = edge_iter.next();
+        if (edge->role()->isWire()) {
+          connectDrvrPinAfter(edge->from(graph_));
+          connectLoadPinAfter(edge->to(graph_));
+        }
       }
     }
     else {
@@ -4595,8 +4854,10 @@ Sta::connectPinAfter(const Pin *pin)
       }
     }
   }
-  sdc_->connectPinAfter(pin);
-  sim_->connectPinAfter(pin);
+  for (Mode *mode : modes_) {
+    mode->sdc()->connectPinAfter(pin);
+    mode->sim()->connectPinAfter(pin);
+  }
   clk_skews_->clear();
   power_->powerInvalid();
 }
@@ -4611,15 +4872,18 @@ Sta::connectDrvrPinAfter(Vertex *vertex)
     Vertex *to_vertex = edge->to(graph_);
     search_->arrivalInvalid(to_vertex);
     search_->endpointInvalid(to_vertex);
-    sdc_->clkHpinDisablesChanged(to_vertex->pin());
+    for (Mode *mode : modes_)
+      mode->sdc()->clkHpinDisablesChanged(to_vertex->pin());
   }
   Pin *pin = vertex->pin();
-  sdc_->clkHpinDisablesChanged(pin);
+  for (Mode *mode : modes_) {
+    mode->sdc()->clkHpinDisablesChanged(pin);
+    mode->clkNetwork()->connectPinAfter(pin);
+  }
   graph_delay_calc_->delayInvalid(vertex);
   search_->requiredInvalid(vertex);
   search_->endpointInvalid(vertex);
   levelize_->relevelizeFrom(vertex);
-  clk_network_->connectPinAfter(pin);
 }
 
 void
@@ -4629,64 +4893,77 @@ Sta::connectLoadPinAfter(Vertex *vertex)
   VertexInEdgeIterator edge_iter(vertex, graph_);
   while (edge_iter.hasNext()) {
     Edge *edge = edge_iter.next();
-    Vertex *from_vertex = edge->from(graph_);
-    graph_delay_calc_->delayInvalid(from_vertex);
-    search_->requiredInvalid(from_vertex);
-    sdc_->clkHpinDisablesChanged(from_vertex->pin());
-    levelize_->relevelizeFrom(from_vertex);
+    if (!edge->role()->isTimingCheck()) {
+      Vertex *from_vertex = edge->from(graph_);
+      graph_delay_calc_->delayInvalid(from_vertex);
+      search_->requiredInvalid(from_vertex);
+      levelize_->relevelizeFrom(from_vertex);
+      for (Mode *mode : modes_)
+        mode->sdc()->clkHpinDisablesChanged(from_vertex->pin());
+    }
   }
   Pin *pin = vertex->pin();
-  sdc_->clkHpinDisablesChanged(pin);
+  for (Mode *mode : modes_) {
+    mode->sdc()->clkHpinDisablesChanged(pin);
+    mode->clkNetwork()->connectPinAfter(pin);
+  }
   graph_delay_calc_->delayInvalid(vertex);
   search_->arrivalInvalid(vertex);
   search_->endpointInvalid(vertex);
-  clk_network_->connectPinAfter(pin);
 }
 
 void
 Sta::disconnectPinBefore(const Pin *pin)
 {
-  debugPrint(debug_, "network_edit", 1, "disconnect %s from %s",
+  debugPrint(debug_, "network_edit", 1, "disconnect {} from {}",
              sdc_network_->pathName(pin),
              sdc_network_->pathName(network_->net(pin)));
-  parasitics_->disconnectPinBefore(pin, network_);
-  sim_->disconnectPinBefore(pin);
+
+  for (auto [name, parasitics] : parasitics_name_map_)
+    parasitics->disconnectPinBefore(pin);
+  bool is_hierarchical = network_->isHierarchical(pin);
+  for (Mode *mode : modes_) {
+    mode->sim()->disconnectPinBefore(pin);
+    if (!is_hierarchical)
+      mode->clkNetwork()->disconnectPinBefore(pin);
+  }
+
   if (graph_) {
     if (network_->isDriver(pin)) {
       Vertex *vertex = graph_->pinDrvrVertex(pin);
       // Delete wire edges from pin.
       if (vertex) {
-	VertexOutEdgeIterator edge_iter(vertex, graph_);
-	while (edge_iter.hasNext()) {
-	  Edge *edge = edge_iter.next();
-	  if (edge->role()->isWire())
-	    deleteEdge(edge);
-	}
-	clk_network_->disconnectPinBefore(pin);
+        VertexOutEdgeIterator edge_iter(vertex, graph_);
+        while (edge_iter.hasNext()) {
+          Edge *edge = edge_iter.next();
+          if (edge->role()->isWire())
+            deleteEdge(edge);
+        }
       }
     }
     if (network_->isLoad(pin)) {
       // Delete wire edges to pin.
       Vertex *vertex = graph_->pinLoadVertex(pin);
       if (vertex) {
-	VertexInEdgeIterator edge_iter(vertex, graph_);
-	while (edge_iter.hasNext()) {
-	  Edge *edge = edge_iter.next();
-	  if (edge->role()->isWire())
-	    deleteEdge(edge);
-	}
-	clk_network_->disconnectPinBefore(pin);
+        VertexInEdgeIterator edge_iter(vertex, graph_);
+        while (edge_iter.hasNext()) {
+          Edge *edge = edge_iter.next();
+          if (edge->role()->isWire())
+            deleteEdge(edge);
+        }
       }
     }
-    if (network_->isHierarchical(pin)) {
+    if (is_hierarchical) {
       // Delete wire edges thru pin.
       EdgesThruHierPinIterator edge_iter(pin, network_, graph_);
       while (edge_iter.hasNext()) {
-	Edge *edge = edge_iter.next();
-	if (edge->role()->isWire()) {
-	  deleteEdge(edge);
-	  clk_network_->disconnectPinBefore(edge->from(graph_)->pin());
-	}
+        Edge *edge = edge_iter.next();
+        if (edge->role()->isWire()) {
+          deleteEdge(edge);
+          const Pin *from_pin = edge->from(graph_)->pin();
+          for (Mode *mode : modes_)
+            mode->clkNetwork()->disconnectPinBefore(from_pin);
+        }
       }
     }
     clk_skews_->clear();
@@ -4697,44 +4974,48 @@ Sta::disconnectPinBefore(const Pin *pin)
 void
 Sta::deleteEdge(Edge *edge)
 {
-  debugPrint(debug_, "network_edit", 2, "delete edge %s -> %s",
+  debugPrint(debug_, "network_edit", 2, "delete edge {} -> {}",
              edge->from(graph_)->name(sdc_network_),
              edge->to(graph_)->name(sdc_network_));
   Vertex *to = edge->to(graph_);
-  search_->deleteEdgeBefore(edge);
-  graph_delay_calc_->delayInvalid(to);
-  levelize_->relevelizeFrom(to);
-  levelize_->deleteEdgeBefore(edge);
-  sdc_->clkHpinDisablesChanged(edge->from(graph_)->pin());
+  if (!edge->role()->isTimingCheck()) {
+    search_->deleteEdgeBefore(edge);
+    graph_delay_calc_->delayInvalid(to);
+    levelize_->relevelizeFrom(to);
+    levelize_->deleteEdgeBefore(edge);
+    for (Mode *mode : modes_)
+      mode->sdc()->clkHpinDisablesChanged(edge->from(graph_)->pin());
+  }
   graph_->deleteEdge(edge);
 }
 
 void
 Sta::deleteNetBefore(const Net *net)
 {
-  debugPrint(debug_, "network_edit", 1, "delete net %s",
+  debugPrint(debug_, "network_edit", 1, "delete net {}",
              sdc_network_->pathName(net));
   if (graph_) {
     NetConnectedPinIterator *pin_iter = network_->connectedPinIterator(net);
     while (pin_iter->hasNext()) {
       const Pin *pin = pin_iter->next();
       if (!network_->isHierarchical(pin)) {
-	disconnectPinBefore(pin);
-	// Delete wire edges on net pins.
-	Vertex *vertex = graph_->pinDrvrVertex(pin);
-	if (vertex) {
-	  VertexOutEdgeIterator edge_iter(vertex, graph_);
-	  while (edge_iter.hasNext()) {
-	    Edge *edge = edge_iter.next();
-	    if (edge->role()->isWire())
-	      deleteEdge(edge);
-	  }
-	}
+        disconnectPinBefore(pin);
+        // Delete wire edges on net pins.
+        Vertex *vertex = graph_->pinDrvrVertex(pin);
+        if (vertex) {
+          VertexOutEdgeIterator edge_iter(vertex, graph_);
+          while (edge_iter.hasNext()) {
+            Edge *edge = edge_iter.next();
+            if (edge->role()->isWire())
+              deleteEdge(edge);
+          }
+        }
       }
     }
     delete pin_iter;
   }
-  sdc_->deleteNetBefore(net);
+  for (Mode *mode : modes_)
+    mode->sdc()->deleteNetBefore(net);
   clk_skews_->clear();
   power_->powerInvalid();
 }
@@ -4742,7 +5023,7 @@ Sta::deleteNetBefore(const Net *net)
 void
 Sta::deleteInstanceBefore(const Instance *inst)
 {
-  debugPrint(debug_, "network_edit", 1, "delete instance %s",
+  debugPrint(debug_, "network_edit", 1, "delete instance {}",
              sdc_network_->pathName(inst));
   if (network_->isLeaf(inst)) {
     deleteInstancePinsBefore(inst);
@@ -4762,8 +5043,10 @@ Sta::deleteInstanceBefore(const Instance *inst)
 void
 Sta::deleteLeafInstanceBefore(const Instance *inst)
 {
-  sim_->deleteInstanceBefore(inst);
-  sdc_->deleteInstanceBefore(inst);
+  for (Mode *mode : modes_) {
+    mode->sim()->deleteInstanceBefore(inst);
+    mode->sdc()->deleteInstanceBefore(inst);
+  }
   clk_skews_->clear();
   power_->powerInvalid();
 }
@@ -4783,8 +5066,8 @@ void
 Sta::deletePinBefore(const Pin *pin)
 {
   if (graph_) {
-    debugPrint(debug_, "network_edit", 1, "delete pin %s",
-	       sdc_network_->pathName(pin));
+    debugPrint(debug_, "network_edit", 1, "delete pin {}",
+               sdc_network_->pathName(pin));
     if (network_->isLoad(pin)) {
       Vertex *vertex = graph_->pinLoadVertex(pin);
       if (vertex) {
@@ -4802,7 +5085,7 @@ Sta::deletePinBefore(const Pin *pin)
           }
           levelize_->deleteEdgeBefore(edge);
         }
-	// Deletes edges to/from vertex also.
+        // Deletes edges to/from vertex also.
         graph_->deleteVertex(vertex);
       }
     }
@@ -4825,7 +5108,7 @@ Sta::deletePinBefore(const Pin *pin)
           }
           levelize_->deleteEdgeBefore(edge);
         }
-	// Deletes edges to/from vertex also.
+        // Deletes edges to/from vertex also.
         graph_->deleteVertex(vertex);
       }
     }
@@ -4840,9 +5123,12 @@ Sta::deletePinBefore(const Pin *pin)
       }
     }
   }
-  sdc_->deletePinBefore(pin);
-  sim_->deletePinBefore(pin);
-  clk_network_->deletePinBefore(pin);
+
+  for (const Mode *mode : modes_) {
+    mode->sdc()->deletePinBefore(pin);
+    mode->sim()->deletePinBefore(pin);
+    mode->clkNetwork()->deletePinBefore(pin);
+  }
 }
 
 void
@@ -4923,12 +5209,12 @@ Sta::delaysInvalidFromFanin(const Net *net)
     while (pin_iter->hasNext()) {
       const Pin *pin = pin_iter->next();
       if (!network_->isHierarchical(pin)) {
-	Vertex *vertex, *bidirect_drvr_vertex;
-	graph_->pinVertices(pin, vertex, bidirect_drvr_vertex);
-	if (vertex)
-	  delaysInvalidFrom(vertex);
-	if (bidirect_drvr_vertex)
-	  delaysInvalidFrom(bidirect_drvr_vertex);
+        Vertex *vertex, *bidirect_drvr_vertex;
+        graph_->pinVertices(pin, vertex, bidirect_drvr_vertex);
+        if (vertex)
+          delaysInvalidFrom(vertex);
+        if (bidirect_drvr_vertex)
+          delaysInvalidFrom(bidirect_drvr_vertex);
       }
     }
     delete pin_iter;
@@ -4950,79 +5236,86 @@ Sta::delaysInvalidFromFanin(Vertex *vertex)
 ////////////////////////////////////////////////////////////////
 
 ClockSet
-Sta::clocks(const Pin *pin)
+Sta::clocks(const Pin *pin,
+            const Mode *mode)
 {
   ensureClkArrivals();
-  return search_->clocks(pin);
+  return search_->clocks(pin, mode);
 }
 
 ClockSet
-Sta::clockDomains(const Pin *pin)
+Sta::clockDomains(const Pin *pin,
+                  const Mode *mode)
 {
   searchPreamble();
-  search_->findAllArrivals();
-  return search_->clockDomains(pin);
+  Vertex *vertex = graph_->pinLoadVertex(pin);
+  search_->findArrivals(vertex->level());
+  return search_->clockDomains(pin, mode);
 }
 
 ////////////////////////////////////////////////////////////////
 
 InstanceSet
 Sta::findRegisterInstances(ClockSet *clks,
-			   const RiseFallBoth *clk_rf,
-			   bool edge_triggered,
-			   bool latches)
+                           const RiseFallBoth *clk_rf,
+                           bool registers,
+                           bool latches,
+                           const Mode *mode)
 {
-  findRegisterPreamble();
-  return findRegInstances(clks, clk_rf, edge_triggered, latches, this);
+  findRegisterPreamble(mode);
+  return findRegInstances(clks, clk_rf, registers, latches, mode, this);
 }
 
 PinSet
 Sta::findRegisterDataPins(ClockSet *clks,
-			  const RiseFallBoth *clk_rf,
-			  bool edge_triggered,
-			  bool latches)
+                          const RiseFallBoth *clk_rf,
+                          bool registers,
+                          bool latches,
+                          const Mode *mode)
 {
-  findRegisterPreamble();
-  return findRegDataPins(clks, clk_rf, edge_triggered, latches, this);
+  findRegisterPreamble(mode);
+  return findRegDataPins(clks, clk_rf, registers, latches, mode, this);
 }
 
 PinSet
 Sta::findRegisterClkPins(ClockSet *clks,
-			 const RiseFallBoth *clk_rf,
-			 bool edge_triggered,
-			 bool latches)
+                         const RiseFallBoth *clk_rf,
+                         bool registers,
+                         bool latches,
+                         const Mode *mode)
 {
-  findRegisterPreamble();
-  return findRegClkPins(clks, clk_rf, edge_triggered, latches, this);
+  findRegisterPreamble(mode);
+  return findRegClkPins(clks, clk_rf, registers, latches, mode, this);
 }
 
 PinSet
 Sta::findRegisterAsyncPins(ClockSet *clks,
-			   const RiseFallBoth *clk_rf,
-			   bool edge_triggered,
-			   bool latches)
+                           const RiseFallBoth *clk_rf,
+                           bool registers,
+                           bool latches,
+                           const Mode *mode)
 {
-  findRegisterPreamble();
-  return findRegAsyncPins(clks, clk_rf, edge_triggered, latches, this);
+  findRegisterPreamble(mode);
+  return findRegAsyncPins(clks, clk_rf, registers, latches, mode, this);
 }
 
 PinSet
 Sta::findRegisterOutputPins(ClockSet *clks,
-			    const RiseFallBoth *clk_rf,
-			    bool edge_triggered,
-			    bool latches)
+                            const RiseFallBoth *clk_rf,
+                            bool registers,
+                            bool latches,
+                            const Mode *mode)
 {
-  findRegisterPreamble();
-  return findRegOutputPins(clks, clk_rf, edge_triggered, latches, this);
+  findRegisterPreamble(mode);
+  return findRegOutputPins(clks, clk_rf, registers, latches, mode, this);
 }
 
 void
-Sta::findRegisterPreamble()
+Sta::findRegisterPreamble(const Mode *mode)
 {
   ensureLibLinked();
   ensureGraph();
-  ensureGraphSdcAnnotated();
-  sim_->ensureConstantsPropagated();
+  mode->sim()->ensureConstantsPropagated();
 }
 
 ////////////////////////////////////////////////////////////////
@@ -5031,15 +5324,18 @@ class FanInOutSrchPred : public SearchPred
 {
 public:
   FanInOutSrchPred(bool thru_disabled,
-		   bool thru_constants,
-		   const StaState *sta);
-  virtual bool searchFrom(const Vertex *from_vertex);
-  virtual bool searchThru(Edge *edge);
-  virtual bool searchTo(const Vertex *to_vertex);
+                   bool thru_constants,
+                   const StaState *sta);
+  bool searchFrom(const Vertex *from_vertex,
+                  const Mode *mode) const override;
+  bool searchThru(Edge *edge,
+                  const Mode *mode) const override;
+  bool searchTo(const Vertex *to_vertex,
+                const Mode *mode) const override;
 
 protected:
   bool crossesHierarchy(Edge *edge);
-  virtual bool searchThruRole(Edge *edge);
+  virtual bool searchThruRole(Edge *edge) const;
 
   bool thru_disabled_;
   bool thru_constants_;
@@ -5047,9 +5343,9 @@ protected:
 };
 
 FanInOutSrchPred::FanInOutSrchPred(bool thru_disabled,
-				   bool thru_constants,
-				   const StaState *sta) :
-  SearchPred(),
+                                   bool thru_constants,
+                                   const StaState *sta) :
+  SearchPred(sta),
   thru_disabled_(thru_disabled),
   thru_constants_(thru_constants),
   sta_(sta)
@@ -5057,34 +5353,35 @@ FanInOutSrchPred::FanInOutSrchPred(bool thru_disabled,
 }
 
 bool
-FanInOutSrchPred::searchFrom(const Vertex *from_vertex)
+FanInOutSrchPred::searchFrom(const Vertex *from_vertex,
+                             const Mode *mode) const
 {
-  return (thru_disabled_
-	  || !from_vertex->isDisabledConstraint())
-    && (thru_constants_
-	|| !from_vertex->isConstant());
+  const Pin *from_pin = from_vertex->pin();
+  const Sdc *sdc = mode->sdc();
+  return (thru_disabled_ || !sdc->isDisabledConstraint(from_pin))
+      && (thru_constants_ || !mode->sim()->isConstant(from_vertex));
 }
 
 bool
-FanInOutSrchPred::searchThru(Edge *edge)
+FanInOutSrchPred::searchThru(Edge *edge,
+                             const Mode *mode) const
 {
+  const Sdc *sdc = mode->sdc();
+  const Sim *sim = mode->sim();
   return searchThruRole(edge)
-    && (thru_disabled_
-	|| !(edge->isDisabledConstraint()
-	     || edge->isDisabledCond()
-	     || sta_->isDisabledCondDefault(edge)))
-    && (thru_constants_
-	|| edge->simTimingSense() != TimingSense::none);
+      && (thru_disabled_
+          || !(sdc->isDisabledConstraint(edge) || sim->isDisabledCond(edge)
+               || sta_->isDisabledCondDefault(edge)))
+      && (thru_constants_ || sim->simTimingSense(edge) != TimingSense::none);
 }
 
 bool
-FanInOutSrchPred::searchThruRole(Edge *edge)
+FanInOutSrchPred::searchThruRole(Edge *edge) const
 {
   const TimingRole *role = edge->role();
-  return role == TimingRole::wire()
-    || role == TimingRole::combinational()
-    || role == TimingRole::tristateEnable()
-    || role == TimingRole::tristateDisable();
+  return role == TimingRole::wire() || role == TimingRole::combinational()
+      || role == TimingRole::tristateEnable()
+      || role == TimingRole::tristateDisable();
 }
 
 bool
@@ -5100,70 +5397,73 @@ FanInOutSrchPred::crossesHierarchy(Edge *edge)
 }
 
 bool
-FanInOutSrchPred::searchTo(const Vertex *to_vertex)
+FanInOutSrchPred::searchTo(const Vertex *to_vertex,
+                           const Mode *mode) const
 {
-  return (thru_disabled_
-	  || !to_vertex->isDisabledConstraint())
-    && (thru_constants_
-	|| !to_vertex->isConstant());
+  const Pin *to_pin = to_vertex->pin();
+  const Sdc *sdc = mode->sdc();
+  return (thru_disabled_ || !sdc->isDisabledConstraint(to_pin))
+      && (thru_constants_ || !mode->sim()->isConstant(to_vertex));
 }
 
 class FaninSrchPred : public FanInOutSrchPred
 {
 public:
   FaninSrchPred(bool thru_disabled,
-		bool thru_constants,
-		const StaState *sta);
+                bool thru_constants,
+                const StaState *sta);
 
 protected:
-  virtual bool searchThruRole(Edge *edge);
+  bool searchThruRole(Edge *edge) const override;
 };
 
 FaninSrchPred::FaninSrchPred(bool thru_disabled,
-			     bool thru_constants,
-			     const StaState *sta) :
-  FanInOutSrchPred(thru_disabled, thru_constants, sta)
+                             bool thru_constants,
+                             const StaState *sta) :
+  FanInOutSrchPred(thru_disabled,
+                   thru_constants,
+                   sta)
 {
 }
 
 bool
-FaninSrchPred::searchThruRole(Edge *edge)
+FaninSrchPred::searchThruRole(Edge *edge) const
 {
   const TimingRole *role = edge->role();
-  return role == TimingRole::wire()
-    || role == TimingRole::combinational()
-    || role == TimingRole::tristateEnable()
-    || role == TimingRole::tristateDisable()
-    || role == TimingRole::regClkToQ()
-    || role == TimingRole::latchEnToQ();
+  return role == TimingRole::wire() || role == TimingRole::combinational()
+      || role == TimingRole::tristateEnable()
+      || role == TimingRole::tristateDisable() || role == TimingRole::regClkToQ()
+      || role == TimingRole::latchEnToQ();
 }
 
 PinSet
 Sta::findFaninPins(PinSeq *to,
-		   bool flat,
-		   bool startpoints_only,
-		   int inst_levels,
-		   int pin_levels,
-		   bool thru_disabled,
-		   bool thru_constants)
+                   bool flat,
+                   bool startpoints_only,
+                   int inst_levels,
+                   int pin_levels,
+                   bool thru_disabled,
+                   bool thru_constants,
+                   const Mode *mode)
 {
   ensureGraph();
   ensureLevelized();
+  mode->sim()->ensureConstantsPropagated();
   PinSet fanin(network_);
   FaninSrchPred pred(thru_disabled, thru_constants, this);
   for (const Pin *pin : *to) {
     if (network_->isHierarchical(pin)) {
       EdgesThruHierPinIterator edge_iter(pin, network_, graph_);
       while (edge_iter.hasNext()) {
-	Edge *edge = edge_iter.next();
-	findFaninPins(edge->from(graph_), flat, startpoints_only,
-		      inst_levels, pin_levels, fanin, pred);
+        Edge *edge = edge_iter.next();
+        findFaninPins(edge->from(graph_), flat, startpoints_only, inst_levels,
+                      pin_levels, fanin, pred, mode);
       }
     }
     else {
       Vertex *vertex = graph_->pinLoadVertex(pin);
-      findFaninPins(vertex, flat, startpoints_only,
-		    inst_levels, pin_levels, fanin, pred);
+      findFaninPins(vertex, flat, startpoints_only, inst_levels, pin_levels, fanin,
+                    pred, mode);
     }
   }
   return fanin;
@@ -5171,62 +5471,52 @@ Sta::findFaninPins(PinSeq *to,
 
 void
 Sta::findFaninPins(Vertex *vertex,
-		   bool flat,
-		   bool startpoints_only,
-		   int inst_levels,
-		   int pin_levels,
-		   PinSet &fanin,
-		   SearchPred &pred)
+                   bool flat,
+                   bool startpoints_only,
+                   int inst_levels,
+                   int pin_levels,
+                   PinSet &fanin,
+                   SearchPred &pred,
+                   const Mode *mode)
 {
-  VertexSet visited(graph_);
-  findFaninPins(vertex, flat, inst_levels,
-		pin_levels, visited, &pred, 0, 0);
-  VertexSet::Iterator visited_iter(visited);
-  while (visited_iter.hasNext()) {
-    Vertex *visited_vertex = visited_iter.next();
+  VertexSet visited = makeVertexSet(this);
+  findFaninPins(vertex, flat, inst_levels, pin_levels, visited, &pred, 0, 0, mode);
+  for (Vertex *visited_vertex : visited) {
     Pin *visited_pin = visited_vertex->pin();
-    if (!startpoints_only
-	|| network_->isRegClkPin(visited_pin)
-	|| !hasFanin(visited_vertex, &pred, graph_))
+    if (!startpoints_only || network_->isRegClkPin(visited_pin)
+        || !hasFanin(visited_vertex, &pred, graph_, mode))
       fanin.insert(visited_pin);
   }
 }
 
 void
 Sta::findFaninPins(Vertex *to,
-		   bool flat,
-		   int inst_levels,
-		   int pin_levels,
-		   VertexSet &visited,
-		   SearchPred *pred,
-		   int inst_level,
-		   int pin_level)
+                   bool flat,
+                   int inst_levels,
+                   int pin_levels,
+                   VertexSet &visited,
+                   SearchPred *pred,
+                   int inst_level,
+                   int pin_level,
+                   const Mode *mode)
 {
-  debugPrint(debug_, "fanin", 1, "%s",
-             to->to_string(this).c_str());
-  if (!visited.hasKey(to)) {
+  debugPrint(debug_, "fanin", 1, "{}", to->to_string(this));
+  if (!visited.contains(to)) {
     visited.insert(to);
     Pin *to_pin = to->pin();
     bool is_reg_clk_pin = network_->isRegClkPin(to_pin);
-    if (!is_reg_clk_pin
-	&& (inst_levels <= 0
-	    || inst_level < inst_levels)
-	&& (pin_levels <= 0
-	    || pin_level < pin_levels)
-	&& pred->searchTo(to)) {
+    if (!is_reg_clk_pin && (inst_levels <= 0 || inst_level < inst_levels)
+        && (pin_levels <= 0 || pin_level < pin_levels) && pred->searchTo(to, mode)) {
       VertexInEdgeIterator edge_iter(to, graph_);
       while (edge_iter.hasNext()) {
-	Edge *edge = edge_iter.next();
-	Vertex *from_vertex = edge->from(graph_);
-	if (pred->searchThru(edge)
-	    && (flat
-		|| !crossesHierarchy(edge))
-	    && pred->searchFrom(from_vertex)) {
-	  findFaninPins(from_vertex, flat, inst_levels,
-			pin_levels, visited, pred,
-			edge->role()->isWire() ? inst_level : inst_level+1,
-			pin_level+1);
-	}
+        Edge *edge = edge_iter.next();
+        Vertex *from_vertex = edge->from(graph_);
+        if (pred->searchThru(edge, mode) && (flat || !crossesHierarchy(edge))
+            && pred->searchFrom(from_vertex, mode)) {
+          findFaninPins(from_vertex, flat, inst_levels, pin_levels, visited, pred,
+                        edge->role()->isWire() ? inst_level : inst_level + 1,
+                        pin_level + 1, mode);
+        }
       }
     }
   }
@@ -5234,46 +5524,47 @@ Sta::findFaninPins(Vertex *to,
 
 InstanceSet
 Sta::findFaninInstances(PinSeq *to,
-			bool flat,
-			bool startpoints_only,
-			int inst_levels,
-			int pin_levels,
-			bool thru_disabled,
-			bool thru_constants)
+                        bool flat,
+                        bool startpoints_only,
+                        int inst_levels,
+                        int pin_levels,
+                        bool thru_disabled,
+                        bool thru_constants,
+                        const Mode *mode)
 {
-  PinSet pins = findFaninPins(to, flat, startpoints_only, inst_levels,
-                              pin_levels, thru_disabled, thru_constants);
+  PinSet pins = findFaninPins(to, flat, startpoints_only, inst_levels, pin_levels,
+                              thru_disabled, thru_constants, mode);
   return pinInstances(pins, network_);
 }
 
 PinSet
 Sta::findFanoutPins(PinSeq *from,
-		    bool flat,
-		    bool endpoints_only,
-		    int inst_levels,
-		    int pin_levels,
-		    bool thru_disabled,
-		    bool thru_constants)
+                    bool flat,
+                    bool endpoints_only,
+                    int inst_levels,
+                    int pin_levels,
+                    bool thru_disabled,
+                    bool thru_constants,
+                    const Mode *mode)
 {
   ensureGraph();
   ensureLevelized();
+  mode->sim()->ensureConstantsPropagated();
   PinSet fanout(network_);
   FanInOutSrchPred pred(thru_disabled, thru_constants, this);
-  PinSeq::Iterator from_iter(from);
-  while (from_iter.hasNext()) {
-    const Pin *pin = from_iter.next();
+  for (const Pin *pin : *from) {
     if (network_->isHierarchical(pin)) {
       EdgesThruHierPinIterator edge_iter(pin, network_, graph_);
       while (edge_iter.hasNext()) {
-	Edge *edge = edge_iter.next();
-	findFanoutPins(edge->to(graph_), flat, endpoints_only,
-		       inst_levels, pin_levels, fanout, pred);
+        Edge *edge = edge_iter.next();
+        findFanoutPins(edge->to(graph_), flat, endpoints_only, inst_levels,
+                       pin_levels, fanout, pred, mode);
       }
     }
     else {
       Vertex *vertex = graph_->pinDrvrVertex(pin);
-      findFanoutPins(vertex, flat, endpoints_only,
-		     inst_levels, pin_levels, fanout, pred);
+      findFanoutPins(vertex, flat, endpoints_only, inst_levels, pin_levels, fanout,
+                     pred, mode);
     }
   }
   return fanout;
@@ -5281,22 +5572,19 @@ Sta::findFanoutPins(PinSeq *from,
 
 void
 Sta::findFanoutPins(Vertex *vertex,
-		    bool flat,
-		    bool endpoints_only,
-		    int inst_levels,
-		    int pin_levels,
-		    PinSet &fanout,
-		    SearchPred &pred)
+                    bool flat,
+                    bool endpoints_only,
+                    int inst_levels,
+                    int pin_levels,
+                    PinSet &fanout,
+                    SearchPred &pred,
+                    const Mode *mode)
 {
-  VertexSet visited(graph_);
-  findFanoutPins(vertex, flat, inst_levels,
-		 pin_levels, visited, &pred, 0, 0);
-  VertexSet::Iterator visited_iter(visited);
-  while (visited_iter.hasNext()) {
-    Vertex *visited_vertex = visited_iter.next();
+  VertexSet visited = makeVertexSet(this);
+  findFanoutPins(vertex, flat, inst_levels, pin_levels, visited, &pred, 0, 0, mode);
+  for (Vertex *visited_vertex : visited) {
     Pin *visited_pin = visited_vertex->pin();
-    if (!endpoints_only
-	|| search_->isEndpoint(visited_vertex, &pred))
+    if (!endpoints_only || search_->isEndpoint(visited_vertex, &pred, mode))
       fanout.insert(visited_pin);
   }
 }
@@ -5304,37 +5592,32 @@ Sta::findFanoutPins(Vertex *vertex,
 // DFS to support level limits.
 void
 Sta::findFanoutPins(Vertex *from,
-		    bool flat,
-		    int inst_levels,
-		    int pin_levels,
-		    VertexSet &visited,
-		    SearchPred *pred,
-		    int inst_level,
-		    int pin_level)
+                    bool flat,
+                    int inst_levels,
+                    int pin_levels,
+                    VertexSet &visited,
+                    SearchPred *pred,
+                    int inst_level,
+                    int pin_level,
+                    const Mode *mode)
 {
-  debugPrint(debug_, "fanout", 1, "%s",
-             from->to_string(this).c_str());
-  if (!visited.hasKey(from)) {
+  debugPrint(debug_, "fanout", 1, "{}", from->to_string(this));
+  if (!visited.contains(from)) {
     visited.insert(from);
-    if (!search_->isEndpoint(from, pred)
-	&& (inst_levels <= 0
-	    || inst_level < inst_levels)
-	&& (pin_levels <= 0
-	    || pin_level < pin_levels)
-	&& pred->searchFrom(from)) {
+    if (!search_->isEndpoint(from, pred, mode)
+        && (inst_levels <= 0 || inst_level < inst_levels)
+        && (pin_levels <= 0 || pin_level < pin_levels)
+        && pred->searchFrom(from, mode)) {
       VertexOutEdgeIterator edge_iter(from, graph_);
       while (edge_iter.hasNext()) {
-	Edge *edge = edge_iter.next();
-	Vertex *to_vertex = edge->to(graph_);
-	if (pred->searchThru(edge)
-	    && (flat
-		|| !crossesHierarchy(edge))
-	    && pred->searchTo(to_vertex)) {
-	  findFanoutPins(to_vertex, flat, inst_levels,
-			 pin_levels, visited, pred,
-			 edge->role()->isWire() ? inst_level : inst_level+1,
-			 pin_level+1);
-	}
+        Edge *edge = edge_iter.next();
+        Vertex *to_vertex = edge->to(graph_);
+        if (pred->searchThru(edge, mode) && (flat || !crossesHierarchy(edge))
+            && pred->searchTo(to_vertex, mode)) {
+          findFanoutPins(to_vertex, flat, inst_levels, pin_levels, visited, pred,
+                         edge->role()->isWire() ? inst_level : inst_level + 1,
+                         pin_level + 1, mode);
+        }
       }
     }
   }
@@ -5342,21 +5625,22 @@ Sta::findFanoutPins(Vertex *from,
 
 InstanceSet
 Sta::findFanoutInstances(PinSeq *from,
-			 bool flat,
-			 bool endpoints_only,
-			 int inst_levels,
-			 int pin_levels,
-			 bool thru_disabled,
-			 bool thru_constants)
+                         bool flat,
+                         bool endpoints_only,
+                         int inst_levels,
+                         int pin_levels,
+                         bool thru_disabled,
+                         bool thru_constants,
+                         const Mode *mode)
 {
-  PinSet pins = findFanoutPins(from, flat, endpoints_only, inst_levels,
-                               pin_levels, thru_disabled, thru_constants);
+  PinSet pins = findFanoutPins(from, flat, endpoints_only, inst_levels, pin_levels,
+                               thru_disabled, thru_constants, mode);
   return pinInstances(pins, network_);
 }
 
 static InstanceSet
 pinInstances(PinSet &pins,
-	     const Network *network)
+             const Network *network)
 {
   InstanceSet insts(network);
   for (const Pin *pin : pins)
@@ -5364,9 +5648,7 @@ pinInstances(PinSet &pins,
   return insts;
 }
 
-InstanceSeq
-Sta::clockGatedRegisters()
-{
+InstanceSeq Sta::clockGatedRegisters() {
   InstanceSeq result;
 
   // Find all leaf registers
@@ -5419,11 +5701,11 @@ Sta::crossesHierarchy(Edge *edge) const
   // Treat input/output port pins as "inside".
   if (network_->isTopInstance(from_inst))
     from_parent = from_inst;
-  else 
+  else
     from_parent = network_->parent(from_inst);
   if (network_->isTopInstance(to_inst))
     to_parent = to_inst;
-  else 
+  else
     to_parent = network_->parent(to_inst);
   return from_parent != to_parent;
 }
@@ -5442,7 +5724,8 @@ instMaxSlew(const Instance *inst,
     Pin *pin = pin_iter->next();
     if (network->isDriver(pin)) {
       Vertex *vertex = graph->pinDrvrVertex(pin);
-      Slew slew = sta->vertexSlew(vertex, MinMax::max());
+      Slew slew =
+          sta->slew(vertex, RiseFallBoth::riseFall(), sta->scenes(), MinMax::max());
       if (delayGreater(slew, max_slew, sta))
         max_slew = slew;
     }
@@ -5456,11 +5739,8 @@ Sta::slowDrivers(int count)
 {
   findDelays();
   InstanceSeq insts = network_->leafInstances();
-  sort(insts, [this] (const Instance *inst1,
-                      const Instance *inst2) {
-    return delayGreater(instMaxSlew(inst1, this),
-                        instMaxSlew(inst2, this),
-                        this);
+  sort(insts, [this](const Instance *inst1, const Instance *inst2) {
+    return delayGreater(instMaxSlew(inst1, this), instMaxSlew(inst2, this), this);
   });
   insts.resize(count);
   return insts;
@@ -5469,404 +5749,358 @@ Sta::slowDrivers(int count)
 ////////////////////////////////////////////////////////////////
 
 void
-Sta::checkSlewLimitPreamble()
+Sta::reportSlewChecks(const Net *net,
+                      size_t max_count,
+                      bool violators,
+                      bool verbose,
+                      const SceneSeq &scenes,
+                      const MinMax *min_max)
 {
-  if (sdc_->haveClkSlewLimits())
+  checkSlewsPreamble();
+  SlewCheckSeq &checks =
+      check_slews_->check(net, max_count, violators, scenes, min_max);
+  if (!checks.empty()) {
+    report_->report("{} slew", min_max->to_string());
+    report_->report("");
+
+    if (!verbose)
+      report_path_->reportLimitShortHeader(report_path_->fieldSlew());
+    for (SlewCheck &check : checks) {
+      if (verbose)
+        report_path_->reportLimitVerbose(report_path_->fieldSlew(),
+                                         check.pin(), check.edge(),
+                                         delayAsFloat(check.slew(), min_max, this),
+                                         check.limit(), check.slack(),
+                                         check.scene(), min_max);
+      else
+        report_path_->reportLimitShort(report_path_->fieldSlew(), check.pin(),
+                                       delayAsFloat(check.slew(), min_max, this),
+                                       check.limit(), check.slack());
+    }
+    report_->report("");
+  }
+}
+
+void
+Sta::checkSlewsPreamble()
+{
+  ensureLevelized();
+  bool have_clk_slew_limits = false;
+  for (Mode *mode : modes_) {
+    if (mode->sdc()->haveClkSlewLimits())
+      have_clk_slew_limits = true;
+    mode->clkNetwork()->ensureClkNetwork();
+  }
+  if (have_clk_slew_limits)
     // Arrivals are needed to know pin clock domains.
     updateTiming(false);
   else
     findDelays();
-  if (check_slew_limits_ == nullptr)
-    makeCheckSlewLimits();
-  ensureClkNetwork();
-}
-
-PinSeq
-Sta::checkSlewLimits(Net *net,
-                     bool violators,
-                     const Corner *corner,
-                     const MinMax *min_max)
-{
-  checkSlewLimitPreamble();
-  return check_slew_limits_->checkSlewLimits(net, violators, corner, min_max);
-}
-
-void
-Sta::reportSlewLimitShortHeader()
-{
-  report_path_->reportLimitShortHeader(report_path_->fieldSlew());
-}
-
-void
-Sta::reportSlewLimitShort(Pin *pin,
-			  const Corner *corner,
-			  const MinMax *min_max)
-{
-  const Corner *corner1;
-  const RiseFall *rf1;
-  Slew slew1;
-  float limit1, slack1;
-  check_slew_limits_->checkSlew(pin, corner, min_max, true,
-				corner1, rf1, slew1, limit1, slack1);
-  report_path_->reportLimitShort(report_path_->fieldSlew(), pin,
-				 delayAsFloat(slew1), limit1, slack1);
-}
-
-void
-Sta::reportSlewLimitVerbose(Pin *pin,
-			    const Corner *corner,
-			    const MinMax *min_max)
-{
-  const Corner *corner1;
-  const RiseFall *rf1;
-  Slew slew1;
-  float limit1, slack1;
-  check_slew_limits_->checkSlew(pin, corner, min_max, true,
-				corner1, rf1, slew1, limit1, slack1);
-  report_path_->reportLimitVerbose(report_path_->fieldSlew(), pin, rf1,
-				   delayAsFloat(slew1),
-				   limit1, slack1, corner1, min_max);
+  if (check_slews_ == nullptr)
+    makeCheckSlews();
 }
 
 void
 Sta::checkSlew(const Pin *pin,
-	       const Corner *corner,
-	       const MinMax *min_max,
-	       bool check_clks,
-	       // Return values.
-	       const Corner *&corner1,
-	       const RiseFall *&rf,
-	       Slew &slew,
-	       float &limit,
-	       float &slack)
+               const SceneSeq &scenes,
+               const MinMax *min_max,
+               bool check_clks,
+               // Return values.
+               Slew &slew,
+               float &limit,
+               float &slack,
+               const RiseFall *&rf,
+               const Scene *&scene)
 {
-  check_slew_limits_->checkSlew(pin, corner, min_max, check_clks,
-				corner1, rf, slew, limit, slack);
+  check_slews_->check(pin, scenes, min_max, check_clks, slew, limit, slack, rf,
+                      scene);
+}
+
+size_t
+Sta::maxSlewViolationCount()
+{
+  checkSlewsPreamble();
+  return check_slews_->check(nullptr, 1, true, scenes_, MinMax::max()).size();
 }
 
 void
-Sta::maxSlewCheck(// Return values.
-                  const Pin *&pin,
-                  Slew &slew,
-                  float &slack,
-                  float &limit)
+Sta::maxSlewCheck(  // Return values.
+    const Pin *&pin,
+    Slew &slew,
+    float &slack,
+    float &limit)
 {
-  checkSlewLimitPreamble();
-  PinSeq pins = check_slew_limits_->checkSlewLimits(nullptr, false, nullptr,
-                                                    MinMax::max());
-  pin = nullptr;
-  slew = 0.0;
-  slack = INF;
-  limit = INF;
-  if (!pins.empty()) {
-    pin = pins[0];
-    const Corner *corner;
-    const RiseFall *rf;
-    check_slew_limits_->checkSlew(pin, nullptr, MinMax::max(), true,
-                                  corner, rf, slew, limit, slack);
+  checkSlewsPreamble();
+  SlewCheckSeq &checks =
+      check_slews_->check(nullptr, 1, false, scenes_, MinMax::max());
+  if (!checks.empty()) {
+    SlewCheck &check = checks[0];
+    pin = check.pin();
+    slew = check.slew();
+    slack = check.slack();
+    limit = check.limit();
+  }
+  else {
+    pin = nullptr;
+    slew = 0.0;
+    slack = INF;
   }
 }
 
 void
 Sta::findSlewLimit(const LibertyPort *port,
-                   const Corner *corner,
+                   const Scene *scene,
                    const MinMax *min_max,
                    // Return values.
                    float &limit,
                    bool &exists)
 {
-  if (check_slew_limits_ == nullptr)
-    makeCheckSlewLimits();
-  check_slew_limits_->findLimit(port, corner, min_max,
-                                limit, exists);
+  if (check_slews_ == nullptr)
+    makeCheckSlews();
+  check_slews_->findLimit(port, scene, min_max, limit, exists);
 }
 
 ////////////////////////////////////////////////////////////////'
 
 void
-Sta::checkFanoutLimitPreamble()
+Sta::reportFanoutChecks(const Net *net,
+                        size_t max_count,
+                        bool violators,
+                        bool verbose,
+                        const SceneSeq &scenes,
+                        const MinMax *min_max)
 {
-  if (check_fanout_limits_ == nullptr)
-    makeCheckFanoutLimits();
-  ensureClkNetwork();
-}
+  checkFanoutPreamble();
+  const ModeSeq modes = Scene::modesSorted(scenes);
+  FanoutCheckSeq &checks =
+      check_fanouts_->check(net, max_count, violators, modes, min_max);
+  if (!checks.empty()) {
+    report_->report("{} fanout", min_max->to_string());
+    report_->report("");
 
-PinSeq
-Sta::checkFanoutLimits(Net *net,
-                       bool violators,
-                       const MinMax *min_max)
-{
-  checkFanoutLimitPreamble();
-  return check_fanout_limits_->checkFanoutLimits(net, violators, min_max);
+    if (!verbose)
+      report_path_->reportLimitShortHeader(report_path_->fieldFanout());
+
+    for (const FanoutCheck &check : checks) {
+      if (verbose)
+        report_path_->reportLimitVerbose(report_path_->fieldFanout(), check.pin(),
+                                         nullptr, check.fanout(), check.limit(),
+                                         check.slack(), nullptr, min_max);
+      else
+        report_path_->reportLimitShort(report_path_->fieldFanout(), check.pin(),
+                                       check.fanout(), check.limit(), check.slack());
+    }
+    report_->report("");
+  }
 }
 
 void
-Sta::reportFanoutLimitShortHeader()
+Sta::checkFanoutPreamble()
 {
-  report_path_->reportLimitShortHeader(report_path_->fieldFanout());
+  if (check_fanouts_ == nullptr)
+    makeCheckFanouts();
+  ensureLevelized();
+  for (Mode *mode : modes_) {
+    mode->sim()->ensureConstantsPropagated();
+    mode->clkNetwork()->ensureClkNetwork();
+  }
 }
 
-void
-Sta::reportFanoutLimitShort(Pin *pin,
-			    const MinMax *min_max)
+size_t
+Sta::fanoutViolationCount(const MinMax *min_max,
+                          const ModeSeq &modes)
 {
-  float fanout, limit, slack;
-  check_fanout_limits_->checkFanout(pin, min_max,
-				    fanout, limit, slack);
-  report_path_->reportLimitShort(report_path_->fieldFanout(),
-				 pin, fanout, limit, slack);
-}
-
-void
-Sta::reportFanoutLimitVerbose(Pin *pin,
-			      const MinMax *min_max)
-{
-  float fanout, limit, slack;
-  check_fanout_limits_->checkFanout(pin, min_max,
-				    fanout, limit, slack);
-  report_path_->reportLimitVerbose(report_path_->fieldFanout(),
-				   pin, nullptr, fanout,
-				   limit, slack, nullptr, min_max);
+  FanoutCheckSeq &checks = check_fanouts_->check(nullptr, 0, true, modes, min_max);
+  return checks.size();
 }
 
 void
 Sta::checkFanout(const Pin *pin,
-		 const MinMax *min_max,
-		 // Return values.
-		 float &fanout,
-		 float &limit,
-		 float &slack)
+                 const Mode *mode,
+                 const MinMax *min_max,
+                 // Return values.
+                 float &fanout,
+                 float &limit,
+                 float &slack)
 {
-  check_fanout_limits_->checkFanout(pin, min_max,
-				    fanout, limit, slack);
+  FanoutCheck check = check_fanouts_->check(pin, mode, min_max);
+  fanout = check.fanout();
+  limit = check.limit();
+  slack = check.slack();
 }
 
 void
-Sta::maxFanoutCheck(// Return values.
-                    const Pin *&pin,
-                    float &fanout,
-                    float &slack,
-                    float &limit)
+Sta::maxFanoutMinSlackPin(const ModeSeq &modes,
+                          // Return values.
+                          const Pin *&pin,
+                          float &fanout,
+                          float &limit,
+                          float &slack,
+                          const Mode *&mode)
 {
-  checkFanoutLimitPreamble();
-  PinSeq pins = check_fanout_limits_->checkFanoutLimits(nullptr, false, MinMax::max());
-  pin = nullptr;
-  fanout = 0;
-  slack = INF;
-  limit = INF;
-  if (!pins.empty()) {
-    pin = pins[0];
-    check_fanout_limits_->checkFanout(pin, MinMax::max(),
-                                      fanout, limit, slack);
+  checkFanoutPreamble();
+  FanoutCheckSeq &checks =
+      check_fanouts_->check(nullptr, 1, false, modes, MinMax::max());
+  if (!checks.empty()) {
+    FanoutCheck &check = checks[0];
+    pin = check.pin();
+    fanout = check.fanout();
+    limit = check.limit();
+    slack = check.slack();
+    mode = check.mode();
+  }
+  else {
+    pin = nullptr;
+    fanout = 0;
+    limit = INF;
+    slack = INF;
+    mode = nullptr;
   }
 }
 
 ////////////////////////////////////////////////////////////////'
 
 void
-Sta::checkCapacitanceLimitPreamble()
+Sta::reportCapacitanceChecks(const Net *net,
+                             size_t max_count,
+                             bool violators,
+                             bool verbose,
+                             const SceneSeq &scenes,
+                             const MinMax *min_max)
 {
-  if (check_capacitance_limits_ == nullptr)
-    makeCheckCapacitanceLimits();
-  ensureClkNetwork();
-}
+  checkCapacitancesPreamble(scenes);
+  CapacitanceCheckSeq &checks =
+      check_capacitances_->check(net, max_count, violators, scenes, min_max);
+  if (!checks.empty()) {
+    report_->report("{} capacitance", min_max->to_string());
+    report_->report("");
 
-PinSeq
-Sta::checkCapacitanceLimits(Net *net,
-                            bool violators,
-                            const Corner *corner,
-                            const MinMax *min_max)
-{
-  checkCapacitanceLimitPreamble();
-  return check_capacitance_limits_->checkCapacitanceLimits(net, violators,
-                                                           corner, min_max);
-}
-
-void
-Sta::reportCapacitanceLimitShortHeader()
-{
-  report_path_->reportLimitShortHeader(report_path_->fieldCapacitance());
-}
-
-void
-Sta::reportCapacitanceLimitShort(Pin *pin,
-				 const Corner *corner,
-				 const MinMax *min_max)
-{
-  const Corner *corner1;
-  const RiseFall *rf;
-  float capacitance, limit, slack;
-  check_capacitance_limits_->checkCapacitance(pin, corner, min_max,
-					      corner1, rf, capacitance,
-					      limit, slack);
-  report_path_->reportLimitShort(report_path_->fieldCapacitance(),
-				 pin, capacitance, limit, slack);
+    if (!verbose)
+      report_path_->reportLimitShortHeader(report_path_->fieldCapacitance());
+    for (CapacitanceCheck &check : checks) {
+      if (verbose)
+        report_path_->reportLimitVerbose(report_path_->fieldCapacitance(),
+                                         check.pin(), check.rf(),
+                                         check.capacitance(), check.limit(),
+                                         check.slack(), check.scene(), min_max);
+      else
+        report_path_->reportLimitShort(report_path_->fieldCapacitance(), check.pin(),
+                                       check.capacitance(), check.limit(),
+                                       check.slack());
+      report_->report("");
+    }
+  }
 }
 
 void
-Sta::reportCapacitanceLimitVerbose(Pin *pin,
-				   const Corner *corner,
-				   const MinMax *min_max)
+Sta::checkCapacitancesPreamble(const SceneSeq &scenes)
 {
-  const Corner *corner1;
-  const RiseFall *rf1;
-  float capacitance1, limit1, slack1;
-  check_capacitance_limits_->checkCapacitance(pin, corner, min_max,
-					      corner1, rf1, capacitance1,
-					      limit1, slack1);
-  report_path_->reportLimitVerbose(report_path_->fieldCapacitance(),
-				   pin, rf1, capacitance1,
-				   limit1, slack1, corner1, min_max);
+  ensureLevelized();
+  if (check_capacitances_ == nullptr)
+    makeCheckCapacitances();
+  for (Mode *mode : Scene::modes(scenes)) {
+    mode->sim()->ensureConstantsPropagated();
+    mode->clkNetwork()->ensureClkNetwork();
+  }
 }
 
 void
 Sta::checkCapacitance(const Pin *pin,
-		      const Corner *corner,
-		      const MinMax *min_max,
-		      // Return values.
-		      const Corner *&corner1,
-		      const RiseFall *&rf,
-		      float &capacitance,
-		      float &limit,
-		      float &slack)
+                      const SceneSeq &scenes,
+                      const MinMax *min_max,
+                      // Return values.
+                      float &capacitance,
+                      float &limit,
+                      float &slack,
+                      const RiseFall *&rf,
+                      const Scene *&scene)
 {
-  check_capacitance_limits_->checkCapacitance(pin, corner, min_max,
-					      corner1, rf, capacitance,
-					      limit, slack);
+  CapacitanceCheck check = check_capacitances_->check(pin, scenes, min_max);
+  capacitance = check.capacitance();
+  limit = check.limit();
+  slack = check.slack();
+  rf = check.rf();
+  scene = check.scene();
+}
+
+size_t
+Sta::maxCapacitanceViolationCount()
+{
+  checkCapacitancesPreamble(scenes_);
+  return check_capacitances_->check(nullptr, 1, true, scenes_, MinMax::max()).size();
 }
 
 void
-Sta::maxCapacitanceCheck(// Return values.
-                         const Pin *&pin,
-                         float &capacitance,
-                         float &slack,
-                         float &limit)
+Sta::maxCapacitanceCheck(  // Return values.
+    const Pin *&pin,
+    float &capacitance,
+    float &slack,
+    float &limit)
 {
-  checkCapacitanceLimitPreamble();
-  PinSeq pins = check_capacitance_limits_->checkCapacitanceLimits(nullptr, false,
-                                                                  nullptr,
-                                                                  MinMax::max());
+  checkCapacitancesPreamble(scenes_);
+  CapacitanceCheckSeq &checks =
+      check_capacitances_->check(nullptr, 1, false, scenes_, MinMax::max());
   pin = nullptr;
   capacitance = 0.0;
   slack = INF;
   limit = INF;
-  if (!pins.empty()) {
-    pin = pins[0];
-    const Corner *corner;
-    const RiseFall *rf;
-    check_capacitance_limits_->checkCapacitance(pin, nullptr, MinMax::max(),
-                                                corner, rf, capacitance, limit, slack);
+  if (!checks.empty()) {
+    const CapacitanceCheck &check = checks[0];
+    pin = check.pin();
+    capacitance = check.capacitance();
+    limit = check.limit();
+    slack = check.slack();
   }
 }
 
 ////////////////////////////////////////////////////////////////
 
 void
-Sta::minPulseWidthPreamble()
+Sta::reportMinPulseWidthChecks(const Net *net,
+                               size_t max_count,
+                               bool violators,
+                               bool verbose,
+                               const SceneSeq &scenes)
 {
   ensureClkArrivals();
   if (check_min_pulse_widths_ == nullptr)
     makeCheckMinPulseWidths();
-}
-
-MinPulseWidthCheckSeq &
-Sta::minPulseWidthChecks(PinSeq *pins,
-			 const Corner *corner)
-{
-  minPulseWidthPreamble();
-  return check_min_pulse_widths_->check(pins, corner);
-}
-
-MinPulseWidthCheckSeq &
-Sta::minPulseWidthChecks(const Corner *corner)
-{
-  minPulseWidthPreamble();
-  return check_min_pulse_widths_->check(corner);
-}
-
-MinPulseWidthCheckSeq &
-Sta::minPulseWidthViolations(const Corner *corner)
-{
-  minPulseWidthPreamble();
-  return check_min_pulse_widths_->violations(corner);
-}
-
-MinPulseWidthCheck *
-Sta::minPulseWidthSlack(const Corner *corner)
-{
-  minPulseWidthPreamble();
-  return check_min_pulse_widths_->minSlackCheck(corner);
-}
-
-void
-Sta::reportMpwChecks(MinPulseWidthCheckSeq *checks,
-		     bool verbose)
-{
+  MinPulseWidthCheckSeq &checks =
+      check_min_pulse_widths_->check(net, max_count, violators, scenes);
   report_path_->reportMpwChecks(checks, verbose);
-}
-
-void
-Sta::reportMpwCheck(MinPulseWidthCheck *check,
-		    bool verbose)
-{
-  report_path_->reportMpwCheck(check, verbose);
 }
 
 ////////////////////////////////////////////////////////////////
 
-MinPeriodCheckSeq &
-Sta::minPeriodViolations()
-{
-  minPeriodPreamble();
-  const Corner *corner = cmdCorner();
-  return check_min_periods_->violations(corner);
-}
-
-MinPeriodCheck *
-Sta::minPeriodSlack()
-{
-  minPeriodPreamble();
-  const Corner *corner = cmdCorner();
-  return check_min_periods_->minSlackCheck(corner);
-}
-
 void
-Sta::minPeriodPreamble()
+Sta::reportMinPeriodChecks(const Net *net,
+                           size_t max_count,
+                           bool violators,
+                           bool verbose,
+                           const SceneSeq &scenes)
 {
   // Need clk arrivals to know what clks arrive at the clk tree endpoints.
   ensureClkArrivals();
   if (check_min_periods_ == nullptr)
     makeCheckMinPeriods();
-}
-
-void
-Sta::reportChecks(MinPeriodCheckSeq *checks,
-		  bool verbose)
-{
+  MinPeriodCheckSeq &checks =
+      check_min_periods_->check(net, max_count, violators, scenes);
   report_path_->reportChecks(checks, verbose);
-}
-
-void
-Sta::reportCheck(MinPeriodCheck *check,
-		 bool verbose)
-{
-  report_path_->reportCheck(check, verbose);
 }
 
 ////////////////////////////////////////////////////////////////
 
-MaxSkewCheckSeq &
-Sta::maxSkewViolations()
+void
+Sta::reportMaxSkewChecks(const Net *net,
+                         size_t max_count,
+                         bool violators,
+                         bool verbose,
+                         const SceneSeq &scenes)
 {
   maxSkewPreamble();
-  return check_max_skews_->violations();
-}
-
-MaxSkewCheck *
-Sta::maxSkewSlack()
-{
-  maxSkewPreamble();
-  return check_max_skews_->minSlackCheck();
+  MaxSkewCheckSeq &checks =
+      check_max_skews_->check(net, max_count, violators, scenes);
+  report_path_->reportChecks(checks, verbose);
 }
 
 void
@@ -5877,25 +6111,11 @@ Sta::maxSkewPreamble()
     makeCheckMaxSkews();
 }
 
-void
-Sta::reportChecks(MaxSkewCheckSeq *checks,
-		  bool verbose)
-{
-  report_path_->reportChecks(checks, verbose);
-}
-
-void
-Sta::reportCheck(MaxSkewCheck *check,
-		 bool verbose)
-{
-  report_path_->reportCheck(check, verbose);
-}
-
 ////////////////////////////////////////////////////////////////
 
 void
 Sta::makeEquivCells(LibertyLibrarySeq *equiv_libs,
-		    LibertyLibrarySeq *map_libs)
+                    LibertyLibrarySeq *map_libs)
 {
   delete equiv_cells_;
   equiv_cells_ = new EquivCells(equiv_libs, map_libs);
@@ -5913,121 +6133,179 @@ Sta::equivCells(LibertyCell *cell)
 ////////////////////////////////////////////////////////////////
 
 void
-Sta::writeTimingModel(const char *lib_name,
-                      const char *cell_name,
-                      const char *filename,
-                      const Corner *corner,
+Sta::writeTimingModel(std::string_view lib_name,
+                      std::string_view cell_name,
+                      std::string_view filename,
+                      const Scene *scene,
                       const bool scalar)
 {
   ensureLibLinked();
   ensureGraph();
-  LibertyLibrary *library = makeTimingModel(lib_name, cell_name, filename,
-                                            corner, scalar, this);
-  writeLiberty(library, filename, this);
+  LibertyLibrary *library = makeTimingModel(lib_name, cell_name,
+                                            filename, scene, scalar, this);
+  writeLiberty(library, std::string(filename).c_str(), this);
 }
 
 ////////////////////////////////////////////////////////////////
 
 void
-Sta::powerPreamble()
+Sta::reportPowerDesign(const Scene *scene,
+                       int digits)
+{
+  powerPreamble(scene);
+  power_->reportDesign(scene, digits);
+}
+
+void
+Sta::reportPowerInsts(const InstanceSeq &insts,
+                      const Scene *scene,
+                      int digits)
+{
+  powerPreamble(scene);
+  power_->reportInsts(insts, scene, digits);
+}
+
+void
+Sta::reportPowerHighestInsts(size_t count,
+                             const Scene *scene,
+                             int digits)
+{
+  powerPreamble(scene);
+  power_->reportHighestInsts(count, scene, digits);
+}
+
+void
+Sta::reportPowerDesignJson(const Scene *scene,
+                           int digits)
+{
+  powerPreamble(scene);
+  power_->reportDesignJson(scene, digits);
+}
+
+void
+Sta::reportPowerInstsJson(const InstanceSeq &insts,
+                          const Scene *scene,
+                          int digits)
+{
+  powerPreamble(scene);
+  power_->reportInstsJson(insts, scene, digits);
+}
+
+void
+Sta::powerPreamble(const Scene *scene)
 {
   ensureLibLinked();
   // Use arrivals to find clocking info.
   searchPreamble();
   search_->findAllArrivals();
-  ensureClkNetwork();
+  if (scene)
+    scene->mode()->clkNetwork()->ensureClkNetwork();
+  else {
+    for (Mode *mode : modes_)
+      mode->clkNetwork()->ensureClkNetwork();
+  }
 }
 
 void
-Sta::power(const Corner *corner,
-	   // Return values.
-	   PowerResult &total,
-	   PowerResult &sequential,
-	   PowerResult &combinational,
-	   PowerResult &clock,
-	   PowerResult &macro,
-	   PowerResult &pad)
+Sta::power(const Scene *scene,
+           // Return values.
+           PowerResult &total,
+           PowerResult &sequential,
+           PowerResult &combinational,
+           PowerResult &clock,
+           PowerResult &macro,
+           PowerResult &pad)
 {
-  powerPreamble();
-  power_->power(corner, total, sequential, combinational, clock, macro, pad);
+  powerPreamble(scene);
+  power_->power(scene, total, sequential, combinational, clock, macro, pad);
 }
 
 PowerResult
 Sta::power(const Instance *inst,
-	   const Corner *corner)
+           const Scene *scene)
 {
-  powerPreamble();
-  return power_->power(inst, corner);
+  powerPreamble(scene);
+  return power_->power(inst, scene);
 }
 
 PwrActivity
-Sta::activity(const Pin *pin)
+Sta::activity(const Pin *pin,
+              const Scene *scene)
 {
-  powerPreamble();
-  return power_->pinActivity(pin);
+  powerPreamble(scene);
+  return power_->pinActivity(pin, scene);
 }
 
 ////////////////////////////////////////////////////////////////
 
 void
-Sta::writePathSpice(Path *path,
-                    const char *spice_filename,
-                    const char *subckt_filename,
-                    const char *lib_subckt_filename,
-                    const char *model_filename,
-                    const char *power_name,
-                    const char *gnd_name,
+Sta::writePathSpice(const Path *path,
+                    std::string_view spice_filename,
+                    std::string_view subckt_filename,
+                    std::string_view lib_subckt_filename,
+                    std::string_view model_filename,
+                    std::string_view power_name,
+                    std::string_view gnd_name,
                     CircuitSim ckt_sim)
 {
   ensureLibLinked();
-  sta::writePathSpice(path, spice_filename, subckt_filename,
-                      lib_subckt_filename, model_filename,
-                      power_name, gnd_name, ckt_sim, this);
+  sta::writePathSpice(path, spice_filename, subckt_filename, lib_subckt_filename,
+                      model_filename, power_name, gnd_name, ckt_sim, this);
 }
 
 ////////////////////////////////////////////////////////////////
 
 void
-Sta::ensureClkNetwork()
+Sta::ensureClkNetwork(const Mode *mode)
 {
   ensureLevelized();
-  clk_network_->ensureClkNetwork();
+  mode->clkNetwork()->ensureClkNetwork();
 }
 
 bool
-Sta::isClock(const Pin *pin) const
+Sta::isClock(const Pin *pin,
+             const Mode *mode)
 {
-  return clk_network_->isClock(pin);
+  ensureClkNetwork(mode);
+  return mode->clkNetwork()->isClock(pin);
 }
 
 bool
-Sta::isClock(const Net *net) const
+Sta::isClock(const Net *net,
+             const Mode *mode)
 {
-  return clk_network_->isClock(net);
+  ensureClkNetwork(mode);
+  return mode->clkNetwork()->isClock(net);
 }
 
 bool
-Sta::isIdealClock(const Pin *pin) const
+Sta::isIdealClock(const Pin *pin,
+                  const Mode *mode)
 {
-  return clk_network_->isIdealClock(pin);
+  ensureClkNetwork(mode);
+  return mode->clkNetwork()->isIdealClock(pin);
 }
 
 bool
-Sta::isPropagatedClock(const Pin *pin) const
+Sta::isPropagatedClock(const Pin *pin,
+                       const Mode *mode)
 {
-  return clk_network_->isPropagatedClock(pin);
+  return mode->clkNetwork()->isPropagatedClock(pin);
 }
 
 const PinSet *
-Sta::pins(const Clock *clk)
+Sta::pins(const Clock *clk,
+          const Mode *mode)
 {
-  return clk_network_->pins(clk);
+  ensureClkNetwork(mode);
+  return mode->clkNetwork()->pins(clk);
 }
 
 void
-Sta::clkPinsInvalid()
+Sta::clkPinsInvalid(const Mode *mode)
 {
-  clk_network_->clkPinsInvalid();
+  ensureClkNetwork(mode);
+  mode->clkNetwork()->clkPinsInvalid();
 }
 
-} // namespace
+}  // namespace sta

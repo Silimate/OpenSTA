@@ -1,5 +1,5 @@
 // OpenSTA, Static Timing Analyzer
-// Copyright (c) 2025, Parallax Software, Inc.
+// Copyright (c) 2026, Parallax Software, Inc.
 // 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -28,13 +28,13 @@
 #include <string>
 #include <vector>
 
-#include "Zlib.hh"
 #include "StaState.hh"
+#include "Zlib.hh"
 
 namespace sta {
 
-typedef int64_t VcdTime;
-typedef std::vector<std::string> VcdScope;
+using VcdTime = int64_t;
+using VcdScope = std::vector<std::string>;
 
 enum class VcdVarType {
   wire,
@@ -70,7 +70,7 @@ public:
 
 private:
   void parseTimescale();
-  void setTimeUnit(const std::string &time_unit,
+  void setTimeUnit(std::string_view time_unit,
                    double time_scale);
   void parseVar();
   void parseScope();
@@ -80,19 +80,20 @@ private:
   std::string readStmtString();
   std::vector<std::string> readStmtTokens();
 
-  VcdReader *reader_;
+  VcdReader *reader_ = nullptr;
   gzFile stream_;
   std::string token_;
   const char *filename_;
-  int file_line_;
-  int stmt_line_;
+  int file_line_ = 0;
+  int stmt_line_ = 0;
 
-  VcdTime time_;
-  VcdTime prev_time_;
+  VcdTime time_ = 0;
+  VcdTime prev_time_ = 0;
 
   // Arguments to VcdParse
-  VcdTime start_time_;
-  VcdTime end_time_;
+  VcdTime start_time_ = -1;
+  VcdTime end_time_ = -1;
+
   VcdScope scope_;
 
   Report *report_;
@@ -103,28 +104,28 @@ private:
 class VcdReader
 {
 public:
-  virtual ~VcdReader() {}
-  virtual void setDate(const std::string &date) = 0;
-  virtual void setComment(const std::string &comment) = 0;
-  virtual void setVersion(const std::string &version) = 0;
-  virtual void setTimeUnit(const std::string &time_unit,
+  virtual ~VcdReader() = default;
+  virtual void setDate(std::string_view date) = 0;
+  virtual void setComment(std::string_view comment) = 0;
+  virtual void setVersion(std::string_view version) = 0;
+  virtual void setTimeUnit(std::string_view time_unit,
                            double time_unit_scale,
                            double time_scale) = 0;
   virtual void setTimeMin(VcdTime time) = 0;
   virtual void setTimeMax(VcdTime time) = 0;
   virtual void varMinDeltaTime(VcdTime min_delta_time) = 0;
-  virtual bool varIdValid(const std::string &id) = 0;
+  virtual bool varIdValid(std::string_view id) = 0;
   virtual void makeVar(const VcdScope &scope,
-                       const std::string &name,
+                       std::string_view name,
                        VcdVarType type,
                        size_t width,
-                       const std::string &id) = 0;
+                       std::string_view id) = 0;
   virtual void varAppendValue(const std::string &id,
                               VcdTime time,
                               char value) = 0;
   virtual void varAppendBusValue(const std::string &id,
                                  VcdTime time,
-                                 const std::string &bus_value) = 0;
+                                 std::string_view bus_value) = 0;
 };
 
 class VcdValue
@@ -145,4 +146,4 @@ private:
   uint64_t bus_value_;
 };
 
-} // namespace
+} // namespace sta

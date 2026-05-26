@@ -1,5 +1,5 @@
 // OpenSTA, Static Timing Analyzer
-// Copyright (c) 2025, Parallax Software, Inc.
+// Copyright (c) 2026, Parallax Software, Inc.
 // 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -22,11 +22,16 @@
 // 
 // This notice may not be removed or altered from any source distribution.
 
-%module network
+%include <std_string.i>
 
 %{
 #include "Network.hh"
 #include "FindObjects.hh"
+#include "FilterObjects.hh"
+
+#include <string>
+
+#include "StringUtil.hh"
 %}
 
 ////////////////////////////////////////////////////////////////
@@ -235,8 +240,8 @@ library_iterator()
 
 CellSeq
 find_cells_matching(const char *pattern,
-		    bool regexp,
-		    bool nocase)
+                    bool regexp,
+                    bool nocase)
 {
   Network *network = Sta::sta()->ensureLinked();
   PatternMatch matcher(pattern, regexp, nocase, Sta::sta()->tclInterp());
@@ -253,12 +258,12 @@ find_cells_matching(const char *pattern,
 }
 
 void
-set_cmd_namespace_cmd(const char *namespc)
+set_cmd_namespace_cmd(std::string namespc)
 {
   Sta *sta = Sta::sta();
-  if (stringEq(namespc, "sdc"))
+  if (namespc == "sdc")
     sta->setCmdNamespace(CmdNamespace::sdc);
-  else if (stringEq(namespc, "sta"))
+  else if (namespc == "sta")
     sta->setCmdNamespace(CmdNamespace::sta);
   else
     sta->report()->warn(2120, "unknown namespace");
@@ -285,22 +290,22 @@ leaf_instance_iterator()
   return network->leafInstanceIterator();
 }
 
-const char *
+std::string_view
 port_direction(const Port *port)
 {
   return Sta::sta()->ensureLinked()->direction(port)->name();
 }
-	     
-const char *
+             
+std::string
 pin_direction(const Pin *pin)
 {
-  return Sta::sta()->ensureLinked()->direction(pin)->name();
+  return std::string(Sta::sta()->ensureLinked()->direction(pin)->name());
 }
 
 PortSeq
 find_ports_matching(const char *pattern,
-		    bool regexp,
-		    bool nocase)
+                    bool regexp,
+                    bool nocase)
 {
   Sta *sta = Sta::sta();
   Network *network = sta->ensureLinked();
@@ -311,11 +316,11 @@ find_ports_matching(const char *pattern,
   PortSeq matches;
   for (const Port *port : matches1) {
     if (network->isBus(port)
-	|| network->isBundle(port)) {
+        || network->isBundle(port)) {
       PortMemberIterator *member_iter = network->memberIterator(port);
       while (member_iter->hasNext()) {
-	Port *member = member_iter->next();
-	matches.push_back(member);
+        Port *member = member_iter->next();
+        matches.push_back(member);
       }
       delete member_iter;
     }
@@ -327,8 +332,8 @@ find_ports_matching(const char *pattern,
 
 PinSeq
 find_port_pins_matching(const char *pattern,
-			bool regexp,
-			bool nocase)
+                        bool regexp,
+                        bool nocase)
 {
   Sta *sta = Sta::sta();
   Network *network = sta->ensureLinked();
@@ -339,20 +344,20 @@ find_port_pins_matching(const char *pattern,
   PinSeq pins;
   for (const Port *port : ports) {
     if (network->isBus(port)
-	|| network->isBundle(port)) {
+        || network->isBundle(port)) {
       PortMemberIterator *member_iter = network->memberIterator(port);
       while (member_iter->hasNext()) {
-	Port *member = member_iter->next();
-	Pin *pin = network->findPin(top_inst, member);
-	if (pin)
-	  pins.push_back(pin);
+        Port *member = member_iter->next();
+        Pin *pin = network->findPin(top_inst, member);
+        if (pin)
+          pins.push_back(pin);
       }
       delete member_iter;
     }
     else {
       Pin *pin = network->findPin(top_inst, port);
       if (pin)
-	pins.push_back(pin);
+        pins.push_back(pin);
     }
   }
   return pins;
@@ -376,18 +381,18 @@ const char pin_typename[] = "pin";
 
 PinSeq *
 find_pins_complete(PinSeq *collection,
-		   StringSeq *patterns,
-		   bool regexp,
-		   bool nocase,
-		   bool hier,
-		   bool quiet,
-		   const char *filter_expression = nullptr)
+                   StringSeq patterns,
+                   bool regexp,
+                   bool nocase,
+                   bool hier,
+                   bool quiet,
+                   const char *filter_expression = nullptr)
 {
   Sta *sta = Sta::sta();
   Network *network = sta->ensureLinked();
   Instance *current_instance = sta->currentInstance();
 
-  return find_objects_complete<PinSeq, const Pin, 363, pin_typename>(
+  return find_objects_complete<PinSeq, const Pin, 363, pin_typename, filterPins>(
     collection,
     patterns,
     regexp,
@@ -411,8 +416,8 @@ find_pins_complete(PinSeq *collection,
 
 PinSeq
 find_pins_matching(const char *pattern,
-		   bool regexp,
-		   bool nocase)
+                   bool regexp,
+                   bool nocase)
 {
   Sta *sta = Sta::sta();
   Network *network = sta->ensureLinked();
@@ -424,8 +429,8 @@ find_pins_matching(const char *pattern,
 
 PinSeq
 find_pins_hier_matching(const char *pattern,
-			bool regexp,
-			bool nocase)
+                        bool regexp,
+                        bool nocase)
 {
   Sta *sta = Sta::sta();
   Network *network = sta->ensureLinked();
@@ -449,8 +454,8 @@ network_leaf_instances()
 
 InstanceSeq
 find_instances_matching(const char *pattern,
-			bool regexp,
-			bool nocase)
+                        bool regexp,
+                        bool nocase)
 {
   Sta *sta = Sta::sta();
   Network *network = sta->ensureLinked();
@@ -464,18 +469,18 @@ const char instance_typename[] = "instance";
 
 InstanceSeq *
 find_instances_complete(InstanceSeq *collection,
-			StringSeq *patterns,
-			bool regexp,
-			bool nocase,
-			bool hier,
-			bool quiet,
-			const char *filter_expression = nullptr)
+                        StringSeq patterns,
+                        bool regexp,
+                        bool nocase,
+                        bool hier,
+                        bool quiet,
+                        const char *filter_expression = nullptr)
 {
   Sta *sta = Sta::sta();
   Network *network = sta->ensureLinked();
   Instance *current_instance = sta->currentInstance();
   
-  return find_objects_complete<InstanceSeq, const Instance, 349, instance_typename>(
+  return find_objects_complete<InstanceSeq, const Instance, 349, instance_typename, filterInstances>(
     collection,
     patterns,
     regexp,
@@ -493,17 +498,17 @@ const char port_typename[] = "instance";
 
 PortSeq *
 find_ports_complete(PortSeq *collection,
-			StringSeq *patterns,
-			bool regexp,
-			bool nocase,
-			bool quiet,
-			const char *filter_expression = nullptr)
+                    StringSeq patterns,
+                    bool regexp,
+                    bool nocase,
+                    bool quiet,
+                    const char *filter_expression = nullptr)
 {
   Sta *sta = Sta::sta();
   Network *network = sta->ensureLinked();
   Cell *top_cell = network->cell(network->topInstance());
 
-  return find_objects_complete<PortSeq, const Port, 366, port_typename>(
+  return find_objects_complete<PortSeq, const Port, 366, port_typename, filterPorts>(
     collection,
     patterns,
     regexp,
@@ -531,8 +536,8 @@ find_ports_complete(PortSeq *collection,
 
 InstanceSeq
 find_instances_hier_matching(const char *pattern,
-			     bool regexp,
-			     bool nocase)
+                             bool regexp,
+                             bool nocase)
 {
   Sta *sta = Sta::sta();
   Network *network = sta->ensureLinked();
@@ -540,72 +545,6 @@ find_instances_hier_matching(const char *pattern,
   PatternMatch matcher(pattern, regexp, nocase, sta->tclInterp());
   InstanceSeq matches = network->findInstancesHierMatching(current_instance, &matcher);
   return matches;
-}
-
-InstanceSet
-find_register_instances(ClockSet *clks,
-			const RiseFallBoth *clk_tr,
-			bool edge_triggered,
-			bool latches)
-{
-  Sta *sta = Sta::sta();
-  InstanceSet insts = sta->findRegisterInstances(clks, clk_tr,
-                                                 edge_triggered,
-                                                 latches);
-  delete clks;
-  return insts;
-}
-
-PinSet
-find_register_data_pins(ClockSet *clks,
-			const RiseFallBoth *clk_tr,
-			bool edge_triggered,
-			bool latches)
-{
-  Sta *sta = Sta::sta();
-  PinSet pins = sta->findRegisterDataPins(clks, clk_tr,
-                                          edge_triggered, latches);
-  delete clks;
-  return pins;
-}
-
-PinSet
-find_register_clk_pins(ClockSet *clks,
-		       const RiseFallBoth *clk_tr,
-		       bool edge_triggered,
-		       bool latches)
-{
-  Sta *sta = Sta::sta();
-  PinSet pins = sta->findRegisterClkPins(clks, clk_tr,
-                                         edge_triggered, latches);
-  delete clks;
-  return pins;
-}
-
-PinSet
-find_register_async_pins(ClockSet *clks,
-			 const RiseFallBoth *clk_tr,
-			 bool edge_triggered,
-			 bool latches)
-{
-  Sta *sta = Sta::sta();
-  PinSet pins = sta->findRegisterAsyncPins(clks, clk_tr,
-                                           edge_triggered, latches);
-  delete clks;
-  return pins;
-}
-
-PinSet
-find_register_output_pins(ClockSet *clks,
-			  const RiseFallBoth *clk_tr,
-			  bool edge_triggered,
-			  bool latches)
-{
-  Sta *sta = Sta::sta();
-  PinSet pins = sta->findRegisterOutputPins(clks, clk_tr,
-                                            edge_triggered, latches);
-  delete clks;
-  return pins;
 }
 
 Net *
@@ -618,18 +557,18 @@ const char net_typename[] = "net";
 
 NetSeq *
 find_nets_complete(NetSeq *collection,
-		   StringSeq *patterns,
-		   bool regexp,
-		   bool nocase,
-		   bool hier,
-		   bool quiet,
-		   const char *filter_expression = nullptr)
+                   StringSeq patterns,
+                   bool regexp,
+                   bool nocase,
+                   bool hier,
+                   bool quiet,
+                   const char *filter_expression = nullptr)
 {
   Sta *sta = Sta::sta();
   Network *network = sta->ensureLinked();
   Instance *current_instance = sta->currentInstance();
 
-  return find_objects_complete<NetSeq, const Net, 361, net_typename>(
+  return find_objects_complete<NetSeq, const Net, 361, net_typename, filterNets>(
     collection,
     patterns,
     regexp,
@@ -645,8 +584,8 @@ find_nets_complete(NetSeq *collection,
 
 NetSeq
 find_nets_matching(const char *pattern,
-		   bool regexp,
-		   bool nocase)
+                   bool regexp,
+                   bool nocase)
 {
   Sta *sta = Sta::sta();
   Network *network = sta->ensureLinked();
@@ -658,8 +597,8 @@ find_nets_matching(const char *pattern,
 
 NetSeq
 find_nets_hier_matching(const char *pattern,
-			bool regexp,
-			bool nocase)
+                        bool regexp,
+                        bool nocase)
 {
   Sta *sta = Sta::sta();
   Network *network = sta->ensureLinked();
@@ -713,7 +652,7 @@ net_pins(Net *net)
   return pins;
 }
 
-const char *
+std::string
 pin_location(const Pin *pin)
 {
   Network *network = Sta::sta()->ensureLinked();
@@ -722,12 +661,12 @@ pin_location(const Pin *pin)
   network->location(pin, x, y, exists);
   // return x/y as tcl list
   if (exists)
-    return sta::stringPrintTmp("%f %f", x, y);
+    return sta::format("{} {}", x, y);
   else
     return "";
 }
 
-const char *
+std::string
 port_location(const Port *port)
 {
   Network *network = Sta::sta()->ensureLinked();
@@ -744,7 +683,7 @@ port_location(const Port *port)
 ////////////////////////////////////////////////////////////////
 
 %extend Library {
-const char *name()
+std::string name()
 {
   return Sta::sta()->ensureLinked()->name(self);
 }
@@ -757,8 +696,8 @@ find_cell(const char *name)
 
 CellSeq
 find_cells_matching(const char *pattern,
-		    bool regexp,
-		    bool nocase)
+                    bool regexp,
+                    bool nocase)
 {
   Sta *sta = Sta::sta();
   Network *network = sta->ensureLinked();
@@ -776,13 +715,14 @@ void finish() { delete self; }
 } // LibraryIterator methods
 
 %extend Cell {
-const char *name() { return Sta::sta()->cmdNetwork()->name(self); }
+std::string name() { return Sta::sta()->cmdNetwork()->name(self); }
 Library *library() { return Sta::sta()->cmdNetwork()->library(self); }
 LibertyCell *liberty_cell() { return Sta::sta()->cmdNetwork()->libertyCell(self); }
 bool is_leaf() { return Sta::sta()->cmdNetwork()->isLeaf(self); }
 CellPortIterator *
 port_iterator() { return Sta::sta()->cmdNetwork()->portIterator(self); }
-string get_attribute(const char *key)
+std::string
+get_attribute(const char *key)
 {
   return Sta::sta()->cmdNetwork()->getAttribute(self, key);
 }
@@ -795,8 +735,8 @@ find_port(const char *name)
 
 PortSeq
 find_ports_matching(const char *pattern,
-		    bool regexp,
-		    bool nocase)
+                    bool regexp,
+                    bool nocase)
 {
   Sta *sta = Sta::sta();
   Network *network = sta->ensureLinked();
@@ -813,7 +753,7 @@ void finish() { delete self; }
 } // CellPortIterator methods
 
 %extend Port {
-const char *bus_name() { return Sta::sta()->ensureLinked()->busName(self); }
+std::string bus_name() { return Sta::sta()->ensureLinked()->busName(self); }
 Cell *cell() { return Sta::sta()->ensureLinked()->cell(self); }
 LibertyPort *liberty_port() { return Sta::sta()->ensureLibLinked()->libertyPort(self); }
 bool is_bus() { return Sta::sta()->ensureLinked()->isBus(self); }
@@ -839,13 +779,26 @@ InstancePinIterator *
 pin_iterator() { return Sta::sta()->ensureLinked()->pinIterator(self); }
 InstanceNetIterator *
 net_iterator() { return Sta::sta()->ensureLinked()->netIterator(self); }
+
 Pin *
 find_pin(const char *name)
 {
   return Sta::sta()->ensureLinked()->findPin(self, name);
 }
-string get_attribute(const char *key) {
+
+std::string
+get_attribute(const char *key)
+{
   return Sta::sta()->ensureLinked()->getAttribute(self, key);
+}
+
+void
+set_attribute(const char *key,
+              const char *value)
+{
+  sta::Sta *sta = Sta::sta();
+  sta->ensureLinked();
+  sta->networkReader()->setAttribute(self, key, value);
 }
 
 } // Instance methods
@@ -875,7 +828,7 @@ void finish() { delete self; }
 } // InstanceNetIterator methods
 
 %extend Pin {
-const char *port_name() { return Sta::sta()->ensureLinked()->portName(self); }
+std::string port_name() { return Sta::sta()->ensureLinked()->portName(self); }
 Instance *instance() { return Sta::sta()->ensureLinked()->instance(self); }
 Net *net() { return Sta::sta()->ensureLinked()->net(self); }
 Port *port() { return Sta::sta()->ensureLinked()->port(self); }
@@ -941,35 +894,35 @@ bool is_power() { return Sta::sta()->ensureLinked()->isPower(self);}
 bool is_ground() { return Sta::sta()->ensureLinked()->isGround(self);}
 
 float
-capacitance(Corner *corner,
-	    const MinMax *min_max)
+capacitance(Scene *scene,
+            const MinMax *min_max)
 {
   Sta *sta = Sta::sta();
   sta->ensureLibLinked();
   float pin_cap, wire_cap;
-  sta->connectedCap(self, corner, min_max, pin_cap, wire_cap);
+  sta->connectedCap(self, scene, min_max, pin_cap, wire_cap);
   return pin_cap + wire_cap;
 }
 
 float
-pin_capacitance(Corner *corner,
-		const MinMax *min_max)
+pin_capacitance(Scene *scene,
+                const MinMax *min_max)
 {
   Sta *sta = Sta::sta();
   sta->ensureLibLinked();
   float pin_cap, wire_cap;
-  sta->connectedCap(self, corner, min_max, pin_cap, wire_cap);
+  sta->connectedCap(self, scene, min_max, pin_cap, wire_cap);
   return pin_cap;
 }
 
 float
-wire_capacitance(Corner *corner,
-		 const MinMax *min_max)
+wire_capacitance(Scene *scene,
+                 const MinMax *min_max)
 {
   Sta *sta = Sta::sta();
   sta->ensureLibLinked();
   float pin_cap, wire_cap;
-  sta->connectedCap(self, corner, min_max, pin_cap, wire_cap);
+  sta->connectedCap(self, scene, min_max, pin_cap, wire_cap);
   return wire_cap;
 }
 
@@ -1010,4 +963,3 @@ bool has_next() { return self->hasNext(); }
 const Pin *next() { return self->next(); }
 void finish() { delete self; }
 } // NetConnectedPinIterator methods
-

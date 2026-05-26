@@ -1,5 +1,5 @@
 // OpenSTA, Static Timing Analyzer
-// Copyright (c) 2025, Parallax Software, Inc.
+// Copyright (c) 2026, Parallax Software, Inc.
 // 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -22,17 +22,15 @@
 // 
 // This notice may not be removed or altered from any source distribution.
 
-%module dcalc
+%include <std_string.i>
 
 %{
 
-#include "DelayCalc.hh"
 #include "ArcDelayCalc.hh"
+#include "DelayCalc.hh"
+#include "Sta.hh"
 #include "dcalc/ArcDcalcWaveforms.hh"
 #include "dcalc/PrimaDelayCalc.hh"
-#include "Sta.hh"
-
-using std::string;
 
 %}
 
@@ -62,15 +60,15 @@ set_delay_calc_incremental_tolerance(float tol)
   Sta::sta()->setIncrementalDelayTolerance(tol);
 }
 
-string
+std::string
 report_delay_calc_cmd(Edge *edge,
-		      TimingArc *arc,
-		      const Corner *corner,
-		      const MinMax *min_max,
-		      int digits)
+                      TimingArc *arc,
+                      const Scene *scene,
+                      const MinMax *min_max,
+                      int digits)
 {
   Sta *sta = Sta::sta();
-  return sta->reportDelayCalc(edge, arc, corner, min_max, digits);
+  return sta->reportDelayCalc(edge, arc, scene, min_max, digits);
 }
 
 void

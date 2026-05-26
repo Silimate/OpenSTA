@@ -1,5 +1,5 @@
 // OpenSTA, Static Timing Analyzer
-// Copyright (c) 2025, Parallax Software, Inc.
+// Copyright (c) 2026, Parallax Software, Inc.
 // 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -25,12 +25,17 @@
 #pragma once
 
 #include <map>
+#include <string>
+#include <string_view>
 
+#include "Delay.hh"
 #include "LibertyClass.hh"
+#include "NetworkClass.hh"
+#include "RiseFallMinMax.hh"
+#include "Scene.hh"
 #include "SdcClass.hh"
 #include "SearchClass.hh"
 #include "StaState.hh"
-#include "RiseFallMinMax.hh"
 
 namespace sta {
 
@@ -48,19 +53,19 @@ public:
   bool rf_path_exists[RiseFall::index_count][RiseFall::index_count];
 };
 
-typedef std::map<const ClockEdge*, RiseFallMinMax> ClockEdgeDelays;
-typedef std::map<const Pin *, OutputDelays> OutputPinDelays;
+using ClockEdgeDelays = std::map<const ClockEdge*, RiseFallMinMax>;
+using OutputPinDelays = std::map<const Pin *, OutputDelays>;
 
 class MakeTimingModel : public StaState
 {
 public:
-  MakeTimingModel(const char *lib_name,
-                  const char *cell_name,
-                  const char *filename,
-                  const Corner *corner,
+  MakeTimingModel(std::string_view lib_name,
+                  std::string_view cell_name,
+                  std::string_view filename,
+                  const Scene *scene,
                   const bool scalar,
                   Sta *sta);
-  ~MakeTimingModel();
+  ~MakeTimingModel() override;
   LibertyLibrary *makeTimingModel();
 
 private:
@@ -95,7 +100,7 @@ private:
                                   Delay delay,
                                   const RiseFall *rf);
   TableTemplate *ensureTableTemplate(const TableTemplate *drvr_template,
-                                     TableAxisPtr load_axis);
+                                     const TableAxisPtr &load_axis);
   const TableAxis *loadCapacitanceAxis(const TableModel *table);
   LibertyPort *modelPort(const Pin *pin);
 
@@ -103,20 +108,22 @@ private:
   void restoreSdc();
   void swapSdcWithBackup();
 
-  const char *lib_name_;
-  const char *cell_name_;
-  const char *filename_;
-  const Corner *corner_;
+  std::string lib_name_;
+  std::string cell_name_;
+  std::string filename_;
+  const Scene *scene_;
+  SceneSet scenes_;
   const bool scalar_;
   LibertyLibrary *library_;
-  LibertyCell *cell_;
+  LibertyCell *cell_{nullptr};
   const MinMax *min_max_;
   LibertyBuilder *lib_builder_;
   // Output driver table model template to model template.
-  Map<const TableTemplate*, TableTemplate*> template_map_;
-  int tbl_template_index_;
-  Sdc *sdc_backup_;
+  std::map<const TableTemplate*, TableTemplate*> template_map_;
+  int tbl_template_index_{1};
+  Sdc *sdc_;
+  Sdc *sdc_backup_{nullptr};
   Sta *sta_;
 };
 
-} // namespace
+} // namespace sta

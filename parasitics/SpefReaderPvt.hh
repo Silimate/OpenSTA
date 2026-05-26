@@ -1,5 +1,5 @@
 // OpenSTA, Static Timing Analyzer
-// Copyright (c) 2025, Parallax Software, Inc.
+// Copyright (c) 2026, Parallax Software, Inc.
 // 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -25,12 +25,14 @@
 #pragma once
 
 #include <map>
+#include <string>
+#include <string_view>
 
-#include "Zlib.hh"
-#include "StringSeq.hh"
 #include "NetworkClass.hh"
 #include "ParasiticsClass.hh"
 #include "StaState.hh"
+#include "StringUtil.hh"
+#include "Zlib.hh"
 
 namespace sta {
 
@@ -38,109 +40,115 @@ class Report;
 class MinMaxAll;
 class SpefRspfPi;
 class SpefTriple;
-class Corner;
+class Scene;
 class SpefScanner;
 
-typedef std::map<int, std::string> SpefNameMap;
+using SpefNameMap = std::map<int, std::string>;
 
 class SpefReader : public StaState
 {
 public:
-  SpefReader(const char *filename,
-	     Instance *instance,
-	     ParasiticAnalysisPt *ap,
-	     bool pin_cap_included,
-	     bool keep_coupling_caps,
-	     float coupling_cap_factor,
-	     bool reduce,
-	     const Corner *corner,
-	     const MinMaxAll *min_max,
+  SpefReader(std::string_view filename,
+             Instance *instance,
+             bool pin_cap_included,
+             bool keep_coupling_caps,
+             float coupling_cap_factor,
+             bool reduce,
+             const Scene *scene,
+             const MinMaxAll *min_max,
+             Parasitics *parasitics,
              StaState *sta);
-  virtual ~SpefReader();
+  ~SpefReader() override = default;
   bool read();
   char divider() const { return divider_; }
   void setDivider(char divider);
   char delimiter() const { return delimiter_; }
   void setDelimiter(char delimiter);
-  const char *filename() const { return filename_; }
+  std::string_view filename() const { return filename_; }
   // Translate from spf/spef namespace to sta namespace.
-  char *translated(const char *token);
-  void warn(int id,
-            const char *fmt,
-            ...)
-    __attribute__((format (printf, 3, 4)));
+  std::string translated(std::string_view spef_name);
   void setBusBrackets(char left,
-		      char right);
+                      char right);
   void setTimeScale(float scale,
-		    const char *units);
+                    std::string_view units);
   void setCapScale(float scale,
-		   const char *units);
+                   std::string_view units);
   void setResScale(float scale,
-		   const char *units);
+                   std::string_view units);
   void setInductScale(float scale,
-		      const char *units);
-  void makeNameMapEntry(const char *index,
-			const char *name);
-  const char *nameMapLookup(const char *index);
+                      std::string_view units);
+  void makeNameMapEntry(std::string_view index,
+                        std::string_view name);
+  std::string_view nameMapLookup(std::string_view name);
   void setDesignFlow(StringSeq *flow_keys);
-  Pin *findPin(char *name);
-  Net *findNet(const char *name);
+  Pin *findPin(std::string_view name);
+  Net *findNet(std::string_view name);
   void rspfBegin(Net *net,
-		 SpefTriple *total_cap);
+                 SpefTriple *total_cap);
   void rspfFinish();
   void rspfDrvrBegin(Pin *drvr_pin,
-		     SpefRspfPi *pi);
+                     SpefRspfPi *pi);
   void rspfLoad(Pin *load_pin,
-		SpefTriple *rc);
+                SpefTriple *rc);
   void rspfDrvrFinish();
   void dspfBegin(Net *net,
-		 SpefTriple *total_cap);
+                 SpefTriple *total_cap);
   void dspfFinish();
-  void makeCapacitor(int id,
-		     char *node_name,
-		     SpefTriple *cap);
-  void makeCapacitor(int id,
-		     char *node_name1,
-		     char *node_name2,
-		     SpefTriple *cap);
-  void makeResistor(int id,
-		    char *node_name1,
-		    char *node_name2,
-		    SpefTriple *res);
-  PortDirection *portDirection(char *spef_dir);
+  void makeCapacitor(uint32_t id,
+                     std::string_view node_name,
+                     SpefTriple *cap);
+  void makeCapacitor(uint32_t id,
+                     std::string_view node_name1,
+                     std::string_view node_name2,
+                     SpefTriple *cap);
+  void makeResistor(uint32_t id,
+                    std::string_view node_name1,
+                    std::string_view node_name2,
+                    SpefTriple *res);
+  PortDirection *portDirection(std::string_view spef_dir);
+  int warnLine() const;
+  template <typename... Args>
+  void warn(int id,
+            std::string_view fmt,
+            Args &&...args)
+  {
+    report_->fileWarn(id, filename_, warnLine(), fmt,
+                     std::forward<Args>(args)...);
+  }
 
 private:
-  Pin *findPinRelative(const char *name);
-  Pin *findPortPinRelative(const char *name);
-  Net *findNetRelative(const char *name);
-  Instance *findInstanceRelative(const char *name);
-  ParasiticNode *findParasiticNode(char *name,
+  Pin *findPinRelative(std::string_view name);
+  Pin *findPortPinRelative(std::string_view name);
+  Net *findNetRelative(std::string_view name);
+  Instance *findInstanceRelative(std::string_view name);
+  ParasiticNode *findParasiticNode(std::string_view name,
                                    bool local_only);
 
-  const char *filename_;
+  std::string_view filename_;
   SpefScanner *scanner_;
   Instance *instance_;
-  const ParasiticAnalysisPt *ap_;
   bool pin_cap_included_;
   bool keep_coupling_caps_;
+  bool coupling_cap_factor_;
   bool reduce_;
-  const Corner *corner_;
+  const Scene *scene_;
   const MinMaxAll *min_max_;
   // Normally no need to keep device names.
-  char divider_;
-  char delimiter_;
-  char bus_brkt_left_;
-  char bus_brkt_right_;
-  Net *net_;
+  char divider_{'\0'};
+  char delimiter_{'\0'};
+  char bus_brkt_left_{'\0'};
+  char bus_brkt_right_{'\0'};
+  Net *net_{nullptr};
 
-  int triple_index_;
-  float time_scale_;
-  float cap_scale_;
-  float res_scale_;
-  float induct_scale_;
+  int triple_index_{0};
+  float time_scale_{1.0};
+  float cap_scale_{1.0};
+  float res_scale_{1.0};
+  float induct_scale_{1.0};
   SpefNameMap name_map_;
-  StringSeq *design_flow_;
-  Parasitic *parasitic_;
+  StringSeq design_flow_;
+  Parasitics *parasitics_;
+  Parasitic *parasitic_{nullptr};
 };
 
 class SpefTriple
@@ -148,8 +156,8 @@ class SpefTriple
 public:
   SpefTriple(float value);
   SpefTriple(float value1,
-	     float value2,
-	     float value3);
+             float value2,
+             float value3);
   float value(int index) const;
   bool isTriple() const { return is_triple_; }
 
@@ -173,6 +181,4 @@ private:
   SpefTriple *c1_;
 };
 
-extern SpefReader *spef_reader;
-
-} // namespace
+} // namespace sta

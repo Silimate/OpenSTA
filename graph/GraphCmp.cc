@@ -1,5 +1,5 @@
 // OpenSTA, Static Timing Analyzer
-// Copyright (c) 2025, Parallax Software, Inc.
+// Copyright (c) 2026, Parallax Software, Inc.
 // 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -22,11 +22,13 @@
 // 
 // This notice may not be removed or altered from any source distribution.
 
-#include "StringUtil.hh"
+#include "GraphCmp.hh"
+
+#include "ContainerHelpers.hh"
+#include "Graph.hh"
 #include "Network.hh"
 #include "NetworkCmp.hh"
-#include "Graph.hh"
-#include "GraphCmp.hh"
+#include "StringUtil.hh"
 
 namespace sta {
 
@@ -37,7 +39,7 @@ VertexNameLess::VertexNameLess(Network *network) :
 
 bool
 VertexNameLess::operator()(const Vertex *vertex1,
-			   const Vertex *vertex2)
+                           const Vertex *vertex2)
 {
   return network_->pathNameLess(vertex1->pin(), vertex2->pin());
 }
@@ -45,7 +47,7 @@ VertexNameLess::operator()(const Vertex *vertex1,
 ////////////////////////////////////////////////////////////////
 
 EdgeLess::EdgeLess(const Network *network,
-		   Graph *&graph) :
+                   Graph *&graph) :
   pin_less_(network),
   graph_(graph)
 {
@@ -53,7 +55,7 @@ EdgeLess::EdgeLess(const Network *network,
 
 bool
 EdgeLess::operator()(const Edge *edge1,
-		     const Edge *edge2) const
+                     const Edge *edge2) const
 {
   const Pin *from1 = edge1->from(graph_)->pin();
   const Pin *from2 = edge2->from(graph_)->pin();
@@ -61,15 +63,15 @@ EdgeLess::operator()(const Edge *edge1,
   const Pin *to2 = edge2->to(graph_)->pin();
   return pin_less_(from1, from2)
     || (from1 == from2
-	&& pin_less_(to1, to2));
+        && pin_less_(to1, to2));
 }
 
 void
 sortEdges(EdgeSeq *edges,
-	  Network *network,
-	  Graph *graph)
+          Network *network,
+          Graph *graph)
 {
   sort(edges, EdgeLess(network, graph));
 }
 
-}
+} // namespace sta
