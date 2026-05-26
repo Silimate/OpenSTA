@@ -112,6 +112,7 @@ public:
   std::string &stringValue() { return string_value_; }
 
 private:
+  bool is_string_;
   float float_value_;
   std::string string_value_;
 };

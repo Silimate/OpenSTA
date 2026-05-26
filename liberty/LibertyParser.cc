@@ -571,11 +571,14 @@ LibertyComplexAttr::firstValue() const
 ////////////////////////////////////////////////////////////////
 
 LibertyAttrValue::LibertyAttrValue(std::string &&value) :
+  is_string_(true),
+  float_value_(0.0F),
   string_value_(std::move(value))
 {
 }
 
 LibertyAttrValue::LibertyAttrValue(float value) :
+  is_string_(false),
   float_value_(value)
 {
 }
@@ -583,19 +586,19 @@ LibertyAttrValue::LibertyAttrValue(float value) :
 bool
 LibertyAttrValue::isFloat() const
 {
-  return string_value_.empty();
+  return !is_string_;
 }
 
 bool
 LibertyAttrValue::isString() const
 {
-  return !string_value_.empty();
+  return is_string_;
 }
 
 std::pair<float, bool>
 LibertyAttrValue::floatValue() const
 {
-  if (string_value_.empty())
+  if (!is_string_)
     return {float_value_, true};
   else
     return stringFloat(string_value_);

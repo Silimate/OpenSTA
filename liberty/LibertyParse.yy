@@ -157,20 +157,26 @@ string:
 	;
 
 attr_value:
-	expr
+	FLOAT
+	{ $$ = reader->makeAttrValueFloat($1); }
+|	expr
 	{ $$ = reader->makeAttrValueString(std::move($1)); }
 	;
 
 expr:
         expr_term1
+|	FLOAT expr_op FLOAT
+	{ $$ = sta::format("{}{}{}", $1, $2, $3); }
+|	FLOAT expr_op expr
+	{ $$ = sta::format("{}{}{}", $1, $2, $3); }
+|	expr_term1 expr_op FLOAT
+	{ $$ = sta::format("{}{}{}", $1, $2, $3); }
 |	expr_term1 expr_op expr
 	{ $$ = sta::format("{}{}{}", $1, $2, $3); }
 	;
 
 expr_term:
 	string
-|	FLOAT
-	{ $$ = sta::format("{}", $1); }
 |	'0'
 	{ $$ = std::string("0"); }
 |	'1'
