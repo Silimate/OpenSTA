@@ -565,7 +565,7 @@ PathMargin::PathMargin(ExceptionFrom *from,
                        const MinMaxAll *min_max,
                        float margin,
                        bool own_pts,
-                       const char *comment) :
+                       std::string_view comment) :
   ExceptionPath(from, thrus, to, min_max, own_pts,
                 pathMarginPriority() + fromThruToPriority(from, thrus, to),
                 comment),
