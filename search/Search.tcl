@@ -692,7 +692,7 @@ proc parse_report_path_options { cmd args_var default_format
     unset path_options
   }
   parse_key_args $cmd args path_options {-format -digits -fields -silimate_dedup_endpoints_rx} \
-    path_options {-no_line_splits -report_sigmas -dedup_by_word -dedup_same_delay} $unknown_key_is_error
+    path_options {-no_line_splits -dedup_by_word -dedup_same_delay} $unknown_key_is_error
 
   set format $default_format
   if [info exists path_options(-format)] {
