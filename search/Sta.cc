@@ -217,19 +217,6 @@ StaSimObserver::fanoutEdgesChangeAfter(const Pin *pin)
 
 ////////////////////////////////////////////////////////////////
 
-class StaLevelizeObserver : public LevelizeObserver
-{
-public:
-  StaLevelizeObserver(Search *search,
-                      GraphDelayCalc *graph_delay_calc);
-  void levelsChangedBefore() override;
-  void levelChangedBefore(Vertex *vertex) override;
-
-private:
-  Search *search_;
-  GraphDelayCalc *graph_delay_calc_;
-};
-
 StaLevelizeObserver::StaLevelizeObserver(Search *search,
                                          GraphDelayCalc *graph_delay_calc) :
   search_(search),
@@ -570,30 +557,46 @@ Sta::clearNonSdc()
 Sdc *
 Sta::cmdSdc() const
 {
-  return cmdMode()->sdc();
+  return cmd_mode_->sdc();
 }
 
 void
 Sta::setCmdMode(std::string_view mode_name)
 {
-  if (!mode_name.empty()) {
-    if (!mode_name_map_.contains(mode_name)) {
-      if (modes_.size() == 1 && modes_[0]->name() == "default") {
-        // No need for default mode if one is defined.
-        delete modes_[0];
-        mode_name_map_.clear();
-        modes_.clear();
+  Mode *mode = findKey(mode_name_map_, std::string(mode_name));
+  if (mode) {
+    // Sync scene with mode. Note that multiple scenes can share a mode.
+    Scene *mode_scene = nullptr;
+    for (Scene *scene : scenes_) {
+      if (scene->mode() == mode) {
+        if (mode_scene) {
+          report_->warn(1556, "multiple scenes reference mode {}", mode_name);
+          break;
+        }
+        mode_scene = scene;
       }
-      Mode *mode = new Mode(mode_name, mode_name_map_.size(), this);
-      mode_name_map_[std::string(mode_name)] = mode;
-      modes_.push_back(mode);
-      mode->sim()->setMode(mode);
-      mode->sim()->setObserver(new StaSimObserver(this));
-
-      if (scenes_.size() == 1 && scenes_[0]->name() == "default")
-        scenes_[0]->setMode(mode);
-      updateComponentsState();
     }
+    if (mode_scene)
+      cmd_scene_ = mode_scene;
+    cmd_mode_ = mode;
+  }
+  else {
+    if (modes_.size() == 1 && modes_[0]->name() == "default") {
+      // No need for default mode if one is defined.
+      delete modes_[0];
+      mode_name_map_.clear();
+      modes_.clear();
+    }
+    Mode *mode = new Mode(mode_name, mode_name_map_.size(), this);
+    mode_name_map_[std::string(mode_name)] = mode;
+    modes_.push_back(mode);
+    mode->sim()->setMode(mode);
+    mode->sim()->setObserver(new StaSimObserver(this));
+    cmd_mode_ = mode;
+
+    if (scenes_.size() == 1 && scenes_[0]->name() == "default")
+      scenes_[0]->setMode(mode);
+    updateComponentsState();
   }
 }
 
@@ -2221,6 +2224,22 @@ Sta::checkExceptionToPins(ExceptionTo *to,
 }
 
 void
+Sta::writeSdc(std::string_view filename,
+              std::string_view mode_name,
+              bool leaf,
+              bool native,
+              int digits,
+              bool gzip,
+              bool no_timestamp)
+{
+  Mode *mode = findMode(mode_name);
+  if (mode)
+    writeSdc(mode->sdc(), filename, leaf, native, digits, gzip, no_timestamp);
+  else
+    report_->warn(1561, "mode {} not found.", mode_name);
+}
+
+void
 Sta::writeSdc(const Sdc *sdc,
               std::string_view filename,
               bool leaf,
@@ -2628,6 +2647,7 @@ Sta::makeDefaultScene()
   makeScene(name, mode, parasitics);
 
   cmd_scene_ = scenes_[0];
+  cmd_mode_ = mode;
 }
 
 // define_corners (before read_liberty).
@@ -2717,8 +2737,8 @@ Sta::makeScene(const std::string &name,
   if (scenes_.size() == 1 && findScene("default"))
     deleteScenes();
 
-  Scene *scene =
-      new Scene(name, scenes_.size(), mode, parasitics_min, parasitics_max);
+  Scene *scene = new Scene(name, scenes_.size(), mode,
+                           parasitics_min, parasitics_max);
   scene_name_map_[name] = scene;
   scenes_.push_back(scene);
   mode->addScene(scene);
@@ -2810,6 +2830,7 @@ void
 Sta::setCmdScene(Scene *scene)
 {
   cmd_scene_ = scene;
+  cmd_mode_ = scene->mode();
 }
 
 SceneSeq
@@ -2896,24 +2917,33 @@ Sta::setReportPathFieldOrder(const StringSeq &field_names)
 }
 
 void
-Sta::setReportPathFields(bool report_input_pin,
-                         bool report_hier_pins,
-                         bool report_net,
-                         bool report_cap,
-                         bool report_slew,
-                         bool report_fanout,
-                         bool report_variation,
-                         bool report_src_attr)
+Sta::setReportPathFields(const StringSeq &fields)
 {
-  report_path_->setReportFields(report_input_pin, report_hier_pins, report_net,
-                                report_cap, report_slew, report_fanout,
-                                report_variation, report_src_attr);
+  report_path_->setReportFields(fields);
 }
 
 ReportField *
 Sta::findReportPathField(std::string_view name)
 {
   return report_path_->findField(name);
+}
+
+ReportField *
+Sta::findReportPathFieldAbrev(std::string_view name)
+{
+  return report_path_->findFieldAbrev(name);
+}
+
+void
+Sta::makeReportPathField(std::string_view name,
+                         std::string_view name_abrev,
+                         std::string_view title,
+                         size_t width,
+                         bool left_justify,
+                         Unit *unit,
+                         const ReportFieldGetValue &get_value)
+{
+  report_path_->makeField(name, name_abrev, title, width, left_justify, unit, get_value);
 }
 
 void
@@ -3395,7 +3425,7 @@ EndpointPathEndVisitor::EndpointPathEndVisitor(std::string_view path_group_name,
 PathEndVisitor *
 EndpointPathEndVisitor::copy() const
 {
-  return new EndpointPathEndVisitor(path_group_name_, min_max_, sta_);
+  return new EndpointPathEndVisitor(*this);
 }
 
 void
@@ -3648,7 +3678,7 @@ Sta::findRequired(Vertex *vertex)
   search_->findAllArrivals();
   if (search_->isEndpoint(vertex)
       // Need to include downstream required times if there is fanout.
-      && !hasFanout(vertex, search_->searchAdj(), graph_, cmdMode()))
+      && !hasFanout(vertex, search_->searchAdj(), graph_, cmd_mode_))
     search_->seedRequired(vertex);
   else
     search_->findRequireds(vertex->level());
@@ -3865,6 +3895,12 @@ Sta::ensureLevelized()
 }
 
 void
+Sta::setLevelizeObserver(LevelizeObserver *observer)
+{
+  levelize_->setObserver(observer);
+}
+
+void
 Sta::updateGeneratedClks()
 {
   if (update_genclks_) {
@@ -4052,14 +4088,14 @@ Sta::findLogicConstants()
 {
   ensureGraph();
   // Sdc independent constants so any mode should return the same values.
-  Sim *sim = cmdMode()->sim();
+  Sim *sim = cmd_mode_->sim();
   sim->findLogicConstants();
 }
 
 void
 Sta::clearLogicConstants()
 {
-  Sim *sim = cmdMode()->sim();
+  Sim *sim = cmd_mode_->sim();
   sim->clear();
 }
 
@@ -4413,8 +4449,15 @@ Parasitics *
 Sta::makeConcreteParasitics(std::string_view name,
                             std::string_view filename)
 {
+  // Free the prior entry to avoid leaking it on overwrite.
+  std::string key(name);
+  auto it = parasitics_name_map_.find(key);
+  if (it != parasitics_name_map_.end()) {
+    delete it->second;
+    parasitics_name_map_.erase(it);
+  }
   Parasitics *parasitics = new ConcreteParasitics(name, filename, this);
-  parasitics_name_map_[std::string(name)] = parasitics;
+  parasitics_name_map_[key] = parasitics;
   return parasitics;
 }
 
@@ -5193,7 +5236,8 @@ Sta::clockDomains(const Pin *pin,
                   const Mode *mode)
 {
   searchPreamble();
-  search_->findAllArrivals();
+  Vertex *vertex = graph_->pinLoadVertex(pin);
+  search_->findArrivals(vertex->level());
   return search_->clockDomains(pin, mode);
 }
 

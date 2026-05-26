@@ -191,53 +191,55 @@ proc set_unit_values { unit key suffix key_var } {
 
 ################################################################
 
-define_cmd_args "delete_from_list" {list objs}
+define_cmd_args "delete_from_list" {list delete}
 
-proc delete_from_list { list objects } {
-  delete_objects_from_list_cmd $list $objects
+proc delete_from_list { list delete } {
+  delete_objects_from_list_cmd $list $delete
 }
 
-proc delete_objects_from_list_cmd { list objects } {
-  set list0 [lindex $list 0]
-  set list_is_object [is_object $list0]
-  set list_type [object_type $list0]
-  foreach obj $objects {
-    # If the list is a collection of tcl objects (returned by get_*),
-    # convert the obj to be removed from a name to an object of the same
-    # type.
-    if {$list_is_object && ![is_object $obj]} {
-      if {$list_type == "Clock"} {
-        set obj [find_clock $obj]
-      } elseif {$list_type == "Port"} {
-        set top_instance [top_instance]
-        set top_cell [$top_instance cell]
-        set obj [$top_cell find_port $obj]
-      } elseif {$list_type == "Pin"} {
-        set obj [find_pin $obj]
-      } elseif {$list_type == "Instance"} {
-        set obj [find_instance $obj]
-      } elseif {$list_type == "Net"} {
-        set obj [find_net $obj]
-      } elseif {$list_type == "LibertyLibrary"} {
-        set obj [find_liberty $obj]
-      } elseif {$list_type == "LibertyCell"} {
-        set obj [find_liberty_cell $obj]
-      } elseif {$list_type == "LibertyPort"} {
-        set obj [get_lib_pins $obj]
-      } else {
-        sta_error 164 "unsupported object type $list_type."
+proc delete_objects_from_list_cmd { list delete } {
+  if { $list != {} } {
+    set list0 [lindex $list 0]
+    set list_is_objects [is_object $list0]
+    foreach obj $delete {
+      # If the list is a collection of tcl objects (returned by get_*),
+      # convert the obj to be removed from a name to an object of the same
+      # type.
+      if {$list_is_objects && ![is_object $obj]} {
+        set list_type [object_type $list0]
+        if {$list_type == "Clock"} {
+          set obj [find_clock $obj]
+        } elseif {$list_type == "Port"} {
+          set top_instance [top_instance]
+          set top_cell [$top_instance cell]
+          set obj [$top_cell find_port $obj]
+        } elseif {$list_type == "Pin"} {
+          set obj [find_pin $obj]
+        } elseif {$list_type == "Instance"} {
+          set obj [find_instance $obj]
+        } elseif {$list_type == "Net"} {
+          set obj [find_net $obj]
+        } elseif {$list_type == "LibertyLibrary"} {
+          set obj [find_liberty $obj]
+        } elseif {$list_type == "LibertyCell"} {
+          set obj [find_liberty_cell $obj]
+        } elseif {$list_type == "LibertyPort"} {
+          set obj [get_lib_pins $obj]
+        } else {
+          sta_error 164 "unsupported object type $list_type."
+        }
       }
-    }
-    set index [lsearch $list $obj]
-    if { $index != -1 } {
-      set list [lreplace $list $index $index]
+      set index [lsearch $list $obj]
+      if { $index != -1 } {
+        set list [lreplace $list $index $index]
+      }
     }
   }
   return $list
 }
-
+  
 ################################################################
-
+  
 proc set_cmd_namespace { namespc } {
   if { $namespc == "sdc" || $namespc == "sta" } {
     set_cmd_namespace_cmd $namespc
@@ -245,7 +247,7 @@ proc set_cmd_namespace { namespc } {
     sta_error 165 "unknown namespace $namespc."
   }
 }
-
+  
 ################################################################
 
 define_cmd_args "report_object_full_names" {objects}
@@ -349,5 +351,5 @@ proc is_collection {object} {
   return [expr [lsearch {ClockSeq CellSeq PortSeq InstanceSeq PinSeq NetSeq LibertyLibrarySeq LibertyCellSeq LibertyPortSeq} $object_type] != -1]
 }
 
-# sta namespace end.
+# namespace sta
 }

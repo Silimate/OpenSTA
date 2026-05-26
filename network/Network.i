@@ -792,6 +792,15 @@ get_attribute(const char *key)
   return Sta::sta()->ensureLinked()->getAttribute(self, key);
 }
 
+void
+set_attribute(const char *key,
+              const char *value)
+{
+  sta::Sta *sta = Sta::sta();
+  sta->ensureLinked();
+  sta->networkReader()->setAttribute(self, key, value);
+}
+
 } // Instance methods
 
 %extend InstanceChildIterator {
@@ -954,4 +963,3 @@ bool has_next() { return self->hasNext(); }
 const Pin *next() { return self->next(); }
 void finish() { delete self; }
 } // NetConnectedPinIterator methods
-

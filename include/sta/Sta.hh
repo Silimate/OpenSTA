@@ -73,6 +73,7 @@ class ClkSkews;
 class ReportField;
 class EquivCells;
 class StaSimObserver;
+class LevelizeObserver;
 class GraphLoop;
 
 using ModeNameMap = std::map<std::string, Mode*, std::less<>>;
@@ -83,6 +84,8 @@ using CheckErrorSeq = std::vector<CheckError*>;
 enum class CmdNamespace { sta, sdc };
 using ParasiticsNameMap = std::map<std::string, Parasitics*, std::less<>>;
 using GraphLoopSeq = std::vector<GraphLoop*>;
+using ReportFieldGetValue = std::function<std::string (const Path *path,
+                                                       const StaState *sta)>;
 
 // Initialize sta functions that are not part of the Sta class.
 void initSta();
@@ -138,7 +141,7 @@ public:
   void setCmdScene(Scene *scene);
   SceneSeq makeSceneSeq(Scene *scene) const;
 
-  Mode *cmdMode() const { return cmd_scene_->mode(); }
+  Mode *cmdMode() const { return cmd_mode_; }
   const std::string &cmdModeName();
   void setCmdMode(std::string_view mode_name);
   Mode *findMode(std::string_view mode_name) const;
@@ -996,15 +999,16 @@ public:
                           bool clk_gating_hold);
   void setReportPathFormat(ReportPathFormat format);
   void setReportPathFieldOrder(const StringSeq &field_names);
-  void setReportPathFields(bool report_input_pin,
-                           bool report_hier_pins,
-                           bool report_net,
-                           bool report_cap,
-                           bool report_slew,
-                           bool report_fanout,
-                           bool report_variation,
-                           bool report_src_attr);
+  void setReportPathFields(const StringSeq &fields);
   ReportField *findReportPathField(std::string_view name);
+  ReportField *findReportPathFieldAbrev(std::string_view name);
+  void makeReportPathField(std::string_view name,
+                           std::string_view name_abrev,
+                           std::string_view title,
+                           size_t width,
+                           bool left_justify,
+                           Unit *unit,
+                           const ReportFieldGetValue &get_value);
   void setReportPathDigits(int digits);
   void setReportPathNoSplit(bool no_split);
   void setReportDedupByWord(bool dedup_by_word);
@@ -1069,6 +1073,13 @@ public:
                               const Scene *scene,
                               const MinMax *min_max,
                               int digits);
+  void writeSdc(std::string_view filename,
+                std::string_view mode_name,
+                bool leaf,
+                bool native,
+                int digits,
+                bool gzip,
+                bool no_timestamp);
   void writeSdc(const Sdc *sdc,
                 std::string_view filename,
                 // Map hierarchical pins and instances to leaf pins and instances.
@@ -1342,6 +1353,10 @@ public:
   // Ensure a network has been read, linked and liberty libraries exist.
   Network *ensureLibLinked();
   void ensureLevelized();
+  // Replace the Levelize observer. Takes ownership; deletes any prior
+  // observer. Subclass StaLevelizeObserver to extend the default behavior
+  // (Search + GraphDelayCalc forwarding) without re-implementing it.
+  void setLevelizeObserver(LevelizeObserver *observer);
   // Ensure that the timing graph has been built.
   Graph *ensureGraph();
   void ensureClkArrivals();
@@ -1656,6 +1671,7 @@ protected:
   void checkLibrarayPocv();
 
   Scene *cmd_scene_{nullptr};
+  Mode *cmd_mode_{nullptr};
   CmdNamespace cmd_namespace_{CmdNamespace::sdc};
   Instance *current_instance_{nullptr};
   SceneNameMap scene_name_map_;

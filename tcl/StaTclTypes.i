@@ -30,6 +30,9 @@
 
 %{
 
+#include <cctype>
+#include <string>
+
 #include "Network.hh"
 #include "Liberty.hh"
 #include "FuncExpr.hh"
@@ -55,7 +58,7 @@ namespace sta {
 typedef MinMaxAll MinMaxAllNull;
 
 #if TCL_MAJOR_VERSION < 9
-    typedef int Tcl_Size;
+typedef int Tcl_Size;
 #endif
 
 template <class TYPE>
@@ -306,8 +309,6 @@ setPtrTclList(SET_TYPE *set,
   }
   Tcl_SetObjResult(interp, list);
 }
-
-////////////////////////////////////////////////////////////////
 
 } // namespace sta
 
