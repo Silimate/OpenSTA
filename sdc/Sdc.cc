@@ -4105,15 +4105,15 @@ Sdc::makePathDelay(ExceptionFrom *from,
 
 void
 Sdc::makePathMargin(ExceptionFrom *from,
-		    ExceptionThruSeq *thrus,
-		    ExceptionTo *to,
-		    const MinMaxAll *min_max,
-		    float margin,
-		    const char *comment)
+                    ExceptionThruSeq *thrus,
+                    ExceptionTo *to,
+                    const MinMaxAll *min_max,
+                    float margin,
+                    const char *comment)
 {
   checkFromThrusTo(from, thrus, to);
   PathMargin *exception = new PathMargin(from, thrus, to, min_max,
-					 margin, true, comment);
+	                                     margin, true, comment);
   addException(exception);
 }
 
