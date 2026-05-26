@@ -246,6 +246,7 @@ PathGroup::clear()
 }
 
 ////////////////////////////////////////////////////////////////
+
 PathGroups::PathGroups(size_t group_path_count,
                        size_t endpoint_path_count,
                        bool unique_pins,
