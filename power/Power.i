@@ -93,13 +93,6 @@ pushPowerResultFloats(PowerResult &power,
   powers.push_back(power.leakage());
   powers.push_back(power.total());
 }
-static void
-pushInternalPowerComponents(PowerResult &power,
-                          FloatSeq &powers)
-{
-  powers.push_back(power.inputinternal());
-  powers.push_back(power.outputinternal());
-}
 
 // Use lassign to retrieve power values.
 FloatSeq
@@ -114,16 +107,6 @@ design_power(const Scene *scene)
   pushPowerResultFloats(clock, powers);
   pushPowerResultFloats(macro, powers);
   pushPowerResultFloats(pad, powers);
-  return powers;
-}
-
-FloatSeq
-internal_power_components(const Scene *scene)
-{
-  PowerResult total, sequential, combinational, clock, macro, pad;
-  Sta::sta()->power(scene, total, sequential, combinational, clock, macro, pad);
-  FloatSeq powers;
-  pushInternalPowerComponents(total, powers);
   return powers;
 }
 
