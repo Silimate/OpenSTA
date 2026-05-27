@@ -288,7 +288,5 @@ sortByName(ClockSet *set);
 int
 compare(const ClockSet *set1,
         const ClockSet *set2);
-bool
-isPowerOfTwo(int i);
 
 } // namespace sta

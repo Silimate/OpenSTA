@@ -1699,9 +1699,6 @@ protected:
   bool update_genclks_{false};
   EquivCells *equiv_cells_{nullptr};
   Properties properties_{this};
-  bool graph_sdc_annotated_{false};
-  bool parasitics_per_corner_{false};
-  bool parasitics_per_min_max_{false};
   bool liberty_line_debug_{false};
 
   // Singleton sta used by tcl command interpreter.

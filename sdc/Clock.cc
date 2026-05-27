@@ -41,6 +41,9 @@
 
 namespace sta {
 
+static bool
+isPowerOfTwo(int i);
+
 Clock::Clock(std::string_view name,
              int index,
              const Network *network) :
@@ -421,7 +424,7 @@ Clock::generateEdgesClk(const Clock *src_clk)
   period_ = last_edge_time - first_edge_time;
 }
 
-bool
+static bool
 isPowerOfTwo(int i)
 {
   return (i & (i - 1)) == 0;
