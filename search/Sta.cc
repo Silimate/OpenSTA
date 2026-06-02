@@ -4046,7 +4046,6 @@ Sta::setAnnotatedSlew(Vertex *vertex,
                       const RiseFallBoth *rf,
                       float slew)
 {
-  ensureGraph();
   for (const MinMax *mm : min_max->range()) {
     DcalcAPIndex ap_index = scene->dcalcAnalysisPtIndex(mm);
     for (const RiseFall *rf1 : rf->range()) {
@@ -4056,6 +4055,24 @@ Sta::setAnnotatedSlew(Vertex *vertex,
     }
   }
   graph_delay_calc_->delayInvalid(vertex);
+}
+
+void
+Sta::unsetAnnotatedSlew(Vertex *vertex,
+                        const Scene *scene,
+                        const MinMaxAll *min_max,
+                        const RiseFallBoth *rf)
+{
+  for (const MinMax *mm : min_max->range()) {
+    DcalcAPIndex ap_index = scene->dcalcAnalysisPtIndex(mm);
+    for (const RiseFall *rf1 : rf->range()) {
+      vertex->setSlewAnnotated(false, rf1, ap_index);
+    }
+  }
+  if (vertex->isDriver(network_))
+    graph_delay_calc_->delayInvalid(vertex);
+  else
+    delaysInvalidFromFanin(vertex);
 }
 
 void
@@ -4566,7 +4583,8 @@ Sta::makeNet(const char *name,
              Instance *parent)
 {
   NetworkEdit *network = networkCmdEdit();
-  Net *net = network->makeNet(name, parent);
+  std::string escaped = escapeBrackets(name, network);
+  Net *net = network->makeNet(escaped, parent);
   // Sta notification unnecessary.
   return net;
 }
@@ -4614,8 +4632,9 @@ Sta::makePortPin(const char *port_name,
   ensureLinked();
   NetworkReader *network = dynamic_cast<NetworkReader *>(network_);
   Instance *top_inst = network->topInstance();
+  std::string escaped = escapeBrackets(port_name, network);
   Cell *top_cell = network->cell(top_inst);
-  Port *port = network->makePort(top_cell, port_name);
+  Port *port = network->makePort(top_cell, escaped);
   network->setDirection(port, dir);
   Pin *pin = network->makePin(top_inst, port, nullptr);
   makePortPinAfter(pin);
