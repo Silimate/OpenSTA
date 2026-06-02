@@ -25,6 +25,14 @@ library (liberty_write_escaped_names) {
   nom_temperature                : 85.0;
   nom_voltage                    : 0.75;
 
+  type ("$vol_ts_new") {
+    base_type : array;
+    data_type : bit;
+    bit_width : 2;
+    bit_from : 1;
+    bit_to : 0;
+  }
+
   type ("div/u_div/QInv") {
     base_type : array;
     data_type : bit;
@@ -83,6 +91,19 @@ library (liberty_write_escaped_names) {
           values("1.00000");
         }
       }
+    }
+    }
+    bus("$vol_ts_new") {
+      bus_type : $vol_ts_new;
+      direction : output;
+      capacitance : 0.0000;
+    pin("$vol_ts_new[1]") {
+      direction : output;
+      capacitance : 0.0404;
+    }
+    pin("$vol_ts_new[0]") {
+      direction : output;
+      capacitance : 0.0411;
     }
     }
   }

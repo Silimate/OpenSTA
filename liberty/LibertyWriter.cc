@@ -355,7 +355,7 @@ LibertyWriter::writeBusPort(const LibertyPort *port)
 {
   sta::print(stream_, "    bus(\"{}\") {{\n", portStaToLiberty(port->name()));
   if (port->busDcl())
-    sta::print(stream_, "      bus_type : {};\n", portStaToLiberty(port->busDcl()->name()));
+    sta::print(stream_, "      bus_type : \"{}\";\n", portStaToLiberty(port->busDcl()->name()));
   writePortAttrs(port);
 
   LibertyPortMemberIterator member_iter(port);
