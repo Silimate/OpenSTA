@@ -34,12 +34,14 @@
 #include "Graph.hh"
 #include "Liberty.hh"
 #include "MinMax.hh"
+#include "Mode.hh"
 #include "Network.hh"
 #include "Path.hh"
 #include "PathGroup.hh"
 #include "PathEnd.hh"
 #include "PathExpanded.hh"
 #include "PortDirection.hh"
+#include "Sdc.hh"
 #include "Scene.hh"
 #include "Sta.hh"
 #include "StringUtil.hh"
@@ -126,6 +128,23 @@ PropertiesNotComparable::what() const noexcept
 {
   return msg_.c_str();
 }
+
+static ClockSet
+pinClocks(const Pin *pin,
+          const Mode *mode,
+          Sta *sta)
+{
+  ClockSet clks = sta->clocks(pin, mode);
+  // Clock source pins are defined directly in SDC even if clock arrival
+  // propagation has not left a tag on the source vertex.
+  ClockSet *pin_clks = mode->sdc()->findLeafPinClocks(pin);
+  if (pin_clks) {
+    for (Clock *clk : *pin_clks)
+      clks.insert(clk);
+  }
+  return clks;
+}
+
 ////////////////////////////////////////////////////////////////
 
 const char *PropertyValue::type_name(Type type) {
@@ -947,7 +966,7 @@ Properties::getProperty(const Port *port,
     const Instance *top_inst = network->topInstance();
     const Mode *mode = sta_->cmdScene()->mode();
     const Pin *pin = network->findPin(top_inst, port);
-    ClockSet clks = sta_->clocks(pin, mode);
+    ClockSet clks = pinClocks(pin, mode, sta_);
     return PropertyValue(&clks);
   }
   else if (property == "clock_domains") {
@@ -1195,7 +1214,7 @@ Properties::getProperty(const Pin *pin,
     return PropertyValue(network->isFallEdgeTriggered(pin));
   else if (property == "clocks") {
     const Mode *mode = sta_->cmdScene()->mode();
-    ClockSet clks = sta_->clocks(pin, mode);
+    ClockSet clks = pinClocks(pin, mode, sta_);
     return PropertyValue(&clks);
   }
   else if (property == "clock_domains") {
