@@ -7,7 +7,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [centos7, ubuntu22.04]
-    runs-on: [ubuntu-24.04]
+    runs-on: [ubuntu-latest]
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
@@ -20,7 +20,7 @@ jobs:
           docker run --entrypoint /bin/bash --tty --rm sta-${{ matrix.os }} -c "cd /OpenSTA/test && (./regression || (cat results/diffs && exit 1)) || (./regression -collections || (cat results/diffs && exit 1))"
 
   macos:
-    runs-on: [macos-15]
+    runs-on: [macos-latest]
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
