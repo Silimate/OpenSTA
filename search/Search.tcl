@@ -34,14 +34,14 @@ define_cmd_args "check_setup" \
   { [-verbose] [-no_input_delay] [-no_output_delay]\
       [-multiple_clock] [-no_clock]\
       [-unconstrained_endpoints] [-loops] [-generated_clocks]\
-      [> filename] [>> filename] }
+      [-json filename] [> filename] [>> filename] }
 
 proc_redirect check_setup {
   check_setup_cmd "check_setup" $args
 }
 
 proc check_setup_cmd { cmd cmd_args } {
-  parse_key_args $cmd cmd_args keys {} flags {-verbose} 0
+  parse_key_args $cmd cmd_args keys {-json} flags {-verbose} 0
   # When nothing is everything.
   if { $cmd_args == {} } {
     set unconstrained_endpoints 1
@@ -76,6 +76,12 @@ proc check_setup_cmd { cmd cmd_args } {
         report_line "  $obj"
       }
     }
+  }
+  if { [info exists keys(-json)] } {
+    if { $keys(-json) == "" } {
+      sta_error 517 "$cmd -json requires am output file location."
+    }
+    report_check_timing_json $keys(-json)
   }
   # return value
   expr [llength $errors] == 0

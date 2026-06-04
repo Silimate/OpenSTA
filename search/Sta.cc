@@ -2294,6 +2294,12 @@ Sta::checkTiming(const Mode *mode,
                               unconstrained_endpoints, loops, generated_clks);
 }
 
+void
+Sta::reportCheckTimingJson(const char *filename)
+{
+  check_timing_->reportJson(filename);
+}
+
 ////////////////////////////////////////////////////////////////
 
 bool

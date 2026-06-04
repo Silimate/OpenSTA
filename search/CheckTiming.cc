@@ -24,7 +24,11 @@
 
 #include "CheckTiming.hh"
 
+#include <fstream>
+#include <string>
+
 #include "ClkNetwork.hh"
+#include "Error.hh"
 #include "ExceptionPath.hh"
 #include "Format.hh"
 #include "Genclks.hh"
@@ -69,6 +73,7 @@ CheckTiming::clear()
 {
   deleteErrors();
   errors_.clear();
+  json_results_.clear();
 }
 
 CheckErrorSeq &
@@ -120,7 +125,8 @@ CheckTiming::checkNoInputDelay()
     }
   }
   delete pin_iter;
-  pushPinErrors("Warning: There {} {} input port{} missing set_input_delay.",no_arrival);
+  pushPinErrors("Warning: There {} {} input port{} missing set_input_delay.",
+                "no_input_delay", no_arrival);
 }
 
 void
@@ -129,7 +135,7 @@ CheckTiming::checkNoOutputDelay()
   PinSet no_departure(network_);
   checkNoOutputDelay(no_departure);
   pushPinErrors("Warning: There {} {} output port{} missing set_output_delay.",
-                no_departure);
+                "no_output_delay", no_departure);
 }
 
 void
@@ -176,9 +182,9 @@ CheckTiming::checkRegClks(bool reg_multiple_clks,
       multiple_clk_pins.insert(pin);
   }
   pushPinErrors("Warning: There {} {} unclocked register/latch pin{}.",
-                no_clk_pins);
+                "unclocked", no_clk_pins);
   pushPinErrors("Warning: There {} {} register/latch pin{} with multiple clocks.",
-                multiple_clk_pins);
+                "multiple_clock", multiple_clk_pins);
 }
 
 static const char *
@@ -231,6 +237,7 @@ CheckTiming::checkLoops()
       }
     }
     errors_.push_back(error);
+    json_results_.emplace_back("combinational_loop", StringSeq(error->begin() + 1, error->end()));
   }
 }
 
@@ -241,7 +248,7 @@ CheckTiming::checkUnconstrainedEndpoints()
   checkUnconstrainedOutputs(unconstrained_ends);
   checkUnconstrainedSetups(unconstrained_ends);
   pushPinErrors("Warning: There {} {} unconstrained endpoint{}.",
-                unconstrained_ends);
+                "unconstrained", unconstrained_ends);
 }
 
 void
@@ -347,12 +354,13 @@ CheckTiming::checkGeneratedClocks()
     }
   }
   pushClkErrors("Warning: There {} {} generated clock{} not connected to a clock source.",
-                gen_clk_errors);
+                "generated_clock", gen_clk_errors);
 }
 
 // Report the "msg" error for each pin in "pins".
 void
 CheckTiming::pushPinErrors(std::string_view msg,
+                           const char *json_key,
                            PinSet &pins)
 {
   if (!pins.empty()) {
@@ -368,11 +376,13 @@ CheckTiming::pushPinErrors(std::string_view msg,
       error->push_back(sdc_network_->pathName(pin));
     }
     errors_.push_back(error);
+    json_results_.emplace_back(json_key, StringSeq(error->begin() + 1, error->end()));
   }
 }
 
 void
 CheckTiming::pushClkErrors(const char *msg,
+                           const char *json_key,
                            ClockSet &clks)
 {
   if (!clks.empty()) {
@@ -388,7 +398,51 @@ CheckTiming::pushClkErrors(const char *msg,
       error->push_back(clk->name());
     }
     errors_.push_back(error);
+    json_results_.emplace_back(json_key, StringSeq(error->begin() + 1, error->end()));
   }
+}
+
+static std::string
+jsonEscape(const std::string &s)
+{
+  std::string out;
+  for (char c : s) {
+    switch (c) {
+    case '"':  out += "\\\""; break;
+    case '\\': out += "\\\\"; break;
+    case '\n': out += "\\n";  break;
+    case '\t': out += "\\t";  break;
+    case '\r': out += "\\r";  break;
+    default:   out += c;
+    }
+  }
+  return out;
+}
+
+void
+CheckTiming::reportJson(const char *filename) const
+{
+  std::ofstream stream(filename);
+  if (!stream.is_open())
+    throw FileNotWritable(filename);
+
+  stream << "{\n";
+  size_t n = json_results_.size();
+  for (size_t i = 0; i < n; i++) {
+    const std::string &key = json_results_[i].first;
+    const StringSeq &names = json_results_[i].second;
+    stream << "  \"" << key << "\": [";
+    for (size_t j = 0; j < names.size(); j++) {
+      stream << "\"" << jsonEscape(names[j]) << "\"";
+      if (j + 1 < names.size())
+        stream << ", ";
+    }
+    stream << "]";
+    if (i + 1 < n)
+      stream << ",";
+    stream << "\n";
+  }
+  stream << "}\n";
 }
 
 } // namespace sta

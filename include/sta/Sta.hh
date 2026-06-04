@@ -966,6 +966,7 @@ public:
                              bool unconstrained_endpoints,
                              bool loops,
                              bool generated_clks);
+  void reportCheckTimingJson(const char *filename);
   // Path from/thrus/to filter.
   // from/thrus/to are owned and deleted by Search.
   // PathEnds in the returned PathEndSeq are owned by Search PathGroups

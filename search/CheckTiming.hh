@@ -24,7 +24,9 @@
 
 #pragma once
 
+#include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 #include "GraphClass.hh"
@@ -54,6 +56,7 @@ public:
                        bool unconstrained_endpoints,
                        bool loops,
                        bool generated_clks);
+  void reportJson(const char *filename) const;
 
 protected:
   void clear();
@@ -73,11 +76,14 @@ protected:
   bool hasMaxDelay(Pin *pin);
   void checkGeneratedClocks();
   void pushPinErrors(std::string_view msg,
+                     const char *json_key,
                      PinSet &pins);
   void pushClkErrors(const char *msg,
+                     const char *json_key,
                      ClockSet &clks);
 
   CheckErrorSeq errors_;
+  std::vector<std::pair<std::string, StringSeq>> json_results_;
   const Mode *mode_{nullptr};
   const Sdc *sdc_{nullptr};
   const Sim *sim_{nullptr};

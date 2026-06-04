@@ -906,6 +906,12 @@ check_timing_cmd(bool no_input_delay,
                           loops, generated_clks);
 }
 
+void
+report_check_timing_json(const char *filename)
+{
+  Sta::sta()->reportCheckTimingJson(filename);
+}
+
 ////////////////////////////////////////////////////////////////
 
 PinSet
