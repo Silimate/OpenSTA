@@ -84,7 +84,6 @@ protected:
 
   CheckErrorSeq errors_;
   std::vector<std::pair<std::string, StringSeq>> json_results_;
-  std::vector<StringSeq> loop_groups_;
   const Mode *mode_{nullptr};
   const Sdc *sdc_{nullptr};
   const Sim *sim_{nullptr};

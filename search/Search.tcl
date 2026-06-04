@@ -81,6 +81,9 @@ proc check_setup_cmd { cmd cmd_args } {
     if { $keys(-json) == "" } {
       sta_error 517 "$cmd -json requires am output file location."
     }
+    if { $loops } {
+      sta_warn 518 "$cmd -json does not support -loops. Loops are not emitted."
+    }
     report_check_timing_json $keys(-json)
   }
   # return value
