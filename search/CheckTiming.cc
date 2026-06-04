@@ -409,9 +409,6 @@ jsonEscape(const std::string &s)
     switch (c) {
     case '"':  out += "\\\""; break;
     case '\\': out += "\\\\"; break;
-    case '\n': out += "\\n";  break;
-    case '\t': out += "\\t";  break;
-    case '\r': out += "\\r";  break;
     default:   out += c;
     }
   }
@@ -425,6 +422,7 @@ CheckTiming::reportJson(const char *filename) const
   if (!stream.is_open())
     throw FileNotWritable(filename);
 
+  // Start JSON object.
   stream << "{\n";
   size_t n = json_results_.size();
   for (size_t i = 0; i < n; i++) {
@@ -433,16 +431,20 @@ CheckTiming::reportJson(const char *filename) const
     stream << "  \"" << key << "\": [";
     for (size_t j = 0; j < names.size(); j++) {
       stream << "\n    \"" << jsonEscape(names[j]) << "\"";
+      // Comma between elements only; the last element must not be followed by one.
       if (j + 1 < names.size())
         stream << ",";
     }
+    // Close the array on its own indented line when it has contents.
     if (!names.empty())
       stream << "\n  ";
     stream << "]";
+    // Trailing commas are invalid JSON.
     if (i + 1 < n)
       stream << ",";
     stream << "\n";
   }
+  // Close JSON object.
   stream << "}\n";
 }
 
