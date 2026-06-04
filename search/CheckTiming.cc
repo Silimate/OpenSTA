@@ -432,10 +432,12 @@ CheckTiming::reportJson(const char *filename) const
     const StringSeq &names = json_results_[i].second;
     stream << "  \"" << key << "\": [";
     for (size_t j = 0; j < names.size(); j++) {
-      if (j != 0)
-        stream << ", ";
-      stream << "\"" << jsonEscape(names[j]) << "\"";
+      stream << "\n    \"" << jsonEscape(names[j]) << "\"";
+      if (j + 1 < names.size())
+        stream << ",";
     }
+    if (!names.empty())
+      stream << "\n  ";
     stream << "]";
     if (i + 1 < n)
       stream << ",";
