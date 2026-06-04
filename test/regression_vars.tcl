@@ -142,6 +142,7 @@ record_example_tests {
 
 record_public_tests {
   collections
+  check_setup_json
   delay_calc_no_inv
   disable_clock_gating_check
   disconnect_mcp_pin

@@ -1,0 +1,22 @@
+Warning: There are 4 input ports missing set_input_delay.
+Warning: There are 2 unclocked register/latch pins.
+Warning: There are 4 unconstrained endpoints.
+Warning 518: check_setup_json.tcl line 16, check_setup -json does not support -loops. Loops are not emitted.
+{
+  "no_input_delay": [
+    "clk2",
+    "clk3",
+    "in1",
+    "in2"
+  ],
+  "unclocked": [
+    "r2/CLK",
+    "r3/CLK"
+  ],
+  "unconstrained": [
+    "out",
+    "r1/D",
+    "r2/D",
+    "r3/D"
+  ]
+}
