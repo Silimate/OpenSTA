@@ -74,6 +74,7 @@ CheckTiming::clear()
   deleteErrors();
   errors_.clear();
   json_results_.clear();
+  loop_groups_.clear();
 }
 
 CheckErrorSeq &
@@ -220,10 +221,13 @@ CheckTiming::checkLoops()
 
     for (GraphLoop *loop : loops) {
       if (loop->isCombinational()) {
+        StringSeq loop_pins;
         Edge *last_edge = nullptr;
         for (Edge *edge : *loop->edges()) {
           Pin *pin = edge->from(graph_)->pin();
-          error->push_back(sdc_network_->pathName(pin));
+          std::string name = sdc_network_->pathName(pin);
+          error->push_back(name);
+          loop_pins.push_back(name);
           last_edge = edge;
         }
         if (last_edge) {
@@ -234,10 +238,10 @@ CheckTiming::checkLoops()
           // Separator between loops.
           error->emplace_back("--------------------------------");
         }
+        loop_groups_.push_back(loop_pins);
       }
     }
     errors_.push_back(error);
-    json_results_.emplace_back("combinational_loop", StringSeq(error->begin() + 1, error->end()));
   }
 }
 
@@ -427,21 +431,40 @@ CheckTiming::reportJson(const char *filename) const
     throw FileNotWritable(filename);
 
   stream << "{\n";
-  size_t n = json_results_.size();
-  for (size_t i = 0; i < n; i++) {
-    const std::string &key = json_results_[i].first;
-    const StringSeq &names = json_results_[i].second;
-    stream << "  \"" << key << "\": [";
+  bool first = true;
+  for (const std::pair<std::string, StringSeq> &result : json_results_) {
+    if (!first)
+      stream << ",\n";
+    first = false;
+    const StringSeq &names = result.second;
+    stream << "  \"" << result.first << "\": [";
     for (size_t j = 0; j < names.size(); j++) {
-      stream << "\"" << jsonEscape(names[j]) << "\"";
-      if (j + 1 < names.size())
+      if (j != 0)
         stream << ", ";
+      stream << "\"" << jsonEscape(names[j]) << "\"";
     }
     stream << "]";
-    if (i + 1 < n)
-      stream << ",";
-    stream << "\n";
   }
+  // Loops are an array of arrays: one pin list per loop.
+  if (!loop_groups_.empty()) {
+    if (!first)
+      stream << ",\n";
+    stream << "  \"combinational_loop\": [";
+    for (size_t i = 0; i < loop_groups_.size(); i++) {
+      if (i != 0)
+        stream << ", ";
+      const StringSeq &loop = loop_groups_[i];
+      stream << "[";
+      for (size_t j = 0; j < loop.size(); j++) {
+        if (j != 0)
+          stream << ", ";
+        stream << "\"" << jsonEscape(loop[j]) << "\"";
+      }
+      stream << "]";
+    }
+    stream << "]";
+  }
+  stream << "\n";
   stream << "}\n";
 }
 
