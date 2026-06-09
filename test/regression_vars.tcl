@@ -141,6 +141,7 @@ record_example_tests {
 }
 
 record_public_tests {
+  case_insensitive_matching
   collections
   delay_calc_no_inv
   disable_clock_gating_check

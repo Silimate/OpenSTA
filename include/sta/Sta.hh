@@ -1533,6 +1533,9 @@ public:
   // TCL variable sta_enable_collections
   bool enableCollections() const;
   void setEnableCollections(bool enable);
+  // TCL variable sta_case_insensitive_matching.
+  bool caseInsensitiveMatching() const;
+  void setCaseInsensitiveMatching(bool enable);
   ////////////////////////////////////////////////////////////////
 
   Properties &properties() { return properties_; }
