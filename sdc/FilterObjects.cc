@@ -277,6 +277,8 @@ filterObjects(std::string_view property,
   bool pattern_match = (op == "=~");
   bool not_match = (op == "!=");
   bool not_pattern_match = (op == "!~");
+  // Honor the global sta_case_insensitive_matching variable.
+  bool nocase = sta->caseInsensitiveMatching();
   for (T *object : all) {
     PropertyValue value = properties.getProperty(object, property);
     std::string prop = value.to_string(network);
@@ -297,10 +299,11 @@ filterObjects(std::string_view property,
         }
       }
     }
-    if ((exact_match && prop == pattern)
-        || (not_match && prop != pattern)
-        || (pattern_match && patternMatch(pattern, prop))
-        || (not_pattern_match && !patternMatch(pattern, prop)))
+    bool eq = nocase ? stringEqual(prop, pattern) : (prop == pattern);
+    if ((exact_match && eq)
+        || (not_match && !eq)
+        || (pattern_match && patternMatchNoCase(pattern, prop, nocase))
+        || (not_pattern_match && !patternMatchNoCase(pattern, prop, nocase)))
       filtered_objects.insert(object);
   }
   return filtered_objects;

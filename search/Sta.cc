@@ -2639,6 +2639,18 @@ Sta::setEnableCollections(bool enable)
   variables_->setEnableCollections(enable);
 }
 
+bool
+Sta::caseInsensitiveMatching() const
+{
+  return variables_->caseInsensitiveMatching();
+}
+
+void
+Sta::setCaseInsensitiveMatching(bool enable)
+{
+  variables_->setCaseInsensitiveMatching(enable);
+}
+
 ////////////////////////////////////////////////////////////////
 
 // Init one scene named "default".
