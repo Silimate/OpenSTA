@@ -196,6 +196,7 @@ record_public_tests {
   verilog_specify
   write_timing_model_scalar
   verilog_write_escape
+  verilog_write_gzip
   verilog_unconnected_hpin
 }
 

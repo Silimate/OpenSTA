@@ -63,8 +63,7 @@ public:
   void makeGraph();
   ~Graph() override;
 
-  // Number of arc delays and slews from sdf or delay calculation.
-  void setDelayCount(DcalcAPIndex ap_count);
+  void delayCountChanged();
   size_t slewCount();
 
   // Vertex functions.
@@ -178,7 +177,6 @@ public:
   // Remove all delay and slew annotations.
   void removeDelaySlewAnnotations();
   VertexSet &regClkVertices() { return reg_clk_vertices_; }
-  void makeSceneAfter();
 
   static constexpr int vertex_level_bits = 24;
   static constexpr int vertex_level_max = (1<<vertex_level_bits)-1;
@@ -366,6 +364,9 @@ public:
   void setIsBidirectInstPath(bool is_bidir);
   bool isBidirectNetPath() const { return is_bidirect_net_path_; }
   void setIsBidirectNetPath(bool is_bidir);
+  bool isBidirectPortPath() const { return is_bidirect_port_path_; }
+  void setIsBidirectPortPath(bool is_bidir);
+
   void removeDelayAnnotated();
   [[nodiscard]] bool hasSimSense() const { return has_sim_sense_; }
   void setHasSimSense(bool has_sense);
@@ -405,6 +406,8 @@ protected:
   bool delay_annotation_is_incremental_:1;
   bool is_bidirect_inst_path_:1;
   bool is_bidirect_net_path_:1;
+  // Bidirect load -> driver edge.
+  bool is_bidirect_port_path_:1;
   bool is_disabled_loop_:1;
   bool has_sim_sense_:1;
   bool has_disabled_cond_:1;

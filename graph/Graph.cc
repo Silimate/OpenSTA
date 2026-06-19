@@ -250,6 +250,13 @@ Graph::makeInstDrvrWireEdges(const Instance *inst,
     if (network_->isDriver(pin)
         && !visited_drvrs.contains(pin))
       makeWireEdgesFromPin(pin, visited_drvrs);
+    if (network_->isTopInstance(inst)
+        && network_->direction(pin)->isBidirect()) {
+      Vertex *bidir_load, *bidir_drvr;
+      pinVertices(pin, bidir_load, bidir_drvr);
+      Edge *edge = makeEdge(bidir_load, bidir_drvr, TimingArcSet::wireTimingArcSet());
+      edge->setIsBidirectPortPath(true);
+    }
   }
   delete pin_iter;
 }
@@ -382,13 +389,6 @@ Graph::makeWireEdge(const Pin *from_pin,
     else
       makeEdge(from_vertex, to_vertex, arc_set);
   }
-}
-
-void
-Graph::makeSceneAfter()
-{
-  ap_count_ = dcalcAnalysisPtCount();
-  initSlews();
 }
 
 ////////////////////////////////////////////////////////////////
@@ -782,17 +782,13 @@ Graph::removeDelayAnnotated(Edge *edge)
 
 ////////////////////////////////////////////////////////////////
 
-// This only gets called if the analysis type changes from single
-// to bc_wc/ocv or visa versa.
 void
-Graph::setDelayCount(DcalcAPIndex ap_count)
+Graph::delayCountChanged()
 {
-  if (ap_count != ap_count_) {
-    // Discard any existing delays.
-    removePeriodCheckAnnotations();
-    ap_count_ = ap_count;
-    initSlews();
-  }
+  ap_count_ = dcalcAnalysisPtCount();
+  // Discard any existing delays.
+  removePeriodCheckAnnotations();
+  initSlews();
 }
 
 void
@@ -1222,6 +1218,7 @@ Edge::init(VertexId from,
   vertex_out_prev_ = edge_id_null;
   is_bidirect_inst_path_ = false;
   is_bidirect_net_path_ = false;
+  is_bidirect_port_path_ = false;
 
   arc_delays_ = nullptr;
   arc_delay_annotated_is_bits_ = true;
@@ -1377,6 +1374,12 @@ void
 Edge::setIsBidirectNetPath(bool is_bidir)
 {
   is_bidirect_net_path_ = is_bidir;
+}
+
+void
+Edge::setIsBidirectPortPath(bool is_bidir)
+{
+  is_bidirect_port_path_ = is_bidir;
 }
 
 void

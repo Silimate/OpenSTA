@@ -805,7 +805,7 @@ Sta::setAnalysisType(AnalysisType analysis_type,
     delaysInvalid();
     search_->deletePathGroups();
     if (graph_)
-      graph_->setDelayCount(dcalcAnalysisPtCount());
+      graph_->delayCountChanged();
   }
 }
 
@@ -1716,8 +1716,10 @@ Sta::disabledEdges(const Mode *mode)
     VertexOutEdgeIterator edge_iter(vertex, graph_);
     while (edge_iter.hasNext()) {
       Edge *edge = edge_iter.next();
-      if (isDisabledConstant(edge, mode) || isDisabledCondDefault(edge)
-          || isDisabledConstraint(edge, sdc) || edge->isDisabledLoop()
+      if (isDisabledConstant(edge, mode)
+          || isDisabledCondDefault(edge)
+          || isDisabledConstraint(edge, sdc)
+          || edge->isDisabledLoop()
           || isDisabledPresetClr(edge))
         disabled_edges.push_back(edge);
     }
@@ -1853,12 +1855,6 @@ Sta::exprConstantPins(FuncExpr *expr,
         pins.insert(pin);
     }
   }
-}
-
-bool
-Sta::isDisabledBidirectInstPath(Edge *edge) const
-{
-  return !variables_->bidirectInstPathsEnabled() && edge->isBidirectInstPath();
 }
 
 bool
@@ -2354,6 +2350,8 @@ Sta::setPocvMode(PocvMode mode)
     }
     updateComponentsState();
     delaysInvalid();
+    if (graph_)
+      graph_->delayCountChanged();
   }
 }
 
@@ -2693,7 +2691,7 @@ Sta::makeScenes(const StringSeq &scene_names)
   cmd_scene_ = scenes_[0];
   updateComponentsState();
   if (graph_)
-    graph_->makeSceneAfter();
+    graph_->delayCountChanged();
 }
 
 void
@@ -2722,7 +2720,7 @@ Sta::makeScene(const std::string &name,
     Scene *scene = makeScene(name, mode, parasitics_min, parasitics_max);
     updateComponentsState();
     if (graph_)
-      graph_->makeSceneAfter();
+      graph_->delayCountChanged();
     updateSceneLiberty(scene, liberty_min_files, liberty_max_files);
     cmd_scene_ = scene;
   }
@@ -5398,8 +5396,10 @@ FanInOutSrchPred::searchThru(Edge *edge,
   const Sim *sim = mode->sim();
   return searchThruRole(edge)
       && (thru_disabled_
-          || !(sdc->isDisabledConstraint(edge) || sim->isDisabledCond(edge)
-               || sta_->isDisabledCondDefault(edge)))
+          || !(sdc->isDisabledConstraint(edge)
+               || sim->isDisabledCond(edge)
+               || sta_->isDisabledCondDefault(edge)
+               || sta_->isDisabledBidirectInstPath(edge)))
       && (thru_constants_ || sim->simTimingSense(edge) != TimingSense::none);
 }
 
