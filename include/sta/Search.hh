@@ -290,8 +290,8 @@ public:
                                Vertex *vertex,
                                const Mode *mode,
                                TagGroupBldr *tag_bldr);
-  void enqueueLatchDataOutputs(Vertex *vertex);
-  void enqueueLatchOutput(Vertex *vertex);
+  void postponeLatchDataOutputs(Vertex *vertex);
+  void postponeArrivals(Vertex *vertex);
   void enqueuePendingClkFanouts();
   void postponeClkFanouts(Vertex *vertex);
   void seedRequired(Vertex *vertex);
@@ -596,7 +596,7 @@ protected:
 
   // Search predicates.
   SearchPred *search_thru_;
-  SearchAdj *search_adj_;
+  SearchPred *search_adj_;
   EvalPred *eval_pred_;
 
   // Clock arrivals are known.
@@ -657,11 +657,11 @@ protected:
   std::mutex tag_group_lock_;
 
   // Latches data outputs to queue on the next search pass.
-  VertexSet pending_latch_outputs_;
-  std::mutex pending_latch_outputs_lock_;
+  VertexSet postponed_arrivals_;
+  std::mutex postponed_arrivals_lock_;
   // Clock network endpoints where arrival search was suppended by findClkArrivals().
-  VertexSet pending_clk_endpoints_;
-  std::mutex pending_clk_endpoints_lock_;
+  VertexSet postponed_clk_endpoints_;
+  std::mutex postponed_clk_endpoints_lock_;
 
   VertexSet endpoints_;
   bool endpoints_initialized_{false};
@@ -812,6 +812,8 @@ protected:
   void pruneCrprArrivals();
   void constrainedRequiredsInvalid(Vertex *vertex,
                                    bool is_clk);
+  bool hasPendingLoopPaths(Edge *edge) const;
+
   bool always_to_endpoints_;
   bool always_save_prev_paths_;
   bool clks_only_;

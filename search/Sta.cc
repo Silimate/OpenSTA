@@ -4148,7 +4148,7 @@ Sta::setPortExtPinCap(const Port *port,
     for (const MinMax *mm : min_max->range())
       sdc->setPortExtPinCap(port, rf1, mm, cap);
   }
-  delaysInvalidFromFanin(port);
+  delaysInvalidFrom(port);
 }
 
 void
@@ -4203,7 +4203,7 @@ Sta::setPortExtWireCap(const Port *port,
     for (const MinMax *mm : min_max->range())
       sdc->setPortExtWireCap(port, rf1, mm, cap);
   }
-  delaysInvalidFromFanin(port);
+  delaysInvalidFrom(port);
 }
 
 void
@@ -4221,7 +4221,7 @@ Sta::setPortExtFanout(const Port *port,
 {
   for (const MinMax *mm : min_max->range())
     sdc->setPortExtFanout(port, mm, fanout);
-  delaysInvalidFromFanin(port);
+  delaysInvalidFrom(port);
 }
 
 void
@@ -4590,9 +4590,15 @@ Sta::makeNet(const char *name,
 {
   NetworkEdit *network = networkCmdEdit();
   std::string escaped = escapeBrackets(name, network);
-  Net *net = network->makeNet(escaped, parent);
-  // Sta notification unnecessary.
-  return net;
+  if (network->findNet(parent, escaped)) {
+    report_->warn(1557, "net {} already exists.", name);
+    return nullptr;
+  }
+  else {
+    Net *net = network->makeNet(escaped, parent);
+    // Sta notification unnecessary.
+    return net;
+  }
 }
 
 void
@@ -5201,20 +5207,6 @@ Sta::delaysInvalidFrom(Vertex *vertex)
 }
 
 void
-Sta::delaysInvalidFromFanin(const Port *port)
-{
-  if (graph_) {
-    Instance *top_inst = network_->topInstance();
-    Pin *pin = network_->findPin(top_inst, port);
-    Vertex *vertex, *bidirect_drvr_vertex;
-    graph_->pinVertices(pin, vertex, bidirect_drvr_vertex);
-    delaysInvalidFromFanin(vertex);
-    if (bidirect_drvr_vertex)
-      delaysInvalidFromFanin(bidirect_drvr_vertex);
-  }
-}
-
-void
 Sta::delaysInvalidFromFanin(const Pin *pin)
 {
   if (graph_) {
@@ -5253,9 +5245,11 @@ Sta::delaysInvalidFromFanin(Vertex *vertex)
   VertexInEdgeIterator edge_iter(vertex, graph_);
   while (edge_iter.hasNext()) {
     Edge *edge = edge_iter.next();
-    Vertex *from_vertex = edge->from(graph_);
-    delaysInvalidFrom(from_vertex);
-    search_->requiredInvalid(from_vertex);
+    if (edge->isWire()) {
+      Vertex *from_vertex = edge->from(graph_);
+      delaysInvalidFrom(from_vertex);
+      search_->requiredInvalid(from_vertex);
+    }
   }
 }
 

@@ -1512,6 +1512,12 @@ LibertyCell::outputPortSequential(LibertyPort *port)
 }
 
 bool
+LibertyCell::isSequential() const
+{
+  return !sequentials_.empty() || statetable_ != nullptr;
+}
+
+bool
 LibertyCell::hasSequentials() const
 {
   return !sequentials_.empty() || statetable_ != nullptr;
@@ -1691,7 +1697,7 @@ void
 LibertyCell::makeLatchEnables(Report *report,
                               Debug *debug)
 {
-  if (hasSequentials()
+  if (isSequential()
       || hasInferedRegTimingArcs()) {
     for (TimingArcSet *d_to_q : timing_arc_sets_) {
       if (d_to_q->role() == TimingRole::latchDtoQ()) {
