@@ -5680,7 +5680,7 @@ InstanceSeq Sta::clockGatedRegisters() {
     LibertyCell *cell = network_->libertyCell(inst);
 
     // Skip if the cell is not a register or a clock gate.
-    if (cell == nullptr || !cell->hasSequentials() || cell->isClockGate())
+    if (cell == nullptr || !cell->isSequential() || cell->isClockGate())
       continue;
 
     // Check if the register is clock gated based on previous graph traversal.

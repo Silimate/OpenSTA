@@ -899,7 +899,7 @@ Properties::getProperty(const LibertyCell *cell,
   else if (property == "library")
     return PropertyValue(cell->libertyLibrary());
   else if (property == "is_sequential")
-    return PropertyValue(cell->hasSequentials());
+    return PropertyValue(cell->isSequential());
   else if (property == "has_timing_model")
     return PropertyValue(cell->hasTimingArcs());
   else if (property == "is_buffer")
@@ -1155,7 +1155,7 @@ Properties::getProperty(const Instance *inst,
   else if (property == "is_hierarchical")
     return PropertyValue(network->isHierarchical(inst));
   else if (property == "is_sequential")
-    return PropertyValue(liberty_cell && liberty_cell->hasSequentials());
+    return PropertyValue(liberty_cell && liberty_cell->isSequential());
   else if (property == "is_buffer")
     return PropertyValue(liberty_cell && liberty_cell->isBuffer());
   else if (property == "is_clock_gate" || property == "is_integrated_clock_gating_cell")
