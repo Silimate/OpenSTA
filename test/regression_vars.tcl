@@ -182,6 +182,7 @@ record_public_tests {
   power_json
   prima3
   read_saif_null_instance
+  remove_input_delay
   report_checks_sorted
   report_checks_src_attr
   report_json1
