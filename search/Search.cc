@@ -30,6 +30,7 @@
 
 #include "Bfs.hh"
 #include "ClkInfo.hh"
+#include "ClkNetwork.hh"
 #include "Clock.hh"
 #include "ContainerHelpers.hh"
 #include "Crpr.hh"
@@ -139,15 +140,15 @@ SearchThru::searchThru(Edge *edge,
 
 ////////////////////////////////////////////////////////////////
 
-// SearchAdj is mode independent. Search unless
+// SearchAdjLoop is mode independent. Search unless
 //  latch D->Q edge
 //  timing check edge
 //  register set/clear
 //  bidirect load->driver
-class SearchAdj : public SearchPred
+class SearchAdjLoop : public SearchPred
 {
 public:
-  SearchAdj(const StaState *sta);
+  SearchAdjLoop(const StaState *sta);
   bool searchFrom(const Vertex *from_vertex) const override;
   bool searchFrom(const Vertex *from_vertex,
                   const Mode *mode) const override;
@@ -162,27 +163,27 @@ protected:
   const StaState *sta_;
 };
 
-SearchAdj::SearchAdj(const StaState *sta) :
+SearchAdjLoop::SearchAdjLoop(const StaState *sta) :
   SearchPred(sta),
   sta_(sta)
 {
 }
 
 bool
-SearchAdj::searchFrom(const Vertex *) const
+SearchAdjLoop::searchFrom(const Vertex *) const
 {
   return true;
 }
 
 bool
-SearchAdj::searchFrom(const Vertex *,
-                      const Mode *) const
+SearchAdjLoop::searchFrom(const Vertex *,
+                          const Mode *) const
 {
   return true;
 }
 
 bool
-SearchAdj::searchThru(Edge *edge) const
+SearchAdjLoop::searchThru(Edge *edge) const
 {
   const TimingRole *role = edge->role();
   const Variables *variables = sta_->variables();
@@ -195,23 +196,44 @@ SearchAdj::searchThru(Edge *edge) const
 }
 
 bool
-SearchAdj::searchThru(Edge *edge,
-                       const Mode *) const
+SearchAdjLoop::searchThru(Edge *edge,
+                          const Mode *) const
 {
   return searchThru(edge);
 }
 
 bool
-SearchAdj::searchTo(const Vertex *) const
+SearchAdjLoop::searchTo(const Vertex *) const
 {
   return true;
 }
 
 bool
-SearchAdj::searchTo(const Vertex *,
-                    const Mode *) const
+SearchAdjLoop::searchTo(const Vertex *,
+                        const Mode *) const
 {
   return true;
+}
+
+// SearchAdj is mode independent. Search unless
+// SearchAdjLoop but not thru disabled loop edges.
+class SearchAdj : public SearchAdjLoop
+{
+public:
+  SearchAdj(const StaState *sta);
+  bool searchThru(Edge *edge) const override;
+};
+
+SearchAdj::SearchAdj(const StaState *sta) :
+  SearchAdjLoop(sta)
+{
+}
+
+bool
+SearchAdj::searchThru(Edge *edge) const
+{
+  return SearchAdjLoop::searchThru(edge)
+    && !edge->isDisabledLoop();
 }
 
 ////////////////////////////////////////////////////////////////
@@ -242,8 +264,7 @@ Search::Search(StaState *sta) :
   tag_group_capacity_(tag_capacity_),
   tag_groups_(new TagGroup *[tag_group_capacity_]),
   tag_group_set_(new TagGroupSet(tag_group_capacity_)),
-  postponed_arrivals_(makeVertexSet(this)),
-  postponed_clk_endpoints_(makeVertexSet(this)),
+  pending_arrivals_(makeVertexSet(this)),
   endpoints_(makeVertexSet(this)),
   invalid_endpoints_(makeVertexSet(this)),
 
@@ -307,8 +328,7 @@ Search::clear()
   deletePathGroups();
   deletePaths();
   deleteTags();
-  postponed_arrivals_.clear();
-  postponed_clk_endpoints_.clear();
+  pending_arrivals_.clear();
   deleteFilter();
   found_downstream_clk_pins_ = false;
 }
@@ -525,7 +545,7 @@ Search::findFilteredArrivals(ExceptionFrom *from,
     // These cases do not require filtered arrivals.
     //  -from clocks
     //  -to
-    findAllArrivals(thru_latches, false);
+    findAllArrivals(thru_latches);
 }
 
 // From/thrus/to are used to make a filter exception.  If the last
@@ -618,32 +638,36 @@ Search::deleteFilterClkInfos()
 void
 Search::findFilteredArrivals(bool thru_latches)
 {
-  filtered_arrivals_.clear();
-  findArrivalsSeed();
-  seedFilterStarts();
-  Level max_level = levelize_->maxLevel();
   // Search always_to_endpoint to search from exisiting arrivals at
   // fanin startpoints to reach -thru/-to endpoints.
   arrival_visitor_->init(true, false, eval_pred_);
-  enqueuePendingClkFanouts();
-  bool have_pending_latch_outputs = false;
-  // Iterate until data arrivals at all latches stop changing.
+  arrival_iter_->ensureSize();
+
+  filtered_arrivals_.clear();
+  findArrivalsSeed();
+  seedFilterStarts();
+
+  Level max_level = levelize_->maxLevel();
+  bool have_pending_arrivals = false;
   for (int pass = 1;
-       pass == 1 || (thru_latches && have_pending_latch_outputs);
+       pass == 1 || (thru_latches && have_pending_arrivals);
        pass++) {
     debugPrint(debug_, "search", 1, "find arrivals pass {}", pass);
 
     int arrival_count = arrival_iter_->visitParallel(max_level, arrival_visitor_);
     debugPrint(debug_, "search", 1, "found {} arrivals", arrival_count);
 
-    have_pending_latch_outputs = !postponed_arrivals_.empty();
-    for (Vertex *latch_output : postponed_arrivals_)
-      arrival_visitor_->visit(latch_output, true);
-    postponed_arrivals_.clear();
+    // Latch D->Q and disabled loop edges have level discontinuities so their
+    // eval. For latches the data path crpr clk path may be evaled in another
+    // thread at the same time the latch D->Q edge.
+    // Disabled loop edges propagate pending loop paths here.
+    have_pending_arrivals = !pending_arrivals_.empty();
+    for (Vertex *vertex : pending_arrivals_)
+      arrival_visitor_->visit(vertex, true);
+    pending_arrivals_.clear();
 
     deleteTagsPrev();
   }
-  arrivals_exist_ = true;
 }
 
 // Delete stale tag arrarys.
@@ -841,14 +865,13 @@ void
 Search::levelsChangedBefore()
 {
   if (arrivals_exist_) {
-    while (arrival_iter_->hasNext()) {
-      Vertex *vertex = arrival_iter_->next();
+    arrival_iter_->clear([this] (Vertex *vertex) {
       arrivalInvalid(vertex);
-    }
-    while (required_iter_->hasNext()) {
-      Vertex *vertex = required_iter_->next();
+    });
+
+    required_iter_->clear([this] (Vertex *vertex) {
       requiredInvalid(vertex);
-    }
+    });
   }
 }
 
@@ -921,7 +944,12 @@ void
 Search::findClkArrivals()
 {
   if (!clk_arrivals_valid_) {
-    findAllArrivals(false, true);
+    debugPrint(debug_, "search", 1, "find clk arrivals");
+    arrival_visitor_->init(false, true, eval_pred_);
+    arrival_iter_->ensureSize();
+    enqueueClkRoots();
+    enqueueInvalidClks();
+    findArrivals2(levelize_->maxLevel());
   }
   clk_arrivals_valid_ = true;
 }
@@ -1027,7 +1055,7 @@ Search::updateClkGates(Vertex *vertex)
 }
 
 void
-Search::seedClkVertexArrivals()
+Search::enqueueClkRoots()
 {
   PinSet clk_pins(network_);
   findClkVertexPins(clk_pins);
@@ -1037,6 +1065,32 @@ Search::seedClkVertexArrivals()
     arrival_iter_->enqueue(vertex);
     if (bidirect_drvr_vertex)
       arrival_iter_->enqueue(bidirect_drvr_vertex);
+  }
+  arrivals_exist_ = true;
+}
+
+void
+Search::enqueueInvalidClks()
+{
+  if (!invalid_arrivals_.empty()) {
+    for (Mode *mode : modes_)
+      mode->clkNetwork()->ensureClkNetwork();
+    for (auto itr = invalid_arrivals_.begin(); itr != invalid_arrivals_.end();) {
+      Vertex *vertex = *itr;
+      bool is_clk = false;
+      for (Mode *mode : modes_) {
+        if (mode->clkNetwork()->isClock(vertex)) {
+          is_clk = true;
+          break;
+        }
+      }
+      if (is_clk) {
+        arrival_iter_->enqueue(vertex);
+        itr = invalid_arrivals_.erase(itr);
+      }
+      else
+        itr++;
+    }
   }
 }
 
@@ -1064,49 +1118,29 @@ Search::clockInsertion(const Clock *clk,
 void
 Search::findAllArrivals()
 {
-  findAllArrivals(true, false);
+  findAllArrivals(true);
 }
 
 void
-Search::findAllArrivals(bool thru_latches,
-                        bool clks_only)
+Search::findAllArrivals(bool thru_latches)
 {
-  if (!clks_only)
-    enqueuePendingClkFanouts();
-  arrival_visitor_->init(false, clks_only, eval_pred_);
-  bool have_pending_latch_outputs = false;
+  arrival_visitor_->init(false, false, eval_pred_);
+  arrival_iter_->ensureSize();
+
+  bool have_pending_arrivals = false;
   // Iterate until data arrivals at all latches stop changing.
   for (int pass = 1;
-       pass == 1 || (thru_latches && have_pending_latch_outputs);
+       pass == 1 || (thru_latches && have_pending_arrivals);
        pass++) {
     debugPrint(debug_, "search", 1, "find arrivals pass {}", pass);
 
     findArrivals1(levelize_->maxLevel());
 
-    have_pending_latch_outputs = !postponed_arrivals_.empty();
-    for (Vertex *latch_output : postponed_arrivals_)
-      arrival_visitor_->visit(latch_output, true);
-    postponed_arrivals_.clear();
+    have_pending_arrivals = !pending_arrivals_.empty();
+    for (Vertex *vertex : pending_arrivals_)
+      arrival_visitor_->visit(vertex, true);
+    pending_arrivals_.clear();
   }
-}
-
-// Pick up where the search stopped at the clock network boundary.
-void
-Search::enqueuePendingClkFanouts()
-{
-  for (Vertex *vertex : postponed_clk_endpoints_) {
-    debugPrint(debug_, "search", 2, "enqueue clk fanout {}",
-               vertex->to_string(this));
-    arrival_iter_->enqueueAdjacentVertices(vertex, search_adj_);
-  }
-  postponed_clk_endpoints_.clear();
-}
-
-void
-Search::postponeClkFanouts(Vertex *vertex)
-{
-  LockGuard lock(postponed_clk_endpoints_lock_);
-  postponed_clk_endpoints_.insert(vertex);
 }
 
 void
@@ -1119,6 +1153,7 @@ void
 Search::findArrivals(Level level)
 {
   arrival_visitor_->init(false, false, eval_pred_);
+  arrival_iter_->ensureSize();
   findArrivals1(level);
 }
 
@@ -1155,13 +1190,19 @@ Search::findArrivals1(Level level)
 {
   debugPrint(debug_, "search", 1, "find arrivals to level {}", level);
   findArrivalsSeed();
+  findArrivals2(level);
+}
+
+// Caller seeds arrival_iter_.
+void
+Search::findArrivals2(Level level)
+{
   Stats stats(debug_, report_);
   int arrival_count = arrival_iter_->visitParallel(level, arrival_visitor_);
   deleteTagsPrev();
   if (arrival_count > 0)
     deleteUnusedTagGroups();
   stats.report("Find arrivals");
-  arrivals_exist_ = true;
   debugPrint(debug_, "search", 1, "found {} arrivals", arrival_count);
 
   // Compute clock gated registers after all arrivals are found.
@@ -1175,14 +1216,8 @@ Search::findArrivalsSeed()
   if (!arrivals_seeded_) {
     for (const Mode *mode : modes_)
       mode->genclks()->ensureInsertionDelays();
-    arrival_iter_->clear();
-    required_iter_->clear();
     seedArrivals();
     arrivals_seeded_ = true;
-  }
-  else {
-    arrival_iter_->ensureSize();
-    required_iter_->ensureSize();
   }
   seedInvalidArrivals();
 }
@@ -1208,7 +1243,7 @@ ArrivalVisitor::init0()
 {
   tag_bldr_ = new TagGroupBldr(true, this);
   tag_bldr_no_crpr_ = new TagGroupBldr(false, this);
-  adj_pred_ = new SearchAdj(this);
+  search_adj_ = new SearchAdjLoop(this);
 }
 
 void
@@ -1232,14 +1267,14 @@ void
 ArrivalVisitor::copyState(const StaState *sta)
 {
   StaState::copyState(sta);
-  adj_pred_->copyState(sta);
+  search_adj_->copyState(sta);
 }
 
 ArrivalVisitor::~ArrivalVisitor()
 {
   delete tag_bldr_;
   delete tag_bldr_no_crpr_;
-  delete adj_pred_;
+  delete search_adj_;
 }
 
 void
@@ -1289,22 +1324,18 @@ ArrivalVisitor::visit(Vertex *vertex,
     search_->postponeLatchDataOutputs(vertex);
 
   if ((always_to_endpoints_ || arrivals_changed)) {
-    if (clks_only_ && vertex->isRegClk()) {
-      debugPrint(debug_, "search", 3, "postponing clk fanout");
-      search_->postponeClkFanouts(vertex);
-    }
-    else {
-      graph_->visitFanoutEdges(vertex, adj_pred_,
-                               [this] (Edge *edge,
-                                       Vertex *fanout) {
-                                 if (edge->isDisabledLoop()) {
-                                   if (hasPendingLoopPaths(edge))
-                                     search_->postponeArrivals(fanout);
-                                 }
-                                 else
-                                   search_->arrivalIterator()->enqueue(fanout);
-                               });
-    }
+    graph_->visitFanoutEdges(vertex, search_adj_,
+                             [this, vertex] (Edge *edge,
+                                             Vertex *fanout) {
+                               if (edge->isDisabledLoop()) {
+                                 if (hasPendingLoopPaths(edge))
+                                   search_->postponeArrivals(fanout);
+                               }
+                               else if (clks_only_ && vertex->isRegClk())
+                                 search_->arrivalInvalid(fanout);
+                               else
+                                 search_->arrivalIterator()->enqueue(fanout);
+                             });
   }
   if (arrivals_changed) {
     debugPrint(debug_, "search", 4, "arrivals changed");
@@ -1541,8 +1572,8 @@ Search::postponeLatchDataOutputs(Vertex *latch_data)
     Edge *edge = edge_iter.next();
     if (edge->role() == TimingRole::latchDtoQ()) {
       Vertex *out_vertex = edge->to(graph_);
-      LockGuard lock(postponed_arrivals_lock_);
-      postponed_arrivals_.insert(out_vertex);
+      LockGuard lock(pending_arrivals_lock_);
+      pending_arrivals_.insert(out_vertex);
     }
   }
 }
@@ -1550,8 +1581,8 @@ Search::postponeLatchDataOutputs(Vertex *latch_data)
 void
 Search::postponeArrivals(Vertex *vertex)
 {
-  LockGuard lock(postponed_arrivals_lock_);
-  postponed_arrivals_.insert(vertex);
+  LockGuard lock(pending_arrivals_lock_);
+  pending_arrivals_.insert(vertex);
 }
 
 void
@@ -1564,6 +1595,7 @@ Search::seedArrivals()
 
   for (Vertex *vertex : vertices)
     arrival_iter_->enqueue(vertex);
+  arrivals_exist_ = true;
 }
 
 void
@@ -3262,6 +3294,7 @@ Search::findRequireds(Level level)
   Stats stats(debug_, report_);
   debugPrint(debug_, "search", 1, "find requireds to level {}", level);
   RequiredVisitor req_visitor(this);
+  required_iter_->ensureSize();
   if (!requireds_seeded_)
     seedRequireds();
   seedInvalidRequireds();
@@ -3450,8 +3483,9 @@ Search::seedRequired(Vertex *vertex)
   required_cmp.requiredsInit(vertex, this);
   visit_path_ends_->visitPathEnds(vertex, &seeder);
   // Enqueue fanin vertices for back-propagating required times.
+  required_iter_->ensureSize();
   if (required_cmp.requiredsSave(vertex, this))
-    required_iter_->enqueueAdjacentVertices(vertex);
+    required_iter_->enqueueFanin(vertex);
 }
 
 void
@@ -3463,7 +3497,7 @@ Search::seedRequiredEnqueueFanin(Vertex *vertex)
   visit_path_ends_->visitPathEnds(vertex, &seeder);
   // Enqueue fanin vertices for back-propagating required times.
   required_cmp.requiredsSave(vertex, this);
-  required_iter_->enqueueAdjacentVertices(vertex);
+  required_iter_->enqueueFanin(vertex);
 }
 
 ////////////////////////////////////////////////////////////////
@@ -3571,7 +3605,7 @@ RequiredVisitor::visit(Vertex *vertex)
   search_->tnsInvalid(vertex);
 
   if (changed)
-    search_->requiredIterator()->enqueueAdjacentVertices(vertex);
+    search_->requiredIterator()->enqueueFanin(vertex);
 }
 
 bool
@@ -3654,17 +3688,27 @@ void
 Search::ensureDownstreamClkPins()
 {
   if (!found_downstream_clk_pins_) {
-    // Use backward BFS from register clk pins to mark upsteam pins
-    // as having downstream clk pins.
+    // Use backward DFS from register clk pins to mark upstream pins
+    // as having downstream clk pins. hasDownstreamClkPin doubles as the
+    // visited flag since its meaning is exactly "reached here".
     ClkTreeSearchPred pred(this);
-    BfsBkwdIterator iter(BfsIndex::other, &pred, this);
-    for (Vertex *vertex : graph_->regClkVertices())
-      iter.enqueue(vertex);
-
-    while (iter.hasNext()) {
-      Vertex *vertex = iter.next();
-      vertex->setHasDownstreamClkPin(true);
-      iter.enqueueAdjacentVertices(vertex);
+    std::vector<Vertex*> stack;
+    for (Vertex *vertex : graph_->regClkVertices()) {
+      if (!vertex->hasDownstreamClkPin()) {
+        vertex->setHasDownstreamClkPin(true);
+        stack.push_back(vertex);
+      }
+    }
+    while (!stack.empty()) {
+      Vertex *vertex = stack.back();
+      stack.pop_back();
+      graph_->visitFanins(vertex, &pred,
+                          [&stack] (Vertex *fanin) {
+                            if (!fanin->hasDownstreamClkPin()) {
+                              fanin->setHasDownstreamClkPin(true);
+                              stack.push_back(fanin);
+                            }
+                          });
     }
   }
   found_downstream_clk_pins_ = true;

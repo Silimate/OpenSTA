@@ -73,6 +73,20 @@ private:
   ~PathEnd();
 };
 
+class Scene
+{
+private:
+  Scene();
+  ~Scene();
+};
+
+class Mode
+{
+private:
+  Mode();
+  ~Mode();
+};
+
 %inline %{
 
 using std::string;

@@ -1437,6 +1437,32 @@ Properties::getProperty(const Clock *clk,
 ////////////////////////////////////////////////////////////////
 
 PropertyValue
+Properties::getProperty(const Scene *scene,
+                        std::string_view property)
+{
+  if (property == "name"
+      || property == "full_name")
+    return PropertyValue(scene->name());
+  else
+    throw PropertyUnknown("scene", property);
+}
+
+////////////////////////////////////////////////////////////////
+
+PropertyValue
+Properties::getProperty(const Mode *mode,
+                        std::string_view property)
+{
+  if (property == "name"
+      || property == "full_name")
+    return PropertyValue(mode->name());
+  else
+    throw PropertyUnknown("mode", property);
+}
+
+////////////////////////////////////////////////////////////////
+
+PropertyValue
 Properties::getProperty(PathEnd *end,
                         std::string_view property)
 {

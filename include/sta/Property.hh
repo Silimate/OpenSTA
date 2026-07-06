@@ -56,6 +56,8 @@ private:
   std::string msg_;
 };
 class PropertyValue;
+class Scene;
+class Mode;
 
 template<class TYPE>
 class PropertyRegistry
@@ -99,6 +101,10 @@ public:
   PropertyValue getProperty(Edge *edge,
                             std::string_view property);
   PropertyValue getProperty(const Clock *clk,
+                            std::string_view property);
+  PropertyValue getProperty(const Scene *scene,
+                            std::string_view property);
+  PropertyValue getProperty(const Mode *mode,
                             std::string_view property);
   PropertyValue getProperty(PathEnd *end,
                             std::string_view property);

@@ -582,6 +582,7 @@ public:
                         const RiseFall *clk_rf,
                         const MinMaxAll *min_max);
   void ensureInputDelayRefPinEdges();
+  void inputDelayRefPinEdgesInvalid();
   void setOutputDelay(const Pin *pin,
                       const RiseFallBoth *rf,
                       const Clock *clk,
