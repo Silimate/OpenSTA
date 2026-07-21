@@ -96,6 +96,8 @@ EvalPred::searchThru(Edge *edge,
 {
   const TimingRole *role = edge->role();
   return SearchPred0::searchThru(edge, mode)
+    && (sta_->variables()->dynamicLoopBreaking()
+        || !edge->isDisabledLoop())
     && (search_thru_latches_
         || role->isLatchDtoQ()
         || sta_->latches()->latchDtoQState(edge, mode) == LatchEnableState::open);
@@ -1531,13 +1533,15 @@ ArrivalVisitor::pruneCrprArrivals()
     size_t path_index = path_itr->second;
     const ClkInfo *clk_info = tag->clkInfo();
     bool deleted_tag = false;
-    if (!tag->isClock() && clk_info->hasCrprClkPin()) {
-      const MinMax *min_max = tag->minMax();
+    if (!tag->isClock()
+        && clk_info->hasCrprClkPin()) {
       Path *path_no_crpr = tag_bldr_no_crpr_->tagMatchPath(tag);
-      if (path_no_crpr) {
+      if (path_no_crpr
+          && path_no_crpr->tag(this) != tag) {
         Arrival max_arrival = path_no_crpr->arrival();
         const ClkInfo *clk_info_no_crpr = path_no_crpr->clkInfo(this);
         Arrival max_crpr = crpr->maxCrpr(clk_info_no_crpr);
+        const MinMax *min_max = tag->minMax();
         Arrival max_arrival_max_crpr = (min_max == MinMax::max())
           ? delayDiff(max_arrival, max_crpr, this)
           : delaySum(max_arrival, max_crpr, this);
@@ -1547,11 +1551,10 @@ ArrivalVisitor::pruneCrprArrivals()
                    delayAsString(max_crpr, this),
                    delayAsString(max_arrival_max_crpr, this));
         Arrival arrival = tag_bldr_->arrival(path_index);
-        // Latch D->Q path uses enable min so crpr clk path min/max
-        // does not match the path min/max.
         if (delayGreater(max_arrival_max_crpr, arrival, min_max, this)
-            && clk_info_no_crpr->crprClkPath(this)->minMax(this)
-                == clk_info->crprClkPath(this)->minMax(this)) {
+            // Latch D->Q path uses enable min so crpr clk path min/max
+            // does not match the path min/max.
+            && clk_info_no_crpr->crprClkMinMax(this) == clk_info->crprClkMinMax(this)) {
           debugPrint(debug_, "search", 3, "  pruned {}",
                      tag->to_string(this));
           path_itr = path_index_map.erase(path_itr);
@@ -2912,14 +2915,14 @@ Search::reportArrivals(Vertex *vertex,
     for (const Path *path : paths) {
       const Tag *tag = path->tag(this);
       const RiseFall *rf = tag->transition();
-      bool report_prev = false;
+      bool report_prev = true;
       std::string prev_str;
       if (report_prev) {
         Path *prev_path = path->prevPath();
         if (prev_path) {
           const Edge *prev_edge = path->prevEdge(this);
           TimingArc *arc = path->prevArc(this);
-          prev_str = sta::format("prev {} {} {} -> {} {}",
+          prev_str = sta::format(" prev {} {} {} -> {} {}",
                                  prev_path->to_string(this),
                                  prev_edge->from(graph_)->to_string(this),
                                  arc->fromEdge()->to_string(),
@@ -2927,13 +2930,14 @@ Search::reportArrivals(Vertex *vertex,
                                  arc->toEdge()->to_string());
         }
         else
-          prev_str = "prev NULL";
+          prev_str = " prev NULL";
       }
       report_->report(" {} {} {} / {} {}{}", rf->shortName(),
                       path->minMax(this)->to_string(),
                       delayAsString(path->arrival(), digits, this),
                       delayAsString(path->required(), digits, this),
-                      tag->to_string(report_tag_index, false, this), prev_str);
+                      tag->to_string(report_tag_index, false, this),
+                      prev_str);
     }
   }
   else
