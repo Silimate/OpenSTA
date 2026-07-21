@@ -5,5 +5,5 @@ brew "flex"
 brew "swig"
 brew "tcl-tk@8"
 
-tap "silimate/silimate", trusted: true
-brew "silimate/silimate/cudd"
+tap "mht208/formal"
+brew "mht208/formal/cudd", trusted: true
