@@ -91,6 +91,7 @@
 #include "SearchClass.hh"
 #include "SearchPred.hh"
 #include "Sim.hh"
+#include "StaDb.hh"
 #include "Stats.hh"
 #include "StringUtil.hh"
 #include "TagGroup.hh"
@@ -734,6 +735,18 @@ Sta::writeLibDb(LibertyLibrary *library,
   Stats stats(debug_, report_);
   writeLibDbFile(library, filename, report_);
   stats.report("Wrote liberty database");
+}
+
+void
+Sta::writeStaDb(std::string_view filename)
+{
+  sta::writeStaDb(this, filename);
+}
+
+void
+Sta::readStaDb(std::string_view filename)
+{
+  sta::readStaDb(this, filename);
 }
 
 LibertyLibrary *

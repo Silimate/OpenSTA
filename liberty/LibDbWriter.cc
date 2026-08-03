@@ -24,7 +24,7 @@
 
 // write_lib_db: binary cache of one NLDM LibertyLibrary.
 //
-// File layout: [header][string_count][string table][body]
+// File layout: [header][db block: string table then body]
 // Body field order must match LibLoader in LibDbReader.cc.
 // Shared axes/tables/attrs: first use writes id + full data; later uses write id only.
 // Strings: body stores an index; the string table holds the text once.
@@ -72,14 +72,12 @@ directionCode(const PortDirection *dir)
 class LibWriter
 {
 public:
-  LibWriter(LibertyLibrary *lib,
-            Report *report) :
-    lib_(lib),
-    report_(report)
+  LibWriter(LibertyLibrary *lib) :
+    lib_(lib)
   {
   }
 
-  void write(const char *path);
+  std::vector<uint8_t> bytes();
 
 private:
   void writeLibrary();
@@ -102,7 +100,6 @@ private:
 
   DbWriter w_;            // body bytes + unique string list
   LibertyLibrary *lib_;
-  Report *report_;
   // "Have we already written this shared object?" → reuse its number.
   std::map<const TableAxis *, uint32_t> axis_ids_;
   std::map<const Table *, uint32_t> table_ids_;
@@ -699,43 +696,24 @@ LibWriter::writeLibrary()
     writeCell(cell);
 }
 
-void
-LibWriter::write(const char *path)
+std::vector<uint8_t>
+LibWriter::bytes()
 {
   // Build the body in memory. Every w_.str("...") adds to the unique-string
-  // list and writes only a number into the body.
+  // list and writes only a number into the body. dbPack then puts that string
+  // list in front of the body so the reader can resolve the numbers.
   writeLibrary();
+  return dbPack(w_);
+}
 
-  FILE *f = fopen(path, "wb");
-  if (f == nullptr)
-    report_->error(1352, "cannot open {} for writing.", path);
-
-  // Pack unique strings as (length, characters) so the reader can rebuild
-  // the string list before reading the body.
-  DbWriter strings;
-  for (const std::string &s : w_.strings()) {
-    strings.u32(static_cast<uint32_t>(s.size()));
-    for (char c : s)
-      strings.u8(static_cast<uint8_t>(c));
-  }
-
-  // fopen + fwrite: [header][string_count][string bytes][body bytes]
-  LibDbHeader hdr{};
-  hdr.version = lib_db_version;
-  hdr.string_bytes = strings.size();
-  hdr.body_bytes = w_.size();
-
-  bool ok = fwrite(&hdr, sizeof hdr, 1, f) == 1;
-  uint32_t count = static_cast<uint32_t>(w_.strings().size());
-  ok = ok && fwrite(&count, sizeof count, 1, f) == 1;
-  if (ok && strings.size())
-    ok = fwrite(strings.bytes().data(), strings.size(), 1, f) == 1;
-  if (ok && w_.size())
-    ok = fwrite(w_.bytes().data(), w_.size(), 1, f) == 1;
-  fclose(f);
-
-  if (!ok)
-    report_->error(1353, "error writing {}.", path);
+std::vector<uint8_t>
+writeLibDbBytes(LibertyLibrary *library,
+                Report *report)
+{
+  if (library == nullptr)
+    report->error(1354, "no liberty library to write.");
+  LibWriter writer(library);
+  return writer.bytes();
 }
 
 void
@@ -744,13 +722,24 @@ writeLibDbFile(LibertyLibrary *library,
                Report *report)
 {
   // Public entry from Sta::writeLibDb / write_lib_db.
-  if (library == nullptr)
-    report->error(1354, "no liberty library to write.");
   if (!filename.ends_with(".libdb"))
     report->error(1357, "{} must end with .libdb.", filename);
+  std::vector<uint8_t> block = writeLibDbBytes(library, report);
+
   std::string path(filename);
-  LibWriter writer(library, report);
-  writer.write(path.c_str());
+  FILE *f = fopen(path.c_str(), "wb");
+  if (f == nullptr)
+    report->error(1352, "cannot open {} for writing.", path);
+
+  // fopen + fwrite: [header][block]
+  LibDbHeader hdr{lib_db_version, block.size()};
+  bool ok = fwrite(&hdr, sizeof hdr, 1, f) == 1;
+  if (ok && !block.empty())
+    ok = fwrite(block.data(), block.size(), 1, f) == 1;
+  fclose(f);
+
+  if (!ok)
+    report->error(1353, "error writing {}.", path);
 }
 
 } // namespace sta

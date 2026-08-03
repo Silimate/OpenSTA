@@ -52,6 +52,7 @@ proc write_liberty { args } {
 
 ################################################################
 
+# Liberty binary cache (also embedded inside write_sta_db / read_sta_db).
 define_cmd_args "read_lib_db" {filename}
 
 proc_redirect read_lib_db {

@@ -47,12 +47,11 @@ constexpr uint32_t lib_db_id_null = 0xFFFFFFFFu;
 enum class LibDbModelKind : uint8_t { none = 0, gate = 1, check = 2 };
 enum class LibDbPortKind : uint8_t { scalar = 0, bus = 1, bundle = 2 };
 
-// Header for the libdb file.
+// Header for the libdb file. The rest of the file is one db block.
 struct LibDbHeader
 {
-  uint32_t version;      // version of the libdb format
-  uint64_t string_bytes; // bytes of serialized strings
-  uint64_t body_bytes;   // bytes of serialized body
+  uint32_t version;     // version of the libdb format
+  uint64_t block_bytes; // bytes of the packed string table + body
 };
 
 // Builds the file body as a growing byte list. Also keeps a list of unique
@@ -195,6 +194,68 @@ private:
   bool failed_{false};    // true if we read past the end or bad string id
 };
 
+////////////////////////////////////////////////////////////////
+// A "db block" is one self contained chunk of bytes:
+//
+//   [u32 string_count][(u32 length, characters)*][body bytes]
+//
+// The string table comes first so the reader can rebuild it before walking the
+// body, which only holds indexes into it. Liberty, netlist and annotations all
+// use this shape, so a .stadb file can hold each of them as an opaque byte
+// range and hand it back unchanged at load time.
+
+// Glue a writer's string list in front of its body.
+inline std::vector<uint8_t>
+dbPack(const DbWriter &writer)
+{
+  DbWriter block;
+  block.u32(static_cast<uint32_t>(writer.strings().size()));
+  for (const std::string &s : writer.strings()) {
+    block.u32(static_cast<uint32_t>(s.size()));
+    for (char c : s)
+      block.u8(static_cast<uint8_t>(c));
+  }
+  std::vector<uint8_t> bytes = block.bytes();
+  bytes.insert(bytes.end(), writer.bytes().begin(), writer.bytes().end());
+  return bytes;
+}
+
+// Split a block back into its string list and body.
+// False means the block is truncated or the string table is corrupt.
+inline bool
+dbUnpack(const uint8_t *data,
+         size_t size,
+         // Return values.
+         std::vector<std::string> &strings,
+         std::vector<uint8_t> &body)
+{
+  size_t pos = 0;
+  auto next_u32 = [&](uint32_t &v) {
+    if (pos + sizeof v > size)
+      return false;
+    std::memcpy(&v, data + pos, sizeof v);
+    pos += sizeof v;
+    return true;
+  };
+
+  uint32_t count = 0;
+  if (!next_u32(count))
+    return false;
+  strings.clear();
+  strings.reserve(count);
+  for (uint32_t i = 0; i < count; i++) {
+    uint32_t length = 0;
+    if (!next_u32(length) || pos + length > size)
+      return false;
+    strings.emplace_back(reinterpret_cast<const char *>(data + pos), length);
+    pos += length;
+  }
+  body.assign(data + pos, data + size);
+  return true;
+}
+
+////////////////////////////////////////////////////////////////
+
 // Compile an already loaded liberty library to filename.
 void writeLibDbFile(LibertyLibrary *library,
                     std::string_view filename,
@@ -203,5 +264,13 @@ void writeLibDbFile(LibertyLibrary *library,
 // Rebuild a liberty library from filename and register it with network.
 LibertyLibrary *readLibDbFile(std::string_view filename,
                               Network *network);
+
+// Same encoding without the file wrapper, for .stadb liberty sections.
+std::vector<uint8_t> writeLibDbBytes(LibertyLibrary *library,
+                                     Report *report);
+LibertyLibrary *readLibDbBytes(const uint8_t *data,
+                               size_t size,
+                               std::string_view label,
+                               Network *network);
 
 } // namespace sta

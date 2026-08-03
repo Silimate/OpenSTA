@@ -24,7 +24,7 @@
 
 // read_lib_db: rebuild one NLDM LibertyLibrary from a .libdb cache.
 //
-// File layout: [header][string_count][string table][body]
+// File layout: [header][db block: string table then body]
 // Body field order must match LibWriter in LibDbWriter.cc.
 // Shared axes/tables/attrs: first use reads id + full data; later uses reuse by id.
 // Strings: body stores an index; the string table holds the text once.
@@ -750,10 +750,28 @@ LibLoader::read()
 }
 
 LibertyLibrary *
+readLibDbBytes(const uint8_t *data,
+               size_t size,
+               std::string_view label,
+               Network *network)
+{
+  // Split the block into the string list and body, then rebuild the library.
+  Report *report = network->report();
+  std::vector<std::string> strings;
+  std::vector<uint8_t> body;
+  if (!dbUnpack(data, size, strings, body))
+    report->error(1356, "{} has a corrupt string table.", label);
+
+  DbReader reader(body.data(), body.size(), &strings);
+  LibLoader loader(reader, label, network);
+  return loader.read();
+}
+
+LibertyLibrary *
 readLibDbFile(std::string_view filename,
               Network *network)
 {
-  // Validate .libdb + version, load string table, then LibLoader::read().
+  // Validate .libdb + version, then hand the block to readLibDbBytes().
   Report *report = network->report();
   std::string path(filename);
 
@@ -764,7 +782,7 @@ readLibDbFile(std::string_view filename,
   if (f == nullptr)
     report->error(1366, "cannot open {}.", path);
 
-  // File layout: [header][string_count][string bytes][body bytes]
+  // File layout: [header][block]
   LibDbHeader hdr{};
   if (fread(&hdr, sizeof hdr, 1, f) != 1) {
     fclose(f);
@@ -776,39 +794,15 @@ readLibDbFile(std::string_view filename,
                   path, hdr.version, lib_db_version);
   }
 
-  uint32_t string_count = 0;
-  bool ok = fread(&string_count, sizeof string_count, 1, f) == 1;
-  std::vector<uint8_t> string_bytes(hdr.string_bytes);
-  if (ok && hdr.string_bytes)
-    ok = fread(string_bytes.data(), hdr.string_bytes, 1, f) == 1;
-  std::vector<uint8_t> body(hdr.body_bytes);
-  if (ok && hdr.body_bytes)
-    ok = fread(body.data(), hdr.body_bytes, 1, f) == 1;
+  std::vector<uint8_t> block(hdr.block_bytes);
+  bool ok = true;
+  if (hdr.block_bytes)
+    ok = fread(block.data(), hdr.block_bytes, 1, f) == 1;
   fclose(f);
   if (!ok)
     report->error(1363, "{} is truncated.", path);
 
-  // Unpack (length, characters)* into the string list DbReader::str() uses.
-  std::vector<std::string> strings;
-  strings.reserve(string_count);
-  size_t pos = 0;
-  for (uint32_t i = 0; i < string_count; i++) {
-    uint32_t len = 0;
-    bool len_ok = pos + sizeof len <= string_bytes.size();
-    if (len_ok) {
-      std::memcpy(&len, string_bytes.data() + pos, sizeof len);
-      pos += sizeof len;
-    }
-    if (!len_ok || pos + len > string_bytes.size())
-      report->error(1356, "{} has a corrupt string table.", path);
-    strings.emplace_back(reinterpret_cast<const char *>(string_bytes.data() + pos), len);
-    pos += len;
-  }
-
-  // Hand body + string list to the loader; it rebuilds the library object.
-  DbReader reader(body.data(), body.size(), &strings);
-  LibLoader loader(reader, filename, network);
-  return loader.read();
+  return readLibDbBytes(block.data(), block.size(), filename, network);
 }
 
 } // namespace sta

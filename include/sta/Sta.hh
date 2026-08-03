@@ -152,10 +152,13 @@ public:
                                       Scene *scene,
                                       const MinMaxAll *min_max,
                                       bool infer_latches);
-  // Compiled NLDM-only form of readLiberty
+  // Compiled NLDM-only form of readLiberty (also used inside .stadb).
   virtual LibertyLibrary *readLibDb(std::string_view filename);
   void writeLibDb(LibertyLibrary *library,
                   std::string_view filename);
+  // Serialize / restore a full session (liberty, netlist, sdc, delays).
+  void writeStaDb(std::string_view filename);
+  void readStaDb(std::string_view filename);
   // tmp public
   void readLibertyAfter(LibertyLibrary *liberty,
                         Scene *scene,
