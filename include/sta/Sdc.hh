@@ -1453,7 +1453,7 @@ protected:
   float max_area_;
   float max_dynamic_power_;
   float max_leakage_power_;
-  int max_lol_;
+  int max_lol_;  // -1 if unset
   Wireload *wireload_[MinMax::index_count];
   WireloadMode wireload_mode_;
   const WireloadSelection *wireload_selection_[MinMax::index_count];
