@@ -98,6 +98,9 @@ proc_redirect report_power {
       report_power_insts $insts $scene $digits
     }
   } elseif { [info exists keys(-exclude_libs)] } {
+    if { ![string is list $keys(-exclude_libs)] } {
+      sta_error 312 "-exclude_libs is not a list."
+    }
     set insts [power_insts_not_in_libs $keys(-exclude_libs)]
     if { $format == "json" } {
       report_power_insts_json $insts $scene $digits
