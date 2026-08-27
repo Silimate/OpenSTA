@@ -482,8 +482,7 @@ Power::power(const Instance *inst,
     powerInside(inst, scene, result);
     return result;
   }
-  // SILIMATE: price and cache this leaf only. findInstPowers() would walk the
-  // whole netlist, which report_power -instances / -exclude_libs does not need.
+  // Price and cache the leaf instance.
   auto itr = instance_powers_.find(inst);
   if (itr != instance_powers_.end())
     return itr->second;
