@@ -2377,7 +2377,7 @@ void
 WriteSdc::writeMaxLOL() const
 {
   int max_lol = sdc_->maxLOL();
-  if (max_lol > 0) {
+  if (max_lol >= 0) {
     sta::print(stream_, "set_max_lol ");
     writeInteger(max_lol);
     sta::print(stream_, "\n");

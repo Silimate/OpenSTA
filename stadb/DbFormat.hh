@@ -38,7 +38,7 @@ constexpr uint32_t stadb_magic = 0x42445453;
 
 // Bump on any incompatible layout change that sizeof alone does not catch,
 // such as reordering fields within a record or changing an encoding.
-constexpr uint32_t stadb_version = 1;
+constexpr uint32_t stadb_version = 2;
 
 // v1 supports exactly one scene. Kept as a stored field so that adding corners
 // later is a version bump rather than a format redesign.
