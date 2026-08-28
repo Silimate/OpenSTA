@@ -24,7 +24,7 @@ proc_redirect report_echo {
   parse_key_args "report_echo" args \
     keys {} flags {}
   check_argc_eq1 "report_echo" $args
-  
+
   set message [lindex $args 0]
   report_line "$message"
 }
@@ -35,16 +35,18 @@ proc target_ppa_json { filepath } {
 
   # Retrieve max_logic_levels from global scope (set by user constraints)
   global max_logic_levels
-  if { ![info exists max_logic_levels] } { # default to 0 if undefined
-    set max_logic_levels 0
+  if { [info exists max_logic_levels] } {
+    set max_logic_levels_json $max_logic_levels
+  } else {
+    set max_logic_levels_json "null"
   }
-  
+
   # Dump target PPA to JSON file
   puts $ppa_json "{"
   puts $ppa_json "  \"max_area\": [sta::max_area],"
   puts $ppa_json "  \"max_dynamic_power\": [sta::max_dynamic_power],"
   puts $ppa_json "  \"max_leakage_power\": [sta::max_leakage_power],"
-  puts $ppa_json "  \"max_logic_levels\": $max_logic_levels"
+  puts $ppa_json "  \"max_logic_levels\": $max_logic_levels_json"
   puts $ppa_json "}"
   close $ppa_json
 }
@@ -60,7 +62,7 @@ sta::define_cmd_args "set_dont_use" {lib_cell_name_pattern} \
   -arg_help {
     lib_cell_name_pattern {A liberty cell name glob pattern, as used in a `name=~` filter.}
   }
-     
+
 proc set_dont_use {lib_cell_name_pattern} {
   set targets [get_lib_cells -filter "name=~$lib_cell_name_pattern"]
   foreach_in_collection target $targets {
@@ -73,7 +75,7 @@ sta::define_cmd_args "unset_dont_use" {lib_cell_name_pattern} \
   -arg_help {
     lib_cell_name_pattern {A liberty cell name glob pattern, as used in a `name=~` filter.}
   }
-     
+
 proc unset_dont_use {lib_cell_name_pattern} {
   set targets [get_lib_cells -filter "name=~$lib_cell_name_pattern"]
   foreach_in_collection target $targets {
