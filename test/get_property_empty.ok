@@ -1,0 +1,12 @@
+all_outputs: '' 0
+nets of all_outputs: '' 0
+get_ports: '' 0
+get_pins: '' 0
+get_cells: '' 0
+get_clocks: '' 0
+get_lib_cells: '' 0
+empty list: '' 0
+empty string: '' 0
+empty -object_type: '' 0
+one port: 'in1' 1
+all_inputs: 'in1 in2 clk' 3

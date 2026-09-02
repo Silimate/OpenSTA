@@ -164,6 +164,7 @@ record_public_tests {
   get_lib_pins_of_objects
   get_noargs
   get_objrefs
+  get_property_empty
   get_property_flags
   get_scenes
   input_delay_ref_pin_rebuild
