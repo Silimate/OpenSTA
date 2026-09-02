@@ -25,8 +25,8 @@
 namespace eval sta {
 
 define_cmd_args "get_property" \
-  {[-object_type library|liberty_library|cell|liberty_cell|instance|pin|net|port|clock|timing_arc] object property} \
-  -help {The `get_property` command returns a property of an object. Properties for each object type are shown below.
+  {[-object_type library|liberty_library|cell|liberty_cell|instance|pin|net|port|clock|timing_arc] [-quiet] object property} \
+  -help {The `get_property` command returns a property of an object. Given a collection of objects it returns one value per object, so an empty collection warns and returns an empty list. Properties for each object type are shown below.
 
 | Object type | Properties |
 | --- | --- |
@@ -49,6 +49,7 @@ The pin `activity` property is a list of activity (transitions per second), duty
   -arg_help {
     -object_type {`object_type`: The type of object when it is specified as a name.
 cell|pin|net|port|clock|library|library_cell|library_pin|timing_arc}
+    -quiet {Suppress the warning when object is an empty collection or an object name is not found.}
     object {An object returned by a `get_*` command, or an object name. `-object_type` is required if object is a name.}
     property {A property name.}
   }
@@ -64,7 +65,13 @@ proc get_property_cmd { cmd type_key cmd_args } {
   set object [lindex $cmd_args 0]
   set prop [lindex $cmd_args 1]
   if { $object == "" } {
-    sta_error 2200 "get_property object is null."
+    # Both list and collection mode encode "nothing matched" as the empty string, so this is
+    # the zero-element case of the collection branch below: no objects, no property values.
+    # Keep warning under the id this used to error with, so suppress_msg 2200 still applies.
+    if { !$quiet } {
+      sta_warn 2200 "get_property object is null."
+    }
+    return {}
   } elseif { [sta::is_collection $object] || [sizeof_collection $object] > 1 } {
     set results {}
     foreach_in_collection element $object {

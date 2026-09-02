@@ -1,0 +1,24 @@
+Warning 2200: get_property_empty.tcl line 15, get_property object is null.
+all_outputs: '' 0
+Warning 2200: get_property_empty.tcl line 16, get_property object is null.
+nets of all_outputs: '' 0
+Warning 2200: get_property_empty.tcl line 19, get_property object is null.
+get_ports: '' 0
+Warning 2200: get_property_empty.tcl line 20, get_property object is null.
+get_pins: '' 0
+Warning 2200: get_property_empty.tcl line 21, get_property object is null.
+get_cells: '' 0
+Warning 2200: get_property_empty.tcl line 22, get_property object is null.
+get_clocks: '' 0
+Warning 2200: get_property_empty.tcl line 23, get_property object is null.
+get_lib_cells: '' 0
+Warning 2200: get_property_empty.tcl line 26, get_property object is null.
+empty list: '' 0
+Warning 2200: get_property_empty.tcl line 27, get_property object is null.
+empty string: '' 0
+Warning 2200: get_property_empty.tcl line 28, get_property object is null.
+empty -object_type: '' 0
+quiet: '' 0
+suppress_msg 2200: '' 0
+one port: 'in1' 1
+all_inputs: 'in1 in2 clk' 3
