@@ -28,6 +28,7 @@
 #include <cstddef>
 #include <map>
 #include <string>
+#include <utility>
 
 #include "ArcDelayCalc.hh"
 #include "CheckCapacitances.hh"
@@ -524,6 +525,7 @@ void
 Sta::clear()
 {
   clearNonSdc();
+  power_->clear();
   for (Mode *mode : modes_)
     mode->sdc()->clear();
 }
@@ -542,7 +544,6 @@ Sta::clearNonSdc()
   levelize_->clear();
   deleteParasitics();
   graph_delay_calc_->clear();
-  power_->clear();
   if (check_min_pulse_widths_)
     check_min_pulse_widths_->clear();
   if (check_min_periods_)
@@ -639,6 +640,7 @@ void
 Sta::networkChangedNonSdc()
 {
   clearNonSdc();
+  power_->clearNonSdc();
 }
 
 void
@@ -6390,14 +6392,15 @@ void
 Sta::writePathSpice(const Path *path,
                     std::string_view spice_filename,
                     std::string_view subckt_filename,
-                    std::string_view lib_subckt_filename,
+                    StringSeq lib_subckt_filenames,
                     std::string_view model_filename,
                     std::string_view power_name,
                     std::string_view gnd_name,
                     CircuitSim ckt_sim)
 {
   ensureLibLinked();
-  sta::writePathSpice(path, spice_filename, subckt_filename, lib_subckt_filename,
+  sta::writePathSpice(path, spice_filename, subckt_filename,
+                      std::move(lib_subckt_filenames),
                       model_filename, power_name, gnd_name, ckt_sim, this);
 }
 

@@ -148,6 +148,7 @@ record_public_tests {
   delay_calc_no_inv
   disable_clock_gating_check
   disconnect_mcp_pin
+  dmp_two_pole_reduce
   extras
   fanin_empty
   filter_expr_defined
@@ -191,6 +192,7 @@ record_public_tests {
   path_group_names
   pin_name_compatibility
   pin_props
+  power_activity_network_changed
   power_calc_no_inv
   power_json
   prima3
