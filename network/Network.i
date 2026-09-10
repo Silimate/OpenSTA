@@ -494,7 +494,7 @@ find_instances_complete(InstanceSeq *collection,
   });
 }
 
-const char port_typename[] = "instance";
+const char port_typename[] = "port";
 
 PortSeq *
 find_ports_complete(PortSeq *collection,
