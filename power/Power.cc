@@ -809,6 +809,32 @@ Power::clockGatePins(const Instance *inst,
 
 ////////////////////////////////////////////////////////////////
 
+// Replace each output variable in bdd with that port's Liberty function.
+DdNode *
+Power::substituteOutputPorts(DdNode *bdd)
+{
+  DdManager *cudd_mgr = bdd_.cuddMgr();
+  // Snapshot now; funcBdd() can insert new ports into the map.
+  LibertyPortSeq out_ports;
+  for (const auto [port, var_node] : bdd_.portVarMap()) {
+    if (port->direction()->isAnyOutput() && port->function())
+      out_ports.push_back(const_cast<LibertyPort *>(port));
+  }
+  for (LibertyPort *out_port : out_ports) {
+    DdNode *func_bdd = bdd_.funcBdd(out_port->function());
+    DdNode *var_node = bdd_.findNode(out_port);
+    if (func_bdd && var_node) {
+      // Substitute Y := f(inputs) so Y is not an independent variable.
+      DdNode *composed = Cudd_bddCompose(cudd_mgr, bdd, func_bdd,
+                                         Cudd_NodeReadIndex(var_node));
+      Cudd_Ref(composed);
+      Cudd_RecursiveDeref(cudd_mgr, bdd); // drop the pre-substitution BDD
+      bdd = composed;
+    }
+  }
+  return bdd;
+}
+
 PwrActivity
 Power::evalActivity(FuncExpr *expr,
                     const Instance *inst)
@@ -818,6 +844,9 @@ Power::evalActivity(FuncExpr *expr,
     return findSeqActivity(inst, func_port);
   else {
     DdNode *bdd = bdd_.funcBdd(expr);
+    Cudd_Ref(bdd);
+    // Outputs in when are functions of inputs, not independent 0.5-duty vars.
+    bdd = substituteOutputPorts(bdd);
     float duty = evalBddDuty(bdd, inst);
     float density = evalBddActivity(bdd, inst);
 
