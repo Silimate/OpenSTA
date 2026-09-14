@@ -817,7 +817,9 @@ Power::substituteOutputPorts(DdNode *bdd)
   // Snapshot now; funcBdd() can insert new ports into the map.
   LibertyPortSeq out_ports;
   for (const auto [port, var_node] : bdd_.portVarMap()) {
-    if (port->direction()->isAnyOutput() && port->function())
+    // Consider outputs of a combinational function of the current inputs.
+    if (port->direction()->isAnyOutput() && port->function()
+        && !port->libertyCell()->isSequential())
       out_ports.push_back(const_cast<LibertyPort *>(port));
   }
   for (LibertyPort *out_port : out_ports) {
