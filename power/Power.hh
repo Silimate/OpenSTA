@@ -258,6 +258,7 @@ protected:
                         const Instance *inst);
   float evalBddDuty(DdNode *bdd,
                     const Instance *inst);
+  DdNode *substituteOutputPorts(DdNode *bdd);
   void findUnannotatedPins(const Instance *inst,
                            PinSeq &unannotated_pins);
   size_t pinCount();

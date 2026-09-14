@@ -809,6 +809,44 @@ Power::clockGatePins(const Instance *inst,
 
 ////////////////////////////////////////////////////////////////
 
+// Replace each output variable in bdd with that port's Liberty function.
+DdNode *
+Power::substituteOutputPorts(DdNode *bdd)
+{
+  DdManager *cudd_mgr = bdd_.cuddMgr();
+  LibertyPortSet substituted;
+  // Rescan: one output's function can name another (Z = !Y), adding it to the map.
+  for (bool changed = true; changed; ) {
+    changed = false;
+    // Snapshot; funcBdd() below inserts into the map being iterated.
+    LibertyPortSeq out_ports;
+    for (const auto [port, var_node] : bdd_.portVarMap()) {
+      LibertyPort *out_port = const_cast<LibertyPort *>(port);
+      // Outputs that are a combinational function of the cell's own pins.
+      if (port->direction()->isAnyOutput() && port->function()
+          && !port->libertyCell()->isSequential()
+          && !substituted.contains(out_port))
+        out_ports.push_back(out_port);
+    }
+    for (LibertyPort *out_port : out_ports) {
+      substituted.insert(out_port);
+      DdNode *func_bdd = bdd_.funcBdd(out_port->function());
+      DdNode *var_node = bdd_.findNode(out_port);
+      // Not derefed: funcBdd() can hand back a port node the var map still owns.
+      if (func_bdd && var_node) {
+        // Y := f(inputs), so Y is not an independent variable.
+        DdNode *composed = Cudd_bddCompose(cudd_mgr, bdd, func_bdd,
+                                           Cudd_NodeReadIndex(var_node));
+        Cudd_Ref(composed);
+        Cudd_RecursiveDeref(cudd_mgr, bdd);
+        bdd = composed;
+        changed = true;
+      }
+    }
+  }
+  return bdd;
+}
+
 PwrActivity
 Power::evalActivity(FuncExpr *expr,
                     const Instance *inst)
@@ -818,6 +856,9 @@ Power::evalActivity(FuncExpr *expr,
     return findSeqActivity(inst, func_port);
   else {
     DdNode *bdd = bdd_.funcBdd(expr);
+    Cudd_Ref(bdd);
+    // Outputs in when are functions of inputs, not independent 0.5-duty vars.
+    bdd = substituteOutputPorts(bdd);
     float duty = evalBddDuty(bdd, inst);
     float density = evalBddActivity(bdd, inst);
 

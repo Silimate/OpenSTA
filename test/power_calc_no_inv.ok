@@ -3,7 +3,7 @@
   "name": "I1",
   "internal": 5.14e-05,
   "switching": 2.92e-05,
-  "leakage": 6.82e-11,
+  "leakage": 1.36e-10,
   "total": 8.06e-05
 }
 ,
@@ -11,7 +11,7 @@
   "name": "I3",
   "internal": 4.03e-06,
   "switching": 6.12e-05,
-  "leakage": 5.12e-11,
+  "leakage": 1.02e-10,
   "total": 6.53e-05
 }
 ,
@@ -19,7 +19,7 @@
   "name": "I2",
   "internal": 1.28e-05,
   "switching": 2.92e-05,
-  "leakage": 5.12e-11,
+  "leakage": 1.02e-10,
   "total": 4.20e-05
 }
 ]
@@ -28,7 +28,7 @@
   "name": "I1",
   "internal": 5.14e-05,
   "switching": 2.92e-05,
-  "leakage": 6.82e-11,
+  "leakage": 1.36e-10,
   "total": 8.06e-05
 }
 ,
