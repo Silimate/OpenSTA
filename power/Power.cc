@@ -814,24 +814,34 @@ DdNode *
 Power::substituteOutputPorts(DdNode *bdd)
 {
   DdManager *cudd_mgr = bdd_.cuddMgr();
-  // Snapshot now; funcBdd() can insert new ports into the map.
-  LibertyPortSeq out_ports;
-  for (const auto [port, var_node] : bdd_.portVarMap()) {
-    // Consider outputs of a combinational function of the current inputs.
-    if (port->direction()->isAnyOutput() && port->function()
-        && !port->libertyCell()->isSequential())
-      out_ports.push_back(const_cast<LibertyPort *>(port));
-  }
-  for (LibertyPort *out_port : out_ports) {
-    DdNode *func_bdd = bdd_.funcBdd(out_port->function());
-    DdNode *var_node = bdd_.findNode(out_port);
-    if (func_bdd && var_node) {
-      // Substitute Y := f(inputs) so Y is not an independent variable.
-      DdNode *composed = Cudd_bddCompose(cudd_mgr, bdd, func_bdd,
-                                         Cudd_NodeReadIndex(var_node));
-      Cudd_Ref(composed);
-      Cudd_RecursiveDeref(cudd_mgr, bdd); // drop the pre-substitution BDD
-      bdd = composed;
+  LibertyPortSet substituted;
+  // Rescan: one output's function can name another (Z = !Y), adding it to the map.
+  for (bool changed = true; changed; ) {
+    changed = false;
+    // Snapshot; funcBdd() below inserts into the map being iterated.
+    LibertyPortSeq out_ports;
+    for (const auto [port, var_node] : bdd_.portVarMap()) {
+      LibertyPort *out_port = const_cast<LibertyPort *>(port);
+      // Outputs that are a combinational function of the cell's own pins.
+      if (port->direction()->isAnyOutput() && port->function()
+          && !port->libertyCell()->isSequential()
+          && !substituted.contains(out_port))
+        out_ports.push_back(out_port);
+    }
+    for (LibertyPort *out_port : out_ports) {
+      substituted.insert(out_port);
+      DdNode *func_bdd = bdd_.funcBdd(out_port->function());
+      DdNode *var_node = bdd_.findNode(out_port);
+      // Not derefed: funcBdd() can hand back a port node the var map still owns.
+      if (func_bdd && var_node) {
+        // Y := f(inputs), so Y is not an independent variable.
+        DdNode *composed = Cudd_bddCompose(cudd_mgr, bdd, func_bdd,
+                                           Cudd_NodeReadIndex(var_node));
+        Cudd_Ref(composed);
+        Cudd_RecursiveDeref(cudd_mgr, bdd);
+        bdd = composed;
+        changed = true;
+      }
     }
   }
   return bdd;
