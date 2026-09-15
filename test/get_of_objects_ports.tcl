@@ -30,3 +30,12 @@ puts {[get_nets -of_objects [get_cells u4]]}
 report_object_full_names [get_nets -of_objects [get_cells u4]]
 puts {[get_nets -of_objects [get_pins u4/Y]]}
 report_object_full_names [get_nets -of_objects [get_pins u4/Y]]
+
+# Bus ports are bit blasted, so a member resolves like a scalar port and the
+# bus name matches every member.
+puts {[get_nets -of_objects [get_ports {bus[0]}]]}
+report_object_full_names [get_nets -of_objects [get_ports {bus[0]}]]
+puts {[get_pins -of_objects [get_ports {bus[1]}] -filter "direction==output"]}
+report_object_full_names [get_pins -of_objects [get_ports {bus[1]}] -filter "direction==output"]
+puts {[get_pins -of_objects [get_ports bus*] -filter "direction==output"]}
+report_object_full_names [get_pins -of_objects [get_ports bus*] -filter "direction==output"]

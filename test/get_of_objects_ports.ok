@@ -1,4 +1,6 @@
 [get_nets -of_objects [all_outputs]]
+bus[0]
+bus[1]
 out1
 out2
 [get_nets -of_objects [get_ports in1]]
@@ -6,12 +8,17 @@ in1
 [get_pins -of_objects [all_outputs]]
 u2/Y
 u3/Y
+u5/Y
+u6/Y
 [get_pins -of_objects [all_outputs] -filter "direction==output"]
 u2/Y
 u3/Y
+u5/Y
+u6/Y
 [get_pins -of_objects [get_ports in2]]
 u1/B
 u4/A
+u6/A
 [get_nets -of_objects [list [get_ports in1] [get_pins u1/Y]]]
 in1
 u1y
@@ -22,3 +29,10 @@ u4/Y
 [get_nets -of_objects [get_cells u4]]
 in2
 [get_nets -of_objects [get_pins u4/Y]]
+[get_nets -of_objects [get_ports {bus[0]}]]
+bus[0]
+[get_pins -of_objects [get_ports {bus[1]}] -filter "direction==output"]
+u6/Y
+[get_pins -of_objects [get_ports bus*] -filter "direction==output"]
+u5/Y
+u6/Y
