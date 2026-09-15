@@ -880,11 +880,19 @@ proc get_port_pin_warn { arg_name arg } {
 }
 
 proc get_port_pin_error { arg_name arg } {
+  return [get_port_pin_arg $arg_name $arg "error"]
+}
+
+# get_port_pin_error for SDC constraint pin arguments (-source,
+# -reference_pin, set_data_check -from/-to). A pin name that is not found is
+# retried by name folding (sta_sdc_name_folding). Commands that act on the
+# netlist or its parasitics use get_port_pin_error so a folded name never
+# retargets them.
+proc get_sdc_port_pin_error { arg_name arg } {
   return [get_port_pin_arg $arg_name $arg "error" 1]
 }
 
-# fold_names retries a pin name that is not found by name folding
-# (sta_sdc_name_folding); SDC pin arguments set it.
+# fold_names retries a pin name that is not found by name folding.
 proc get_port_pin_arg { arg_name arg warn_error {fold_names 0} } {
   set pin "NULL"
 

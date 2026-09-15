@@ -449,13 +449,16 @@ SdcNetwork::foldBitIndexRegisters(const Instance *context,
   return matches;
 }
 
-void
+// Pins of insts matching port_pattern. Returns how many instances have one.
+size_t
 SdcNetwork::foldInstancePins(const InstanceSeq &insts,
                              const PatternMatch *port_pattern,
                              bool glob,
                              PinSeq &pins) const
 {
+  size_t pin_insts = 0;
   for (const Instance *inst : insts) {
+    size_t pin_count = pins.size();
     if (glob)
       visitPinTail(inst, port_pattern, pins);
     else {
@@ -463,21 +466,29 @@ SdcNetwork::foldInstancePins(const InstanceSeq &insts,
       if (pin)
         pins.push_back(pin);
     }
+    if (pins.size() != pin_count)
+      pin_insts++;
   }
+  return pin_insts;
 }
 
-void
+// Clock pins of insts that port_name aliases. Returns how many were found.
+size_t
 SdcNetwork::foldClockPinAliases(const InstanceSeq &insts,
                                 std::string_view port_name,
                                 PinSeq &pins) const
 {
-  if (!isClockPinAlias(port_name) && !isLatchEnableAlias(port_name))
-    return;
-  for (const Instance *inst : insts) {
-    const Pin *pin = clockPinAlias(inst, port_name);
-    if (pin)
-      pins.push_back(pin);
+  size_t pin_insts = 0;
+  if (isClockPinAlias(port_name) || isLatchEnableAlias(port_name)) {
+    for (const Instance *inst : insts) {
+      const Pin *pin = clockPinAlias(inst, port_name);
+      if (pin) {
+        pins.push_back(pin);
+        pin_insts++;
+      }
+    }
   }
+  return pin_insts;
 }
 
 // The only clock (or latch enable) pin of a register/latch instance when
@@ -556,35 +567,40 @@ SdcNetwork::findPinsFolded(const Instance *context,
   bool port_glob = patternWildcards(port_name);
   PatternMatch inst_pattern(inst_path, pattern);
   PatternMatch port_pattern(port_name, pattern);
-  std::string rule;
 
+  // Candidate instances: exact matches, which lack the port since the
+  // exact pin lookup missed, plus folded matches. A glob that matches
+  // instances exactly keeps its ordinary (single level) meaning.
   InstanceSeq insts = findInstancesMatching(context, &inst_pattern);
-  if (!insts.empty()) {
-    // The instances exist under their exact names but lack the port.
-    if (!port_glob)
-      foldClockPinAliases(insts, port_name, pins);
+  if (!inst_glob || insts.empty()) {
+    for (const Instance *inst : foldInstances(context, &inst_pattern, inst_glob)) {
+      if (std::find(insts.begin(), insts.end(), inst) == insts.end())
+        insts.push_back(inst);
+    }
+  }
+  std::string_view rule;
+  size_t pin_insts = foldInstancePins(insts, &port_pattern, port_glob, pins);
+  if (pins.empty() && !port_glob) {
+    pin_insts = foldClockPinAliases(insts, port_name, pins);
     rule = " (clock pin alias)";
   }
-  else {
-    insts = foldInstances(context, &inst_pattern, inst_glob);
-    if (insts.empty() && !inst_glob) {
-      insts = foldBitIndexRegisters(context, inst_path);
-      rule = " (register bit index)";
-    }
-    if (!inst_glob && insts.size() > 1) {
-      std::vector<std::string> candidates;
-      for (const Instance *inst : insts)
-        candidates.push_back(pathName(inst) + divider_ + port_name);
-      reportFoldAmbiguous(query, candidates);
-      return pins;
-    }
-    foldInstancePins(insts, &port_pattern, port_glob, pins);
+  if (pins.empty() && !inst_glob) {
+    InstanceSeq registers = foldBitIndexRegisters(context, inst_path);
+    pin_insts = foldInstancePins(registers, &port_pattern, port_glob, pins);
+    rule = " (register bit index)";
     if (pins.empty() && !port_glob) {
-      foldClockPinAliases(insts, port_name, pins);
-      rule = rule.empty()
-        ? " (clock pin alias)"
-        : " (register bit index, clock pin alias)";
+      pin_insts = foldClockPinAliases(registers, port_name, pins);
+      rule = " (register bit index, clock pin alias)";
     }
+  }
+  // An instance name without wildcards must identify one instance with
+  // the requested pins.
+  if (!inst_glob && pin_insts > 1) {
+    std::vector<std::string> candidates;
+    for (const Pin *pin : pins)
+      candidates.push_back(pathName(pin));
+    reportFoldAmbiguous(query, candidates);
+    pins.clear();
   }
   if (!pins.empty()) {
     std::vector<std::string> targets;

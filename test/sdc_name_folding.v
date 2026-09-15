@@ -9,6 +9,8 @@ module sdc_name_folding (clk, in1, status, out1, out2);
   output out2;
   wire gclk;
   wire q1;
+  wire u1;
+  wire u2;
 
   clkgen clkgen_u0 (.clk(clk), .gclk(gclk));
   ctrl ctrl_u0 (.clk(gclk), .d(in1), .q(q1));
@@ -16,6 +18,9 @@ module sdc_name_folding (clk, in1, status, out1, out2);
   // Two instances whose names fold to the same string (amb_0_x).
   BUFX \amb[0].x  (.A(q1), .Z(out1));
   BUFX amb_0_x (.A(q1), .Z(out2));
+  // Folded names collide but only one of each pair has pin Z or pin Q.
+  BUFX \uniq[0].y  (.A(q1), .Z(u1));
+  DFFCLK uniq_0_y (.CLK(clk), .D(q1), .Q(u2));
 endmodule
 
 module clkgen (clk, gclk);

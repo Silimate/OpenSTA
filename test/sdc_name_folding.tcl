@@ -34,10 +34,14 @@ set rescued {
   {get_nets ctrl_u0/gen_lane_0_sync_u/n*}
   {get_ports status*0*}
   {get_ports status_1}
+  {get_pins uniq.0.y/Z}
+  {get_pins uniq_0_y/Z}
+  {get_pins uniq.0.y/Q}
 }
 
 set unresolved {
   {get_pins amb.0.x/Z}
+  {get_pins amb.0.x/*}
   {get_pins ctrl_u0/gen_lane_0_sync_u/two_bit_reg/Q}
   {get_pins csr_u0/buf_u0/CP}
   {get_pins csr_u0/dual_reg/CP}
@@ -79,6 +83,10 @@ foreach cmd $rescued {
 puts "######## unresolved ########"
 foreach cmd $unresolved {
   show $cmd
+}
+puts "######## commands outside SDC do not fold pin arguments ########"
+if { [catch {report_arrival ctrl_u0/gen_lane_0_sync_u/ready_sync_reg/Q} msg] } {
+  puts $msg
 }
 puts "######## exact names win ########"
 show {get_pins amb_0_x/Z}

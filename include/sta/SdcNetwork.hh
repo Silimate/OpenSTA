@@ -272,15 +272,18 @@ public:
   InstanceSeq findInstancesFolded(const Instance *context,
                                   const PatternMatch *pattern) const;
   // Pins split the query at the last divider into an instance part and a
-  // port part. The instance part is looked up exactly and then folded.
-  // When the port is missing on the instances found:
+  // port part. The candidate instances are the exact and folded matches of
+  // the instance part (a glob instance part that matches exactly is not
+  // folded). When none of them has the port:
   //  - a clock pin alias maps to the only clock port of a register or
   //    latch liberty cell (CP CPN CK CKN CLK CLKN C CLOCK CLKIN, case
   //    insensitive; for latch-only cells also E EN G GN GATE GATE_N).
   //    Cells with several clock ports, or no sequentials, never alias.
-  // When a query without wildcards finds no instance:
-  //  - a register instance whose name carries one extra trailing bit
-  //    index (reg finds reg[0]) is accepted when it is the only one.
+  //  - then, for an instance part without wildcards, register instances
+  //    whose name carries one extra trailing bit index (reg finds reg[0])
+  //    are tried the same way.
+  // An instance part without wildcards resolves only when a single
+  // instance has the requested pins.
   PinSeq findPinsFolded(const Instance *context,
                         const PatternMatch *pattern) const;
   // Single pin version of findPinsFolded for SDC pin arguments.
@@ -357,13 +360,13 @@ protected:
                             bool glob) const;
   InstanceSeq foldBitIndexRegisters(const Instance *context,
                                     std::string_view inst_path) const;
-  void foldInstancePins(const InstanceSeq &insts,
-                        const PatternMatch *port_pattern,
-                        bool glob,
-                        PinSeq &pins) const;
-  void foldClockPinAliases(const InstanceSeq &insts,
-                           std::string_view port_name,
-                           PinSeq &pins) const;
+  size_t foldInstancePins(const InstanceSeq &insts,
+                          const PatternMatch *port_pattern,
+                          bool glob,
+                          PinSeq &pins) const;
+  size_t foldClockPinAliases(const InstanceSeq &insts,
+                             std::string_view port_name,
+                             PinSeq &pins) const;
   const Pin *clockPinAlias(const Instance *inst,
                            std::string_view port_name) const;
   void reportFoldRescue(std::string_view query,

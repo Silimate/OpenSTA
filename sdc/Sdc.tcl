@@ -1393,7 +1393,7 @@ proc create_generated_clock { args } {
   
   if [info exists keys(-source)] {
     set source $keys(-source)
-    set source_pin [get_port_pin_error "master_pin" $source]
+    set source_pin [get_sdc_port_pin_error "master_pin" $source]
   } else {
     sta_error 377 "missing -source argument."
   }
@@ -2303,24 +2303,24 @@ proc set_data_check { args } {
   set clk "NULL"
   
   if [info exists keys(-from)] {
-    set from [get_port_pin_error "from_pin" $keys(-from)]
+    set from [get_sdc_port_pin_error "from_pin" $keys(-from)]
   } elseif [info exists keys(-rise_from)] {
-    set from [get_port_pin_error "from_pin" $keys(-rise_from)]
+    set from [get_sdc_port_pin_error "from_pin" $keys(-rise_from)]
     set from_rf "rise"
   } elseif [info exists keys(-fall_from)] {
-    set from [get_port_pin_error "from_pin" $keys(-fall_from)]
+    set from [get_sdc_port_pin_error "from_pin" $keys(-fall_from)]
     set from_rf "fall"
   } else {
     sta_error 425 "missing -from, -rise_from or -fall_from argument."
   }
   
   if [info exists keys(-to)] {
-    set to [get_port_pin_error "to_pin" $keys(-to)]
+    set to [get_sdc_port_pin_error "to_pin" $keys(-to)]
   } elseif [info exists keys(-rise_to)] {
-    set to [get_port_pin_error "to_pin" $keys(-rise_to)]
+    set to [get_sdc_port_pin_error "to_pin" $keys(-rise_to)]
     set to_rf "rise"
   } elseif [info exists keys(-fall_to)] {
-    set to [get_port_pin_error "to_pin" $keys(-fall_to)]
+    set to [get_sdc_port_pin_error "to_pin" $keys(-fall_to)]
     set to_rf "fall"
   } else {
     sta_error 426 "missing -to, -rise_to or -fall_to argument."
@@ -2369,24 +2369,24 @@ proc unset_data_checks_cmd { cmd cmd_args } {
   set clk "NULL"
   set setup_hold "max"
   if [info exists keys(-from)] {
-    set from [get_port_pin_error "from_pin" $keys(-from)]
+    set from [get_sdc_port_pin_error "from_pin" $keys(-from)]
   } elseif [info exists keys(-rise_from)] {
-    set from [get_port_pin_error "from_pin" $keys(-rise_from)]
+    set from [get_sdc_port_pin_error "from_pin" $keys(-rise_from)]
     set from_rf "rise"
   } elseif [info exists keys(-fall_from)] {
-    set from [get_port_pin_error "from_pin" $keys(-fall_from)]
+    set from [get_sdc_port_pin_error "from_pin" $keys(-fall_from)]
     set from_rf "fall"
   } else {
     sta_error 427 "missing -from, -rise_from or -fall_from argument."
   }
 
   if [info exists keys(-to)] {
-    set to [get_port_pin_error "to_pin" $keys(-to)]
+    set to [get_sdc_port_pin_error "to_pin" $keys(-to)]
   } elseif [info exists keys(-rise_to)] {
-    set to [get_port_pin_error "to_pin" $keys(-rise_to)]
+    set to [get_sdc_port_pin_error "to_pin" $keys(-rise_to)]
     set to_rf "rise"
   } elseif [info exists keys(-fall_to)] {
-    set to [get_port_pin_error "to_pin" $keys(-fall_to)]
+    set to [get_sdc_port_pin_error "to_pin" $keys(-fall_to)]
     set to_rf "fall"
   } else {
     sta_error 428 "missing -to, -rise_to or -fall_to argument."
@@ -2860,7 +2860,7 @@ proc set_port_delay { cmd sta_cmd cmd_args port_dirs } {
   
   set ref_pin "NULL"
   if [info exists keys(-reference_pin)] {
-    set ref_pin [get_port_pin_error "ref_pin" $keys(-reference_pin)]
+    set ref_pin [get_sdc_port_pin_error "ref_pin" $keys(-reference_pin)]
     if { [info exists flags(-source_latency_included)] } {
       sta_warn 438 "-source_latency_included ignored with -reference_pin."
     }

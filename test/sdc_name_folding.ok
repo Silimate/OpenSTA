@@ -48,6 +48,12 @@ Warning 366: port 'status*0*' not found.
 get_ports status*0* -> {}
 Warning 366: port 'status_1' not found.
 get_ports status_1 -> {}
+Warning 363: pin 'uniq.0.y/Z' not found.
+get_pins uniq.0.y/Z -> {}
+Warning 363: pin 'uniq_0_y/Z' not found.
+get_pins uniq_0_y/Z -> {}
+Warning 363: pin 'uniq.0.y/Q' not found.
+get_pins uniq.0.y/Q -> {}
 ######## get_*, sta_sdc_name_folding 1 ########
 get_pins clkgen_u0/genblk1_0_gen_ch_0_cg_wrap_u0_icg_u0/Q -> {{clkgen_u0/genblk1[0].gen_ch[0].cg_wrap_u0/icg_u0/Q}}
 Warning 2740: SDC object 'ctrl_u0/gen_lane_0_sync_u/ready_sync_reg/Q' resolved to 'ctrl_u0/gen_lane[0].sync_u/ready_sync_reg/Q' by name folding.
@@ -69,10 +75,19 @@ get_nets ctrl_u0/gen_lane_0_sync_u/n* -> {{ctrl_u0/gen_lane[0].sync_u/n1} {ctrl_
 get_ports status*0* -> {{status[0]}}
 Warning 2740: SDC object 'status_1' resolved to 'status[1]' by name folding.
 get_ports status_1 -> {{status[1]}}
+Warning 2740: SDC object 'uniq.0.y/Z' resolved to 'uniq[0].y/Z' by name folding.
+get_pins uniq.0.y/Z -> {{uniq[0].y/Z}}
+Warning 2740: SDC object 'uniq_0_y/Z' resolved to 'uniq[0].y/Z' by name folding.
+get_pins uniq_0_y/Z -> {{uniq[0].y/Z}}
+Warning 2740: SDC object 'uniq.0.y/Q' resolved to 'uniq_0_y/Q' by name folding.
+get_pins uniq.0.y/Q -> {uniq_0_y/Q}
 ######## unresolved ########
 Warning 2742: SDC object 'amb.0.x/Z' is ambiguous under name folding (2 candidates: 'amb[0].x/Z', 'amb_0_x/Z'); not resolved.
 Warning 363: pin 'amb.0.x/Z' not found.
 get_pins amb.0.x/Z -> {}
+Warning 2742: SDC object 'amb.0.x/*' is ambiguous under name folding (4 candidates: 'amb[0].x/A', 'amb[0].x/Z', 'amb_0_x/A', 'amb_0_x/Z'); not resolved.
+Warning 363: pin 'amb.0.x/*' not found.
+get_pins amb.0.x/* -> {}
 Warning 2742: SDC object 'ctrl_u0/gen_lane_0_sync_u/two_bit_reg/Q' is ambiguous under name folding (2 candidates: 'ctrl_u0/gen_lane[0].sync_u/two_bit_reg[0]/Q', 'ctrl_u0/gen_lane[0].sync_u/two_bit_reg[1]/Q'); not resolved.
 Warning 363: pin 'ctrl_u0/gen_lane_0_sync_u/two_bit_reg/Q' not found.
 get_pins ctrl_u0/gen_lane_0_sync_u/two_bit_reg/Q -> {}
@@ -88,6 +103,8 @@ Warning 363: pin 'no_such_inst/Q' not found.
 get_pins no_such_inst/Q -> {}
 Warning 349: instance 'clkgen_u0/genblk1_0_gen.*' not found.
 get_cells -regexp {clkgen_u0/genblk1_0_gen.*} -> {}
+######## commands outside SDC do not fold pin arguments ########
+Error 130: sdc_name_folding.tcl line 90, pin ctrl_u0/gen_lane_0_sync_u/ready_sync_reg/Q not found.
 ######## exact names win ########
 get_pins amb_0_x/Z -> {amb_0_x/Z}
 get_pins {amb[0].x/Z} -> {{amb[0].x/Z}}
