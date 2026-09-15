@@ -431,6 +431,18 @@ Network::isTopLevelPort(const Pin *pin) const
   return (parent(instance(pin)) == nullptr);
 }
 
+Net *
+Network::connectedNet(const Pin *pin) const
+{
+  Net *pin_net = net(pin);
+  if (pin_net == nullptr && isTopLevelPort(pin)) {
+    Term *pin_term = term(pin);
+    if (pin_term)
+      return net(pin_term);
+  }
+  return pin_net;
+}
+
 bool
 Network::isInside(const Pin *pin,
                   const Pin *hier_pin) const

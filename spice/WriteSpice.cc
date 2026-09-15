@@ -594,15 +594,7 @@ Net *
 pinNet(const Pin *pin,
        const Network *network)
 {
-  Net *net = network->net(pin);
-  // Pins on the top level instance may not have nets.
-  // Use the net connected to the pin's terminal.
-  if (net == nullptr && network->isTopLevelPort(pin)) {
-    Term *term = network->term(pin);
-    if (term)
-      return network->net(term);
-  }
-  return net;
+  return network->connectedNet(pin);
 }
 
 void

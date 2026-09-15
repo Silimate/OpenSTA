@@ -166,6 +166,7 @@ record_public_tests {
   get_lib_pins_of_objects
   get_noargs
   get_objrefs
+  get_of_objects_ports
   get_property_empty
   get_property_flags
   get_scenes
