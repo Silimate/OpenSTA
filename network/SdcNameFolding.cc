@@ -742,7 +742,8 @@ SdcNetwork::reportFoldRescue(std::string_view query,
   key += query;
   if (!fold_reported_.insert(key).second)
     return;
-  const std::string &first = targets[0];
+  // Network iteration order differs between platforms; report sorted names.
+  const std::string &first = *std::min_element(targets.begin(), targets.end());
   if (targets.size() == 1)
     report_->warn(2740, "SDC object '{}' resolved to '{}' by name folding{}.",
                   query, first, rule);
@@ -762,7 +763,10 @@ SdcNetwork::reportFoldAmbiguous(std::string_view query,
   if (!fold_reported_.insert(key).second)
     return;
   size_t count = candidates.size();
-  std::string list = quotedList(candidates);
+  // Network iteration order differs between platforms; report sorted names.
+  std::vector<std::string> sorted_candidates = candidates;
+  std::sort(sorted_candidates.begin(), sorted_candidates.end());
+  std::string list = quotedList(sorted_candidates);
   report_->warn(2742, "SDC object '{}' is ambiguous under name folding ({} candidates: {}); not resolved.",
                 query, count, list);
 }
