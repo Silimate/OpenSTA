@@ -251,6 +251,14 @@ proc trace_pin_name_compatibility { name1 name2 op } {
     pin_name_compatibility set_pin_name_compatibility
 }
 
+trace add variable ::sta_sdc_name_folding {read write} \
+  sta::trace_sdc_name_folding
+
+proc trace_sdc_name_folding { name1 name2 op } {
+  trace_boolean_var $op ::sta_sdc_name_folding \
+    sdc_name_folding set_sdc_name_folding
+}
+
 trace add variable ::sta_pocv_quantile {read write} \
   sta::trace_pocv_quantile
 
@@ -324,6 +332,9 @@ define_var_help sta_pocv_mode {scalar|normal|skew_normal} \
 
 define_var_help sta_pocv_quantile {float} \
   {The target quantile of a delay probability distribution (confidence level). The default value is 3 standard deviations, or sigma.}
+
+define_var_help sta_sdc_name_folding {0|1} \
+  {When a `get_cells`, `get_pins`, `get_nets` or `get_ports` pattern (or an implicit object name in an SDC command) matches nothing, retry with every run of the characters `/ . [ ] _` folded to a single `_` in both the pattern and the netlist names, so names flattened by a synthesis tool (`gen_0_child`, `wrapper_child`) find the elaborated hierarchical objects (`gen[0].child`, `wrapper/child`). A pin on a register may also match a register instance name that carries one extra bit index (`reg` finds `reg[0]`), a clock pin name missing on a register or latch with a single clock pin maps to that pin (`CP` finds `CLK`), and a port glob that matches no port name is matched against bus bit names. A name without wildcards is only resolved when exactly one object matches; ambiguous names stay unresolved and the candidates are listed. Every resolution is reported with warning 2740 or 2741. The default value is 1.}
 
 ################################################################
 

@@ -284,6 +284,7 @@ ConcreteNetwork::~ConcreteNetwork()
 void
 ConcreteNetwork::clearImpl()
 {
+  name_edit_count_++;
   if (top_instance_)
     deleteInstanceImpl(top_instance_);
   top_instance_ = nullptr;
@@ -322,6 +323,13 @@ ConcreteNetwork::deleteCellNetworkViewsImpl()
       deleteInstance(view);
   }
   cell_network_view_map_.clear();
+}
+
+bool
+ConcreteNetwork::nameEditCount(uint64_t &count) const
+{
+  count = name_edit_count_;
+  return true;
 }
 
 Instance *
@@ -1227,6 +1235,7 @@ ConcreteNetwork::mergeInto(Net *net,
   ConcreteNet *cnet = reinterpret_cast<ConcreteNet*>(net);
   ConcreteNet *cinto_net = reinterpret_cast<ConcreteNet*>(into_net);
   cnet->mergeInto(cinto_net);
+  name_edit_count_++;
   clearNetDrvrPinMap();
 }
 
@@ -1270,6 +1279,7 @@ ConcreteNetwork::makeConcreteInstance(ConcreteCell *cell,
   ConcreteInstance *cparent =
     reinterpret_cast<ConcreteInstance*>(parent);
   ConcreteInstance *inst = new ConcreteInstance(name, cell, cparent);
+  name_edit_count_++;
   if (parent)
     cparent->addChild(inst);
   return reinterpret_cast<Instance*>(inst);
@@ -1321,6 +1331,7 @@ ConcreteNetwork::deleteInstance(Instance *inst)
 void
 ConcreteNetwork::deleteInstanceImpl(Instance *inst)
 {
+  name_edit_count_++;
   ConcreteInstance *cinst = reinterpret_cast<ConcreteInstance*>(inst);
   ConcreteInstanceNetMap *nets = cinst->nets_;
   if (nets) {
@@ -1534,6 +1545,7 @@ ConcreteNetwork::makeNet(std::string_view name,
 {
   ConcreteInstance *cparent = reinterpret_cast<ConcreteInstance*>(parent);
   ConcreteNet *net = new ConcreteNet(name, cparent);
+  name_edit_count_++;
   cparent->addNet(net);
   return reinterpret_cast<Net*>(net);
 }
@@ -1541,6 +1553,7 @@ ConcreteNetwork::makeNet(std::string_view name,
 void
 ConcreteNetwork::deleteNet(Net *net)
 {
+  name_edit_count_++;
   ConcreteNet *cnet = reinterpret_cast<ConcreteNet*>(net);
   ConcreteNetPinIterator pin_iter(cnet);
   while (pin_iter.hasNext()) {
@@ -1986,6 +1999,7 @@ ConcreteNetwork::setTopInstance(Instance *top_inst)
     clearNetDrvrPinMap();
   }
   top_instance_ = top_inst;
+  name_edit_count_++;
 }
 
 void
@@ -2004,6 +2018,7 @@ ConcreteNetwork::linkNetwork(std::string_view top_cell_name,
     deleteTopInstance();
     top_instance_ = link_func_(top_cell_name,
                                make_black_boxes);
+    name_edit_count_++;
     if (top_instance_)
       checkNetworkLibertyScenes();
     return top_instance_ != nullptr;

@@ -67,6 +67,7 @@ public:
   bool linkNetwork(std::string_view top_cell_name,
                    bool make_black_boxes,
                    Report *report) override;
+  bool nameEditCount(uint64_t &count) const override;
   Instance *topInstance() const override;
 
   std::string name(const Library *library) const override;
@@ -284,6 +285,8 @@ protected:
   ConcreteLibrarySeq library_seq_;
   ConcreteLibraryMap library_map_;
   Instance *top_instance_{nullptr};
+  // Bumped when an instance or net is made, deleted or merged.
+  uint64_t name_edit_count_{0};
   NetSet constant_nets_[2]{NetSet(this), NetSet(this)};  // LogicValue::zero/one
   LinkNetworkFunc link_func_;
   CellNetworkViewMap cell_network_view_map_;

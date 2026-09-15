@@ -1,4 +1,7 @@
 # Opt-in sequential pin aliases: CK/CLK/clk/clock, D/d, Q/q.
+# Name folding (sdc_name_folding test) also maps a missing clock pin name as
+# a last resort; turn it off so only sta_pin_name_compatibility is tested.
+set sta_sdc_name_folding 0
 proc show { label cmd } {
   set names {}
   foreach_in_collection obj [eval $cmd] {

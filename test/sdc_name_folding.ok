@@ -1,0 +1,118 @@
+default sta_sdc_name_folding: 1
+######## read_sdc, sta_sdc_name_folding 0 ########
+Warning 363: pin 'clkgen_u0/genblk1_0_gen_ch_0_cg_wrap_u0_icg_u0/Q' not found.
+Error 374: sdc_name_folding.sdc line 12, empty ports/pins/nets argument.
+Warning 101: sdc_name_folding.sdc line 20, object 'ctrl_u0/gen_lane_0_sync_u/ready_meta_0_reg/Q' not found.
+Error 374: sdc_name_folding.sdc line 20, empty ports/pins/nets argument.
+Warning 366: port 'status*0*' not found.
+Warning 366: port 'status*1*' not found.
+Warning 363: pin 'csr_u0/*mode_sel_reg*/CP' not found.
+Warning 471: sdc_name_folding.sdc line 28, no valid objects specified for -from.
+Warning 351: clock 'GCLK_CH*' not found.
+Warning 351: clock 'SYNC_CLK_CH*' not found.
+clocks -> {CLK}
+######## read_sdc, sta_sdc_name_folding 1 ########
+Warning 2740: SDC object 'clkgen_u0/genblk1_0_gen_ch_0_cg_wrap_u0_icg_u0/Q' resolved to 'clkgen_u0/genblk1[0].gen_ch[0].cg_wrap_u0/icg_u0/Q' by name folding.
+Warning 2740: SDC object 'ctrl_u0/gen_lane_0_sync_u/ready_meta_0_reg/Q' resolved to 'ctrl_u0/gen_lane[0].sync_u/ready_meta_0_reg[0]/Q' by name folding (register bit index).
+Warning 2740: SDC object 'status*0*' resolved to 'status[0]' by name folding (bus bit match).
+Warning 2740: SDC object 'status*1*' resolved to 'status[1]' by name folding (bus bit match).
+Warning 2741: SDC object 'csr_u0/*mode_sel_reg*/CP' resolved to 'csr_u0/mode_sel_reg[0]/CLK' and 1 more by name folding (clock pin alias).
+clocks -> {CLK GCLK_CH0 SYNC_CLK_CH0}
+Clock                   Period          Waveform
+----------------------------------------------------
+CLK                      10.00        0.00      5.00
+GCLK_CH0                 10.00        0.00      5.00 (generated)
+SYNC_CLK_CH0             20.00        0.00     10.00 (generated)
+######## get_*, sta_sdc_name_folding 0 ########
+Warning 363: pin 'clkgen_u0/genblk1_0_gen_ch_0_cg_wrap_u0_icg_u0/Q' not found.
+get_pins clkgen_u0/genblk1_0_gen_ch_0_cg_wrap_u0_icg_u0/Q -> {}
+Warning 363: pin 'ctrl_u0/gen_lane_0_sync_u/ready_sync_reg/Q' not found.
+get_pins ctrl_u0/gen_lane_0_sync_u/ready_sync_reg/Q -> {}
+Warning 363: pin 'ctrl_u0/gen_lane_0_sync_u/ready_meta_0_reg/Q' not found.
+get_pins ctrl_u0/gen_lane_0_sync_u/ready_meta_0_reg/Q -> {}
+Warning 363: pin 'csr_u0/*mode_sel_reg*/CP' not found.
+get_pins csr_u0/*mode_sel_reg*/CP -> {}
+Warning 363: pin 'csr_u0/hold_lat_reg/G' not found.
+get_pins csr_u0/hold_lat_reg/G -> {}
+Warning 363: pin 'clkgen_u0/genblk1_*_gen_ch_0_cg_wrap_u0_icg_u0/*' not found.
+get_pins clkgen_u0/genblk1_*_gen_ch_0_cg_wrap_u0_icg_u0/* -> {}
+Warning 349: instance 'clkgen_u0/genblk1_0_gen_ch_0_cg_wrap_u0' not found.
+get_cells clkgen_u0/genblk1_0_gen_ch_0_cg_wrap_u0 -> {}
+Warning 349: instance 'ctrl_u0/gen_lane_*_sync_u/*sync*' not found.
+get_cells ctrl_u0/gen_lane_*_sync_u/*sync* -> {}
+Warning 361: net 'clkgen_u0/genblk1_0_gen_ch_0_cg_wrap_u0/gclk' not found.
+get_nets clkgen_u0/genblk1_0_gen_ch_0_cg_wrap_u0/gclk -> {}
+Warning 361: net 'ctrl_u0/gen_lane_0_sync_u/n*' not found.
+get_nets ctrl_u0/gen_lane_0_sync_u/n* -> {}
+Warning 366: port 'status*0*' not found.
+get_ports status*0* -> {}
+Warning 366: port 'status_1' not found.
+get_ports status_1 -> {}
+Warning 363: pin 'uniq.0.y/Z' not found.
+get_pins uniq.0.y/Z -> {}
+Warning 363: pin 'uniq_0_y/Z' not found.
+get_pins uniq_0_y/Z -> {}
+Warning 363: pin 'uniq.0.y/Q' not found.
+get_pins uniq.0.y/Q -> {}
+######## get_*, sta_sdc_name_folding 1 ########
+get_pins clkgen_u0/genblk1_0_gen_ch_0_cg_wrap_u0_icg_u0/Q -> {{clkgen_u0/genblk1[0].gen_ch[0].cg_wrap_u0/icg_u0/Q}}
+Warning 2740: SDC object 'ctrl_u0/gen_lane_0_sync_u/ready_sync_reg/Q' resolved to 'ctrl_u0/gen_lane[0].sync_u/ready_sync_reg/Q' by name folding.
+get_pins ctrl_u0/gen_lane_0_sync_u/ready_sync_reg/Q -> {{ctrl_u0/gen_lane[0].sync_u/ready_sync_reg/Q}}
+get_pins ctrl_u0/gen_lane_0_sync_u/ready_meta_0_reg/Q -> {{ctrl_u0/gen_lane[0].sync_u/ready_meta_0_reg[0]/Q}}
+get_pins csr_u0/*mode_sel_reg*/CP -> {{csr_u0/mode_sel_reg[0]/CLK} {csr_u0/mode_sel_reg[1]/CLK}}
+Warning 2740: SDC object 'csr_u0/hold_lat_reg/G' resolved to 'csr_u0/hold_lat_reg/EN' by name folding (clock pin alias).
+get_pins csr_u0/hold_lat_reg/G -> {csr_u0/hold_lat_reg/EN}
+Warning 2741: SDC object 'clkgen_u0/genblk1_*_gen_ch_0_cg_wrap_u0_icg_u0/*' resolved to 'clkgen_u0/genblk1[0].gen_ch[0].cg_wrap_u0/icg_u0/CP' and 2 more by name folding.
+get_pins clkgen_u0/genblk1_*_gen_ch_0_cg_wrap_u0_icg_u0/* -> {{clkgen_u0/genblk1[0].gen_ch[0].cg_wrap_u0/icg_u0/CP} {clkgen_u0/genblk1[0].gen_ch[0].cg_wrap_u0/icg_u0/E} {clkgen_u0/genblk1[0].gen_ch[0].cg_wrap_u0/icg_u0/Q}}
+Warning 2740: SDC object 'clkgen_u0/genblk1_0_gen_ch_0_cg_wrap_u0' resolved to 'clkgen_u0/genblk1[0].gen_ch[0].cg_wrap_u0' by name folding.
+get_cells clkgen_u0/genblk1_0_gen_ch_0_cg_wrap_u0 -> {{clkgen_u0/genblk1[0].gen_ch[0].cg_wrap_u0}}
+Warning 2740: SDC object 'ctrl_u0/gen_lane_*_sync_u/*sync*' resolved to 'ctrl_u0/gen_lane[0].sync_u/ready_sync_reg' by name folding.
+get_cells ctrl_u0/gen_lane_*_sync_u/*sync* -> {{ctrl_u0/gen_lane[0].sync_u/ready_sync_reg}}
+Warning 2740: SDC object 'clkgen_u0/genblk1_0_gen_ch_0_cg_wrap_u0/gclk' resolved to 'clkgen_u0/genblk1[0].gen_ch[0].cg_wrap_u0/gclk' by name folding.
+get_nets clkgen_u0/genblk1_0_gen_ch_0_cg_wrap_u0/gclk -> {{clkgen_u0/genblk1[0].gen_ch[0].cg_wrap_u0/gclk}}
+Warning 2741: SDC object 'ctrl_u0/gen_lane_0_sync_u/n*' resolved to 'ctrl_u0/gen_lane[0].sync_u/n1' and 2 more by name folding.
+get_nets ctrl_u0/gen_lane_0_sync_u/n* -> {{ctrl_u0/gen_lane[0].sync_u/n1} {ctrl_u0/gen_lane[0].sync_u/n2} {ctrl_u0/gen_lane[0].sync_u/n3}}
+get_ports status*0* -> {{status[0]}}
+Warning 2740: SDC object 'status_1' resolved to 'status[1]' by name folding.
+get_ports status_1 -> {{status[1]}}
+Warning 2740: SDC object 'uniq.0.y/Z' resolved to 'uniq[0].y/Z' by name folding.
+get_pins uniq.0.y/Z -> {{uniq[0].y/Z}}
+Warning 2740: SDC object 'uniq_0_y/Z' resolved to 'uniq[0].y/Z' by name folding.
+get_pins uniq_0_y/Z -> {{uniq[0].y/Z}}
+Warning 2740: SDC object 'uniq.0.y/Q' resolved to 'uniq_0_y/Q' by name folding.
+get_pins uniq.0.y/Q -> {uniq_0_y/Q}
+######## unresolved ########
+Warning 2742: SDC object 'amb.0.x/Z' is ambiguous under name folding (2 candidates: 'amb[0].x/Z', 'amb_0_x/Z'); not resolved.
+Warning 363: pin 'amb.0.x/Z' not found.
+get_pins amb.0.x/Z -> {}
+Warning 2742: SDC object 'amb.0.x/*' is ambiguous under name folding (4 candidates: 'amb[0].x/A', 'amb[0].x/Z', 'amb_0_x/A', 'amb_0_x/Z'); not resolved.
+Warning 363: pin 'amb.0.x/*' not found.
+get_pins amb.0.x/* -> {}
+Warning 2742: SDC object 'ctrl_u0/gen_lane_0_sync_u/two_bit_reg/Q' is ambiguous under name folding (2 candidates: 'ctrl_u0/gen_lane[0].sync_u/two_bit_reg[0]/Q', 'ctrl_u0/gen_lane[0].sync_u/two_bit_reg[1]/Q'); not resolved.
+Warning 363: pin 'ctrl_u0/gen_lane_0_sync_u/two_bit_reg/Q' not found.
+get_pins ctrl_u0/gen_lane_0_sync_u/two_bit_reg/Q -> {}
+Warning 363: pin 'csr_u0/buf_u0/CP' not found.
+get_pins csr_u0/buf_u0/CP -> {}
+Warning 363: pin 'csr_u0/dual_reg/CP' not found.
+get_pins csr_u0/dual_reg/CP -> {}
+Warning 363: pin 'ctrl_u0/gen_lane_0_sync_u/ready_sync_reg/E' not found.
+get_pins ctrl_u0/gen_lane_0_sync_u/ready_sync_reg/E -> {}
+Warning 363: pin 'clkgen_u0/genblk1_0_gen_ch_0_cg_wrap_u0_icg_u0/QN' not found.
+get_pins clkgen_u0/genblk1_0_gen_ch_0_cg_wrap_u0_icg_u0/QN -> {}
+Warning 363: pin 'no_such_inst/Q' not found.
+get_pins no_such_inst/Q -> {}
+Warning 349: instance 'clkgen_u0/genblk1_0_gen.*' not found.
+get_cells -regexp {clkgen_u0/genblk1_0_gen.*} -> {}
+######## commands outside SDC do not fold pin arguments ########
+Error 130: sdc_name_folding.tcl line 90, pin ctrl_u0/gen_lane_0_sync_u/ready_sync_reg/Q not found.
+######## exact names win ########
+get_pins amb_0_x/Z -> {amb_0_x/Z}
+get_pins {amb[0].x/Z} -> {{amb[0].x/Z}}
+######## netlist edits rebuild the index ########
+Warning 349: instance 'gen2_0_extra' not found.
+get_cells gen2_0_extra -> {}
+Warning 2740: SDC object 'gen2_0_extra' resolved to 'gen2[0].extra' by name folding.
+get_cells gen2_0_extra -> {{gen2[0].extra}}
+get_cells -quiet gen2_0_extra -> {}
+Warning 2740: SDC object 'gen2_1_extra' resolved to 'gen2[1].extra' by name folding.
+get_cells gen2_1_extra -> {{gen2[1].extra}}

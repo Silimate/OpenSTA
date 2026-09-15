@@ -44,6 +44,12 @@ NetworkNameAdapter::linkNetwork(std::string_view top_cell_name,
   return network_->linkNetwork(top_cell_name, make_black_boxes, report);
 }
 
+bool
+NetworkNameAdapter::nameEditCount(uint64_t &count) const
+{
+  return network_->nameEditCount(count);
+}
+
 Instance *
 NetworkNameAdapter::topInstance() const
 {
