@@ -328,14 +328,6 @@ proc parse_inst_port_pin_arg { objects insts_var pins_var } {
   }
 }
 
-proc parse_inst_pin_arg { objects insts_var pins_var } {
-  upvar 1 $insts_var insts
-  upvar 1 $pins_var pins
-  set insts {}
-  set pins {}
-  get_object_args $objects {} {} {} {} insts {} pins {} {} {}
-}
-
 proc parse_inst_port_pin_net_arg { objects insts_var pins_var nets_var } {
   upvar 1 $insts_var insts
   upvar 1 $pins_var pins
@@ -350,12 +342,19 @@ proc parse_inst_port_pin_net_arg { objects insts_var pins_var nets_var } {
   }
 }
 
-proc parse_inst_net_arg { objects insts_var nets_var } {
+proc parse_inst_port_net_arg { objects insts_var nets_var } {
   upvar 1 $insts_var insts
   upvar 1 $nets_var nets
   set insts {}
+  set ports {}
   set nets {}
-  get_object_args $objects {} {} {} {} insts {} {} nets {} {}
+  get_object_args $objects {} {} {} {} insts ports {} nets {} {}
+  foreach_in_collection port $ports {
+    set net [[[top_instance] find_pin [get_name $port]] connected_net]
+    if { $net != "NULL" } {
+      lappend nets $net
+    }
+  }
 }
 
 proc parse_port_pin_net_arg { objects pins_var nets_var } {

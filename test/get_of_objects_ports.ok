@@ -1,0 +1,24 @@
+[get_nets -of_objects [all_outputs]]
+out1
+out2
+[get_nets -of_objects [get_ports in1]]
+in1
+[get_pins -of_objects [all_outputs]]
+u2/Y
+u3/Y
+[get_pins -of_objects [all_outputs] -filter "direction==output"]
+u2/Y
+u3/Y
+[get_pins -of_objects [get_ports in2]]
+u1/B
+u4/A
+[get_nets -of_objects [list [get_ports in1] [get_pins u1/Y]]]
+in1
+u1y
+[get_pins -of_objects [list [get_ports out1] [get_cells u4]]]
+u2/Y
+u4/A
+u4/Y
+[get_nets -of_objects [get_cells u4]]
+in2
+[get_nets -of_objects [get_pins u4/Y]]

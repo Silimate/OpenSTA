@@ -831,6 +831,7 @@ void finish() { delete self; }
 std::string port_name() { return Sta::sta()->ensureLinked()->portName(self); }
 Instance *instance() { return Sta::sta()->ensureLinked()->instance(self); }
 Net *net() { return Sta::sta()->ensureLinked()->net(self); }
+Net *connected_net() { return Sta::sta()->ensureLinked()->connectedNet(self); }
 Port *port() { return Sta::sta()->ensureLinked()->port(self); }
 Term *term() { return Sta::sta()->ensureLinked()->term(self); }
 LibertyPort *liberty_port() { return Sta::sta()->ensureLibLinked()->libertyPort(self); }

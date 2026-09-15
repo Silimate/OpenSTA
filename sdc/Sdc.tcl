@@ -478,7 +478,7 @@ proc get_cells { args } {
     parse_port_pin_net_arg $keys(-of_objects) pins nets
     foreach_in_collection pin $pins {
       if { [$pin is_top_level_port] } {
-        set net [get_nets [get_name $pin]]
+        set net [$pin connected_net]
         if { $net != "NULL" } {
           lappend nets $net
         }
@@ -903,7 +903,7 @@ define_cmd_args "get_nets" \
     -filter {A filter expression of the form
   "property==value"
 where property is a property supported by the `get_property` command.  See the section "Filter Expressions" for additional forms.}
-    -of_objects {The name of a pin or instance, a list of pins returned by `get_pins`, or a list of instances returned by `get_cells`. The `-hierarchical` option cannot be used with `-of_objects`.}
+    -of_objects {The name of a pin, port or instance, a list of pins returned by `get_pins`, a list of ports returned by `get_ports`, or a list of instances returned by `get_cells`. A port matches the net connected to it. The `-hierarchical` option cannot be used with `-of_objects`.}
     patterns {A list of net name patterns.}
   }
 
@@ -936,17 +936,24 @@ proc get_nets { args } {
     if { $args != {} } {
       sta_warn 360 "patterns argument not supported with -of_objects."
     }
-    parse_inst_pin_arg $keys(-of_objects) insts pins
+    parse_inst_port_pin_arg $keys(-of_objects) insts pins
+    # Unconnected pins have no net; skip them rather than leaking NULLs into the collection.
     foreach_in_collection inst $insts {
       set pin_iter [$inst pin_iterator]
       while { [$pin_iter has_next] } {
         set pin [$pin_iter next]
-        lappend nets [$pin net]
+        set net [$pin connected_net]
+        if { $net != "NULL" } {
+          lappend nets $net
+        }
       }
       $pin_iter finish
     }
     foreach_in_collection pin $pins {
-      lappend nets [$pin net]
+      set net [$pin connected_net]
+      if { $net != "NULL" } {
+        lappend nets $net
+      }
     }
     if [info exists keys(-filter)] {
       set nets [filter_objs $keys(-filter) $nets filter_nets "net"]
@@ -992,6 +999,12 @@ A useful idiom to find the driver pin for a net is the following.
 
 ```
 get_pins -of_objects [get_net net_name] -filter "direction==output"
+```
+
+The driver of a top level port can be found the same way.
+
+```
+get_pins -of_objects [get_ports port_name] -filter "direction==output"
 ```} \
   -arg_help {
     -hierarchical {Searches hierarchy levels below the current instance for matches.}
@@ -999,7 +1012,7 @@ get_pins -of_objects [get_net net_name] -filter "direction==output"
     -filter {A filter expression of the form
   "property==value"
 where property is a property supported by the `get_property` command.  See the section "Filter Expressions" for additional forms.}
-    -of_objects {The name of a net or instance, a list of nets returned by `get_nets`, or a list of instances returned by `get_cells`. The `-hierarchical` option cannot be used with `-of_objects`.}
+    -of_objects {The name of a net, port or instance, a list of nets returned by `get_nets`, a list of ports returned by `get_ports`, or a list of instances returned by `get_cells`. A port matches the pins on the net connected to it. The `-hierarchical` option cannot be used with `-of_objects`.}
     patterns {A list of pin name patterns.}
   }
 
@@ -1021,7 +1034,7 @@ proc get_pins { args } {
     if { $args != {} } {
       sta_warn 362 "patterns argument not supported with -of_objects."
     }
-    parse_inst_net_arg $keys(-of_objects) insts nets
+    parse_inst_port_net_arg $keys(-of_objects) insts nets
     foreach_in_collection inst $insts {
       set pin_iter [$inst pin_iterator]
       while { [$pin_iter has_next] } {

@@ -624,14 +624,10 @@ ConcreteParasiticNetwork::ensureParasiticNode(const Pin *pin,
   auto pin_node = pin_nodes_.find(pin);
   if (pin_node == pin_nodes_.end()) {
     Net *net = network->net(pin);
-    // Pins on the top level instance may not have nets.
-    // Use the net connected to the pin's terminal.
-    if (net == nullptr && network->isTopLevelPort(pin)) {
-      Term *term = network->term(pin);
-      if (term)
-        net = network->net(term);
-    }
-    else if (net)
+    // A top level pin reaches its net through its terminal, not net().
+    if (net == nullptr)
+      net = network->connectedNet(pin);
+    else
       net = network->highestNetAbove(net);
     node = new ConcreteParasiticNode(pin, net != net_);
     pin_nodes_[pin] = node;

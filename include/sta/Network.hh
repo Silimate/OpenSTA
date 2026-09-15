@@ -302,6 +302,9 @@ public:
   virtual Instance *instance(const Pin *pin) const = 0;
   virtual Net *net(const Pin *pin) const = 0;
   virtual Term *term(const Pin *pin) const = 0;
+  // Pins on the top level instance have no net of their own; they reach the
+  // net through their terminal. Use this instead of net() to follow either.
+  [[nodiscard]] Net *connectedNet(const Pin *pin) const;
   virtual PortDirection *direction(const Pin *pin) const = 0;
   virtual bool isLeaf(const Pin *pin) const;
   [[nodiscard]] bool isHierarchical(const Pin *pin) const;
