@@ -31,7 +31,22 @@
 
 #include <string>
 
+#include "SdcNetwork.hh"
 #include "StringUtil.hh"
+
+namespace sta {
+
+// SdcNetwork to retry an SDC object query that matched nothing by name
+// folding (TCL variable sta_sdc_name_folding), or null.
+const SdcNetwork *
+sdcNameFoldingNetwork(const Network *network)
+{
+  if (!Sta::sta()->sdcNameFolding())
+    return nullptr;
+  return dynamic_cast<const SdcNetwork*>(network);
+}
+
+} // namespace sta
 %}
 
 ////////////////////////////////////////////////////////////////
@@ -341,6 +356,11 @@ find_port_pins_matching(const char *pattern,
   Instance *top_inst = network->topInstance();
   Cell *top_cell = network->cell(top_inst);
   PortSeq ports = network->findPortsMatching(top_cell, &matcher);
+  if (ports.empty()) {
+    const SdcNetwork *sdc_network = sdcNameFoldingNetwork(network);
+    if (sdc_network)
+      ports = sdc_network->findPortsFolded(top_cell, &matcher);
+  }
   PinSeq pins;
   for (const Port *port : ports) {
     if (network->isBus(port)
@@ -368,6 +388,20 @@ find_pin(const char *path_name)
 {
   Network *network = Sta::sta()->ensureLinked();
   return network->findPin(path_name);
+}
+
+// find_pin for SDC pin arguments: an exact miss retries by name folding.
+Pin *
+find_pin_sdc(const char *path_name)
+{
+  Network *network = Sta::sta()->ensureLinked();
+  Pin *pin = network->findPin(path_name);
+  if (pin == nullptr) {
+    const SdcNetwork *sdc_network = sdcNameFoldingNetwork(network);
+    if (sdc_network)
+      pin = sdc_network->findPinFolded(path_name);
+  }
+  return pin;
 }
 
 Pin *
@@ -403,6 +437,11 @@ find_pins_complete(PinSeq *collection,
       auto matches = hier ?
         network->findPinsHierMatching(current_instance, m) : 
         network->findPinsMatching(current_instance, m);
+      if (matches.empty() && !hier) {
+        const SdcNetwork *sdc_network = sdcNameFoldingNetwork(network);
+        if (sdc_network)
+          matches = sdc_network->findPinsFolded(current_instance, m);
+      }
       matches.erase(std::remove_if(matches.begin(), 
                                    matches.end(),
                                   [&](const Pin *p) {
@@ -488,9 +527,15 @@ find_instances_complete(InstanceSeq *collection,
     quiet,
     filter_expression,
     [&](PatternMatch *m) {
-      return hier ?
+      InstanceSeq matches = hier ?
         network->findInstancesHierMatching(current_instance, m) : 
         network->findInstancesMatching(current_instance, m);
+      if (matches.empty() && !hier) {
+        const SdcNetwork *sdc_network = sdcNameFoldingNetwork(network);
+        if (sdc_network)
+          matches = sdc_network->findInstancesFolded(current_instance, m);
+      }
+      return matches;
   });
 }
 
@@ -517,6 +562,11 @@ find_ports_complete(PortSeq *collection,
     filter_expression,
     [&](PatternMatch *m) {
       PortSeq matches = network->findPortsMatching(top_cell, m);
+      if (matches.empty()) {
+        const SdcNetwork *sdc_network = sdcNameFoldingNetwork(network);
+        if (sdc_network)
+          matches = sdc_network->findPortsFolded(top_cell, m);
+      }
       PortSeq result;
       for (const auto *port: matches) {
         if (network->isBus(port) || network->isBundle(port)) {
@@ -576,9 +626,15 @@ find_nets_complete(NetSeq *collection,
     quiet,
     filter_expression,
     [&](PatternMatch *m) {
-      return hier ?
+      NetSeq matches = hier ?
         network->findNetsHierMatching(current_instance, m) :
         network->findNetsMatching(current_instance, m);
+      if (matches.empty() && !hier) {
+        const SdcNetwork *sdc_network = sdcNameFoldingNetwork(network);
+        if (sdc_network)
+          matches = sdc_network->findNetsFolded(current_instance, m);
+      }
+      return matches;
   });
 }
 

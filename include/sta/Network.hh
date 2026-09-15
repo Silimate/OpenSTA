@@ -24,6 +24,7 @@
 
 #pragma once
 
+#include <cstdint>
 #include <functional>
 #include <map>
 #include <string>
@@ -107,6 +108,10 @@ public:
                            Report *report) = 0;
   virtual bool isLinked() const;
   virtual bool isEditable() const { return false; }
+  // Count of edits that made, deleted or merged an instance or net, for
+  // caches of network object names (see SdcNetwork name folding). False
+  // when the network does not count its edits, so no cache is safe.
+  virtual bool nameEditCount(uint64_t &count) const;
 
   ////////////////////////////////////////////////////////////////
   // Library functions.

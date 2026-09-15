@@ -64,6 +64,13 @@ Network::isLinked() const
   return topInstance() != nullptr;
 }
 
+bool
+Network::nameEditCount(uint64_t &count) const
+{
+  count = 0;
+  return false;
+}
+
 LibertyLibrary *
 Network::libertyLibrary(const Cell *cell) const
 {

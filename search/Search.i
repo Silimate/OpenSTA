@@ -1311,6 +1311,18 @@ set_pin_name_compatibility(bool enable)
 }
 
 bool
+sdc_name_folding()
+{
+  return Sta::sta()->sdcNameFolding();
+}
+
+void
+set_sdc_name_folding(bool enable)
+{
+  Sta::sta()->setSdcNameFolding(enable);
+}
+
+bool
 pin_name_compat_match(const char *pattern,
                       const Pin *pin,
                       bool regexp,

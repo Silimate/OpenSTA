@@ -207,6 +207,7 @@ record_public_tests {
   report_json1
   report_json2
   sdc_compat
+  sdc_name_folding
   sdc_strip_escaped_bus
   set_path_margin1
   set_path_margin2

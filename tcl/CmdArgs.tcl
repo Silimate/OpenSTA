@@ -144,35 +144,28 @@ proc get_object_args { objects clks_var libcells_var libports_var \
             if { [sizeof_collection $matches] > 0 } {
               set cells [add_to_collection $cells $matches]
             } else {
-              
-              if { $insts_var != {} } {
-                set matches [get_cells -quiet $obj]
-              }
-              if { [sizeof_collection $matches] > 0 } {
-                set insts [add_to_collection $insts $matches]
+              # Try exact instance/port/pin/net names before name folding
+              # (sta_sdc_name_folding) so a folded match of one object type
+              # cannot shadow an exact match of a later type.
+              set found 0
+              if { [sdc_name_folding] } {
+                set_sdc_name_folding 0
+                try {
+                  set found [get_implicit_netlist_object_arg $obj \
+                               $insts_var $ports_var $pins_var $nets_var]
+                } finally {
+                  set_sdc_name_folding 1
+                }
+                if { !$found } {
+                  set found [get_implicit_netlist_object_arg $obj \
+                               $insts_var $ports_var $pins_var $nets_var]
+                }
               } else {
-                if { $ports_var != {} } {
-                  set matches [get_ports -quiet $obj]
-                }
-                if { [sizeof_collection $matches] > 0 }  {
-                  set ports [add_to_collection $ports $matches]
-                } else {
-                  if { $pins_var != {} } {
-                    set matches [get_pins -quiet $obj]
-                  }
-                  if { [sizeof_collection $matches] > 0 } {
-                    set pins [add_to_collection $pins $matches]
-                  } else {
-                    if { $nets_var != {} } {
-                      set matches [get_nets -quiet $obj]
-                    }
-                    if { [sizeof_collection $matches] > 0 } {
-                      set nets [add_to_collection $nets $matches]
-                    } else {
-                      sta_warn 101 "object '$obj' not found."
-                    }
-                  }
-                }
+                set found [get_implicit_netlist_object_arg $obj \
+                             $insts_var $ports_var $pins_var $nets_var]
+              }
+              if { !$found } {
+                sta_warn 101 "object '$obj' not found."
               }
             }
           }
@@ -180,6 +173,47 @@ proc get_object_args { objects clks_var libcells_var libports_var \
       }
     }
   }
+}
+
+# Look up an implicit object name as an instance, port, pin or net, in
+# that order, appending the first matches to get_object_args' collections
+# (the caller's insts/ports/pins/nets variables). Return 1 if anything
+# matched.
+proc get_implicit_netlist_object_arg { obj insts_var ports_var pins_var \
+                                         nets_var } {
+  if { $insts_var != {} } {
+    upvar 1 insts insts
+    set matches [get_cells -quiet $obj]
+    if { [sizeof_collection $matches] > 0 } {
+      set insts [add_to_collection $insts $matches]
+      return 1
+    }
+  }
+  if { $ports_var != {} } {
+    upvar 1 ports ports
+    set matches [get_ports -quiet $obj]
+    if { [sizeof_collection $matches] > 0 }  {
+      set ports [add_to_collection $ports $matches]
+      return 1
+    }
+  }
+  if { $pins_var != {} } {
+    upvar 1 pins pins
+    set matches [get_pins -quiet $obj]
+    if { [sizeof_collection $matches] > 0 } {
+      set pins [add_to_collection $pins $matches]
+      return 1
+    }
+  }
+  if { $nets_var != {} } {
+    upvar 1 nets nets
+    set matches [get_nets -quiet $obj]
+    if { [sizeof_collection $matches] > 0 } {
+      set nets [add_to_collection $nets $matches]
+      return 1
+    }
+  }
+  return 0
 }
 
 proc parse_clk_cell_port_args { objects clks_var cells_var ports_var } {
@@ -846,10 +880,12 @@ proc get_port_pin_warn { arg_name arg } {
 }
 
 proc get_port_pin_error { arg_name arg } {
-  return [get_port_pin_arg $arg_name $arg "error"]
+  return [get_port_pin_arg $arg_name $arg "error" 1]
 }
 
-proc get_port_pin_arg { arg_name arg warn_error } {
+# fold_names retries a pin name that is not found by name folding
+# (sta_sdc_name_folding); SDC pin arguments set it.
+proc get_port_pin_arg { arg_name arg warn_error {fold_names 0} } {
   set pin "NULL"
 
   if {[sizeof_collection $arg] > 1} {
@@ -874,7 +910,11 @@ proc get_port_pin_arg { arg_name arg warn_error } {
     set top_cell [$top_instance cell]
     set port [$top_cell find_port $arg]
     if { $port == "NULL" } {
-      set pin [find_pin $arg]
+      if { $fold_names } {
+        set pin [find_pin_sdc $arg]
+      } else {
+        set pin [find_pin $arg]
+      }
     } else {
       set pin [get_port_pin $port]
     }

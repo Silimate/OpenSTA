@@ -1557,6 +1557,9 @@ public:
   // TCL variable sta_pin_name_compatibility.
   bool pinNameCompatibility() const;
   void setPinNameCompatibility(bool enable);
+  // TCL variable sta_sdc_name_folding.
+  bool sdcNameFolding() const;
+  void setSdcNameFolding(bool enable);
   ////////////////////////////////////////////////////////////////
 
   Properties &properties() { return properties_; }

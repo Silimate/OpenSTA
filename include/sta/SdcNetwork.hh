@@ -25,8 +25,10 @@
 #pragma once
 
 #include <functional>
+#include <set>
 #include <string>
 #include <string_view>
+#include <vector>
 
 #include "Network.hh"
 
@@ -41,6 +43,7 @@ public:
   bool linkNetwork(std::string_view top_cell_name,
                    bool make_black_boxes,
                    Report *report) override;
+  bool nameEditCount(uint64_t &count) const override;
 
   std::string name(const Library *library) const override;
   ObjectId id(const Library *library) const override;
@@ -193,11 +196,14 @@ protected:
 
 ////////////////////////////////////////////////////////////////
 
+class SdcNameFoldIndex;
+
 // Encapsulate a network to map names to/from the sdc namespace.
 class SdcNetwork : public NetworkNameAdapter
 {
 public:
   SdcNetwork(Network *network);
+  ~SdcNetwork() override;
 
   Port *findPort(const Cell *cell,
                  std::string_view name) const override;
@@ -245,6 +251,47 @@ public:
   Net *makeNet(std::string_view name,
                Instance *parent) override;
 
+  // Name-folding fallback for SDC object queries (TCL variable
+  // sta_sdc_name_folding). The get_* commands call these only after the
+  // exact lookup found nothing; internal lookups never fold.
+  //
+  // Every run of the characters / . [ ] _ (and the path divider and
+  // escape) folds to one '_' and runs at the end of a name are dropped, in
+  // both the query and the netlist path names. A synthesis tool's flattened
+  // names (gen_0_child, wrapper_child) then find the elaborated hierarchy
+  // (gen[0].child, wrapper/child). Glob '*' and '?' keep their meaning and
+  // may span hierarchy levels. Regular expressions are not folded.
+  //
+  // A query without wildcards resolves only to a unique object. An
+  // ambiguous query stays unresolved and warns with up to five candidates.
+  // A glob returns every object whose folded name matches. Each rescue is
+  // reported once (warnings 2740, 2741; ambiguity 2742).
+  //
+  // Folded names are hashed into an index built on the first miss and
+  // rebuilt after the network is edited (Network::nameEditCount).
+  InstanceSeq findInstancesFolded(const Instance *context,
+                                  const PatternMatch *pattern) const;
+  // Pins split the query at the last divider into an instance part and a
+  // port part. The instance part is looked up exactly and then folded.
+  // When the port is missing on the instances found:
+  //  - a clock pin alias maps to the only clock port of a register or
+  //    latch liberty cell (CP CPN CK CKN CLK CLKN C CLOCK CLKIN, case
+  //    insensitive; for latch-only cells also E EN G GN GATE GATE_N).
+  //    Cells with several clock ports, or no sequentials, never alias.
+  // When a query without wildcards finds no instance:
+  //  - a register instance whose name carries one extra trailing bit
+  //    index (reg finds reg[0]) is accepted when it is the only one.
+  PinSeq findPinsFolded(const Instance *context,
+                        const PatternMatch *pattern) const;
+  // Single pin version of findPinsFolded for SDC pin arguments.
+  Pin *findPinFolded(std::string_view path_name) const;
+  NetSeq findNetsFolded(const Instance *context,
+                        const PatternMatch *pattern) const;
+  // Top level ports. A glob that matches no port name first tries the
+  // bus bit names (dout*0* finds dout[0]), then folded names.
+  PortSeq findPortsFolded(const Cell *cell,
+                          const PatternMatch *pattern) const;
+
   // The following member functions are inherited from the
   // Network class work as is:
   //  findInstPinsMatching(instance, pattern)
@@ -282,6 +329,53 @@ protected:
                               InstanceSeq &matches) const;
 
   std::string staToSdc(std::string_view sta_name) const;
+
+  // Name folding helpers (SdcNameFolding.cc).
+  std::string foldName(std::string_view name) const;
+  void foldAppend(std::string &folded,
+                  std::string_view name) const;
+  std::string foldedPathName(const Instance *instance) const;
+  SdcNameFoldIndex &foldIndex(bool nets) const;
+  void foldIndexInstances(const Instance *parent,
+                          std::string &folded,
+                          SdcNameFoldIndex &index) const;
+  void foldIndexNets(const Instance *instance,
+                     std::string &folded,
+                     SdcNameFoldIndex &index) const;
+  void foldGlobInstances(const Instance *parent,
+                         std::string &folded,
+                         const PatternMatch *glob,
+                         std::string_view literal_prefix,
+                         InstanceSeq &matches) const;
+  void foldGlobNets(const Instance *instance,
+                    std::string &folded,
+                    const PatternMatch *glob,
+                    std::string_view literal_prefix,
+                    NetSeq &matches) const;
+  InstanceSeq foldInstances(const Instance *context,
+                            const PatternMatch *pattern,
+                            bool glob) const;
+  InstanceSeq foldBitIndexRegisters(const Instance *context,
+                                    std::string_view inst_path) const;
+  void foldInstancePins(const InstanceSeq &insts,
+                        const PatternMatch *port_pattern,
+                        bool glob,
+                        PinSeq &pins) const;
+  void foldClockPinAliases(const InstanceSeq &insts,
+                           std::string_view port_name,
+                           PinSeq &pins) const;
+  const Pin *clockPinAlias(const Instance *inst,
+                           std::string_view port_name) const;
+  void reportFoldRescue(std::string_view query,
+                        const std::vector<std::string> &targets,
+                        std::string_view rule) const;
+  void reportFoldAmbiguous(std::string_view query,
+                           const std::vector<std::string> &candidates) const;
+
+  // Owned; built on the first folded lookup.
+  mutable SdcNameFoldIndex *fold_index_{nullptr};
+  // Queries already reported so loops do not repeat warnings.
+  mutable std::set<std::string> fold_reported_;
 };
 
 // Encapsulate a network to map names to/from the sdc namespace.

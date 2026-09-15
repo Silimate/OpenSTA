@@ -1,0 +1,159 @@
+library (sdc_name_folding) {
+  delay_model : "table_lookup";
+  time_unit : "1ns";
+  voltage_unit : "1v";
+  capacitive_load_unit (1, pf);
+  input_threshold_pct_rise : 50;
+  input_threshold_pct_fall : 50;
+  output_threshold_pct_rise : 50;
+  output_threshold_pct_fall : 50;
+  slew_lower_threshold_pct_rise : 30;
+  slew_lower_threshold_pct_fall : 30;
+  slew_upper_threshold_pct_rise : 70;
+  slew_upper_threshold_pct_fall : 70;
+
+  cell (BUFX) {
+    area : 1.0;
+    pin (A) {
+      direction : input;
+      capacitance : 0.001;
+    }
+    pin (Z) {
+      direction : output;
+      function : "A";
+      timing () {
+        related_pin : "A";
+        timing_sense : positive_unate;
+        cell_rise (scalar) { values ("0.02"); }
+        cell_fall (scalar) { values ("0.02"); }
+        rise_transition (scalar) { values ("0.01"); }
+        fall_transition (scalar) { values ("0.01"); }
+      }
+    }
+  }
+
+  /* Clock gate stand-in whose output pin is named Q. */
+  cell (CKGATE) {
+    area : 2.0;
+    pin (CP) {
+      direction : input;
+      clock : true;
+      capacitance : 0.001;
+    }
+    pin (E) {
+      direction : input;
+      capacitance : 0.001;
+    }
+    pin (Q) {
+      direction : output;
+      function : "CP & E";
+      timing () {
+        related_pin : "CP";
+        timing_sense : positive_unate;
+        cell_rise (scalar) { values ("0.02"); }
+        cell_fall (scalar) { values ("0.02"); }
+        rise_transition (scalar) { values ("0.01"); }
+        fall_transition (scalar) { values ("0.01"); }
+      }
+    }
+  }
+
+  /* Register whose clock pin is CLK (an SDC written for CP cells misses it). */
+  cell (DFFCLK) {
+    area : 4.0;
+    ff (IQ, IQN) {
+      next_state : "D";
+      clocked_on : "CLK";
+    }
+    pin (CLK) {
+      direction : input;
+      clock : true;
+      capacitance : 0.001;
+    }
+    pin (D) {
+      direction : input;
+      capacitance : 0.001;
+    }
+    pin (Q) {
+      direction : output;
+      function : "IQ";
+      timing () {
+        related_pin : "CLK";
+        timing_type : rising_edge;
+        cell_rise (scalar) { values ("0.02"); }
+        cell_fall (scalar) { values ("0.02"); }
+        rise_transition (scalar) { values ("0.01"); }
+        fall_transition (scalar) { values ("0.01"); }
+      }
+    }
+  }
+
+  /* Latch whose enable pin is EN. */
+  cell (LATEN) {
+    area : 3.0;
+    latch (IQ, IQN) {
+      enable : "EN";
+      data_in : "D";
+    }
+    pin (EN) {
+      direction : input;
+      clock : true;
+      capacitance : 0.001;
+    }
+    pin (D) {
+      direction : input;
+      capacitance : 0.001;
+    }
+    pin (Q) {
+      direction : output;
+      function : "IQ";
+      timing () {
+        related_pin : "EN";
+        timing_type : rising_edge;
+        cell_rise (scalar) { values ("0.02"); }
+        cell_fall (scalar) { values ("0.02"); }
+        rise_transition (scalar) { values ("0.01"); }
+        fall_transition (scalar) { values ("0.01"); }
+      }
+    }
+  }
+
+  /* Two registers with separate clocks: no single clock pin to alias to. */
+  cell (DFF2) {
+    area : 8.0;
+    ff (IQA, IQNA) {
+      next_state : "DA";
+      clocked_on : "CLKA";
+    }
+    ff (IQB, IQNB) {
+      next_state : "DB";
+      clocked_on : "CLKB";
+    }
+    pin (CLKA) {
+      direction : input;
+      clock : true;
+      capacitance : 0.001;
+    }
+    pin (CLKB) {
+      direction : input;
+      clock : true;
+      capacitance : 0.001;
+    }
+    pin (DA) {
+      direction : input;
+      capacitance : 0.001;
+    }
+    pin (DB) {
+      direction : input;
+      capacitance : 0.001;
+    }
+    pin (QA) {
+      direction : output;
+      function : "IQA";
+    }
+    pin (QB) {
+      direction : output;
+      function : "IQB";
+    }
+  }
+}

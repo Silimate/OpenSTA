@@ -130,6 +130,7 @@ set(STA_SOURCE
   network/NetworkCmp.cc
   network/ParseBus.cc
   network/PortDirection.cc
+  network/SdcNameFolding.cc
   network/SdcNetwork.cc
   network/VerilogNamespace.cc
   

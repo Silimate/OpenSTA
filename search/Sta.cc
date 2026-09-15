@@ -2734,6 +2734,18 @@ Sta::setPinNameCompatibility(bool enable)
   variables_->setPinNameCompatibility(enable);
 }
 
+bool
+Sta::sdcNameFolding() const
+{
+  return variables_->sdcNameFolding();
+}
+
+void
+Sta::setSdcNameFolding(bool enable)
+{
+  variables_->setSdcNameFolding(enable);
+}
+
 ////////////////////////////////////////////////////////////////
 
 // Init one scene named "default".
