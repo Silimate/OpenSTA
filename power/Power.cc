@@ -809,6 +809,25 @@ Power::clockGatePins(const Instance *inst,
 
 ////////////////////////////////////////////////////////////////
 
+LibertyPort *
+Power::seqStatePort(const LibertyPort *port,
+                    bool &invert)
+{
+  invert = false;
+  FuncExpr *func = port->function();
+  // Peel QN = !IQ down to the stored node.
+  while (func && func->op() == FuncExpr::Op::not_) {
+    invert = !invert;
+    func = func->left();
+  }
+  if (func && func->op() == FuncExpr::Op::port) {
+    LibertyPort *func_port = func->port();
+    if (func_port && func_port->direction()->isInternal())
+      return func_port;
+  }
+  return nullptr;
+}
+
 // Replace each output variable in bdd with that port's Liberty function.
 DdNode *
 Power::substituteOutputPorts(DdNode *bdd)
@@ -910,6 +929,18 @@ Power::evalBddDuty(DdNode *bdd,
     if (port->direction()->isInternal())
       return findSeqActivity(inst, const_cast<LibertyPort *>(port)).duty();
     else {
+      bool invert = false;
+      LibertyPort *seq_port = seqStatePort(port, invert);
+      // Q = IQ / QN = !IQ: use stored IQ duty, not the Q net.
+      if (seq_port && hasSeqActivity(inst, seq_port)) {
+        float var_duty = findSeqActivity(inst, seq_port).duty();
+        if (invert)
+          var_duty = 1.0 - var_duty;
+        float duty = duty0 * (1.0 - var_duty) + duty1 * var_duty;
+        if (Cudd_IsComplement(bdd))
+          duty = 1.0 - duty;
+        return duty;
+      }
       const Pin *pin = findLinkPin(inst, port);
       if (pin) {
         PwrActivity var_activity = findActivity(pin);

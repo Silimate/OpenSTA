@@ -212,6 +212,8 @@ protected:
   const Clock *findInstClk(const Instance *inst);
   const Clock *findClk(const Pin *to_pin);
   float clockDuty(const Clock *clk);
+  LibertyPort *seqStatePort(const LibertyPort *port,
+                            bool &invert);
   PwrActivity findSeqActivity(const Instance *inst,
 			      LibertyPort *port);
   float portVoltage(LibertyCell *cell,
