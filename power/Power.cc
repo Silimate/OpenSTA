@@ -980,6 +980,9 @@ Power::ensureActivities(const Scene *scene,
       }
       // Fully annotated leaf (fast path), evaluate it alone and skip the design sweep.
       if (inst && annotatedLeaf(inst)) {
+        // Scene invalidation does not clear these; drop stale Q from a prior scene.
+        activity_map_.clear();
+        seq_activity_map_.clear();
         findInstActivities(inst);
         return;
       }
@@ -1053,8 +1056,8 @@ Power::findInstActivities(const Instance *inst)
       visitor.visit(vertex);
   }
   delete pin_iter;
-  // Sequential Q is seeded from D after the input visit marks the inst.
-  if (visitor.visitedRegs().contains(inst))
+  // Q density uses this scene's clock, so always recompute on the fast path.
+  if (network_->libertyCell(inst))
     seedRegOutputActivities(inst, bfs);
   // Visit output drivers the input visits queued.
   pin_iter = network_->pinIterator(inst);
