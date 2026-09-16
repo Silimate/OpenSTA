@@ -981,6 +981,8 @@ Power::ensureActivities(const Scene *scene,
       // Fully annotated leaf (fast path), evaluate it alone and skip the design sweep.
       if (inst && annotatedLeaf(inst)) {
         // Scene invalidation does not clear these; drop stale Q from a prior scene.
+        // TODO: a period change still reuses the cached clock density (~29% off here).
+        // Fix in findActivity: prefer 2.0/period over the activity_map_ entry.
         activity_map_.clear();
         seq_activity_map_.clear();
         findInstActivities(inst);
