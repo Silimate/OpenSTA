@@ -479,7 +479,7 @@ PowerResult
 Power::power(const Instance *inst,
              const Scene *scene)
 {
-  ensureActivities(scene);
+  ensureActivities(scene, inst);
   if (network_->isHierarchical(inst)) {
     // Hierarchical sums walk every leaf inside, so fill the whole cache.
     ensureInstPowers();
@@ -954,7 +954,8 @@ Power::evalBddActivity(DdNode *bdd,
 ////////////////////////////////////////////////////////////////
 
 void
-Power::ensureActivities(const Scene *scene)
+Power::ensureActivities(const Scene *scene,
+                        const Instance *inst)
 {
   Stats stats(debug_, report_);
   if (scene != scene_) {
@@ -968,10 +969,6 @@ Power::ensureActivities(const Scene *scene)
   if (!activities_valid_) {
     // No need to propagate activites if global activity is set.
     if (!global_activity_.isSet()) {
-      // Clear existing activities.
-      activity_map_.clear();
-      seq_activity_map_.clear();
-
       // Initialize default input activity (after sdc is defined)
       // unless it has been set by command.
       if (input_activity_.origin() == PwrActivityOrigin::unknown) {
@@ -981,6 +978,15 @@ Power::ensureActivities(const Scene *scene)
         float density = 0.1 / min_period;
         input_activity_.set(density, 0.5, PwrActivityOrigin::input);
       }
+      // Fully annotated leaf (fast path), evaluate it alone and skip the design sweep.
+      if (inst && annotatedLeaf(inst)) {
+        findInstActivities(inst);
+        return;
+      }
+      // Clear existing activities (default slow path).
+      activity_map_.clear();
+      seq_activity_map_.clear();
+
       ActivitySrchPred activity_srch_pred(this);
       BfsFwdIterator bfs(BfsIndex::other, &activity_srch_pred, this);
       seedActivities(bfs);
@@ -1009,6 +1015,56 @@ Power::ensureActivities(const Scene *scene)
     activities_valid_ = true;
   }
   stats.report("Power activities");
+}
+
+bool
+Power::annotatedLeaf(const Instance *inst)
+{
+  if (network_->isHierarchical(inst))
+    return false;
+  const ClkNetwork *clk_network = scene_->mode()->clkNetwork();
+  InstancePinIterator *pin_iter = network_->pinIterator(inst);
+  bool annotated = true;
+  // Sweep enters a leaf through loads; drivers are computed from those.
+  while (annotated && pin_iter->hasNext()) {
+    const Pin *pin = pin_iter->next();
+    // SAIF/user, clocks, and unconnected loads do not need a driver visit.
+    annotated = !network_->isLoad(pin) || hasUserActivity(pin)
+      || clk_network->isClock(pin) || network_->net(pin) == nullptr;
+  }
+  delete pin_iter;
+  return annotated;
+}
+
+void
+Power::findInstActivities(const Instance *inst)
+{
+  ActivitySrchPred activity_srch_pred(this);
+  BfsFwdIterator bfs(BfsIndex::other, &activity_srch_pred, this);
+  PropActivityVisitor visitor(this, scene_->mode(), &bfs);
+  const ClkNetwork *clk_network = scene_->mode()->clkNetwork();
+  InstancePinIterator *pin_iter = network_->pinIterator(inst);
+  // Visit loads the way the sweep would arrive from their drivers.
+  while (pin_iter->hasNext()) {
+    const Pin *pin = pin_iter->next();
+    Vertex *vertex = graph_->pinLoadVertex(pin);
+    // Clocks already have activity; do not walk through them.
+    if (vertex && network_->isLoad(pin) && !clk_network->isClock(pin))
+      visitor.visit(vertex);
+  }
+  delete pin_iter;
+  // Sequential Q is seeded from D after the input visit marks the inst.
+  if (visitor.visitedRegs().contains(inst))
+    seedRegOutputActivities(inst, bfs);
+  // Visit output drivers the input visits queued.
+  pin_iter = network_->pinIterator(inst);
+  while (pin_iter->hasNext()) {
+    Vertex *vertex = graph_->pinDrvrVertex(pin_iter->next());
+    if (vertex && vertex->bfsInQueue(BfsIndex::other))
+      visitor.visit(vertex);
+  }
+  delete pin_iter;
+  bfs.clear();
 }
 
 void
