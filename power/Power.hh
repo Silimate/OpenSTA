@@ -143,7 +143,10 @@ protected:
   void powerInside(const Instance *hinst,
                    const Scene *scene,
                    PowerResult &result);
-  void ensureActivities(const Scene *scene);
+  void ensureActivities(const Scene *scene,
+                        const Instance *inst = nullptr);
+  bool annotatedLeaf(const Instance *inst);
+  void findInstActivities(const Instance *inst);
   bool hasUserActivity(const Pin *pin);
   PwrActivity &userActivity(const Pin *pin);
   void setSeqActivity(const Instance *reg,
