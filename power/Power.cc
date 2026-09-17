@@ -1149,8 +1149,8 @@ Power::seedRegOutputActivities(const Instance *inst,
                                BfsFwdIterator &bfs)
 {
   for (const Sequential &seq : seqs) {
-    seedRegOutputActivities(inst, seq, seq.output(), false);
-    seedRegOutputActivities(inst, seq, seq.outputInv(), true);
+    seedRegOutputActivities(inst, test_cell, seq, seq.output(), false);
+    seedRegOutputActivities(inst, test_cell, seq, seq.outputInv(), true);
     // Enqueue register output pins with functions that reference
     // the sequential internal pins (IQ, IQN).
     InstancePinIterator *pin_iter = network_->pinIterator(inst);
@@ -1180,6 +1180,7 @@ Power::seedRegOutputActivities(const Instance *inst,
 // Returns false when no such pin carries user activity.
 bool
 Power::measuredSeqDuty(const Instance *reg,
+                       const LibertyCell *test_cell,
                        const Sequential &seq,
                        const LibertyPort *output,
                        float &duty)
@@ -1189,6 +1190,9 @@ Power::measuredSeqDuty(const Instance *reg,
   while (pin_iter->hasNext()) {
     const Pin *pin = pin_iter->next();
     LibertyPort *port = network_->libertyPort(pin);
+    // seq's ports belong to the test cell when the sequential came from one.
+    if (port && test_cell)
+      port = test_cell->findLibertyPort(port->name());
     bool invert = false;
     LibertyPort *state = port ? seqStatePort(port, invert) : nullptr;
     if (state && hasUserActivity(pin)
@@ -1209,6 +1213,7 @@ Power::measuredSeqDuty(const Instance *reg,
 
 void
 Power::seedRegOutputActivities(const Instance *reg,
+                               const LibertyCell *test_cell,
                                const Sequential &seq,
                                LibertyPort *output,
                                bool invert)
@@ -1239,7 +1244,7 @@ Power::seedRegOutputActivities(const Instance *reg,
       }
     }
     // An annotated Q/QN measures the state directly; prefer it over the estimate.
-    if (!measuredSeqDuty(reg, seq, output, out_duty) && invert)
+    if (!measuredSeqDuty(reg, test_cell, seq, output, out_duty) && invert)
       out_duty = 1.0 - out_duty;
     PwrActivity out_activity(out_density, out_duty, PwrActivityOrigin::propagated);
     setSeqActivity(reg, output, out_activity);

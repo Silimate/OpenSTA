@@ -215,6 +215,7 @@ protected:
   LibertyPort *seqStatePort(const LibertyPort *port,
                             bool &invert);
   bool measuredSeqDuty(const Instance *reg,
+                       const LibertyCell *test_cell,
                        const Sequential &seq,
                        const LibertyPort *output,
                        float &duty);
@@ -230,6 +231,7 @@ protected:
                       const MinMax *min_max);
   void seedActivities(BfsFwdIterator &bfs);
   void seedRegOutputActivities(const Instance *reg,
+			       const LibertyCell *test_cell,
 			       const Sequential &seq,
 			       LibertyPort *output,
 			       bool invert);
