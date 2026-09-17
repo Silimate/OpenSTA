@@ -154,9 +154,13 @@ bitIndexStart(std::string_view name,
   return end == 0 ? std::string_view::npos : end;
 }
 
+// An array index token: digits, or digits after the '-' of a range whose
+// bounds go below zero (reg [3:-2] x).
 bool
-isDigits(std::string_view token)
+isIndexToken(std::string_view token)
 {
+  if (!token.empty() && token.front() == '-')
+    token.remove_prefix(1);
   return !token.empty()
     && std::all_of(token.begin(), token.end(), [](char ch) {
       return std::isdigit(static_cast<unsigned char>(ch));
@@ -185,7 +189,7 @@ regIndexOrderKey(std::string_view folded,
       break;
     std::string_view token = folded.substr(token_start,
                                            token_end - token_start);
-    if (isDigits(token))
+    if (isIndexToken(token))
       indices++;
     else if (token == "reg"
              && reg_start == std::string_view::npos

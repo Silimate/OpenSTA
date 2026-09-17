@@ -37,6 +37,7 @@ module arrays (clk, d, q);
   wire n3;
   wire n4;
   wire n5;
+  wire n6;
 
   DFFCLK \mem[1]_reg[2]  (.CLK(clk), .D(d), .Q(n1));
   DFFCLK \tap[0][3]_reg[5]  (.CLK(clk), .D(n1), .Q(n2));
@@ -44,8 +45,10 @@ module arrays (clk, d, q);
   // Different names with the same index order key (pix_0_1).
   DFFCLK \pix[0]_reg[1]  (.CLK(clk), .D(n3), .Q(n4));
   DFFCLK \pix_0_reg[1]  (.CLK(clk), .D(n4), .Q(n5));
+  // Negative index, from a range whose bounds go below zero.
+  DFFCLK \frac[2]_reg[-1]  (.CLK(clk), .D(n5), .Q(n6));
   // Not a register.
-  BUFX \bus[0]_reg[1]  (.A(n5), .Z(q));
+  BUFX \bus[0]_reg[1]  (.A(n6), .Z(q));
 endmodule
 
 module clkgen (clk, gclk);

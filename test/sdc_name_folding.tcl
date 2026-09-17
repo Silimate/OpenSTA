@@ -42,6 +42,7 @@ set rescued {
   {get_pins {arrays_u0/tap_reg[0][3][5]/CP}}
   {get_cells {arrays_u0/din[2]_reg[7]}}
   {get_pins {arrays_u0_tap_reg[0][3][5]/Q}}
+  {get_cells {arrays_u0/frac_reg[2][-1]}}
 }
 
 set unresolved {
