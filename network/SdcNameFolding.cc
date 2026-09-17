@@ -67,6 +67,9 @@ public:
   // Leaf instances whose name ends in a bit index, keyed by the folded
   // path name without the index (reg[0] -> reg).
   std::vector<InstanceEntry> bit_index_instances_;
+  // Leaf instances named like a multi-dimensional register bit, keyed by
+  // regIndexOrderKey (mem[1]_reg[2] -> mem_1_2).
+  std::vector<InstanceEntry> reg_index_order_instances_;
   // Folded path name hash -> net, sorted by hash.
   std::vector<NetEntry> nets_;
 };
@@ -149,6 +152,60 @@ bitIndexStart(std::string_view name,
   if (end > 0 && name[end - 1] == escape)
     end--;
   return end == 0 ? std::string_view::npos : end;
+}
+
+bool
+isDigits(std::string_view token)
+{
+  return !token.empty()
+    && std::all_of(token.begin(), token.end(), [](char ch) {
+      return std::isdigit(static_cast<unsigned char>(ch));
+    });
+}
+
+// Key shared by the spellings of one register bit of a multi-dimensional
+// array: the folded path name with the reg token dropped from its trailing
+// run of index tokens (mem_reg_1_2 and mem_1_reg_2 both give mem_1_2). The
+// run must lie at or after leaf_start (the folded leaf name), hold at least
+// two indices and exactly one reg that is not its last token, and follow a
+// name token of the leaf. Returns false for any other name.
+bool
+regIndexOrderKey(std::string_view folded,
+                 size_t leaf_start,
+                 std::string &key)
+{
+  size_t indices = 0;
+  size_t reg_start = std::string_view::npos;
+  size_t run_start = folded.size();
+  size_t token_end = folded.size();
+  while (token_end > leaf_start) {
+    size_t sep = folded.rfind('_', token_end - 1);
+    size_t token_start = sep == std::string_view::npos ? 0 : sep + 1;
+    if (token_start < leaf_start)
+      break;
+    std::string_view token = folded.substr(token_start,
+                                           token_end - token_start);
+    if (isDigits(token))
+      indices++;
+    else if (token == "reg"
+             && reg_start == std::string_view::npos
+             && token_end != folded.size())
+      reg_start = token_start;
+    else
+      break;
+    run_start = token_start;
+    if (token_start == 0)
+      break;
+    token_end = token_start - 1;
+  }
+  if (reg_start == std::string_view::npos
+      || indices < 2
+      || run_start <= leaf_start)
+    return false;
+  // run_start > leaf_start, so a '_' precedes the reg token.
+  key = folded.substr(0, reg_start - 1);
+  key += folded.substr(reg_start + 3);
+  return true;
 }
 
 bool
@@ -273,6 +330,7 @@ SdcNetwork::foldIndex(bool nets) const
     foldIndexInstances(top, folded, index);
     sortEntries(index.instances_);
     sortEntries(index.bit_index_instances_);
+    sortEntries(index.reg_index_order_instances_);
     index.instances_built_ = true;
   }
   if (nets && !index.nets_built_ && top) {
@@ -304,6 +362,10 @@ SdcNetwork::foldIndexInstances(const Instance *parent,
         foldAppend(unindexed, std::string_view(name).substr(0, bit_index));
         index.bit_index_instances_.emplace_back(hashFolded(unindexed), child);
       }
+      std::string key;
+      size_t leaf_start = parent_length == 0 ? 0 : parent_length + 1;
+      if (regIndexOrderKey(folded, leaf_start, key))
+        index.reg_index_order_instances_.emplace_back(hashFolded(key), child);
     }
     else
       foldIndexInstances(child, folded, index);
@@ -449,6 +511,42 @@ SdcNetwork::foldBitIndexRegisters(const Instance *context,
   return matches;
 }
 
+// Register instances whose multi-dimensional register name matches
+// inst_path with _reg before another index (mem_reg[1][2] finds
+// mem[1]_reg[2] and the reverse).
+InstanceSeq
+SdcNetwork::foldRegIndexOrderRegisters(const Instance *context,
+                                       std::string_view inst_path) const
+{
+  InstanceSeq matches;
+  std::string head, leaf;
+  pathNameLast(inst_path, head, leaf);
+  if (head.empty() && leaf.empty())
+    leaf = inst_path;
+  std::string folded = foldedPathName(context);
+  foldAppend(folded, head);
+  size_t leaf_start = folded.empty() ? 0 : folded.size() + 1;
+  foldAppend(folded, leaf);
+  std::string key;
+  if (!regIndexOrderKey(folded, leaf_start, key))
+    return matches;
+  const SdcNameFoldIndex &index = foldIndex(false);
+  for (const Instance *inst : entriesWithHash(index.reg_index_order_instances_,
+                                              hashFolded(key))) {
+    const LibertyCell *cell = network_->libertyCell(inst);
+    if (cell == nullptr || cell->sequentials().empty())
+      continue;
+    std::string inst_folded = foldedPathName(network_->parent(inst));
+    size_t inst_leaf_start = inst_folded.empty() ? 0 : inst_folded.size() + 1;
+    foldAppend(inst_folded, network_->name(inst));
+    std::string inst_key;
+    if (regIndexOrderKey(inst_folded, inst_leaf_start, inst_key)
+        && inst_key == key)
+      matches.push_back(inst);
+  }
+  return matches;
+}
+
 // Pins of insts matching port_pattern. Returns how many instances have one.
 size_t
 SdcNetwork::foldInstancePins(const InstanceSeq &insts,
@@ -535,6 +633,11 @@ SdcNetwork::findInstancesFolded(const Instance *context,
   const std::string &query = pattern->pattern();
   bool glob = patternWildcards(query);
   matches = foldInstances(context, pattern, glob);
+  std::string_view rule;
+  if (matches.empty() && !glob) {
+    matches = foldRegIndexOrderRegisters(context, query);
+    rule = " (register index order)";
+  }
   if (!glob && matches.size() > 1) {
     std::vector<std::string> candidates;
     for (const Instance *inst : matches)
@@ -546,7 +649,7 @@ SdcNetwork::findInstancesFolded(const Instance *context,
     std::vector<std::string> targets;
     for (const Instance *inst : matches)
       targets.push_back(pathName(inst));
-    reportFoldRescue(query, targets, "");
+    reportFoldRescue(query, targets, rule);
   }
   return matches;
 }
@@ -591,6 +694,15 @@ SdcNetwork::findPinsFolded(const Instance *context,
     if (pins.empty() && !port_glob) {
       pin_insts = foldClockPinAliases(registers, port_name, pins);
       rule = " (register bit index, clock pin alias)";
+    }
+  }
+  if (pins.empty() && !inst_glob) {
+    InstanceSeq registers = foldRegIndexOrderRegisters(context, inst_path);
+    pin_insts = foldInstancePins(registers, &port_pattern, port_glob, pins);
+    rule = " (register index order)";
+    if (pins.empty() && !port_glob) {
+      pin_insts = foldClockPinAliases(registers, port_name, pins);
+      rule = " (register index order, clock pin alias)";
     }
   }
   // An instance name without wildcards must identify one instance with

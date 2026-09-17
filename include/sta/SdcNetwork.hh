@@ -269,6 +269,9 @@ public:
   //
   // Folded names are hashed into an index built on the first miss and
   // rebuilt after the network is edited (Network::nameEditCount).
+  // A name without wildcards that folds to no instance is then tried as a
+  // multi-dimensional register named with _reg before a different index
+  // (foldRegIndexOrderRegisters).
   InstanceSeq findInstancesFolded(const Instance *context,
                                   const PatternMatch *pattern) const;
   // Pins split the query at the last divider into an instance part and a
@@ -282,6 +285,9 @@ public:
   //  - then, for an instance part without wildcards, register instances
   //    whose name carries one extra trailing bit index (reg finds reg[0])
   //    are tried the same way.
+  //  - then, for an instance part without wildcards, register instances
+  //    of a multi-dimensional array whose _reg sits before a different
+  //    index (see foldRegIndexOrderRegisters) are tried the same way.
   // An instance part without wildcards resolves only when a single
   // instance has the requested pins.
   PinSeq findPinsFolded(const Instance *context,
@@ -360,6 +366,14 @@ protected:
                             bool glob) const;
   InstanceSeq foldBitIndexRegisters(const Instance *context,
                                     std::string_view inst_path) const;
+  // Register instances of a multi-dimensional array named with _reg before
+  // another index than inst_path has it. A synthesis tool names the
+  // register bits of mem[i][j] mem_reg[i][j]; an RTL elaborator that
+  // registers each element names them mem[i]_reg[j]. Both match after
+  // dropping _reg from the trailing run of at least two indices, and
+  // either spelling finds the other. Only for inst_path without wildcards.
+  InstanceSeq foldRegIndexOrderRegisters(const Instance *context,
+                                         std::string_view inst_path) const;
   size_t foldInstancePins(const InstanceSeq &insts,
                           const PatternMatch *port_pattern,
                           bool glob,

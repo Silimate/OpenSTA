@@ -24,6 +24,10 @@ foreach bit {0 1} {
   set_output_delay -clock CLK 1 [get_ports status*${bit}*]
 }
 
+# Multi-dimensional register bits named the synthesis tool's way.
+set_multicycle_path 2 -from {arrays_u0/mem_reg[1][2]} \
+  -through [get_pins {arrays_u0/tap_reg[0][3][5]/D}]
+
 # Register clock pins under another library's pin name.
 set_false_path -from [get_pins csr_u0/*mode_sel_reg*/CP]
 

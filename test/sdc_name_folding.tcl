@@ -1,6 +1,6 @@
 # SDC name folding (sta_sdc_name_folding): get_* queries that match nothing
-# retry with / . [ ] _ runs folded to '_', a register bit index, a clock
-# pin alias, and bus bit globs.
+# retry with / . [ ] _ runs folded to '_', a register bit index, register
+# index order, a clock pin alias, and bus bit globs.
 read_liberty sdc_name_folding.lib
 read_verilog sdc_name_folding.v
 link_design sdc_name_folding
@@ -37,6 +37,11 @@ set rescued {
   {get_pins uniq.0.y/Z}
   {get_pins uniq_0_y/Z}
   {get_pins uniq.0.y/Q}
+  {get_cells {arrays_u0/mem_reg[1][2]}}
+  {get_pins {arrays_u0/mem_reg[1][2]/Q}}
+  {get_pins {arrays_u0/tap_reg[0][3][5]/CP}}
+  {get_cells {arrays_u0/din[2]_reg[7]}}
+  {get_pins {arrays_u0_tap_reg[0][3][5]/Q}}
 }
 
 set unresolved {
@@ -49,6 +54,12 @@ set unresolved {
   {get_pins clkgen_u0/genblk1_0_gen_ch_0_cg_wrap_u0_icg_u0/QN}
   {get_pins no_such_inst/Q}
   {get_cells -regexp {clkgen_u0/genblk1_0_gen.*}}
+  {get_cells {arrays_u0/pix_reg[0][1]}}
+  {get_cells {arrays_u0/bus_reg[0][1]}}
+  {get_cells {arrays_u0/mem[1]_2}}
+  {get_cells {arrays_u0/mem_reg[1]}}
+  {get_cells {arrays_u0/mem_reg[1][2][3]}}
+  {get_cells {arrays_u0/mem_reg*}}
 }
 
 puts "default sta_sdc_name_folding: $sta_sdc_name_folding"
