@@ -399,8 +399,9 @@ find_pin_sdc(const char *path_name)
   Network *network = Sta::sta()->ensureLinked();
   Pin *pin = network->findPin(path_name);
   if (pin == nullptr) {
-    // Retry the missed name by folding separators, a register bit index
-    // or a clock pin alias; only a unique pin is returned.
+    // Retry the missed name by folding separators, a register bit index,
+    // register index order or a clock pin alias; only a unique pin is
+    // returned.
     const SdcNetwork *sdc_network = sdcNameFoldingNetwork(network);
     if (sdc_network)
       pin = sdc_network->findPinFolded(path_name);
@@ -443,8 +444,9 @@ find_pins_complete(PinSeq *collection,
         network->findPinsMatching(current_instance, m);
       if (matches.empty() && !hier) {
         // Last resort for a pattern that matched no pin: fold separators
-        // in the instance part, then try a clock pin alias and a register
-        // bit index (sta_sdc_name_folding). -hierarchical is not folded.
+        // in the instance part, then try a clock pin alias, a register bit
+        // index and register index order (sta_sdc_name_folding).
+        // -hierarchical is not folded.
         const SdcNetwork *sdc_network = sdcNameFoldingNetwork(network);
         if (sdc_network)
           matches = sdc_network->findPinsFolded(current_instance, m);
@@ -539,7 +541,8 @@ find_instances_complete(InstanceSeq *collection,
         network->findInstancesMatching(current_instance, m);
       if (matches.empty() && !hier) {
         // Last resort for a pattern that matched no instance: match the
-        // folded path names (sta_sdc_name_folding).
+        // folded path names, then register index order
+        // (sta_sdc_name_folding).
         const SdcNetwork *sdc_network = sdcNameFoldingNetwork(network);
         if (sdc_network)
           matches = sdc_network->findInstancesFolded(current_instance, m);

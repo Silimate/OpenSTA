@@ -118,8 +118,8 @@ public:
   // TCL variable sta_sdc_name_folding.
   // When a get_cells/get_pins/get_nets/get_ports lookup finds nothing, retry
   // with runs of / . [ ] _ folded to one '_' in both the query and the
-  // netlist names, plus the register bit index, clock pin alias and bus bit
-  // rules (see SdcNetwork). Only unique exact-name rescues are accepted and
+  // netlist names, plus the register bit index, register index order, clock
+  // pin alias and bus bit rules (see SdcNetwork). Only unique exact-name rescues are accepted and
   // every rescue is reported. Default on.
   bool sdcNameFolding() const { return sdc_name_folding_; }
   void setSdcNameFolding(bool enable) { sdc_name_folding_ = enable; }

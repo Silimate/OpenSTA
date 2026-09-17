@@ -6,8 +6,12 @@ Warning 101: sdc_name_folding.sdc line 20, object 'ctrl_u0/gen_lane_0_sync_u/rea
 Error 374: sdc_name_folding.sdc line 20, empty ports/pins/nets argument.
 Warning 366: port 'status*0*' not found.
 Warning 366: port 'status*1*' not found.
+Warning 363: pin 'arrays_u0/tap_reg[0][3][5]/D' not found.
+Warning 101: sdc_name_folding.sdc line 29, object 'arrays_u0/mem_reg[1][2]' not found.
+Warning 471: sdc_name_folding.sdc line 29, no valid objects specified for -from.
+Warning 472: sdc_name_folding.sdc line 29, no valid objects specified for -through
 Warning 363: pin 'csr_u0/*mode_sel_reg*/CP' not found.
-Warning 471: sdc_name_folding.sdc line 28, no valid objects specified for -from.
+Warning 471: sdc_name_folding.sdc line 32, no valid objects specified for -from.
 Warning 351: clock 'GCLK_CH*' not found.
 Warning 351: clock 'SYNC_CLK_CH*' not found.
 clocks -> {CLK}
@@ -16,6 +20,8 @@ Warning 2740: SDC object 'clkgen_u0/genblk1_0_gen_ch_0_cg_wrap_u0_icg_u0/Q' reso
 Warning 2740: SDC object 'ctrl_u0/gen_lane_0_sync_u/ready_meta_0_reg/Q' resolved to 'ctrl_u0/gen_lane[0].sync_u/ready_meta_0_reg[0]/Q' by name folding (register bit index).
 Warning 2740: SDC object 'status*0*' resolved to 'status[0]' by name folding (bus bit match).
 Warning 2740: SDC object 'status*1*' resolved to 'status[1]' by name folding (bus bit match).
+Warning 2740: SDC object 'arrays_u0/tap_reg[0][3][5]/D' resolved to 'arrays_u0/tap[0][3]_reg[5]/D' by name folding (register index order).
+Warning 2740: SDC object 'arrays_u0/mem_reg[1][2]' resolved to 'arrays_u0/mem[1]_reg[2]' by name folding (register index order).
 Warning 2741: SDC object 'csr_u0/*mode_sel_reg*/CP' resolved to 'csr_u0/mode_sel_reg[0]/CLK' and 1 more by name folding (clock pin alias).
 clocks -> {CLK GCLK_CH0 SYNC_CLK_CH0}
 Clock                   Period          Waveform
@@ -54,6 +60,18 @@ Warning 363: pin 'uniq_0_y/Z' not found.
 get_pins uniq_0_y/Z -> {}
 Warning 363: pin 'uniq.0.y/Q' not found.
 get_pins uniq.0.y/Q -> {}
+Warning 349: instance 'arrays_u0/mem_reg[1][2]' not found.
+get_cells {arrays_u0/mem_reg[1][2]} -> {}
+Warning 363: pin 'arrays_u0/mem_reg[1][2]/Q' not found.
+get_pins {arrays_u0/mem_reg[1][2]/Q} -> {}
+Warning 363: pin 'arrays_u0/tap_reg[0][3][5]/CP' not found.
+get_pins {arrays_u0/tap_reg[0][3][5]/CP} -> {}
+Warning 349: instance 'arrays_u0/din[2]_reg[7]' not found.
+get_cells {arrays_u0/din[2]_reg[7]} -> {}
+Warning 363: pin 'arrays_u0_tap_reg[0][3][5]/Q' not found.
+get_pins {arrays_u0_tap_reg[0][3][5]/Q} -> {}
+Warning 349: instance 'arrays_u0/frac_reg[2][-1]' not found.
+get_cells {arrays_u0/frac_reg[2][-1]} -> {}
 ######## get_*, sta_sdc_name_folding 1 ########
 get_pins clkgen_u0/genblk1_0_gen_ch_0_cg_wrap_u0_icg_u0/Q -> {{clkgen_u0/genblk1[0].gen_ch[0].cg_wrap_u0/icg_u0/Q}}
 Warning 2740: SDC object 'ctrl_u0/gen_lane_0_sync_u/ready_sync_reg/Q' resolved to 'ctrl_u0/gen_lane[0].sync_u/ready_sync_reg/Q' by name folding.
@@ -81,6 +99,17 @@ Warning 2740: SDC object 'uniq_0_y/Z' resolved to 'uniq[0].y/Z' by name folding.
 get_pins uniq_0_y/Z -> {{uniq[0].y/Z}}
 Warning 2740: SDC object 'uniq.0.y/Q' resolved to 'uniq_0_y/Q' by name folding.
 get_pins uniq.0.y/Q -> {uniq_0_y/Q}
+get_cells {arrays_u0/mem_reg[1][2]} -> {{arrays_u0/mem[1]_reg[2]}}
+Warning 2740: SDC object 'arrays_u0/mem_reg[1][2]/Q' resolved to 'arrays_u0/mem[1]_reg[2]/Q' by name folding (register index order).
+get_pins {arrays_u0/mem_reg[1][2]/Q} -> {{arrays_u0/mem[1]_reg[2]/Q}}
+Warning 2740: SDC object 'arrays_u0/tap_reg[0][3][5]/CP' resolved to 'arrays_u0/tap[0][3]_reg[5]/CLK' by name folding (register index order, clock pin alias).
+get_pins {arrays_u0/tap_reg[0][3][5]/CP} -> {{arrays_u0/tap[0][3]_reg[5]/CLK}}
+Warning 2740: SDC object 'arrays_u0/din[2]_reg[7]' resolved to 'arrays_u0/din_reg[2][7]' by name folding (register index order).
+get_cells {arrays_u0/din[2]_reg[7]} -> {{arrays_u0/din_reg[2][7]}}
+Warning 2740: SDC object 'arrays_u0_tap_reg[0][3][5]/Q' resolved to 'arrays_u0/tap[0][3]_reg[5]/Q' by name folding (register index order).
+get_pins {arrays_u0_tap_reg[0][3][5]/Q} -> {{arrays_u0/tap[0][3]_reg[5]/Q}}
+Warning 2740: SDC object 'arrays_u0/frac_reg[2][-1]' resolved to 'arrays_u0/frac[2]_reg[-1]' by name folding (register index order).
+get_cells {arrays_u0/frac_reg[2][-1]} -> {{arrays_u0/frac[2]_reg[-1]}}
 ######## unresolved ########
 Warning 2742: SDC object 'amb.0.x/Z' is ambiguous under name folding (2 candidates: 'amb[0].x/Z', 'amb_0_x/Z'); not resolved.
 Warning 363: pin 'amb.0.x/Z' not found.
@@ -103,8 +132,21 @@ Warning 363: pin 'no_such_inst/Q' not found.
 get_pins no_such_inst/Q -> {}
 Warning 349: instance 'clkgen_u0/genblk1_0_gen.*' not found.
 get_cells -regexp {clkgen_u0/genblk1_0_gen.*} -> {}
+Warning 2742: SDC object 'arrays_u0/pix_reg[0][1]' is ambiguous under name folding (2 candidates: 'arrays_u0/pix[0]_reg[1]', 'arrays_u0/pix_0_reg[1]'); not resolved.
+Warning 349: instance 'arrays_u0/pix_reg[0][1]' not found.
+get_cells {arrays_u0/pix_reg[0][1]} -> {}
+Warning 349: instance 'arrays_u0/bus_reg[0][1]' not found.
+get_cells {arrays_u0/bus_reg[0][1]} -> {}
+Warning 349: instance 'arrays_u0/mem[1]_2' not found.
+get_cells {arrays_u0/mem[1]_2} -> {}
+Warning 349: instance 'arrays_u0/mem_reg[1]' not found.
+get_cells {arrays_u0/mem_reg[1]} -> {}
+Warning 349: instance 'arrays_u0/mem_reg[1][2][3]' not found.
+get_cells {arrays_u0/mem_reg[1][2][3]} -> {}
+Warning 349: instance 'arrays_u0/mem_reg*' not found.
+get_cells {arrays_u0/mem_reg*} -> {}
 ######## commands outside SDC do not fold pin arguments ########
-Error 130: sdc_name_folding.tcl line 90, pin ctrl_u0/gen_lane_0_sync_u/ready_sync_reg/Q not found.
+Error 130: sdc_name_folding.tcl line 102, pin ctrl_u0/gen_lane_0_sync_u/ready_sync_reg/Q not found.
 ######## exact names win ########
 get_pins amb_0_x/Z -> {amb_0_x/Z}
 get_pins {amb[0].x/Z} -> {{amb[0].x/Z}}
