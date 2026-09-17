@@ -214,6 +214,10 @@ protected:
   float clockDuty(const Clock *clk);
   LibertyPort *seqStatePort(const LibertyPort *port,
                             bool &invert);
+  bool measuredSeqDuty(const Instance *reg,
+                       const Sequential &seq,
+                       const LibertyPort *output,
+                       float &duty);
   PwrActivity findSeqActivity(const Instance *inst,
 			      LibertyPort *port);
   float portVoltage(LibertyCell *cell,

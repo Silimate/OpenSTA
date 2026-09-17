@@ -926,31 +926,31 @@ Power::evalBddDuty(DdNode *bdd,
     unsigned int index = Cudd_NodeReadIndex(bdd);
     int var_index = Cudd_ReadPerm(bdd_.cuddMgr(), index);
     const LibertyPort *port = bdd_.varIndexPort(var_index);
+    // Duty of this node's variable: the stored state for an internal ff node,
+    // otherwise the state a sequential output reflects, else the net itself.
+    float var_duty;
     if (port->direction()->isInternal())
-      return findSeqActivity(inst, const_cast<LibertyPort *>(port)).duty();
+      var_duty = findSeqActivity(inst, const_cast<LibertyPort *>(port)).duty();
     else {
       bool invert = false;
       LibertyPort *seq_port = seqStatePort(port, invert);
       // Q = IQ / QN = !IQ: use stored IQ duty, not the Q net.
       if (seq_port && hasSeqActivity(inst, seq_port)) {
-        float var_duty = findSeqActivity(inst, seq_port).duty();
+        var_duty = findSeqActivity(inst, seq_port).duty();
         if (invert)
           var_duty = 1.0 - var_duty;
-        float duty = duty0 * (1.0 - var_duty) + duty1 * var_duty;
-        if (Cudd_IsComplement(bdd))
-          duty = 1.0 - duty;
-        return duty;
       }
-      const Pin *pin = findLinkPin(inst, port);
-      if (pin) {
-        PwrActivity var_activity = findActivity(pin);
-        float var_duty = var_activity.duty();
-        float duty = duty0 * (1.0 - var_duty) + duty1 * var_duty;
-        if (Cudd_IsComplement(bdd))
-          duty = 1.0 - duty;
-        return duty;
+      else {
+        const Pin *pin = findLinkPin(inst, port);
+        if (pin == nullptr)
+          return 0.0;
+        var_duty = findActivity(pin).duty();
       }
     }
+    float duty = duty0 * (1.0 - var_duty) + duty1 * var_duty;
+    if (Cudd_IsComplement(bdd))
+      duty = 1.0 - duty;
+    return duty;
   }
   return 0.0;
 }
@@ -1174,6 +1174,39 @@ Power::seedRegOutputActivities(const Instance *inst,
   }
 }
 
+// Measured duty of a stored node, taken from an annotated output pin that
+// reflects it (Q = IQ, QN = !IQ). Both state nodes are reachable from either
+// pin, so invert when the pin and the requested node have opposite sense.
+// Returns false when no such pin carries user activity.
+bool
+Power::measuredSeqDuty(const Instance *reg,
+                       const Sequential &seq,
+                       const LibertyPort *output,
+                       float &duty)
+{
+  bool found = false;
+  InstancePinIterator *pin_iter = network_->pinIterator(reg);
+  while (pin_iter->hasNext()) {
+    const Pin *pin = pin_iter->next();
+    LibertyPort *port = network_->libertyPort(pin);
+    bool invert = false;
+    LibertyPort *state = port ? seqStatePort(port, invert) : nullptr;
+    if (state && hasUserActivity(pin)
+        && (state == seq.output() || state == seq.outputInv())) {
+      // The pin measures `state`; flip when the caller asked for its complement.
+      if ((state == seq.output()) != (output == seq.output()))
+        invert = !invert;
+      duty = userActivity(pin).duty();
+      if (invert)
+        duty = 1.0 - duty;
+      found = true;
+      break;
+    }
+  }
+  delete pin_iter;
+  return found;
+}
+
 void
 Power::seedRegOutputActivities(const Instance *reg,
                                const Sequential &seq,
@@ -1205,7 +1238,8 @@ Power::seedRegOutputActivities(const Instance *reg,
           out_density = in_density * clk_duty;
       }
     }
-    if (invert)
+    // An annotated Q/QN measures the state directly; prefer it over the estimate.
+    if (!measuredSeqDuty(reg, seq, output, out_duty) && invert)
       out_duty = 1.0 - out_duty;
     PwrActivity out_activity(out_density, out_duty, PwrActivityOrigin::propagated);
     setSeqActivity(reg, output, out_activity);
