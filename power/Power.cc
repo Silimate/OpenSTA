@@ -1174,10 +1174,6 @@ Power::seedRegOutputActivities(const Instance *inst,
   }
 }
 
-// Measured duty of a stored node, taken from an annotated output pin that
-// reflects it (Q = IQ, QN = !IQ). Both state nodes are reachable from either
-// pin, so invert when the pin and the requested node have opposite sense.
-// Returns false when no such pin carries user activity.
 bool
 Power::measuredSeqDuty(const Instance *reg,
                        const LibertyCell *test_cell,
@@ -1194,15 +1190,17 @@ Power::measuredSeqDuty(const Instance *reg,
     if (port && test_cell)
       port = test_cell->findLibertyPort(port->name());
     bool invert = false;
+    // Peel Q/QN down to the stored node; invert is set for QN = !IQ.
     LibertyPort *state = port ? seqStatePort(port, invert) : nullptr;
+    // Need a user-annotated pin that actually measures this sequential.
     if (state && hasUserActivity(pin)
         && (state == seq.output() || state == seq.outputInv())) {
-      // The pin measures `state`; flip when the caller asked for its complement.
+      // Pin measures `state`; flip when the caller asked for its complement.
       if ((state == seq.output()) != (output == seq.output()))
         invert = !invert;
       duty = userActivity(pin).duty();
       if (invert)
-        duty = 1.0 - duty;
+        duty = 1.0 - duty;  // QN→IQ or Q→IQN
       found = true;
       break;
     }
