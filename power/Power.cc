@@ -809,6 +809,25 @@ Power::clockGatePins(const Instance *inst,
 
 ////////////////////////////////////////////////////////////////
 
+LibertyPort *
+Power::seqStatePort(const LibertyPort *port,
+                    bool &invert)
+{
+  invert = false;
+  FuncExpr *func = port->function();
+  // Peel QN = !IQ down to the stored node.
+  while (func && func->op() == FuncExpr::Op::not_) {
+    invert = !invert;
+    func = func->left();
+  }
+  if (func && func->op() == FuncExpr::Op::port) {
+    LibertyPort *func_port = func->port();
+    if (func_port && func_port->direction()->isInternal())
+      return func_port;
+  }
+  return nullptr;
+}
+
 // Replace each output variable in bdd with that port's Liberty function.
 DdNode *
 Power::substituteOutputPorts(DdNode *bdd)
@@ -907,19 +926,31 @@ Power::evalBddDuty(DdNode *bdd,
     unsigned int index = Cudd_NodeReadIndex(bdd);
     int var_index = Cudd_ReadPerm(bdd_.cuddMgr(), index);
     const LibertyPort *port = bdd_.varIndexPort(var_index);
+    // Duty of this node's variable: the stored state for an internal ff node,
+    // otherwise the state a sequential output reflects, else the net itself.
+    float var_duty;
     if (port->direction()->isInternal())
-      return findSeqActivity(inst, const_cast<LibertyPort *>(port)).duty();
+      var_duty = findSeqActivity(inst, const_cast<LibertyPort *>(port)).duty();
     else {
-      const Pin *pin = findLinkPin(inst, port);
-      if (pin) {
-        PwrActivity var_activity = findActivity(pin);
-        float var_duty = var_activity.duty();
-        float duty = duty0 * (1.0 - var_duty) + duty1 * var_duty;
-        if (Cudd_IsComplement(bdd))
-          duty = 1.0 - duty;
-        return duty;
+      bool invert = false;
+      LibertyPort *seq_port = seqStatePort(port, invert);
+      // Q = IQ / QN = !IQ: use stored IQ duty, not the Q net.
+      if (seq_port && hasSeqActivity(inst, seq_port)) {
+        var_duty = findSeqActivity(inst, seq_port).duty();
+        if (invert)
+          var_duty = 1.0 - var_duty;
+      }
+      else {
+        const Pin *pin = findLinkPin(inst, port);
+        if (pin == nullptr)
+          return 0.0;
+        var_duty = findActivity(pin).duty();
       }
     }
+    float duty = duty0 * (1.0 - var_duty) + duty1 * var_duty;
+    if (Cudd_IsComplement(bdd))
+      duty = 1.0 - duty;
+    return duty;
   }
   return 0.0;
 }
@@ -1118,8 +1149,8 @@ Power::seedRegOutputActivities(const Instance *inst,
                                BfsFwdIterator &bfs)
 {
   for (const Sequential &seq : seqs) {
-    seedRegOutputActivities(inst, seq, seq.output(), false);
-    seedRegOutputActivities(inst, seq, seq.outputInv(), true);
+    seedRegOutputActivities(inst, test_cell, seq, seq.output(), false);
+    seedRegOutputActivities(inst, test_cell, seq, seq.outputInv(), true);
     // Enqueue register output pins with functions that reference
     // the sequential internal pins (IQ, IQN).
     InstancePinIterator *pin_iter = network_->pinIterator(inst);
@@ -1143,8 +1174,44 @@ Power::seedRegOutputActivities(const Instance *inst,
   }
 }
 
+bool
+Power::measuredSeqDuty(const Instance *reg,
+                       const LibertyCell *test_cell,
+                       const Sequential &seq,
+                       const LibertyPort *output,
+                       float &duty)
+{
+  bool found = false;
+  InstancePinIterator *pin_iter = network_->pinIterator(reg);
+  while (pin_iter->hasNext()) {
+    const Pin *pin = pin_iter->next();
+    LibertyPort *port = network_->libertyPort(pin);
+    // seq's ports belong to the test cell when the sequential came from one.
+    if (port && test_cell)
+      port = test_cell->findLibertyPort(port->name());
+    bool invert = false;
+    // Peel Q/QN down to the stored node; invert is set for QN = !IQ.
+    LibertyPort *state = port ? seqStatePort(port, invert) : nullptr;
+    // Need a user-annotated pin that actually measures this sequential.
+    if (state && hasUserActivity(pin)
+        && (state == seq.output() || state == seq.outputInv())) {
+      // Pin measures `state`; flip when the caller asked for its complement.
+      if ((state == seq.output()) != (output == seq.output()))
+        invert = !invert;
+      duty = userActivity(pin).duty();
+      if (invert)
+        duty = 1.0 - duty;  // QN→IQ or Q→IQN
+      found = true;
+      break;
+    }
+  }
+  delete pin_iter;
+  return found;
+}
+
 void
 Power::seedRegOutputActivities(const Instance *reg,
+                               const LibertyCell *test_cell,
                                const Sequential &seq,
                                LibertyPort *output,
                                bool invert)
@@ -1174,7 +1241,8 @@ Power::seedRegOutputActivities(const Instance *reg,
           out_density = in_density * clk_duty;
       }
     }
-    if (invert)
+    // An annotated Q/QN measures the state directly; prefer it over the estimate.
+    if (!measuredSeqDuty(reg, test_cell, seq, output, out_duty) && invert)
       out_duty = 1.0 - out_duty;
     PwrActivity out_activity(out_density, out_duty, PwrActivityOrigin::propagated);
     setSeqActivity(reg, output, out_activity);

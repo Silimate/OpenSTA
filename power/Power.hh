@@ -212,6 +212,13 @@ protected:
   const Clock *findInstClk(const Instance *inst);
   const Clock *findClk(const Pin *to_pin);
   float clockDuty(const Clock *clk);
+  LibertyPort *seqStatePort(const LibertyPort *port,
+                            bool &invert);
+  bool measuredSeqDuty(const Instance *reg,
+                       const LibertyCell *test_cell,
+                       const Sequential &seq,
+                       const LibertyPort *output,
+                       float &duty);
   PwrActivity findSeqActivity(const Instance *inst,
 			      LibertyPort *port);
   float portVoltage(LibertyCell *cell,
@@ -224,6 +231,7 @@ protected:
                       const MinMax *min_max);
   void seedActivities(BfsFwdIterator &bfs);
   void seedRegOutputActivities(const Instance *reg,
+			       const LibertyCell *test_cell,
 			       const Sequential &seq,
 			       LibertyPort *output,
 			       bool invert);
