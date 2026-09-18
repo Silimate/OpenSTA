@@ -165,7 +165,13 @@ SaifReader::setNetDurations(std::string &&net_name,
       if (pin && !sdc_network_->isHierarchical(pin)
           && !sdc_network_->direction(pin)->isInternal()
           && !(liberty_port && liberty_port->isPwrGnd())) {
+        double t0 = durations[static_cast<int>(SaifState::T0)];
         double t1 = durations[static_cast<int>(SaifState::T1)];
+        // A net that was never 0 or 1 held no value we can price a when condition
+        // against; T1/duration would read it as a hard 0 and decide the condition.
+        // Leave it unannotated so it is treated as unknown rather than asserted.
+        if (t0 == 0.0 && t1 == 0.0)
+          return;
         float duty = t1 / duration_;
         double tc = durations[static_cast<int>(SaifState::TC)];
         float density = tc / (duration_ * timescale_);
