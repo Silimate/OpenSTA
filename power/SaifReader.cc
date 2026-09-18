@@ -165,7 +165,13 @@ SaifReader::setNetDurations(std::string &&net_name,
       if (pin && !sdc_network_->isHierarchical(pin)
           && !sdc_network_->direction(pin)->isInternal()
           && !(liberty_port && liberty_port->isPwrGnd())) {
+        double t0 = durations[static_cast<int>(SaifState::T0)];
         double t1 = durations[static_cast<int>(SaifState::T1)];
+        // A net the file reports as neither 0 nor 1 for any of the window held no value to
+        // measure. Deriving duty from T1 would call that a hard 0 and let it decide an
+        // internal_power when condition, so leave it unannotated and therefore unknown.
+        if (t0 == 0.0 && t1 == 0.0)
+          return;
         float duty = t1 / duration_;
         double tc = durations[static_cast<int>(SaifState::TC)];
         float density = tc / (duration_ * timescale_);
