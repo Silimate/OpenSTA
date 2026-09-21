@@ -1789,9 +1789,11 @@ Power::pinActivity(const Pin *pin,
 float
 Power::maxClkEdges()
 {
+  // Cached result stored inside max_clk_edges_valid_
   if (!max_clk_edges_valid_) {
     max_clk_edges_ = 0.0;
     const ClkNetwork *clk_network = scene_->mode()->clkNetwork();
+    // Loop over all annotated pins on the clock network
     for (const auto &[pin, activity] : user_activity_map_) {
       if (activity.density() > 0.0 && clk_network->isClock(pin)) {
         const Clock *pin_clk = findClk(pin);
@@ -1800,7 +1802,7 @@ Power::maxClkEdges()
                                     activity.density() * pin_clk->period());
       }
     }
-    // Past 2 the declared period is short of the toggles.
+    // The largest possible number is 2.0 since the clock cannot run more than the whole window
     max_clk_edges_ = std::min(max_clk_edges_, 2.0f);
     max_clk_edges_valid_ = true;
   }
@@ -1818,14 +1820,15 @@ Power::findActivity(const Pin *pin)
       return *activity;
     const Clock *clk = findClk(pin);
     if (clk) {
-      // The period and waveform assume the clock runs ungated
+      // The SDC assumes the clock runs ungated
       float density = 2.0 / clk->period();
       float duty = clockDuty(clk);
       const auto measured = user_activity_map_.find(pin);
+      // If the waveform did annotate the pin, we must check if the clock actually ran for that long
       if (measured != user_activity_map_.end()) {
         float edges = maxClkEdges();
         duty = measured->second.duty();
-        // Both sides come from the waveform, so a slower testbench cancels.
+        // Two waveform rates divide out the testbench, leaving how full the window was
         density = edges > 0.0 && clk->period() > 0.0
           ? std::min(2.0f * measured->second.density() / edges, density)
           : 0.0f;
