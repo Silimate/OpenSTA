@@ -1828,7 +1828,7 @@ Power::findActivity(const Pin *pin)
       if (measured != user_activity_map_.end()) {
         float edges = maxClkEdges();
         duty = measured->second.duty();
-        // Two waveform rates divide out the testbench, leaving how full the window was
+        // How full this clock ran, compared with the fullest pin in the same waveform.
         density = edges > 0.0 && clk->period() > 0.0
           ? std::min(2.0f * measured->second.density() / edges, density)
           : 0.0f;
