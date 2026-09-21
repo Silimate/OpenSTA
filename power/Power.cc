@@ -878,11 +878,11 @@ Power::evalActivity(FuncExpr *expr,
     Cudd_Ref(bdd);
     // Outputs in when are functions of inputs, not independent 0.5-duty vars.
     bdd = substituteOutputPorts(bdd);
-    float duty = evalBddDuty(bdd, inst);
+    float duty = evalBddDutyRoot(bdd, inst);
     float density = evalBddActivity(bdd, inst);
 
     Cudd_RecursiveDeref(bdd_.cuddMgr(), bdd);
-    bdd_.clearVarMap();
+    clearBddEval();
     return PwrActivity(density, duty, PwrActivityOrigin::propagated);
   }
 }
@@ -898,11 +898,11 @@ Power::evalDiffDuty(FuncExpr *expr,
   unsigned var_index = Cudd_NodeReadIndex(var_node);
   DdNode *diff = Cudd_bddBooleanDiff(bdd_.cuddMgr(), bdd, var_index);
   Cudd_Ref(diff);
-  float duty = evalBddDuty(diff, inst);
+  float duty = evalBddDutyRoot(diff, inst);
 
   Cudd_RecursiveDeref(bdd_.cuddMgr(), diff);
   Cudd_RecursiveDeref(bdd_.cuddMgr(), bdd);
-  bdd_.clearVarMap();
+  clearBddEval();
   return duty;
 }
 
@@ -921,38 +921,72 @@ Power::evalBddDuty(DdNode *bdd,
       criticalError(2400, "unknown cudd constant");
   }
   else {
-    float duty0 = evalBddDuty(Cudd_E(bdd), inst);
-    float duty1 = evalBddDuty(Cudd_T(bdd), inst);
-    unsigned int index = Cudd_NodeReadIndex(bdd);
-    int var_index = Cudd_ReadPerm(bdd_.cuddMgr(), index);
-    const LibertyPort *port = bdd_.varIndexPort(var_index);
-    // Duty of this node's variable: the stored state for an internal ff node,
-    // otherwise the state a sequential output reflects, else the net itself.
-    float var_duty;
-    if (port->direction()->isInternal())
-      var_duty = findSeqActivity(inst, const_cast<LibertyPort *>(port)).duty();
-    else {
-      bool invert = false;
-      LibertyPort *seq_port = seqStatePort(port, invert);
-      // Q = IQ / QN = !IQ: use stored IQ duty, not the Q net.
-      if (seq_port && hasSeqActivity(inst, seq_port)) {
-        var_duty = findSeqActivity(inst, seq_port).duty();
-        if (invert)
-          var_duty = 1.0 - var_duty;
-      }
-      else {
-        const Pin *pin = findLinkPin(inst, port);
-        if (pin == nullptr)
-          return 0.0;
-        var_duty = findActivity(pin).duty();
-      }
+    // Keyed on the regular node; a complement differs only by the flip below.
+    DdNode *node = Cudd_Regular(bdd);
+    auto memo = bdd_duty_memo_.find(node);
+    if (memo == bdd_duty_memo_.end()) {
+      float duty0 = evalBddDuty(Cudd_E(bdd), inst);
+      float duty1 = evalBddDuty(Cudd_T(bdd), inst);
+      int var_index = Cudd_ReadPerm(bdd_.cuddMgr(), Cudd_NodeReadIndex(bdd));
+      std::optional<float> var_duty = varDuty(var_index, inst);
+      if (!var_duty)
+        return 0.0;
+      memo = bdd_duty_memo_.emplace(node, duty0 * (1.0 - *var_duty)
+                                          + duty1 * *var_duty).first;
     }
-    float duty = duty0 * (1.0 - var_duty) + duty1 * var_duty;
-    if (Cudd_IsComplement(bdd))
-      duty = 1.0 - duty;
-    return duty;
+    return Cudd_IsComplement(bdd) ? 1.0 - memo->second : memo->second;
   }
   return 0.0;
+}
+
+// Duty of a BDD variable, cached because resolving its port looks it up by name.
+std::optional<float>
+Power::varDuty(int var_index,
+               const Instance *inst)
+{
+  const auto cached = var_duty_cache_.find(var_index);
+  if (cached != var_duty_cache_.end())
+    return cached->second;
+
+  const LibertyPort *port = bdd_.varIndexPort(var_index);
+  // An internal ff node's stored state, else what a sequential output reflects, else the net.
+  std::optional<float> var_duty;
+  if (port->direction()->isInternal())
+    var_duty = findSeqActivity(inst, const_cast<LibertyPort *>(port)).duty();
+  else {
+    bool invert = false;
+    LibertyPort *seq_port = seqStatePort(port, invert);
+    // Q = IQ / QN = !IQ: use stored IQ duty, not the Q net.
+    if (seq_port && hasSeqActivity(inst, seq_port)) {
+      float seq_duty = findSeqActivity(inst, seq_port).duty();
+      var_duty = invert ? 1.0 - seq_duty : seq_duty;
+    }
+    else {
+      const Pin *pin = findLinkPin(inst, port);
+      if (pin)
+        var_duty = findActivity(pin).duty();
+    }
+  }
+  var_duty_cache_[var_index] = var_duty;
+  return var_duty;
+}
+
+// Evaluate a BDD from its root. CUDD reuses freed node addresses, so the memo stops here.
+float
+Power::evalBddDutyRoot(DdNode *bdd,
+                       const Instance *inst)
+{
+  bdd_duty_memo_.clear();
+  return evalBddDuty(bdd, inst);
+}
+
+// Drop the var map and the duties keyed on it.
+void
+Power::clearBddEval()
+{
+  bdd_duty_memo_.clear();
+  var_duty_cache_.clear();
+  bdd_.clearVarMap();
 }
 
 // https://www.brown.edu/Departments/Engineering/Courses/engn2912/Lectures/LP-02-logic-power-est.pdf
@@ -970,7 +1004,7 @@ Power::evalBddActivity(DdNode *bdd,
       unsigned int var_index = Cudd_NodeReadIndex(var_node);
       DdNode *diff = Cudd_bddBooleanDiff(bdd_.cuddMgr(), bdd, var_index);
       Cudd_Ref(diff);
-      float diff_duty = evalBddDuty(diff, inst);
+      float diff_duty = evalBddDutyRoot(diff, inst);
       Cudd_RecursiveDeref(bdd_.cuddMgr(), diff);
       float var_density = var_activity.density() * diff_duty;
       density += var_density;
