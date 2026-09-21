@@ -133,6 +133,7 @@ Power::activitiesInvalid()
   activities_valid_ = false;
   instance_powers_valid_ = false;
   instance_powers_.clear();
+  max_clk_edges_valid_ = false;
 }
 
 void
@@ -991,10 +992,7 @@ Power::ensureActivities(const Scene *scene,
   Stats stats(debug_, report_);
   if (scene != scene_) {
     scene_ = scene;
-    activities_valid_ = false;
-    instance_powers_valid_ = false;
-    instance_powers_.clear();
-    instance_powers_valid_ = false;
+    activitiesInvalid();
   }
 
   if (!activities_valid_) {
@@ -1788,6 +1786,27 @@ Power::pinActivity(const Pin *pin,
   return findActivity(pin);
 }
 
+float
+Power::maxClkEdges()
+{
+  if (!max_clk_edges_valid_) {
+    max_clk_edges_ = 0.0;
+    const ClkNetwork *clk_network = scene_->mode()->clkNetwork();
+    for (const auto &[pin, activity] : user_activity_map_) {
+      if (activity.density() > 0.0 && clk_network->isClock(pin)) {
+        const Clock *pin_clk = findClk(pin);
+        if (pin_clk && pin_clk->period() > 0.0)
+          max_clk_edges_ = std::max(max_clk_edges_,
+                                    activity.density() * pin_clk->period());
+      }
+    }
+    // Past 2 the declared period is short of the toggles.
+    max_clk_edges_ = std::min(max_clk_edges_, 2.0f);
+    max_clk_edges_valid_ = true;
+  }
+  return max_clk_edges_;
+}
+
 PwrActivity
 Power::findActivity(const Pin *pin)
 {
@@ -1799,8 +1818,19 @@ Power::findActivity(const Pin *pin)
       return *activity;
     const Clock *clk = findClk(pin);
     if (clk) {
+      // The period and waveform assume the clock runs ungated
+      float density = 2.0 / clk->period();
       float duty = clockDuty(clk);
-      return PwrActivity(2.0 / clk->period(), duty, PwrActivityOrigin::clock);
+      const auto measured = user_activity_map_.find(pin);
+      if (measured != user_activity_map_.end()) {
+        float edges = maxClkEdges();
+        duty = measured->second.duty();
+        // Both sides come from the waveform, so a slower testbench cancels.
+        density = edges > 0.0 && clk->period() > 0.0
+          ? std::min(2.0f * measured->second.density() / edges, density)
+          : 0.0f;
+      }
+      return PwrActivity(density, duty, PwrActivityOrigin::clock);
     }
     else
       return PwrActivity();
