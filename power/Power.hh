@@ -24,6 +24,7 @@
 
 #pragma once
 
+#include <optional>
 #include <string>
 #include <unordered_map>
 #include <utility>
@@ -268,8 +269,13 @@ protected:
                      const Pin *&gclk) const;
   float evalBddActivity(DdNode *bdd,
                         const Instance *inst);
+  float evalBddDutyRoot(DdNode *bdd,
+                        const Instance *inst);
   float evalBddDuty(DdNode *bdd,
                     const Instance *inst);
+  std::optional<float> varDuty(int var_index,
+                               const Instance *inst);
+  void clearBddEval();
   DdNode *substituteOutputPorts(DdNode *bdd);
   void findUnannotatedPins(const Instance *inst,
                            PinSeq &unannotated_pins);
@@ -294,6 +300,10 @@ private:
                                         SeqPinEqual()};
   bool activities_valid_{false};
   Bdd bdd_;
+  // Duty per regular BDD node, so a shared subgraph is walked once. One root evaluation only.
+  std::unordered_map<DdNode*, float> bdd_duty_memo_;
+  // Duty per BDD variable, valid while the var map is; nullopt when its port has no pin.
+  std::unordered_map<int, std::optional<float>> var_duty_cache_;
   std::map<const Instance*, PowerResult, InstanceIdLess> instance_powers_{
       InstanceIdLess(network_)};
   bool instance_powers_valid_{false};
