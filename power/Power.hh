@@ -149,7 +149,6 @@ protected:
   bool annotatedLeaf(const Instance *inst);
   void findInstActivities(const Instance *inst);
   bool hasUserActivity(const Pin *pin);
-  float maxClkEdges();
   PwrActivity &userActivity(const Pin *pin);
   void setSeqActivity(const Instance *reg,
 		      LibertyPort *output,
@@ -290,9 +289,6 @@ private:
   PwrActivity input_activity_;
   // set_pin_activity -input_ports -pins
   PwrActivityMap user_activity_map_;
-  // Edges per cycle of the clock pin that ran the largest share of the window.
-  float max_clk_edges_ = 0.0;
-  bool max_clk_edges_valid_ = false;
   // Propagated activities.
   PwrActivityMap activity_map_;
   PwrSeqActivityMap seq_activity_map_{100,
