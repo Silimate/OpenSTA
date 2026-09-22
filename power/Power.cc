@@ -133,7 +133,6 @@ Power::activitiesInvalid()
   activities_valid_ = false;
   instance_powers_valid_ = false;
   instance_powers_.clear();
-  max_clk_edges_valid_ = false;
 }
 
 void
@@ -1826,30 +1825,6 @@ measuredActivity(const PwrActivity &activity)
   return origin == PwrActivityOrigin::vcd || origin == PwrActivityOrigin::saif;
 }
 
-float
-Power::maxClkEdges()
-{
-  // Cached result stored inside max_clk_edges_valid_
-  if (!max_clk_edges_valid_) {
-    max_clk_edges_ = 0.0;
-    const ClkNetwork *clk_network = scene_->mode()->clkNetwork();
-    // Loop over all annotated pins on the clock network
-    for (const auto &[pin, activity] : user_activity_map_) {
-      if (activity.density() > 0.0 && measuredActivity(activity)
-          && clk_network->isClock(pin)) {
-        const Clock *pin_clk = findClk(pin);
-        if (pin_clk && pin_clk->period() > 0.0)
-          max_clk_edges_ = std::max(max_clk_edges_,
-                                    activity.density() * pin_clk->period());
-      }
-    }
-    // The largest possible number is 2.0 since the clock cannot run more than the whole window
-    max_clk_edges_ = std::min(max_clk_edges_, 2.0f);
-    max_clk_edges_valid_ = true;
-  }
-  return max_clk_edges_;
-}
-
 PwrActivity
 Power::findActivity(const Pin *pin)
 {
@@ -1868,12 +1843,9 @@ Power::findActivity(const Pin *pin)
       // If the waveform did annotate the pin, we must check if the clock actually ran for that long
       if (measured != user_activity_map_.end()
           && measuredActivity(measured->second)) {
-        float edges = maxClkEdges();
         duty = measured->second.duty();
-        // How full this clock ran, compared with the fullest pin in the same waveform.
-        density = edges > 0.0 && clk->period() > 0.0
-          ? std::min(2.0f * measured->second.density() / edges, density)
-          : 0.0f;
+        // The rate the waveform measured, never above the declared rate.
+        density = std::min(measured->second.density(), density);
       }
       return PwrActivity(density, duty, PwrActivityOrigin::clock);
     }
