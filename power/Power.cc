@@ -249,7 +249,6 @@ Power::setSeqActivity(const Instance *reg,
                       PwrActivity &activity)
 {
   seq_activity_map_[SeqPin(reg, output)] = activity;
-  activitiesInvalid();
 }
 
 bool
