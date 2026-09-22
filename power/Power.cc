@@ -1840,12 +1840,11 @@ Power::findActivity(const Pin *pin)
       float density = 2.0 / clk->period();
       float duty = clockDuty(clk);
       const auto measured = user_activity_map_.find(pin);
-      // If the waveform did annotate the pin, we must check if the clock actually ran for that long
+      // A waveform that measured the pin sets its rate and duty
       if (measured != user_activity_map_.end()
           && measuredActivity(measured->second)) {
         duty = measured->second.duty();
-        // The rate the waveform measured, never above the declared rate.
-        density = std::min(measured->second.density(), density);
+        density = measured->second.density();
       }
       return PwrActivity(density, duty, PwrActivityOrigin::clock);
     }
