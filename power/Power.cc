@@ -1412,9 +1412,9 @@ Power::findInputInternalPower(const Pin *pin,
       const Pvt *pvt = scene->sdc()->operatingConditions(MinMax::max());
       Vertex *vertex = graph_->pinLoadVertex(pin);
       float internal = 0.0;
-      // Per rail: duty the when groups cover, and energy of the unconditioned groups
-      std::map<LibertyPort *, float> cond_duty_sum;
-      std::map<LibertyPort *, float> uncond_energy;
+      // Time the when groups cover and energy of the groups without when, per rail
+      std::map<LibertyPort *, float> when_duty;
+      std::map<LibertyPort *, float> default_energy;
       for (const InternalPower *pwr : internal_pwrs) {
         LibertyPort *related_pg_pin = pwr->relatedPgPin();
         float energy = 0.0;
@@ -1447,11 +1447,11 @@ Power::findInputInternalPower(const Pin *pin,
             duty = evalActivity(when, inst).duty();
         }
         else {
-          // An unconditioned group only covers the states no when group does
-          uncond_energy[related_pg_pin] += energy;
+          // A group without when only covers the time no when group does, so price it below
+          default_energy[related_pg_pin] += energy;
           continue;
         }
-        cond_duty_sum[related_pg_pin] += duty;
+        when_duty[related_pg_pin] += duty;
         float port_internal = energy * duty * activity.density();
         debugPrint(debug_, "power", 2, " {} {}  {:.2f}  {:.2f} {:9.2e} {:9.2e} {}",
                    port->name(), when ? when->to_string() : "",
@@ -1459,8 +1459,8 @@ Power::findInputInternalPower(const Pin *pin,
                    related_pg_pin ? related_pg_pin->name() : "no pg_pin");
         internal += port_internal;
       }
-      for (const auto &[related_pg_pin, energy] : uncond_energy) {
-        float duty = std::max(0.0f, 1.0f - cond_duty_sum[related_pg_pin]);
+      for (const auto &[related_pg_pin, energy] : default_energy) {
+        float duty = std::max(0.0f, 1.0f - when_duty[related_pg_pin]);
         float port_internal = energy * duty * activity.density();
         internal += port_internal;
       }
