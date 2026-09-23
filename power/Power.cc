@@ -1412,6 +1412,9 @@ Power::findInputInternalPower(const Pin *pin,
       const Pvt *pvt = scene->sdc()->operatingConditions(MinMax::max());
       Vertex *vertex = graph_->pinLoadVertex(pin);
       float internal = 0.0;
+      // Per rail: duty the when groups cover, and energy of the unconditioned groups
+      std::map<LibertyPort *, float> cond_duty_sum;
+      std::map<LibertyPort *, float> uncond_energy;
       for (const InternalPower *pwr : internal_pwrs) {
         LibertyPort *related_pg_pin = pwr->relatedPgPin();
         float energy = 0.0;
@@ -1443,11 +1446,22 @@ Power::findInputInternalPower(const Pin *pin,
           else
             duty = evalActivity(when, inst).duty();
         }
+        else {
+          // An unconditioned group only covers the states no when group does
+          uncond_energy[related_pg_pin] += energy;
+          continue;
+        }
+        cond_duty_sum[related_pg_pin] += duty;
         float port_internal = energy * duty * activity.density();
         debugPrint(debug_, "power", 2, " {} {}  {:.2f}  {:.2f} {:9.2e} {:9.2e} {}",
                    port->name(), when ? when->to_string() : "",
                    activity.density() * 1e-9, duty, energy, port_internal,
                    related_pg_pin ? related_pg_pin->name() : "no pg_pin");
+        internal += port_internal;
+      }
+      for (const auto &[related_pg_pin, energy] : uncond_energy) {
+        float duty = std::max(0.0f, 1.0f - cond_duty_sum[related_pg_pin]);
+        float port_internal = energy * duty * activity.density();
         internal += port_internal;
       }
       result.incrInternal(internal);
