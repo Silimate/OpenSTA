@@ -81,6 +81,7 @@
 #include "PocvMode.hh"
 #include "PortDirection.hh"
 #include "PowerClass.hh"
+#include "Property.hh"
 #include "ReportPath.hh"
 #include "ReportTcl.hh"
 #include "RiseFallMinMaxDelay.hh"
@@ -273,6 +274,7 @@ void
 Sta::makeComponents()
 {
   makeVariables();
+  makeProperties();
   makeReport();
   makeDebug();
   makeUnits();
@@ -347,9 +349,7 @@ Sta::updateComponentsState()
   report_path_->copyState(this);
   check_timing_->copyState(this);
   clk_skews_->copyState(this);
-
-  if (power_)
-    power_->copyState(this);
+  power_->copyState(this);
 }
 
 void
@@ -473,6 +473,12 @@ Sta::makeVariables()
 }
 
 void
+Sta::makeProperties()
+{
+  properties_ = new Properties(this);
+}
+
+void
 Sta::setSta(Sta *sta)
 {
   sta_ = sta;
@@ -515,6 +521,7 @@ Sta::~Sta()
   delete equiv_cells_;
   delete dispatch_queue_;
   delete variables_;
+  delete properties_;
   delete delay_ops_;
   deleteContents(parasitics_name_map_);
   deleteContents(modes_);
@@ -790,6 +797,7 @@ void
 Sta::readNetlistBefore()
 {
   clear();
+  properties_->clearUserPropertyValues();
   NetworkReader *network_reader = networkReader();
   if (network_reader)
     network_reader->readNetlistBefore();
@@ -5268,11 +5276,16 @@ Sta::deletePinBefore(const Pin *pin)
     }
   }
 
+  bool port_delay_deleted = false;
   for (const Mode *mode : modes_) {
+    port_delay_deleted |= mode->sdc()->hasPortDelays(pin);
     mode->sdc()->deletePinBefore(pin);
     mode->sim()->deletePinBefore(pin);
     mode->clkNetwork()->deletePinBefore(pin);
   }
+  // Tags on pins downstream from input delays reference the input delay.
+  if (port_delay_deleted)
+    search_->arrivalsInvalid();
 }
 
 void

@@ -147,9 +147,15 @@ record_public_tests {
   get_ports_not_found
   constraint_modes
   delay_calc_no_inv
-  disable_clock_gating_check
+  disable_clock_gating_check_cell
+  disable_clock_gating_check_deprecated
+  disable_clock_gating_check_inst
+  disable_clock_gating_check_pin
+  disable_clock_gating_check_port
+  disable_clock_gating_check_sdc
   disconnect_mcp_pin
   dmp_two_pole_reduce
+  equiv_cells_ff_latch
   extras
   fanin_empty
   filter_expr_defined
@@ -194,8 +200,9 @@ record_public_tests {
   path_group_names
   pin_name_compatibility
   pin_props
-  power_activity_network_changed
+  port_delay_delete_inst
   power_calc_no_inv
+  power_network_changed
   power_json
   prima3
   prima_singular

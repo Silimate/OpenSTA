@@ -715,6 +715,9 @@ define_common_arg_help {
 # Bus signal names like foo[2] or bar[31:0] use brackets that
 # look like "eval" to TCL. Catch the numeric "function" with the
 # namespace's unknown handler and return the value instead of an error.
+# read_sdc installs this handler for the extent of the .sdc file and
+# restores the previous one on the way out (see sdc/Sdc.tcl); outside
+# read_sdc the interpreter is stock tcl.
 proc sta_unknown { args } {
   global errorCode errorInfo
   
@@ -752,4 +755,7 @@ proc is_bus_subscript { subscript } {
             || [regexp {[0-9]+:[0-9]} $subscript]]
 }
 
+# SILIMATE: keep sta_unknown as the global unknown handler, not only for the
+# extent of read_sdc. Sourced constraint scripts, interactive sessions and
+# agent-issued commands rely on foo[2] bus names and command abbreviation.
 namespace unknown sta_unknown

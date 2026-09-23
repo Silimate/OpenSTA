@@ -50,8 +50,9 @@
 #include "Property.hh"
 #include "SdcClass.hh"
 #include "SearchClass.hh"
-#include "Sta.hh"
+#include "StaState.hh"
 #include "StringUtil.hh"
+#include "Variables.hh"
 
 namespace sta {
 
@@ -269,9 +270,9 @@ filterObjects(std::string_view property,
               std::string_view op,
               std::string_view pattern,
               std::set<T*> &all,
-              Sta *sta)
+              StaState *sta)
 {
-  Properties &properties = sta->properties();
+  Properties *properties = sta->properties();
   Network *network = sta->network();
   auto filtered_objects = std::set<T*>();
   bool exact_match = (op == "==");
@@ -279,14 +280,14 @@ filterObjects(std::string_view property,
   bool not_match = (op == "!=");
   bool not_pattern_match = (op == "!~");
   // Honor the global sta_case_insensitive_matching variable.
-  bool nocase = sta->caseInsensitiveMatching();
+  bool nocase = sta->variables()->caseInsensitiveMatching();
   for (T *object : all) {
-    PropertyValue value = properties.getProperty(object, property);
+    PropertyValue value = properties->getProperty(object, property);
     std::string prop = value.to_string(network);
 
     // normalize boolean props
     if (value.type() == PropertyValue::Type::bool_) {
-      if (sta->booleanPropsAsInt()) {
+      if (sta->variables()->booleanPropsAsInt()) {
         if (stringEqual(pattern, "true")) {
           pattern = "1";
         } else if (stringEqual(pattern, "false")) {
@@ -314,11 +315,11 @@ template <typename T> static std::vector<T*>
 filterObjects(std::string_view filter_expression,
               const std::vector<T*> *objects,
               const std::function<bool (T *obj1, T *obj2)> &object_less,
-              Sta *sta)
+              StaState *sta)
 {
   Report *report = sta->report();
   Network *network = sta->network();
-  Properties &properties = sta->properties();
+  Properties *properties = sta->properties();
   std::vector<T*> result;
   if (objects) {
     std::set<T*> all;
@@ -377,7 +378,7 @@ filterObjects(std::string_view filter_expression,
           (token->kind() == FilterExpr::Token::Kind::defined);
         auto result = std::set<T*>();
         for (auto object : all) {
-          PropertyValue value = properties.getProperty(object, token->text());
+          PropertyValue value = properties->getProperty(object, token->text());
           bool is_defined = false;
           switch (value.type()) {
           case PropertyValue::Type::float_:
@@ -449,7 +450,7 @@ filterObjects(std::string_view filter_expression,
 PortSeq
 filterPorts(std::string_view filter_expression,
             PortSeq *ports,
-            Sta *sta)
+            StaState *sta)
 {
   Network *network = sta->network();
   return filterObjects<const Port>(filter_expression, ports,
@@ -462,7 +463,7 @@ filterPorts(std::string_view filter_expression,
 InstanceSeq
 filterInstances(std::string_view filter_expression,
                 InstanceSeq *insts,
-                Sta *sta)
+                StaState *sta)
 {
   Network *network = sta->network();
   return filterObjects<const Instance>(filter_expression, insts,
@@ -475,7 +476,7 @@ filterInstances(std::string_view filter_expression,
 PinSeq
 filterPins(std::string_view filter_expression,
            PinSeq *pins,
-           Sta *sta)
+           StaState *sta)
 {
   Network *network = sta->network();
   return filterObjects<const Pin>(filter_expression, pins,
@@ -488,7 +489,7 @@ filterPins(std::string_view filter_expression,
 NetSeq
 filterNets(std::string_view filter_expression,
            NetSeq *nets,
-           Sta *sta)
+           StaState *sta)
 {
   Network *network = sta->network();
   return filterObjects<const Net>(filter_expression, nets,
@@ -501,7 +502,7 @@ filterNets(std::string_view filter_expression,
 ClockSeq
 filterClocks(std::string_view filter_expression,
              ClockSeq *clks,
-             Sta *sta)
+             StaState *sta)
 {
   return filterObjects<Clock>(filter_expression, clks,
                                    [] (const Clock *clk1,
@@ -513,7 +514,7 @@ filterClocks(std::string_view filter_expression,
 SceneSeq
 filterScenes(std::string_view filter_expression,
              SceneSeq *scenes,
-             Sta *sta)
+             StaState *sta)
 {
   return filterObjects<Scene>(filter_expression, scenes,
                               [] (const Scene *scene1,
@@ -525,7 +526,7 @@ filterScenes(std::string_view filter_expression,
 ModeSeq
 filterModes(std::string_view filter_expression,
             ModeSeq *modes,
-            Sta *sta)
+            StaState *sta)
 {
   return filterObjects<Mode>(filter_expression, modes,
                              [] (const Mode *mode1,
@@ -537,7 +538,7 @@ filterModes(std::string_view filter_expression,
 LibertyCellSeq
 filterLibCells(std::string_view filter_expression,
                LibertyCellSeq *cells,
-               Sta *sta)
+               StaState *sta)
 {
   return filterObjects<LibertyCell>(filter_expression, cells,
                                     [] (const LibertyCell *cell1,
@@ -549,7 +550,7 @@ filterLibCells(std::string_view filter_expression,
 LibertyPortSeq
 filterLibPins(std::string_view filter_expression,
               LibertyPortSeq *ports,
-              Sta *sta)
+              StaState *sta)
 {
   return filterObjects<LibertyPort>(filter_expression, ports,
                                     [] (const LibertyPort *port1,
@@ -561,7 +562,7 @@ filterLibPins(std::string_view filter_expression,
 LibertyLibrarySeq
 filterLibertyLibraries(std::string_view filter_expression,
                        LibertyLibrarySeq *libs,
-                       Sta *sta)
+                       StaState *sta)
 {
   return filterObjects<LibertyLibrary>(filter_expression, libs,
                                        [] (const LibertyLibrary *lib1,
@@ -573,7 +574,7 @@ filterLibertyLibraries(std::string_view filter_expression,
 EdgeSeq
 filterTimingArcs(std::string_view filter_expression,
                  EdgeSeq *edges,
-                 Sta *sta)
+                 StaState *sta)
 {
   Network *network = sta->network();
   Graph *graph = sta->graph();
@@ -588,7 +589,7 @@ filterTimingArcs(std::string_view filter_expression,
 PathEndSeq
 filterPathEnds(std::string_view filter_expression,
                PathEndSeq *ends,
-               Sta *sta)
+               StaState *sta)
 {
   PathEndLess end_less(true, sta);
   return filterObjects<PathEnd>(filter_expression, ends,

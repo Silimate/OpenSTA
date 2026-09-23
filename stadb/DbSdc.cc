@@ -782,17 +782,17 @@ DbSdcWriter::writeDisables()
         putLibertyPort(port);
     }
   }
-  for (const Instance *inst : *sdc_->disabledClockGatingChecksInst()) {
+  for (const Instance *inst : sdc_->disabledClockGatingChecksInst()) {
     kind(DbSdcKind::disable_gating_check);
     writer_.putU8(0);
     putInstance(inst);
   }
-  for (const Pin *pin : *sdc_->disabledClockGatingChecksPin()) {
+  for (const Pin *pin : sdc_->disabledClockGatingChecksPin()) {
     kind(DbSdcKind::disable_gating_check);
     writer_.putU8(1);
     putPin(pin);
   }
-  for (const LibertyCell *cell : *sdc_->disabledClockGatingChecksLibCell()) {
+  for (const LibertyCell *cell : sdc_->disabledClockGatingChecksLibCell()) {
     kind(DbSdcKind::disable_gating_check);
     writer_.putU8(2);
     putLibertyCell(cell);

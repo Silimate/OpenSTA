@@ -25,6 +25,8 @@
 #include "StaDb.hh"
 
 #include <algorithm>
+#include <map>
+#include <string>
 #include <unordered_map>
 #include <vector>
 
@@ -46,6 +48,7 @@
 #include "Network.hh"
 #include "PatternMatch.hh"
 #include "PortDirection.hh"
+#include "Property.hh"
 #include "Scene.hh"
 #include "Search.hh"
 #include "Sequential.hh"
@@ -1077,7 +1080,8 @@ DbNetworkWriter::writeCell(const Cell *cell)
   writer_.putStr(network_->filename(cell));
   writer_.putBool(network_->isLeaf(cell));
 
-  const AttributeMap &attrs = network_->attributeMap(cell);
+  const std::map<std::string, std::string> attrs =
+    network_->properties()->stringProperties(cell);
   writer_.putU32(static_cast<uint32_t>(attrs.size()));
   for (const auto &[key, value] : attrs) {
     writer_.putStr(key);
@@ -1149,8 +1153,10 @@ DbNetworkWriter::writeInstances()
     visit(writer_, rec);
 
     // Includes the "src" attribute that report_json exposes as verilog_src.
-    // AttributeMap is std::map, so key order is stable across writes.
-    const AttributeMap &attrs = network_->attributeMap(inst);
+    // Verilog attributes are string user properties; the std::map keeps key
+    // order stable across writes.
+    const std::map<std::string, std::string> attrs =
+      network_->properties()->stringProperties(inst);
     writer_.putU32(static_cast<uint32_t>(attrs.size()));
     for (const auto &[key, value] : attrs) {
       writer_.putStr(key);

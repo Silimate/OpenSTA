@@ -27,7 +27,7 @@
 #include "PatternMatch.hh"
 #include <functional>
 
-template <class SEQ_TYPE, class OBJECT_TYPE, int ERROR_CODE, const char * OBJECT_TYPE_NAME, SEQ_TYPE (*FILTER_FN)(std::string_view, SEQ_TYPE *, sta::Sta *)>
+template <class SEQ_TYPE, class OBJECT_TYPE, int ERROR_CODE, const char * OBJECT_TYPE_NAME, SEQ_TYPE (*FILTER_FN)(std::string_view, SEQ_TYPE *, sta::StaState *)>
 SEQ_TYPE *
 find_objects_complete(SEQ_TYPE *collection,
                       const StringSeq &patterns,

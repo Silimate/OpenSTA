@@ -44,7 +44,7 @@ stadb_check_files "network buses" $bus_cold_v $bus_warm_v
 
 set attrs_file [make_result_file "stadb_network.attrs.stadb"]
 set attrs_build {read_liberty ../examples/sky130hd_tt.lib.gz
-read_verilog verilog_attribute.v
+read_verilog verilog_attribute_sky130.v
 link_design counter
 create_clock -name clk -period 10 clk}
 set attrs_dump {report_checks -format json -digits 4}

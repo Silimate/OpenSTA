@@ -25,6 +25,7 @@
 #include "StaDb.hh"
 
 #include <memory>
+#include <string_view>
 #include <unordered_map>
 #include <vector>
 
@@ -45,6 +46,7 @@
 #include "MinMax.hh"
 #include "Network.hh"
 #include "PortDirection.hh"
+#include "Property.hh"
 #include "Scene.hh"
 #include "Sequential.hh"
 #include "Sta.hh"
@@ -939,6 +941,11 @@ private:
   void readInstances();
   void readNets();
   void readPins();
+  template<class TYPE>
+  void setAttribute(const TYPE *object,
+                    std::string_view object_type,
+                    std::string_view key,
+                    std::string_view value);
 
   Cell *cell(uint32_t id) const;
   Instance *instance(DbNetworkId id) const;
@@ -1048,6 +1055,21 @@ DbNetworkReader::readPort(Cell *cell)
   network_->setDirection(port, dir);
 }
 
+// Verilog attributes are string user properties, defined on first use the
+// way VerilogReader::setAttribute does.
+template<class TYPE>
+void
+DbNetworkReader::setAttribute(const TYPE *object,
+                              std::string_view object_type,
+                              std::string_view key,
+                              std::string_view value)
+{
+  Properties *properties = network_->properties();
+  if (!properties->isUserProperty(object_type, key))
+    properties->defineProperty<TYPE>(object_type, key, "string");
+  properties->setProperty(object, object_type, key, value);
+}
+
 void
 DbNetworkReader::readCell(Library *library)
 {
@@ -1059,7 +1081,7 @@ DbNetworkReader::readCell(Library *library)
   uint32_t attr_count = reader_.getU32();
   for (uint32_t i = 0; i < attr_count; i++) {
     std::string key(reader_.getStr());
-    network_->setAttribute(cell, key, reader_.getStr());
+    setAttribute(cell, "cell", key, reader_.getStr());
   }
 
   uint32_t port_count = reader_.getU32();
@@ -1131,7 +1153,7 @@ DbNetworkReader::readInstances()
     uint32_t attr_count = reader_.getU32();
     for (uint32_t j = 0; j < attr_count; j++) {
       std::string key(reader_.getStr());
-      network_->setAttribute(inst, key, reader_.getStr());
+      setAttribute(inst, "instance", key, reader_.getStr());
     }
   }
 }
@@ -1223,6 +1245,9 @@ clearSession(Sta *sta)
 {
   sta->clear();
   sta->clearSceneLiberty();
+  // User property values (verilog attributes included) are keyed by network
+  // object, so they go with the network.
+  sta->properties()->clearUserPropertyValues();
   sta->network()->clear();
 }
 

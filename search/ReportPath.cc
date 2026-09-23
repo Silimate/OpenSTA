@@ -54,6 +54,7 @@
 #include "PathGroup.hh"
 #include "PortDelay.hh"
 #include "PortDirection.hh"
+#include "Property.hh"
 #include "Report.hh"
 #include "Scene.hh"
 #include "Sdc.hh"
@@ -1312,7 +1313,7 @@ ReportPath::reportJson(const PathExpanded &expanded,
                               sdc_network_->name(cell));
       result += sta::format("{:>{}}    \"verilog_src\": \"{}\",\n",
                             "", indent,
-                            sdc_network_->getAttribute(inst, "src"));
+                            properties_->stringProperty(inst, "src"));
     }
 
     result += sta::format("{:>{}}    \"pin\": \"{}\",\n",
@@ -2581,9 +2582,9 @@ ReportPath::reportPathLine(const Path *path,
   Slew slew = graph_->slew(vertex, rf, slew_index);
   float cap = field_blank_;
   Instance *inst = network_->instance(pin);
-  std::string src_attr;
-  if (inst)
-    src_attr = network_->getAttribute(inst, "src");
+  std::string src_attr = properties_->stringProperty(pin, "src");
+  if (src_attr.empty() && inst)
+    src_attr = properties_->stringProperty(inst, "src");
   // Don't show capacitance field for input pins.
   if (is_driver && field_capacitance_->enabled())
     cap = graph_delay_calc_->loadCap(pin, rf, scene, min_max);
@@ -2868,9 +2869,9 @@ ReportPath::reportPath6(const Path *path,
     bool is_clk_start = path1->vertex(this) == clk_start;
     bool is_clk = path1->isClock(search_);
     Instance *inst = network_->instance(pin);
-    std::string src_attr;
-    if (inst)
-      src_attr = network_->getAttribute(inst, "src");
+    std::string src_attr = properties_->stringProperty(pin, "src");
+    if (src_attr.empty() && inst)
+      src_attr = properties_->stringProperty(inst, "src");
     // Always show the search start point (register clk pin).
     // Skip reporting the clk tree unless it is requested.
     if (is_clk_start

@@ -116,13 +116,13 @@ private:
     }
     void collection_sort_inplace(CollectionType *v, StringSeq *property_names, bool descending = false, bool natural = true) {
         auto network = Sta::sta()->network();
-        auto &properties = Sta::sta()->properties();
+        Properties *properties = Sta::sta()->properties();
         std::stable_sort(
             v->begin(), v->end(),
             [&](ElementType A, ElementType B) {
                 for (auto property_name: *property_names) {
-                    auto propertyA = properties.getProperty(A, property_name);
-                    auto propertyB = properties.getProperty(B, property_name);
+                    auto propertyA = properties->getProperty(A, property_name);
+                    auto propertyB = properties->getProperty(B, property_name);
                     int diff = propertyA.compare(propertyB, network, natural);
                     if (diff != 0) {
                         return descending ? diff > 0 : diff < 0;
