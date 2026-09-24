@@ -398,8 +398,7 @@ proc sdc_file_line { } {
     if { $type == "source" } {
       return [dict get [info frame $fr] line]
     }
-    if { $type == "proc" \
-           && [lindex [dict get [info frame $fr] cmd] 0] == "include_file" } {
+    if { [string match "include_file *" [dict get [info frame $fr] cmd]] } {
       return $include_line
     }
   }
