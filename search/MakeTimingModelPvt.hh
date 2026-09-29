@@ -73,6 +73,8 @@ private:
   void makeCell();
   float findArea();
   void makePorts();
+  void setPortLimits(const Pin *pin,
+                     LibertyPort *lib_port);
   void checkClock(Clock *clk);
   void findTimingFromInputs();
   void findTimingFromInput(Port *input_port);

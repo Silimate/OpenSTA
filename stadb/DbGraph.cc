@@ -255,7 +255,7 @@ DbGraphWriter::writeLevels()
   Levelize *levelize = sta_->levelize();
   writer_.putBool(levelize->levelized());
   writer_.putI32(levelize->maxLevel());
-  VertexSet &roots = levelize->roots();
+  const VertexSet &roots = levelize->roots();
   std::vector<uint32_t> root_indexes;
   for (Vertex *root : roots)
     root_indexes.push_back(vertexIndex(root));
@@ -518,7 +518,9 @@ DbGraphReader::readLevels()
     levelize->loops_.push_back(new GraphLoop(loop_edges));
   }
   // Set last: everything Levelize would have computed is now in place, so
-  // ensureLevelized has nothing left to do.
+  // ensureLevelized has nothing left to do. The loops above are the back
+  // edges, so ensureBackEdges must not find (and record) them again.
+  levelize->back_edges_valid_ = levelized;
   levelize->levelized_ = levelized;
   levelize->levels_valid_ = levelized;
 }

@@ -706,27 +706,24 @@ define_common_arg_help {
   -no_line_splits {Do not split long lines into multiple lines.}
 }
 
-# sta namespace end
-}
-
-################################################################
-
+# Unknown proc handler for command interpreter.
 # Bus signal names like foo[2] or bar[31:0] use brackets that
 # look like "eval" to TCL. Catch the numeric "function" with the
 # namespace's unknown handler and return the value instead of an error.
-# read_sdc installs this handler for the extent of the .sdc file and
-# restores the previous one on the way out (see sdc/Sdc.tcl); outside
-# read_sdc the interpreter is stock tcl.
-proc sta_unknown { args } {
+proc sta_cmd_unknown { args } {
   global errorCode errorInfo
   
   set name [lindex $args 0]
-  if { [llength $args] == 1 && [is_bus_subscript $args] } {
+  if { [llength $args] == 1 && [sta::is_bus_subscript $args] } {
+    sta::sta_warn 336 "bus subscripts will require quoting with {}'s in a future release."
     return "\[$args\]"
   }
   
   # Command name abbreviation support.
-  set ret [catch {set cmds [info commands $name*]} msg]
+  # SILIMATE: resolve against the global namespace, as the global
+  # sta_unknown did. Inside namespace sta, info commands also sees
+  # sta:: internals, so link matches link_design_cmd too.
+  set ret [catch {set cmds [namespace eval :: [list info commands $name*]]} msg]
   if {[string equal $name "::"]} {
     set name ""
   }
@@ -735,6 +732,7 @@ proc sta_unknown { args } {
       "Error in unknown while checking if \"$name\" is a unique command abbreviation: $msg."
   }
   if { [llength $cmds] == 1 } {
+    sta::sta_warn 337 "command abbreviation will not be supported in a future release."
     return [uplevel 1 [lreplace $args 0 0 $cmds]]
   }
   if { [llength $cmds] > 1 } {
@@ -748,13 +746,11 @@ proc sta_unknown { args } {
   return [uplevel 1 [::unknown {*}$args]]
 }
 
-proc is_bus_subscript { subscript } {
-  return [expr [string is integer $subscript] \
-            || [string match $subscript "*"] \
-            || [regexp {[0-9]+:[0-9]} $subscript]]
+# sta namespace end
 }
 
-# SILIMATE: keep sta_unknown as the global unknown handler, not only for the
-# extent of read_sdc. Sourced constraint scripts, interactive sessions and
-# agent-issued commands rely on foo[2] bus names and command abbreviation.
-namespace unknown sta_unknown
+namespace unknown sta::sta_cmd_unknown
+
+# SILIMATE: bus subscripts and command abbreviation stay supported, so
+# silence upstream's "not supported in a future release" warnings.
+foreach msg_id {336 337 338} { sta::suppress_msg_id $msg_id }

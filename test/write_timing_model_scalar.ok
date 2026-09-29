@@ -33,6 +33,7 @@ library (counter) {
       direction : input;
       clock : true;
       capacitance : 0.0037;
+      max_transition : 1.500;
       timing() {
         timing_sense : positive_unate;
         timing_type : min_clock_tree_path;
@@ -57,6 +58,7 @@ library (counter) {
     pin("reset") {
       direction : input;
       capacitance : 0.0073;
+      max_transition : 1.500;
       timing() {
         related_pin : "clk";
         timing_type : hold_rising;
@@ -75,6 +77,7 @@ library (counter) {
     pin("in") {
       direction : input;
       capacitance : 0.0020;
+      max_transition : 1.500;
       timing() {
         related_pin : "clk";
         timing_type : hold_rising;
@@ -99,6 +102,8 @@ library (counter) {
     pin("out") {
       direction : output;
       capacitance : 1.0000;
+      max_transition : 1.501;
+      max_capacitance : 0.175;
       timing() {
         related_pin : "clk";
         timing_type : rising_edge;
