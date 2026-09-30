@@ -1,4 +1,4 @@
-error missing: Error 2740: stadb_errors.tcl line 7, /no/such/stadb.file is not readable.
+error missing: Error 2740: stadb_errors.tcl line 5, /no/such/stadb.file is not readable.
 error magic: Error: 2742 RESULTS/stadb_errors.junk.stadb is not a stadb file
 error truncated: Error: 2742 stadb section truncated at offset 32
 error checksum: Error: 2742 stadb section checksum mismatch

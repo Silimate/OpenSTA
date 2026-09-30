@@ -1,15 +1,15 @@
 default sta_sdc_name_folding: 1
 ######## read_sdc, sta_sdc_name_folding 0 ########
 Warning 363: pin 'clkgen_u0/genblk1_0_gen_ch_0_cg_wrap_u0_icg_u0/Q' not found.
-Error 374: sdc_name_folding.sdc line 12, empty ports/pins/nets argument.
-Warning 101: sdc_name_folding.sdc line 20, object 'ctrl_u0/gen_lane_0_sync_u/ready_meta_0_reg/Q' not found.
-Error 374: sdc_name_folding.sdc line 20, empty ports/pins/nets argument.
+Error 374: sdc_name_folding.sdc line 8, empty ports/pins/nets argument.
+Warning 101: sdc_name_folding.sdc line 15, object 'ctrl_u0/gen_lane_0_sync_u/ready_meta_0_reg/Q' not found.
+Error 374: sdc_name_folding.sdc line 15, empty ports/pins/nets argument.
 Warning 366: port 'status*0*' not found.
 Warning 366: port 'status*1*' not found.
 Warning 363: pin 'arrays_u0/tap_reg[0][3][5]/D' not found.
-Warning 101: sdc_name_folding.sdc line 29, object 'arrays_u0/mem_reg[1][2]' not found.
-Warning 471: sdc_name_folding.sdc line 29, no valid objects specified for -from.
-Warning 472: sdc_name_folding.sdc line 29, no valid objects specified for -through
+Warning 101: sdc_name_folding.sdc line 28, object 'arrays_u0/mem_reg[1][2]' not found.
+Warning 471: sdc_name_folding.sdc line 28, no valid objects specified for -from.
+Warning 472: sdc_name_folding.sdc line 28, no valid objects specified for -through
 Warning 363: pin 'csr_u0/*mode_sel_reg*/CP' not found.
 Warning 471: sdc_name_folding.sdc line 32, no valid objects specified for -from.
 Warning 351: clock 'GCLK_CH*' not found.
@@ -146,7 +146,7 @@ get_cells {arrays_u0/mem_reg[1][2][3]} -> {}
 Warning 349: instance 'arrays_u0/mem_reg*' not found.
 get_cells {arrays_u0/mem_reg*} -> {}
 ######## commands outside SDC do not fold pin arguments ########
-Error 130: sdc_name_folding.tcl line 102, pin ctrl_u0/gen_lane_0_sync_u/ready_sync_reg/Q not found.
+Error 130: sdc_name_folding.tcl line 100, pin ctrl_u0/gen_lane_0_sync_u/ready_sync_reg/Q not found.
 ######## exact names win ########
 get_pins amb_0_x/Z -> {amb_0_x/Z}
 get_pins {amb[0].x/Z} -> {{amb[0].x/Z}}

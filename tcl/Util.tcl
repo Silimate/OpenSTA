@@ -392,14 +392,14 @@ proc sdc_filename {} {
 }
 
 proc sdc_file_line { } {
-  variable include_line
+  variable cmd_start_line
   for { set fr [info frame] } { $fr >= 0 } { incr fr -1 } {
     set type [dict get [info frame $fr] type]
     if { $type == "source" } {
       return [dict get [info frame $fr] line]
     }
     if { [string match "include_file *" [dict get [info frame $fr] cmd]] } {
-      return $include_line
+      return $cmd_start_line
     }
   }
   return 1
@@ -583,16 +583,40 @@ proc_redirect include  {
   set echo [expr [info exists flags(-echo)] || [info exists flags(-e)]]
   set verbose [expr [info exists flags(-verbose)] || [info exists flags(-v)]]
   set filename [file nativename [lindex $args 0]]
-  include_file $filename $echo $verbose
+  # Re-raise with the included command's traceback so $errorInfo is not
+  # dominated by include_file's own stack frames. Use error (not
+  # return -code error) so proc_redirect's catch sees code 1.
+  if { [catch {include_file $filename $echo $verbose} result] } {
+    variable include_error_info
+    if { [info exists include_error_info] } {
+      set traceback $include_error_info
+      unset include_error_info
+      error $result $traceback
+    }
+    error $result $::errorInfo
+  }
+}
+
+# Drop the uplevel frames include_file itself adds to the end of a traceback.
+proc trim_traceback { traceback } {
+  set last [string last "\n    (\"uplevel\" body line " $traceback]
+  if { $last != -1 } {
+    return [string range $traceback 0 [expr { $last - 1 }]]
+  }
+  return $traceback
 }
 
 proc include_file { filename echo verbose } {
   global sta_continue_on_error
   variable include_line
-  
+  variable cmd_start_line
+
   set prev_filename [info script]
   if { [info exists include_line] } {
     set prev_line $include_line
+  }
+  if { [info exists cmd_start_line] } {
+    set prev_cmd_start_line $cmd_start_line
   }
   # Gunzip via libz (ungzip_file) so .gz works without Tcl's zlib command,
   # which is missing in some packaged Tcl 8.6 builds used by silisizer.
@@ -601,6 +625,7 @@ proc include_file { filename echo verbose } {
     # set filename/line for sta_warn/error
     info script $filename
     set include_line 1
+    set cmd_start_line 1
     set open_filename $filename
     if { [file extension $filename] == ".gz" } {
       set ungzipped [ungzip_file $filename]
@@ -611,6 +636,7 @@ proc include_file { filename echo verbose } {
     } else {
       set cmd ""
       set error {}
+      set error_traceback {}
       while {![eof $stream]} {
         gets $stream line
         if { $line != "" } {
@@ -618,18 +644,26 @@ proc include_file { filename echo verbose } {
             report_line $line
           }
         }
+        if { $cmd == "" } {
+          set cmd_start_line $include_line
+        }
         append cmd $line "\n"
         if { [string index $line end] != "\\" \
                && [info complete $cmd] } {
           set error {}
-          set error_code [catch {uplevel \#0 $cmd} result]
+          set error_traceback {}
+          set error_code [catch {uplevel \#0 $cmd} result error_options]
           # cmd consumed
           set cmd ""
           # Flush results printed outside tcl to stdout/stderr.
           fflush
           switch $error_code {
             0 { if { $verbose && $result != "" } { report_line $result } }
-            1 { set error $result }
+            1 {
+              set error $result
+              # -errorinfo is the error message followed by the traceback.
+              set error_traceback [trim_traceback [dict get $error_options -errorinfo]]
+            }
             2 { set error {invoked "return" outside of a proc.} }
             3 { set error {invoked "break" outside of a loop.} }
             4 { set error {invoked "continue" outside of a loop.} }
@@ -640,9 +674,10 @@ proc include_file { filename echo verbose } {
               if { [string first "Error" $error] == 0 } {
                 report_line $error
               } else {
-                report_line "Error: [file tail $filename], $include_line $error"
+                report_line "Error: [file tail $filename], $cmd_start_line $error"
               }
               set error {}
+              set error_traceback {}
             } else {
               break
             }
@@ -652,14 +687,21 @@ proc include_file { filename echo verbose } {
       }
       close $stream
       if { $cmd != {} } {
-        sta_error 341 "incomplete command at end of file."
+        sta_error 341 "incomplete command at end of file, starting on line $cmd_start_line."
       }
       if { $error != {} } {
         # Only prepend error message with file/line once.
-        if { [string first "Error" $error] == 0 } {
-          error $error
+        # Pass the failing command's traceback so puts $errorInfo shows
+        # the call stack inside the included file.
+        if { [string first "Error" $error] != 0 } {
+          set error "Error: [file tail $filename], $include_line $error"
+        }
+        if { $error_traceback != {} } {
+          variable include_error_info
+          set include_error_info $error_traceback
+          error $error $error_traceback
         } else {
-          error "Error: [file tail $filename], $include_line $error"
+          error $error
         }
       }
     }
@@ -674,6 +716,11 @@ proc include_file { filename echo verbose } {
       set include_line $prev_line
     } else {
       unset include_line
+    }
+    if { [info exists prev_cmd_start_line] } {
+      set cmd_start_line $prev_cmd_start_line
+    } else {
+      unset -nocomplain cmd_start_line
     }
   }
 }

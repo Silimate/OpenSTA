@@ -23,7 +23,7 @@ all_constraint_modes: mode2 turbo_ssg_m40
 all_constraint_modes -active: turbo_ssg_m40
 all_constraint_modes -type static: mode2 turbo_ssg_m40
 all_constraint_modes -type dynamic: ''
-all_constraint_modes bad type: Error 581: constraint_modes.tcl line 59, all_constraint_modes -type must be static or dynamic.
+all_constraint_modes bad type: Error 581: constraint_modes.tcl line 57, all_constraint_modes -type must be static or dynamic.
 Warning 580: constraint_modes.tcl line 62, OpenSTA writes SDC to the first interactive constraint mode 'mode2'; get_interactive_constraint_modes still returns all 2 names.
 multi interactive: mode2 turbo_ssg_m40
 multi cmd mode: mode2
