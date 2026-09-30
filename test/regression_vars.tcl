@@ -176,6 +176,7 @@ record_public_tests {
   get_property_empty
   get_property_flags
   get_scenes
+  include_error_line
   input_delay_ref_pin_rebuild
   inst_props
   lib_cell_props

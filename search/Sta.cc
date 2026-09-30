@@ -248,7 +248,6 @@ void
 initSta()
 {
   initElapsedTime();
-  PortDirection::init();
   initLiberty();
   initDelayConstants();
   registerDelayCalcs();
@@ -264,7 +263,6 @@ deleteAllMemory()
     Sta::setSta(nullptr);
   }
   deleteDelayCalcs();
-  PortDirection::destroy();
   deleteLiberty();
 }
 
