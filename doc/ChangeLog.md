@@ -5,19 +5,20 @@ See [API changes](ApiChanges.md) for changes to the STA API.
 
 ## 2026/09/30
 
-The `write_timing_model` command supports `-min_filename` to also write
-a model with the min delays of the block, and `-internal_paths` to model
-the worst register to register paths inside the block with internal pins
-that are timed with the clocks of the design the model is used in.
+The `write_timing_model` command supports `-internal_paths` to model the
+register to register paths inside the block. Each endpoint inside the
+block is an internal pin named by its path in the block with `.`
+separators (`core.state_reg.D`) that has a clock to pin arc for each
+launch clock edge and the setup/hold checks of the endpoint, so the
+paths are timed with the clocks of the design the model is used in.
 
 ```tcl
 write_timing_model [-scalar] [-scene scene] [-library_name lib_name]
-                   [-cell_name cell_name] [-min_filename min_filename]
-                   [-internal_paths] filename
-read_liberty -max model.lib
-read_liberty -min model_min.lib
+                   [-cell_name cell_name] [-internal_paths] filename
 ```
 
+Timing model delay arcs include the min (shortest path) delays of the
+block in retaining_rise/retaining_fall tables for hold analysis.
 Timing models written with ideal clocks no longer include clock tree
 path arcs, which removed the block clock network delay a second time
 when the model was used with ideal clocks. Clock to output arcs are no

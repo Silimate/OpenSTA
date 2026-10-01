@@ -1447,15 +1447,13 @@ public:
   PwrActivity activity(const Pin *pin,
                        const Scene *scene);
 
-  // Write a min delay model to min_filename if it is not empty.
-  // internal_paths models the worst register -> register paths
-  // inside the block with internal pins.
+  // internal_paths models the register -> register paths inside the
+  // block with an internal pin for each endpoint.
   void writeTimingModel(std::string_view lib_name,
                         std::string_view cell_name,
                         std::string_view filename,
                         const Scene *scene,
                         const bool scalar,
-                        std::string_view min_filename = {},
                         const bool internal_paths = false);
 
   // Find equivalent cells in equiv_libs.

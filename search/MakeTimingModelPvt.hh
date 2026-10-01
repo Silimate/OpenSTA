@@ -24,12 +24,14 @@
 
 #pragma once
 
+#include <array>
 #include <map>
 #include <string>
 #include <string_view>
 
 #include "Delay.hh"
 #include "LibertyClass.hh"
+#include "MinMax.hh"
 #include "NetworkClass.hh"
 #include "RiseFallMinMax.hh"
 #include "Scene.hh"
@@ -56,27 +58,36 @@ public:
 using ClockEdgeDelays = std::map<const ClockEdge*, RiseFallMinMax>;
 using OutputPinDelays = std::map<const Pin *, OutputDelays>;
 
-// Worst register -> register path inside the block for one
-// launch/capture clock port edge pair and check type.
-class InternalPathDelays
+// Model clock port and clock edge of an internal path launch or capture.
+class InternalClkEdge
 {
 public:
-  LibertyPort *launch_clk_port{nullptr};
-  const RiseFall *launch_clk_rf{nullptr};
-  LibertyPort *capture_clk_port{nullptr};
-  const RiseFall *capture_clk_rf{nullptr};
-  bool setup{true};
-  // Indexed by the data transition at the endpoint.
-  // Delay from the launch clock port edge to the endpoint.
-  float launch_delay[RiseFall::index_count]{};
-  float slew[RiseFall::index_count]{};
-  // Check margin relative to the capture clock port edge.
-  float check_margin[RiseFall::index_count]{};
-  bool exists[RiseFall::index_count]{};
+  LibertyPort *port;
+  const RiseFall *rf;
+  bool operator<(const InternalClkEdge &clk_edge) const;
 };
 
+// Worst internal path between a launch and capture clock edge
+// for a check type (min_max index) and endpoint transition.
+class InternalPathDelay
+{
+public:
+  // Launch clock port edge to the endpoint.
+  float launch_delay{0.0};
+  // Check margin relative to the capture clock port edge.
+  float check_margin{0.0};
+  float slew{0.0};
+  bool exists{false};
+};
+
+using InternalPathDelays =
+  std::array<std::array<InternalPathDelay, RiseFall::index_count>,
+             MinMax::index_count>;
+// Register -> register paths to an endpoint inside the block.
+using InternalEndpointPaths =
+  std::map<InternalClkEdge, std::map<InternalClkEdge, InternalPathDelays>>;
 // Keyed by internal pin name so the model is written in a stable order.
-using InternalPathDelaysMap = std::map<std::string, InternalPathDelays>;
+using InternalEndpointPathsMap = std::map<std::string, InternalEndpointPaths>;
 
 class MakeTimingModel : public StaState
 {
@@ -86,7 +97,6 @@ public:
                   std::string_view filename,
                   const Scene *scene,
                   const bool scalar,
-                  const MinMax *min_max,
                   const bool internal_paths,
                   Sta *sta);
   ~MakeTimingModel() override;
@@ -104,7 +114,8 @@ private:
   void findTimingFromInput(Port *input_port);
   void findClkedOutputPaths();
   void findInternalPaths();
-  void makeInternalPathArcs(const InternalPathDelaysMap &internal_paths);
+  void makeInternalPathArcs(const std::string &pin_name,
+                            const InternalEndpointPaths &endpoint_paths);
   void findClkTreeDelays();
   void makeClkTreePaths(LibertyPort *lib_port,
                         const MinMax *min_max,
@@ -126,7 +137,13 @@ private:
                                    const RiseFall *rf);
   TimingModel *makeGateModelTable(const Pin *output_pin,
                                   Delay delay,
-                                  const RiseFall *rf);
+                                  const RiseFall *rf,
+                                  const MinMax *min_max);
+  // Max delay model, or min delay (retaining) model.
+  TimingModel *makeOutputGateModel(const Pin *output_pin,
+                                   Delay delay,
+                                   const RiseFall *rf,
+                                   const MinMax *min_max);
   TableTemplate *ensureTableTemplate(const TableTemplate *drvr_template,
                                      const TableAxisPtr &load_axis);
   const TableAxis *loadCapacitanceAxis(const TableModel *table);

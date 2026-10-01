@@ -1048,7 +1048,6 @@ define_cmd_args "write_timing_model" {[-scalar]
                                         [-scene scene] \
                                         [-library_name lib_name]\
                                         [-cell_name cell_name]\
-                                        [-min_filename min_filename]\
                                         [-internal_paths]\
                                         filename} \
   -help {The `write_timing_model` command constructs a liberty timing model for the current design and writes it to filename. cell_name defaults to the cell name of the top level block in the design.
@@ -1076,34 +1075,28 @@ Resistance of long wires on inputs and outputs of the block cannot be modeled in
 
 The extracted timing model setup/hold checks are scalar (no input slew dependence). Delay timing arcs are load dependent but do not include input slew dependency.
 
+Delay arcs use the max delays of the block in the cell_rise/cell_fall tables and the min delays in the retaining_rise/retaining_fall tables, which are used for min (hold) analysis.
+
 Extract the model with the same ideal or propagated clock mode the design it is used in has. Models extracted with ideal clocks do not include the block clock network delays.
 
-The delay arcs in filename use the max delays of the block. Use `-min_filename` to also write a model with the min delays, and read the two models with `read_liberty -max` and `read_liberty -min` so hold checks use the shortest paths through the block.
-
-Use `-internal_paths` to include the worst register to register paths inside the block. Each one is modeled with an internal pin that has a clock to pin arc (launch clock latency, clock to output and data path delay) and a setup or hold check to the capture clock, so it is timed with the clocks of the design the model is used in. One pin is made for each launch/capture clock port edge pair and check type. Paths launched or captured by clocks defined inside the block, latch paths and multicycle paths inside the block are not modeled.} \
+Use `-internal_paths` to include the register to register paths inside the block. Each endpoint inside the block is modeled with an internal pin named by its path in the block with `.` separators (for example `core.state_reg.D`). The pin has a clock to pin arc for each launch clock edge (launch clock latency, clock to output and data path delay) and the setup/hold checks of the endpoint, so the paths are timed with the clocks of the design the model is used in. Paths launched or captured by clocks defined inside the block, latch paths and multicycle paths inside the block are not modeled.} \
   -arg_help {
     -scalar {Write scalar (constant) delay models instead of slew/load tables.}
     -library_name {The name to use for the liberty library. Defaults to cell_name.}
     -cell_name {The name to use for the liberty cell. Defaults to the top level module name.}
     -scene {The scene to use for extracting the model.}
-    -min_filename {Filename for a liberty timing model with min delays.}
-    -internal_paths {Model the worst register to register paths inside the block.}
+    -internal_paths {Model the register to register paths inside the block.}
     filename {Filename for the liberty timing model.}
   }
 
 proc write_timing_model { args } {
   parse_key_args "write_timing_model" args \
-    keys {-library_name -cell_name -scene -min_filename} \
-    flags {-scalar -internal_paths}
+    keys {-library_name -cell_name -scene} flags {-scalar -internal_paths}
   check_argc_eq1 "write_timing_model" $args
 
   set filename [file nativename [lindex $args 0]]
-  set min_filename ""
-  if { [info exists keys(-min_filename)] } {
-    set min_filename [file nativename $keys(-min_filename)]
-  }
-  set internal_paths [info exists flags(-internal_paths)]
   set scalar [info exists flags(-scalar)]
+  set internal_paths [info exists flags(-internal_paths)]
   if { [info exists keys(-cell_name)] } {
     set cell_name $keys(-cell_name)
   } else {
@@ -1116,7 +1109,7 @@ proc write_timing_model { args } {
   }
   set scene [parse_scene keys]
   write_timing_model_cmd $lib_name $cell_name $filename $scene $scalar \
-    $min_filename $internal_paths
+    $internal_paths
 }
 
 ################################################################

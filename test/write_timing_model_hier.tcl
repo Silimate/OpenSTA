@@ -1,5 +1,5 @@
-# write_timing_model -internal_paths -min_filename models used in place of
-# blocks (one and two levels of hierarchy) match flat timing.
+# write_timing_model -internal_paths models used in place of blocks
+# (one and two levels of hierarchy) match flat timing.
 # Each step runs in a child sta like a hierarchical flow would.
 source helpers.tcl
 
@@ -13,15 +13,14 @@ proc run_child { tag body } {
   return $output
 }
 
-proc model_file { module suffix } {
-  return [make_result_file "write_timing_model_hier_$module$suffix.lib"]
+proc model_file { module } {
+  return [make_result_file "write_timing_model_hier_$module.lib"]
 }
 
 proc read_models_cmds { models } {
   set cmds "read_liberty write_timing_model_hier.lib\n"
   foreach model $models {
-    append cmds "read_liberty -max [model_file $model {}]\n"
-    append cmds "read_liberty -min [model_file $model _min]\n"
+    append cmds "read_liberty [model_file $model]\n"
   }
   return $cmds
 }
@@ -40,7 +39,7 @@ proc write_model { module models verilog_files propagated } {
 create_clock -name clka -period 10 \[get_ports clka\]
 create_clock -name clkb -period 10 \[get_ports clkb\]
 [propagated_cmd $propagated]
-write_timing_model -scalar -internal_paths -min_filename [model_file $module _min] [model_file $module {}]
+write_timing_model -scalar -internal_paths [model_file $module]
 "
   puts -nonewline [run_child "$module$propagated" $body]
 }
@@ -77,8 +76,8 @@ foreach {path_delay check} {max setup min hold} {
   return $slacks
 }
 
-# The worst slack of each check/path group must match and every model
-# endpoint slack must be the slack of a flat path.
+# The worst slack of each check/path group must match. Internal pin
+# endpoints (inst/a.b.D) must match the flat endpoint (inst/a/b/D).
 proc compare_slacks { title flat hier } {
   puts "$title"
   set groups {}
@@ -107,15 +106,19 @@ proc compare_slacks { title flat hier } {
     puts [format "  %-5s %-4s flat %7s (%2d endpoints) model %7s (%2d endpoints) %s" \
             $check $path_group $flat_wns $flat_count $hier_wns $hier_count $status]
   }
-  set flat_slacks [dict values $flat]
+  set matched 0
   dict for {key slack} $hier {
-    if { [lsearch -exact $flat_slacks $slack] == -1 } {
-      puts "  MISMATCH $key slack $slack is not a flat path slack"
-    }
-    if { [dict exists $flat $key] && [dict get $flat $key] != $slack } {
-      puts "  MISMATCH $key flat [dict get $flat $key] model $slack"
+    lassign $key check path_group endpoint
+    set flat_key [list $check $path_group [string map {. /} $endpoint]]
+    if { [dict exists $flat $flat_key] } {
+      if { [dict get $flat $flat_key] == $slack } {
+        incr matched
+      } else {
+        puts "  MISMATCH $key flat [dict get $flat $flat_key] model $slack"
+      }
     }
   }
+  puts "  $matched endpoints match flat endpoints"
 }
 
 set blk_v write_timing_model_hier_blk.v
@@ -135,6 +138,6 @@ foreach propagated {0 1} {
     foreach key [lsort [dict keys $blk_model]] {
       puts "  $key [dict get $blk_model $key]"
     }
-    report_file [model_file blk {}]
+    report_file [model_file blk]
   }
 }

@@ -4,8 +4,7 @@ This file summarizes STA API changes for each release.
 
 ## 2026/09/30
 
-`Sta::writeTimingModel` has optional `min_filename` and `internal_paths`
-arguments.
+`Sta::writeTimingModel` has an optional `internal_paths` argument.
 
 ## 2026/06/22
 
