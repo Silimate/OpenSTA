@@ -39,6 +39,8 @@ report_checks -to i0/k0/r1/D -format full_clock_expanded
 report_checks -path_delay min -to i2/r5/D
 # recovery
 report_checks -to i2/r6/RN
+# register inside the block -> block output -> output port
+report_checks -to out2
 }
 
 puts "flat"

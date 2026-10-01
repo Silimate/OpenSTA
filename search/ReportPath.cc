@@ -595,7 +595,7 @@ void
 ReportPath::reportEndpoint(const PathEndCheck *end) const
 {
   Instance *inst = network_->instance(end->vertex(this)->pin());
-  std::string inst_name = endpointInstName(end);
+  std::string inst_name = pinInstName(end->vertex(this)->pin());
   std::string clk_name = tgtClkName(end);
   std::string_view rise_fall = asRisingFalling(end->targetClkEndTrans(this));
   const TimingRole *check_role = end->checkRole(this);
@@ -704,7 +704,7 @@ ReportPath::reportEndpoint(const PathEndLatchCheck *end) const
   std::string clk_name = tgtClkName(end);
   std::string_view reg_desc = latchDesc(end);
   std::string reason = sta::format("{} clocked by {}", reg_desc, clk_name);
-  reportEndpoint(endpointInstName(end), reason);
+  reportEndpoint(pinInstName(end->vertex(this)->pin()), reason);
 }
 
 std::string_view
@@ -800,7 +800,7 @@ ReportPath::reportEndpoint(const PathEndPathDelay *end) const
     std::string reason = sta::format("{} clocked by {}",
                                      clkRegLatchDesc(end),
                                      tgtClkName(end));
-    reportEndpoint(endpointInstName(end), reason);
+    reportEndpoint(pinInstName(end->vertex(this)->pin()), reason);
   }
 }
 
@@ -978,7 +978,7 @@ ReportPath::reportFull(const PathEndGatedClock *end) const
 void
 ReportPath::reportEndpoint(const PathEndGatedClock *end) const
 {
-  const std::string inst_name = endpointInstName(end);
+  const std::string inst_name = pinInstName(end->vertex(this)->pin());
   const RiseFall *clk_end_rf = end->targetClkEndTrans(this);
   const RiseFall *clk_rf = (end->minMax(this) == MinMax::max())
     ? clk_end_rf
@@ -1044,7 +1044,7 @@ ReportPath::reportFull(const PathEndDataCheck *end) const
 void
 ReportPath::reportEndpoint(const PathEndDataCheck *end) const
 {
-  const std::string inst_name = endpointInstName(end);
+  const std::string inst_name = pinInstName(end->vertex(this)->pin());
   std::string reason = sta::format("{} edge-triggered data to data check clocked by {}",
                                    asRisingFalling(end->dataClkPath()->transition(this)),
                                    end->targetClk(this)->name());
@@ -1880,8 +1880,7 @@ ReportPath::reportStartpoint(const PathEnd *end,
       reportStartpoint(pin_name, "input port");
   }
   else if (network_->isLeaf(pin) && prev_arc) {
-    Instance *inst = network_->instance(pin);
-    std::string inst_name = cmd_network_->pathName(inst);
+    std::string inst_name = pinInstName(pin);
     if (clk_edge) {
       const RiseFall *clk_rf = clk_edge->transition();
       const Path *clk_path = expanded.clkPath();
@@ -2068,11 +2067,10 @@ ReportPath::tgtClkName(const PathEnd *end) const
   return clkName(tgt_clk, clk_end_rf != clk_rf);
 }
 
-// Timing model internal pins are named by the endpoint path in the block.
+// Timing model internal pins are named by their path in the block.
 std::string
-ReportPath::endpointInstName(const PathEnd *end) const
+ReportPath::pinInstName(const Pin *pin) const
 {
-  const Pin *pin = end->vertex(this)->pin();
   const LibertyPort *port = network_->libertyPort(pin);
   if (port
       && port->direction()->isInternal()

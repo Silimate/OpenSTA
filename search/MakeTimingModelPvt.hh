@@ -89,6 +89,12 @@ public:
   float check_margin{0.0};
   float slew{0.0};
   const TimingRole *check_role{nullptr};
+  // Launching register output pin name, delay from the launch clock
+  // port edge to it and its transition. Empty without a register.
+  std::string launcher;
+  float launcher_delay{0.0};
+  float launcher_slew{0.0};
+  const RiseFall *launcher_rf{nullptr};
   bool exists{false};
 };
 
@@ -100,6 +106,45 @@ using InternalEndpointPaths =
   std::map<InternalLaunch, std::map<InternalClkEdge, InternalPathDelays>>;
 // Keyed by internal pin name so the model is written in a stable order.
 using InternalEndpointPathsMap = std::map<std::string, InternalEndpointPaths>;
+
+// Launching register output delays from a launch clock port edge,
+// indexed by min_max and register output transition.
+class InternalLauncherDelays
+{
+public:
+  float delay[MinMax::index_count][RiseFall::index_count]{};
+  float slew[MinMax::index_count][RiseFall::index_count]{};
+  bool exists[MinMax::index_count][RiseFall::index_count]{};
+};
+
+using InternalLauncherClkEdges = std::map<InternalClkEdge, InternalLauncherDelays>;
+
+// Input or launching register -> endpoint or output delays indexed by
+// from pin transition, to pin transition and min_max.
+class InternalArcDelays
+{
+public:
+  void merge(const RiseFall *from_rf,
+             const RiseFall *to_rf,
+             const MinMax *min_max,
+             float delay,
+             float slew);
+
+  LibertyPort *from_port{nullptr};
+  float delays[RiseFall::index_count][RiseFall::index_count][MinMax::index_count]{};
+  float slews[RiseFall::index_count][RiseFall::index_count][MinMax::index_count]{};
+  bool exists[RiseFall::index_count][RiseFall::index_count][MinMax::index_count]{};
+};
+
+using InternalArcDelaysMap = std::map<std::string, InternalArcDelays>;
+
+// Worst register -> output paths for each launch clock edge.
+class InternalOutputPaths
+{
+public:
+  const Pin *output_pin{nullptr};
+  std::map<InternalLaunch, InternalPathDelays> paths;
+};
 
 class MakeTimingModel : public StaState
 {
@@ -129,6 +174,20 @@ private:
   void findTimingFromInput(Port *input_port);
   void findClkedOutputPaths();
   void findInternalPaths();
+  void makeInternalLauncherArcs(const std::string &pin_name,
+                                const InternalLauncherClkEdges &clk_edge_delays);
+  bool recordInternalOutputPath(const Pin *output_pin,
+                                const Path *path);
+  void mergeInternalLauncher(const InternalLaunch &launch,
+                             const MinMax *min_max,
+                             const InternalPathDelay &delay);
+  float internalLauncherDelay(const InternalLaunch &launch,
+                              const MinMax *min_max,
+                              const InternalPathDelay &delay);
+  void makeInternalOutputArcs(const InternalOutputPaths &output_paths);
+  void makeInternalLaunchArcs(const InternalArcDelaysMap &arc_delays,
+                              LibertyPort *to_port,
+                              const Pin *output_pin);
   void makeInternalPathArcs(const std::string &pin_name,
                             const InternalEndpointPaths &endpoint_paths);
   void findClkTreeDelays();
@@ -185,6 +244,11 @@ private:
   Sdc *sdc_;
   Sdc *sdc_backup_{nullptr};
   InternalEndpointPathsMap internal_endpoint_paths_;
+  // Keyed by launching register output pin name.
+  std::map<std::string, InternalLauncherClkEdges> internal_launchers_;
+  std::map<std::string, LibertyPort*> internal_launcher_ports_;
+  // Keyed by output port name.
+  std::map<std::string, InternalOutputPaths> internal_output_paths_;
   bool warned_internal_latch_{false};
   bool warned_internal_clk_{false};
   bool warned_internal_mcp_{false};

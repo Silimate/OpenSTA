@@ -120,8 +120,35 @@ Path Type: max
 ---------------------------------------------------------
            3.00   slack (MET)
 
+
+Startpoint: i2/r4 (rising edge-triggered flip-flop clocked by clk1)
+Endpoint: out2 (output port clocked by clk2)
+Path Group: clk2
+Path Type: max
+
+  Delay    Time   Description
+---------------------------------------------------------
+   0.00    0.00   clock clk1 (rise edge)
+   0.20    0.20   clock network delay (propagated)
+   0.00    0.20 ^ i2/r4/CK (DFF)
+   0.30    0.50 ^ i2/r4/Q (DFF)
+   0.50    1.00 ^ i2/u5/Y (BUF)
+   0.00    1.00 ^ out2 (out)
+           1.00   data arrival time
+
+   0.50    0.50   clock clk2 (rise edge)
+   0.00    0.50   clock network delay (propagated)
+   0.00    0.50   clock reconvergence pessimism
+  -0.50    0.00   output external delay
+           0.00   data required time
+---------------------------------------------------------
+           0.00   data required time
+          -1.00   data arrival time
+---------------------------------------------------------
+          -1.00   slack (VIOLATED)
+
 model
-Startpoint: i2 (rising edge-triggered flip-flop clocked by clk1)
+Startpoint: i2/r1 (rising edge-triggered flip-flop clocked by clk1)
 Endpoint: i2/r2 (rising edge-triggered flip-flop clocked by clk1)
 Path Group: clk1
 Path Type: max
@@ -132,7 +159,8 @@ Path Type: max
    0.00    0.00   clock source latency
    0.00    0.00 ^ ck1 (in)
    0.00    0.00 ^ i2/clka (blk)
-   2.00    2.00 ^ i2/r2/D (blk)
+   0.50    0.50 ^ i2/r1/Q (blk)
+   1.50    2.00 ^ i2/r2/D (blk)
            2.00   data arrival time
 
    4.00    4.00   clock clk1 (rise edge)
@@ -180,7 +208,7 @@ Path Type: max
            3.80   slack (MET)
 
 
-Startpoint: i2 (falling edge-triggered flip-flop clocked by clk1)
+Startpoint: i2/r3 (falling edge-triggered flip-flop clocked by clk1)
 Endpoint: i2/r5 (rising edge-triggered flip-flop clocked by clk1)
 Path Group: clk1
 Path Type: min
@@ -190,7 +218,8 @@ Path Type: min
    2.00    2.00   clock clk1 (fall edge)
    0.00    2.00   clock network delay (propagated)
    0.00    2.00 v i2/clka (blk)
-   1.05    3.05 ^ i2/r5/D (blk)
+   0.65    2.65 ^ i2/r3/Q (blk)
+   0.40    3.05 ^ i2/r5/D (blk)
            3.05   data arrival time
 
    0.00    0.00   clock clk1 (rise edge)
@@ -231,4 +260,31 @@ Path Type: max
           -1.00   data arrival time
 ---------------------------------------------------------
            3.00   slack (MET)
+
+
+Startpoint: i2/r4 (rising edge-triggered flip-flop clocked by clk1)
+Endpoint: out2 (output port clocked by clk2)
+Path Group: clk2
+Path Type: max
+
+  Delay    Time   Description
+---------------------------------------------------------
+   0.00    0.00   clock clk1 (rise edge)
+   0.00    0.00   clock network delay (propagated)
+   0.00    0.00 ^ i2/clkb (blk)
+   0.50    0.50 ^ i2/r4/Q (blk)
+   0.50    1.00 ^ i2/y (blk)
+   0.00    1.00 ^ out2 (out)
+           1.00   data arrival time
+
+   0.50    0.50   clock clk2 (rise edge)
+   0.00    0.50   clock network delay (propagated)
+   0.00    0.50   clock reconvergence pessimism
+  -0.50    0.00   output external delay
+           0.00   data required time
+---------------------------------------------------------
+           0.00   data required time
+          -1.00   data arrival time
+---------------------------------------------------------
+          -1.00   slack (VIOLATED)
 
