@@ -3,6 +3,26 @@
 This file summarizes user visible changes for each release.
 See [API changes](ApiChanges.md) for changes to the STA API.
 
+## 2026/09/30
+
+The `write_timing_model` command supports `-min_filename` to also write
+a model with the min delays of the block, and `-internal_paths` to model
+the worst register to register paths inside the block with internal pins
+that are timed with the clocks of the design the model is used in.
+
+```tcl
+write_timing_model [-scalar] [-scene scene] [-library_name lib_name]
+                   [-cell_name cell_name] [-min_filename min_filename]
+                   [-internal_paths] filename
+read_liberty -max model.lib
+read_liberty -min model_min.lib
+```
+
+Timing models written with ideal clocks no longer include clock tree
+path arcs, which removed the block clock network delay a second time
+when the model was used with ideal clocks. Clock to output arcs are no
+longer missing for outputs in the fanout of the last block input.
+
 ## 2026/09/24
 
 In a future release the TCL command interpreter will not support

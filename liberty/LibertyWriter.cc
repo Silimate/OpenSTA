@@ -337,7 +337,10 @@ LibertyWriter::writeCell(const LibertyCell *cell)
   LibertyCellPortIterator port_iter(cell);
   while (port_iter.hasNext()) {
     const LibertyPort *port = port_iter.next();
-    if (!port->direction()->isInternal()) {
+    // Internal ports are written only if they have timing arcs
+    // (timing model internal paths), not register/latch states.
+    if (!port->direction()->isInternal()
+        || !cell->timingArcSetsTo(port).empty()) {
       if (port->isPwrGnd())
         writePwrGndPort(port);
       else if (port->isBus())

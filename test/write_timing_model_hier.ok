@@ -1,0 +1,437 @@
+propagated clocks 0
+blk model
+  hold  clk1 flat   0.220 (18 endpoints) model   0.220 (18 endpoints) match
+  hold  clk2 flat   0.220 (15 endpoints) model   0.220 (15 endpoints) match
+  setup clk1 flat  -0.500 (18 endpoints) model  -0.500 (18 endpoints) match
+  setup clk2 flat  -0.900 (15 endpoints) model  -0.900 (15 endpoints) match
+blk and mid models
+  hold  clk1 flat   0.220 (18 endpoints) model   0.220 (15 endpoints) match
+  hold  clk2 flat   0.220 (15 endpoints) model   0.220 (12 endpoints) match
+  setup clk1 flat  -0.500 (18 endpoints) model  -0.500 (15 endpoints) match
+  setup clk2 flat  -0.900 (15 endpoints) model  -0.900 (12 endpoints) match
+blk model endpoints
+  hold clk1 i0/k0/_int_hold_clka_f_clka_r 2.620
+  hold clk1 i0/k0/_int_hold_clka_r_clka_f 2.720
+  hold clk1 i0/k0/_int_hold_clka_r_clka_r 1.720
+  hold clk1 i0/k0/a 0.220
+  hold clk1 i0/k1/_int_hold_clka_r_clkb_r 0.720
+  hold clk1 i0/m0/D 0.220
+  hold clk1 i1/k0/_int_hold_clka_r_clkb_r 0.720
+  hold clk1 i1/k1/_int_hold_clka_f_clka_r 2.620
+  hold clk1 i1/k1/_int_hold_clka_r_clka_f 2.720
+  hold clk1 i1/k1/_int_hold_clka_r_clka_r 1.720
+  hold clk1 i1/k1/a 0.720
+  hold clk1 i1/m1/D 1.220
+  hold clk1 i2/_int_hold_clka_f_clka_r 2.620
+  hold clk1 i2/_int_hold_clka_r_clka_f 2.720
+  hold clk1 i2/_int_hold_clka_r_clka_r 1.720
+  hold clk1 i2/_int_hold_clka_r_clkb_r 0.220
+  hold clk1 i2/a 1.220
+  hold clk1 t0/D 0.420
+  hold clk2 i0/k0/_int_hold_clka_r_clkb_r 0.720
+  hold clk2 i0/k1/_int_hold_clka_f_clka_r 2.120
+  hold clk2 i0/k1/_int_hold_clka_r_clka_f 2.220
+  hold clk2 i0/k1/_int_hold_clka_r_clka_r 1.720
+  hold clk2 i0/k1/a 0.720
+  hold clk2 i0/m1/D 1.220
+  hold clk2 i1/k0/_int_hold_clka_f_clka_r 2.120
+  hold clk2 i1/k0/_int_hold_clka_r_clka_f 2.220
+  hold clk2 i1/k0/_int_hold_clka_r_clka_r 1.720
+  hold clk2 i1/k0/a 0.220
+  hold clk2 i1/k1/_int_hold_clka_r_clkb_r 0.720
+  hold clk2 i1/m0/D 0.720
+  hold clk2 out0 1.770
+  hold clk2 out1 1.770
+  hold clk2 out2 1.770
+  setup clk1 i0/k0/_int_setup_clka_f_clka_r -0.400
+  setup clk1 i0/k0/_int_setup_clka_r_clka_f 1.000
+  setup clk1 i0/k0/_int_setup_clka_r_clka_r 2.000
+  setup clk1 i0/k0/a 3.500
+  setup clk1 i0/k1/_int_setup_clka_r_clkb_r 0.000
+  setup clk1 i0/m0/D 3.500
+  setup clk1 i1/k0/_int_setup_clka_r_clkb_r 0.000
+  setup clk1 i1/k1/_int_setup_clka_f_clka_r -0.400
+  setup clk1 i1/k1/_int_setup_clka_r_clka_f 1.000
+  setup clk1 i1/k1/_int_setup_clka_r_clka_r 2.000
+  setup clk1 i1/k1/a 3.000
+  setup clk1 i1/m1/D -0.500
+  setup clk1 i2/_int_setup_clka_f_clka_r -0.400
+  setup clk1 i2/_int_setup_clka_r_clka_f 1.000
+  setup clk1 i2/_int_setup_clka_r_clka_r 2.000
+  setup clk1 i2/_int_setup_clka_r_clkb_r 3.500
+  setup clk1 i2/a -0.500
+  setup clk1 t0/D 3.300
+  setup clk2 i0/k0/_int_setup_clka_r_clkb_r 0.000
+  setup clk2 i0/k1/_int_setup_clka_f_clka_r -0.900
+  setup clk2 i0/k1/_int_setup_clka_r_clka_f 0.500
+  setup clk2 i0/k1/_int_setup_clka_r_clka_r 1.000
+  setup clk2 i0/k1/a 2.000
+  setup clk2 i0/m1/D -0.500
+  setup clk2 i1/k0/_int_setup_clka_f_clka_r -0.900
+  setup clk2 i1/k0/_int_setup_clka_r_clka_f 0.500
+  setup clk2 i1/k0/_int_setup_clka_r_clka_r 1.000
+  setup clk2 i1/k0/a 2.500
+  setup clk2 i1/k1/_int_setup_clka_r_clkb_r 0.000
+  setup clk2 i1/m0/D 2.000
+  setup clk2 out0 -0.900
+  setup clk2 out1 -0.900
+  setup clk2 out2 -0.900
+library (blk) {
+  comment                        : "";
+  delay_model                    : table_lookup;
+  simulation                     : false;
+  capacitive_load_unit (1,pF);
+  leakage_power_unit             : 1pW;
+  current_unit                   : "1mA";
+  pulling_resistance_unit        : "1ohm";
+  time_unit                      : "1ns";
+  voltage_unit                   : "1v";
+  library_features(report_delay_calculation);
+
+  input_threshold_pct_rise : 50;
+  input_threshold_pct_fall : 50;
+  output_threshold_pct_rise : 50;
+  output_threshold_pct_fall : 50;
+  slew_lower_threshold_pct_rise : 20;
+  slew_lower_threshold_pct_fall : 20;
+  slew_upper_threshold_pct_rise : 80;
+  slew_upper_threshold_pct_fall : 80;
+  slew_derate_from_library : 1.0;
+
+
+  nom_process                    : 1.0;
+  nom_temperature                : 25.0;
+  nom_voltage                    : 1.80;
+
+
+  cell ("blk") {
+    area : 33.000 
+    is_macro_cell : true;
+    pin("clka") {
+      direction : input;
+      clock : true;
+      capacitance : 0.0010;
+    }
+    pin("clkb") {
+      direction : input;
+      clock : true;
+      capacitance : 0.0010;
+    }
+    pin("a") {
+      direction : input;
+      capacitance : 0.0010;
+      timing() {
+        related_pin : "clka";
+        timing_type : hold_rising;
+        rise_constraint(scalar) {
+          values("0.05000");
+        }
+        fall_constraint(scalar) {
+          values("0.05000");
+        }
+      }
+      timing() {
+        related_pin : "clka";
+        timing_type : setup_rising;
+        rise_constraint(scalar) {
+          values("0.10000");
+        }
+        fall_constraint(scalar) {
+          values("0.10000");
+        }
+      }
+    }
+    pin("y") {
+      direction : output;
+      capacitance : 0.0000;
+      timing() {
+        related_pin : "clkb";
+        timing_type : rising_edge;
+        cell_rise(scalar) {
+          values("0.80000");
+        }
+        rise_transition(scalar) {
+          values("0.10000");
+        }
+        cell_fall(scalar) {
+          values("0.80000");
+        }
+        fall_transition(scalar) {
+          values("0.10000");
+        }
+      }
+    }
+    pin("z") {
+      direction : output;
+      capacitance : 0.0000;
+      timing() {
+        related_pin : "clka";
+        timing_type : rising_edge;
+        cell_rise(scalar) {
+          values("0.80000");
+        }
+        rise_transition(scalar) {
+          values("0.10000");
+        }
+        cell_fall(scalar) {
+          values("0.80000");
+        }
+        fall_transition(scalar) {
+          values("0.10000");
+        }
+      }
+    }
+    pin("_int_hold_clka_f_clka_r") {
+      direction : internal;
+      capacitance : 0.0000;
+      timing() {
+        related_pin : "clka";
+        timing_type : falling_edge;
+        cell_rise(scalar) {
+          values("0.70000");
+        }
+        rise_transition(scalar) {
+          values("0.10000");
+        }
+        cell_fall(scalar) {
+          values("0.70000");
+        }
+        fall_transition(scalar) {
+          values("0.10000");
+        }
+      }
+      timing() {
+        related_pin : "clka";
+        timing_type : hold_rising;
+        rise_constraint(scalar) {
+          values("0.05000");
+        }
+        fall_constraint(scalar) {
+          values("0.05000");
+        }
+      }
+    }
+    pin("_int_hold_clka_r_clka_f") {
+      direction : internal;
+      capacitance : 0.0000;
+      timing() {
+        related_pin : "clka";
+        timing_type : rising_edge;
+        cell_rise(scalar) {
+          values("0.80000");
+        }
+        rise_transition(scalar) {
+          values("0.10000");
+        }
+        cell_fall(scalar) {
+          values("0.80000");
+        }
+        fall_transition(scalar) {
+          values("0.10000");
+        }
+      }
+      timing() {
+        related_pin : "clka";
+        timing_type : hold_falling;
+        rise_constraint(scalar) {
+          values("0.05000");
+        }
+        fall_constraint(scalar) {
+          values("0.05000");
+        }
+      }
+    }
+    pin("_int_hold_clka_r_clka_r") {
+      direction : internal;
+      capacitance : 0.0000;
+      timing() {
+        related_pin : "clka";
+        timing_type : rising_edge;
+        cell_rise(scalar) {
+          values("1.80000");
+        }
+        rise_transition(scalar) {
+          values("0.10000");
+        }
+        cell_fall(scalar) {
+          values("1.80000");
+        }
+        fall_transition(scalar) {
+          values("0.10000");
+        }
+      }
+      timing() {
+        related_pin : "clka";
+        timing_type : hold_rising;
+        rise_constraint(scalar) {
+          values("0.05000");
+        }
+        fall_constraint(scalar) {
+          values("0.05000");
+        }
+      }
+    }
+    pin("_int_hold_clka_r_clkb_r") {
+      direction : internal;
+      capacitance : 0.0000;
+      timing() {
+        related_pin : "clka";
+        timing_type : rising_edge;
+        cell_rise(scalar) {
+          values("0.30000");
+        }
+        rise_transition(scalar) {
+          values("0.10000");
+        }
+        cell_fall(scalar) {
+          values("0.30000");
+        }
+        fall_transition(scalar) {
+          values("0.10000");
+        }
+      }
+      timing() {
+        related_pin : "clkb";
+        timing_type : hold_rising;
+        rise_constraint(scalar) {
+          values("0.05000");
+        }
+        fall_constraint(scalar) {
+          values("0.05000");
+        }
+      }
+    }
+    pin("_int_setup_clka_f_clka_r") {
+      direction : internal;
+      capacitance : 0.0000;
+      timing() {
+        related_pin : "clka";
+        timing_type : falling_edge;
+        cell_rise(scalar) {
+          values("2.20000");
+        }
+        rise_transition(scalar) {
+          values("0.10000");
+        }
+        cell_fall(scalar) {
+          values("2.20000");
+        }
+        fall_transition(scalar) {
+          values("0.10000");
+        }
+      }
+      timing() {
+        related_pin : "clka";
+        timing_type : setup_rising;
+        rise_constraint(scalar) {
+          values("0.10000");
+        }
+        fall_constraint(scalar) {
+          values("0.10000");
+        }
+      }
+    }
+    pin("_int_setup_clka_r_clka_f") {
+      direction : internal;
+      capacitance : 0.0000;
+      timing() {
+        related_pin : "clka";
+        timing_type : rising_edge;
+        cell_rise(scalar) {
+          values("0.80000");
+        }
+        rise_transition(scalar) {
+          values("0.10000");
+        }
+        cell_fall(scalar) {
+          values("0.80000");
+        }
+        fall_transition(scalar) {
+          values("0.10000");
+        }
+      }
+      timing() {
+        related_pin : "clka";
+        timing_type : setup_falling;
+        rise_constraint(scalar) {
+          values("0.10000");
+        }
+        fall_constraint(scalar) {
+          values("0.10000");
+        }
+      }
+    }
+    pin("_int_setup_clka_r_clka_r") {
+      direction : internal;
+      capacitance : 0.0000;
+      timing() {
+        related_pin : "clka";
+        timing_type : rising_edge;
+        cell_rise(scalar) {
+          values("1.80000");
+        }
+        rise_transition(scalar) {
+          values("0.10000");
+        }
+        cell_fall(scalar) {
+          values("1.80000");
+        }
+        fall_transition(scalar) {
+          values("0.10000");
+        }
+      }
+      timing() {
+        related_pin : "clka";
+        timing_type : setup_rising;
+        rise_constraint(scalar) {
+          values("0.10000");
+        }
+        fall_constraint(scalar) {
+          values("0.10000");
+        }
+      }
+    }
+    pin("_int_setup_clka_r_clkb_r") {
+      direction : internal;
+      capacitance : 0.0000;
+      timing() {
+        related_pin : "clka";
+        timing_type : rising_edge;
+        cell_rise(scalar) {
+          values("0.30000");
+        }
+        rise_transition(scalar) {
+          values("0.10000");
+        }
+        cell_fall(scalar) {
+          values("0.30000");
+        }
+        fall_transition(scalar) {
+          values("0.10000");
+        }
+      }
+      timing() {
+        related_pin : "clkb";
+        timing_type : setup_rising;
+        rise_constraint(scalar) {
+          values("0.10000");
+        }
+        fall_constraint(scalar) {
+          values("0.10000");
+        }
+      }
+    }
+  }
+
+}
+propagated clocks 1
+blk model
+  hold  clk1 flat   0.020 (18 endpoints) model   0.020 (18 endpoints) match
+  hold  clk2 flat   0.020 (15 endpoints) model   0.020 (15 endpoints) match
+  setup clk1 flat  -0.700 (18 endpoints) model  -0.700 (18 endpoints) match
+  setup clk2 flat  -1.100 (15 endpoints) model  -1.100 (15 endpoints) match
+blk and mid models
+  hold  clk1 flat   0.020 (18 endpoints) model   0.020 (15 endpoints) match
+  hold  clk2 flat   0.020 (15 endpoints) model   0.020 (12 endpoints) match
+  setup clk1 flat  -0.700 (18 endpoints) model  -0.700 (15 endpoints) match
+  setup clk2 flat  -1.100 (15 endpoints) model  -1.100 (12 endpoints) match

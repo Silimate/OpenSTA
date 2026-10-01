@@ -6310,13 +6310,25 @@ Sta::writeTimingModel(std::string_view lib_name,
                       std::string_view cell_name,
                       std::string_view filename,
                       const Scene *scene,
-                      const bool scalar)
+                      const bool scalar,
+                      std::string_view min_filename,
+                      const bool internal_paths)
 {
   ensureLibLinked();
   ensureGraph();
-  LibertyLibrary *library = makeTimingModel(lib_name, cell_name,
-                                            filename, scene, scalar, this);
+  LibertyLibrary *library = makeTimingModel(lib_name, cell_name, filename,
+                                            scene, scalar, MinMax::max(),
+                                            internal_paths, this);
   writeLiberty(library, std::string(filename).c_str(), this);
+  if (!min_filename.empty()) {
+    // Distinct library name so reading both models does not warn.
+    std::string min_lib_name = std::string(lib_name) + "_min";
+    LibertyLibrary *min_library = makeTimingModel(min_lib_name, cell_name,
+                                                  min_filename, scene, scalar,
+                                                  MinMax::min(), internal_paths,
+                                                  this);
+    writeLiberty(min_library, std::string(min_filename).c_str(), this);
+  }
 }
 
 ////////////////////////////////////////////////////////////////

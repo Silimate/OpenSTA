@@ -2,6 +2,11 @@
 
 This file summarizes STA API changes for each release.
 
+## 2026/09/30
+
+`Sta::writeTimingModel` has optional `min_filename` and `internal_paths`
+arguments.
+
 ## 2026/06/22
 
 `Liberty::hasSequentials` has been renamed `isSequential`.

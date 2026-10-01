@@ -56,6 +56,28 @@ public:
 using ClockEdgeDelays = std::map<const ClockEdge*, RiseFallMinMax>;
 using OutputPinDelays = std::map<const Pin *, OutputDelays>;
 
+// Worst register -> register path inside the block for one
+// launch/capture clock port edge pair and check type.
+class InternalPathDelays
+{
+public:
+  LibertyPort *launch_clk_port{nullptr};
+  const RiseFall *launch_clk_rf{nullptr};
+  LibertyPort *capture_clk_port{nullptr};
+  const RiseFall *capture_clk_rf{nullptr};
+  bool setup{true};
+  // Indexed by the data transition at the endpoint.
+  // Delay from the launch clock port edge to the endpoint.
+  float launch_delay[RiseFall::index_count]{};
+  float slew[RiseFall::index_count]{};
+  // Check margin relative to the capture clock port edge.
+  float check_margin[RiseFall::index_count]{};
+  bool exists[RiseFall::index_count]{};
+};
+
+// Keyed by internal pin name so the model is written in a stable order.
+using InternalPathDelaysMap = std::map<std::string, InternalPathDelays>;
+
 class MakeTimingModel : public StaState
 {
 public:
@@ -64,6 +86,8 @@ public:
                   std::string_view filename,
                   const Scene *scene,
                   const bool scalar,
+                  const MinMax *min_max,
+                  const bool internal_paths,
                   Sta *sta);
   ~MakeTimingModel() override;
   LibertyLibrary *makeTimingModel();
@@ -79,6 +103,8 @@ private:
   void findTimingFromInputs();
   void findTimingFromInput(Port *input_port);
   void findClkedOutputPaths();
+  void findInternalPaths();
+  void makeInternalPathArcs(const InternalPathDelaysMap &internal_paths);
   void findClkTreeDelays();
   void makeClkTreePaths(LibertyPort *lib_port,
                         const MinMax *min_max,
@@ -116,6 +142,7 @@ private:
   const Scene *scene_;
   SceneSet scenes_;
   const bool scalar_;
+  const bool internal_paths_;
   LibertyLibrary *library_;
   LibertyCell *cell_{nullptr};
   const MinMax *min_max_;

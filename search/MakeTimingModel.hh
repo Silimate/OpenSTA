@@ -29,15 +29,19 @@
 namespace sta {
 
 class LibertyLibrary;
+class MinMax;
 class Scene;
 class Sta;
 
+// min_max selects the min or max delays for the delay arcs.
 LibertyLibrary *
 makeTimingModel(std::string_view lib_name,
                 std::string_view cell_name,
                 std::string_view filename,
                 const Scene *scene,
                 const bool scalar,
+                const MinMax *min_max,
+                const bool internal_paths,
                 Sta *sta);
 
 } // namespace sta

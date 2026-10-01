@@ -1,0 +1,52 @@
+library(write_timing_model_hier) {
+  delay_model : table_lookup;
+  time_unit : "1ns";
+  voltage_unit : "1V";
+  current_unit : "1mA";
+  capacitive_load_unit(1, pf);
+  input_threshold_pct_rise : 50; input_threshold_pct_fall : 50;
+  output_threshold_pct_rise : 50; output_threshold_pct_fall : 50;
+  slew_lower_threshold_pct_rise : 20; slew_lower_threshold_pct_fall : 20;
+  slew_upper_threshold_pct_rise : 80; slew_upper_threshold_pct_fall : 80;
+  nom_process : 1; nom_voltage : 1.8; nom_temperature : 25;
+  cell(BUF) { area : 1;
+    pin(A) { direction : input; capacitance : 0.001; }
+    pin(Y) { direction : output; function : "A";
+      timing() { related_pin : "A"; timing_sense : positive_unate;
+        cell_rise(scalar) { values("0.5"); } cell_fall(scalar) { values("0.5"); }
+        rise_transition(scalar) { values("0.1"); } fall_transition(scalar) { values("0.1"); } } } }
+  cell(CLKBUF) { area : 1;
+    pin(A) { direction : input; capacitance : 0.001; }
+    pin(Y) { direction : output; function : "A";
+      timing() { related_pin : "A"; timing_sense : positive_unate;
+        cell_rise(scalar) { values("0.2"); } cell_fall(scalar) { values("0.2"); }
+        rise_transition(scalar) { values("0.1"); } fall_transition(scalar) { values("0.1"); } } } }
+  cell(AND2) { area : 1;
+    pin(A) { direction : input; capacitance : 0.001; }
+    pin(B) { direction : input; capacitance : 0.001; }
+    pin(Y) { direction : output; function : "A&B";
+      timing() { related_pin : "A"; timing_sense : positive_unate;
+        cell_rise(scalar) { values("0.4"); } cell_fall(scalar) { values("0.4"); }
+        rise_transition(scalar) { values("0.1"); } fall_transition(scalar) { values("0.1"); } }
+      timing() { related_pin : "B"; timing_sense : positive_unate;
+        cell_rise(scalar) { values("0.4"); } cell_fall(scalar) { values("0.4"); }
+        rise_transition(scalar) { values("0.1"); } fall_transition(scalar) { values("0.1"); } } } }
+  cell(INV) { area : 1;
+    pin(A) { direction : input; capacitance : 0.001; }
+    pin(Y) { direction : output; function : "!A";
+      timing() { related_pin : "A"; timing_sense : negative_unate;
+        cell_rise(scalar) { values("0.15"); } cell_fall(scalar) { values("0.15"); }
+        rise_transition(scalar) { values("0.1"); } fall_transition(scalar) { values("0.1"); } } } }
+  cell(DFF) { area : 4;
+    ff(IQ, IQN) { next_state : "D"; clocked_on : "CK"; }
+    pin(CK) { direction : input; clock : true; capacitance : 0.001; }
+    pin(D) { direction : input; capacitance : 0.001;
+      timing() { related_pin : "CK"; timing_type : setup_rising;
+        rise_constraint(scalar) { values("0.1"); } fall_constraint(scalar) { values("0.1"); } }
+      timing() { related_pin : "CK"; timing_type : hold_rising;
+        rise_constraint(scalar) { values("0.05"); } fall_constraint(scalar) { values("0.05"); } } }
+    pin(Q) { direction : output; function : "IQ";
+      timing() { related_pin : "CK"; timing_type : rising_edge;
+        cell_rise(scalar) { values("0.3"); } cell_fall(scalar) { values("0.3"); }
+        rise_transition(scalar) { values("0.1"); } fall_transition(scalar) { values("0.1"); } } } }
+}

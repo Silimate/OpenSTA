@@ -26,6 +26,7 @@
 #include "MakeTimingModelPvt.hh"
 
 #include <algorithm>
+#include <cctype>
 #include <cstddef>
 #include <limits>
 #include <map>
@@ -36,6 +37,7 @@
 
 #include "ArcDelayCalc.hh"
 #include "ClkDelays.hh"
+#include "ClkInfo.hh"
 #include "Clock.hh"
 #include "ContainerHelpers.hh"
 #include "Debug.hh"
@@ -73,9 +75,12 @@ makeTimingModel(std::string_view lib_name,
                 std::string_view filename,
                 const Scene *scene,
                 const bool scalar,
+                const MinMax *min_max,
+                const bool internal_paths,
                 Sta *sta)
 {
-  MakeTimingModel maker(lib_name, cell_name, filename, scene, scalar, sta);
+  MakeTimingModel maker(lib_name, cell_name, filename, scene, scalar,
+                        min_max, internal_paths, sta);
   return maker.makeTimingModel();
 }
 
@@ -84,6 +89,8 @@ MakeTimingModel::MakeTimingModel(std::string_view lib_name,
                                  std::string_view filename,
                                  const Scene *scene,
                                  const bool scalar,
+                                 const MinMax *min_max,
+                                 const bool internal_paths,
                                  Sta *sta) :
   StaState(sta),
   lib_name_(lib_name),
@@ -91,8 +98,9 @@ MakeTimingModel::MakeTimingModel(std::string_view lib_name,
   filename_(filename),
   scene_(scene),
   scalar_(scalar),
+  internal_paths_(internal_paths),
   cell_(nullptr),
-  min_max_(MinMax::max()),
+  min_max_(min_max),
   lib_builder_(new LibertyBuilder(debug_,
                                   report_)),
   sdc_(scene->sdc()),
@@ -117,7 +125,12 @@ MakeTimingModel::makeTimingModel()
   sta_->searchPreamble();
 
   findTimingFromInputs();
+  // The filtered searches from the inputs delete the arrivals in
+  // their fanout, so find them again for the clocked paths.
+  search_->findAllArrivals();
   findClkedOutputPaths();
+  if (internal_paths_)
+    findInternalPaths();
   findClkTreeDelays();
 
   cell_->finish(false, report_, debug_);
@@ -242,10 +255,12 @@ MakeTimingModel::makePorts()
 }
 
 // Find port max_cap/max_slew limits.
+// The limits are the same in the min and max models.
 void
 MakeTimingModel::setPortLimits(const Pin *pin,
                                LibertyPort *lib_port)
 {
+  const MinMax *min_max = MinMax::max();
   const PortDirection *dir = network_->direction(pin);
   float slew_limit = std::numeric_limits<float>::max();
   float cap_limit = std::numeric_limits<float>::max();
@@ -259,7 +274,7 @@ MakeTimingModel::setPortLimits(const Pin *pin,
       const LibertyLibrary *lib = port->libertyCell()->libertyLibrary();
       float limit;
       bool exists;
-      port->slewLimit(min_max_, limit, exists);
+      port->slewLimit(min_max, limit, exists);
       if (!exists)
         lib->defaultMaxSlew(limit, exists);
       if (exists && limit < slew_limit) {
@@ -268,7 +283,7 @@ MakeTimingModel::setPortLimits(const Pin *pin,
       }
 
       if (dir->isAnyOutput()) {
-        port->capacitanceLimit(min_max_, limit, exists);
+        port->capacitanceLimit(min_max, limit, exists);
         if (!exists)
           lib->defaultMaxCapacitance(limit, exists);
         if (exists && limit < cap_limit) {
@@ -280,9 +295,9 @@ MakeTimingModel::setPortLimits(const Pin *pin,
   }
   delete pin_iter;
   if (slew_exists)
-    lib_port->setSlewLimit(slew_limit, min_max_);
+    lib_port->setSlewLimit(slew_limit, min_max);
   if (cap_exists)
-    lib_port->setCapacitanceLimit(cap_limit, min_max_);
+    lib_port->setCapacitanceLimit(cap_limit, min_max);
 }
 
 void
@@ -499,17 +514,20 @@ MakeTimingModel::makeInputOutputTimingArcs(const Pin *input_pin,
   for (const auto &[output_pin, output_delays] : output_pin_delays) {
     TimingArcAttrsPtr attrs = nullptr;
     for (const RiseFall *output_rf : RiseFall::range()) {
-      const MinMax *min_max = MinMax::max();
       float delay;
       bool exists;
-      output_delays.delays.value(output_rf, min_max, delay, exists);
+      output_delays.delays.value(output_rf, min_max_, delay, exists);
       if (exists) {
         debugPrint(debug_, "make_timing_model", 2, "{} -> {} {} delay {}",
                    network_->pathName(input_pin), network_->pathName(output_pin),
                    output_rf->shortName(), delayAsString(delay, sta_));
         TimingModel *gate_model;
-        if (scalar_)
-          gate_model = makeGateModelScalar(delay, output_rf);
+        if (scalar_) {
+          Vertex *output_vertex = graph_->pinLoadVertex(output_pin);
+          DcalcAPIndex dcalc_ap_index = scene_->dcalcAnalysisPtIndex(min_max_);
+          Slew slew = graph_->slew(output_vertex, output_rf, dcalc_ap_index);
+          gate_model = makeGateModelScalar(delay, slew, output_rf);
+        }
         else
           gate_model = makeGateModelTable(output_pin, delay, output_rf);
         if (attrs == nullptr)
@@ -589,6 +607,224 @@ MakeTimingModel::findClkedOutputPaths()
 
 ////////////////////////////////////////////////////////////////
 
+// Register -> register paths inside the block.
+class MakeInternalPathArcs : public PathEndVisitor
+{
+public:
+  MakeInternalPathArcs(LibertyCell *cell,
+                       Sta *sta);
+  MakeInternalPathArcs(const MakeInternalPathArcs &) = default;
+  PathEndVisitor *copy() const override;
+  void visit(PathEnd *path_end) override;
+  const InternalPathDelaysMap &internalPaths() const { return internal_paths_; }
+
+private:
+  LibertyPort *clkPort(const Pin *clk_src);
+  static std::string internalPinName(bool setup,
+                                     const LibertyPort *launch_clk_port,
+                                     const RiseFall *launch_clk_rf,
+                                     const LibertyPort *capture_clk_port,
+                                     const RiseFall *capture_clk_rf);
+
+  LibertyCell *cell_;
+  InternalPathDelaysMap internal_paths_;
+  bool warned_latch_{false};
+  bool warned_mcp_{false};
+  bool warned_internal_clk_{false};
+  Sta *sta_;
+};
+
+MakeInternalPathArcs::MakeInternalPathArcs(LibertyCell *cell,
+                                           Sta *sta) :
+  cell_(cell),
+  sta_(sta)
+{
+}
+
+PathEndVisitor *
+MakeInternalPathArcs::copy() const
+{
+  return new MakeInternalPathArcs(*this);
+}
+
+void
+MakeInternalPathArcs::visit(PathEnd *path_end)
+{
+  Report *report = sta_->report();
+  PathEnd::Type type = path_end->type();
+  if (type == PathEnd::Type::latch_check) {
+    if (!warned_latch_)
+      report->warn(1382, "latch paths inside the model block are ignored.");
+    warned_latch_ = true;
+    return;
+  }
+  if (!(type == PathEnd::Type::check
+        || type == PathEnd::Type::gated_clk))
+    return;
+
+  Path *path = path_end->path();
+  const Sdc *sdc = path->sdc(sta_);
+  const Clock *src_clk = path->clock(sta_);
+  const Path *tgt_clk_path = path_end->targetClkPath();
+  if (src_clk == nullptr
+      || src_clk == sdc->defaultArrivalClock()
+      || tgt_clk_path == nullptr)
+    return;
+
+  // Paths from data inputs are modeled by the input setup/hold arcs.
+  const Path *start = path;
+  while (start->prevPath())
+    start = start->prevPath();
+  const Pin *start_pin = start->pin(sta_);
+  if (sta_->network()->isTopLevelPort(start_pin)
+      && !sdc->isClock(start_pin))
+    return;
+
+  LibertyPort *launch_clk_port = clkPort(path->clkInfo(sta_)->clkSrc());
+  LibertyPort *capture_clk_port = clkPort(tgt_clk_path->clkInfo(sta_)->clkSrc());
+  if (launch_clk_port == nullptr || capture_clk_port == nullptr) {
+    if (!warned_internal_clk_)
+      report->warn(1383, "paths clocked by clocks defined inside the model block are ignored.");
+    warned_internal_clk_ = true;
+    return;
+  }
+  if (path_end->multiCyclePath() && !warned_mcp_) {
+    report->warn(1384, "multicycle paths inside the model block are ignored.");
+    warned_mcp_ = true;
+  }
+
+  const MinMax *min_max = path_end->minMax(sta_);
+  const ClockEdge *src_clk_edge = path_end->sourceClkEdge(sta_);
+  const ClockEdge *tgt_clk_edge = path_end->targetClkEdge(sta_);
+  bool setup = (path_end->checkGenericRole(sta_) == TimingRole::setup());
+  // Launch clock port edge to the endpoint.
+  float launch_delay = delayAsFloat(path->arrival(), min_max, sta_)
+    - src_clk_edge->time();
+  // Required time relative to the capture clock port edge without the
+  // block's cycle accounting, uncertainty and exceptions.
+  Required required = path_end->requiredTime(sta_);
+  float required_offset = delayAsFloat(required, min_max, sta_)
+    - path_end->targetClkTime(sta_)
+    - path_end->targetClkUncertainty(sta_)
+    - path_end->targetClkMcpAdjustment(sta_)
+    - path_end->targetClkPathMargin(sta_);
+  float check_margin = setup ? -required_offset : required_offset;
+
+  const RiseFall *launch_clk_rf = src_clk_edge->transition();
+  const RiseFall *capture_clk_rf = tgt_clk_edge->transition();
+  std::string pin_name = internalPinName(setup, launch_clk_port, launch_clk_rf,
+                                         capture_clk_port, capture_clk_rf);
+  InternalPathDelays &delays = internal_paths_[pin_name];
+  delays.launch_clk_port = launch_clk_port;
+  delays.launch_clk_rf = launch_clk_rf;
+  delays.capture_clk_port = capture_clk_port;
+  delays.capture_clk_rf = capture_clk_rf;
+  delays.setup = setup;
+
+  // Keep the path with the worst slack.
+  int rf_index = path_end->transition(sta_)->index();
+  float violation = setup
+    ? launch_delay + check_margin
+    : check_margin - launch_delay;
+  float worst_violation = setup
+    ? delays.launch_delay[rf_index] + delays.check_margin[rf_index]
+    : delays.check_margin[rf_index] - delays.launch_delay[rf_index];
+  if (!delays.exists[rf_index] || violation > worst_violation) {
+    delays.launch_delay[rf_index] = launch_delay;
+    delays.slew[rf_index] = delayAsFloat(path->slew(sta_), min_max, sta_);
+    delays.check_margin[rf_index] = check_margin;
+    delays.exists[rf_index] = true;
+  }
+  debugPrint(sta_->debug(), "make_timing_model", 2,
+             "internal {} {} launch {} check {}",
+             sta_->network()->pathName(path->pin(sta_)), pin_name,
+             delayAsString(launch_delay, sta_),
+             delayAsString(check_margin, sta_));
+}
+
+// Model port for a clock defined on a block input port.
+LibertyPort *
+MakeInternalPathArcs::clkPort(const Pin *clk_src)
+{
+  const Network *network = sta_->network();
+  if (clk_src && network->isTopLevelPort(clk_src))
+    return cell_->findLibertyPort(network->name(network->port(clk_src)));
+  return nullptr;
+}
+
+std::string
+MakeInternalPathArcs::internalPinName(bool setup,
+                                      const LibertyPort *launch_clk_port,
+                                      const RiseFall *launch_clk_rf,
+                                      const LibertyPort *capture_clk_port,
+                                      const RiseFall *capture_clk_rf)
+{
+  std::string name = setup ? "_int_setup_" : "_int_hold_";
+  name += launch_clk_port->name();
+  name += (launch_clk_rf == RiseFall::rise()) ? "_r_" : "_f_";
+  name += capture_clk_port->name();
+  name += (capture_clk_rf == RiseFall::rise()) ? "_r" : "_f";
+  // Bus bit brackets are not legal in a liberty pin name.
+  for (char &ch : name) {
+    if (!(std::isalnum(static_cast<unsigned char>(ch)) || ch == '_'))
+      ch = '_';
+  }
+  return name;
+}
+
+// Each worst internal path is modeled with an internal pin that has a
+// clock -> pin arc for the launch and a setup/hold check for the
+// capture, so it is timed like a register -> register path with the
+// clocks of the context the model is instanced in.
+void
+MakeTimingModel::findInternalPaths()
+{
+  MakeInternalPathArcs end_visitor(cell_, sta_);
+  VisitPathEnds visit_ends(sta_);
+  for (Vertex *end : search_->endpoints())
+    visit_ends.visitPathEnds(end, scenes_, MinMaxAll::all(), false, &end_visitor);
+  makeInternalPathArcs(end_visitor.internalPaths());
+}
+
+void
+MakeTimingModel::makeInternalPathArcs(const InternalPathDelaysMap &internal_paths)
+{
+  for (const auto &[pin_name, delays] : internal_paths) {
+    if (cell_->findLibertyPort(pin_name)) {
+      report_->warn(1385, "internal path pin {} conflicts with a block port.",
+                    pin_name);
+      continue;
+    }
+    LibertyPort *int_port = lib_builder_->makePort(cell_, pin_name);
+    int_port->setDirection(PortDirection::internal());
+    ScaleFactorType scale_type = delays.setup
+      ? ScaleFactorType::setup
+      : ScaleFactorType::hold;
+    TimingArcAttrsPtr launch_attrs = std::make_shared<TimingArcAttrs>();
+    TimingArcAttrsPtr check_attrs = std::make_shared<TimingArcAttrs>();
+    for (const RiseFall *rf : RiseFall::range()) {
+      int rf_index = rf->index();
+      if (delays.exists[rf_index]) {
+        launch_attrs->setModel(rf, makeGateModelScalar(delays.launch_delay[rf_index],
+                                                       delays.slew[rf_index], rf));
+        check_attrs->setModel(rf, makeScalarCheckModel(delays.check_margin[rf_index],
+                                                       scale_type, rf));
+      }
+    }
+    lib_builder_->makeFromTransitionArcs(cell_, delays.launch_clk_port, int_port,
+                                         nullptr, delays.launch_clk_rf,
+                                         TimingRole::regClkToQ(), launch_attrs);
+    const TimingRole *check_role = delays.setup
+      ? TimingRole::setup()
+      : TimingRole::hold();
+    lib_builder_->makeFromTransitionArcs(cell_, delays.capture_clk_port, int_port,
+                                         nullptr, delays.capture_clk_rf,
+                                         check_role, check_attrs);
+  }
+}
+
+////////////////////////////////////////////////////////////////
+
 void
 MakeTimingModel::findClkTreeDelays()
 {
@@ -606,6 +842,11 @@ MakeTimingModel::findClkTreeDelays()
         ClockSet *clks = sdc_->findClocks(pin);
         if (clks->size() == 1) {
           for (const Clock *clk : *clks) {
+            // Clock tree delays are removed from the arcs of macros
+            // created with propagated clocks that are used with ideal
+            // clocks. Arcs found with ideal clocks do not include them.
+            if (clk->isIdeal())
+              continue;
             ClkDelays delays = sta_->findClkDelays(clk, scene_, true);
             for (const MinMax *min_max : MinMax::range()) {
               makeClkTreePaths(lib_port, min_max, TimingSense::positive_unate,
