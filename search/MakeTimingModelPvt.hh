@@ -88,6 +88,7 @@ class InternalLatch
 public:
   const Instance *inst{nullptr};
   const Pin *en_pin{nullptr};
+  const RiseFall *en_rf{nullptr};
   const Pin *d_pin{nullptr};
   std::vector<const Pin*> q_pins;
 };
@@ -212,6 +213,9 @@ private:
   void disableInternalLatchDtoQ(bool disable);
   void makeInternalLatch(const InternalLatch &latch);
   void makeInternalGenClkSources();
+  void makeInternalGenClkSource(const std::string &pin_name,
+                                const InternalGenClk &gen_clk,
+                                InternalArcDelaysMap &clk_arcs);
   void makeInternalGenClks();
   void mergeInternalLauncher(const InternalLaunch &launch,
                              const MinMax *min_max,
@@ -292,7 +296,7 @@ private:
   // Latch data endpoint internal pin names.
   std::set<std::string> internal_latch_d_pins_;
   // Keyed by generated clock internal pin name.
-  std::map<std::string, InternalGenClk> internal_gen_clks_;
+  std::map<std::string, std::vector<InternalGenClk>> internal_gen_clks_;
   Sta *sta_;
 };
 

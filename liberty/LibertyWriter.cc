@@ -183,6 +183,35 @@ isLatchOutput(const LibertyCell *cell,
   return false;
 }
 
+static bool
+isLatchFuncPort(const LibertyCell *cell,
+                const LibertyPort *port)
+{
+  for (const Sequential &seq : cell->sequentials()) {
+    if (seq.isLatch()) {
+      for (const FuncExpr *func : {seq.clock(), seq.data(), seq.clear(),
+                                   seq.preset()}) {
+        if (func && func->hasPort(port))
+          return true;
+      }
+    }
+  }
+  return false;
+}
+
+static const char *
+clearPresetVarString(LogicValue value)
+{
+  switch (value) {
+  case LogicValue::zero:
+    return "L";
+  case LogicValue::one:
+    return "H";
+  default:
+    return "X";
+  }
+}
+
 // Function ports are not internal or are latch outputs.
 static bool
 isWritableFunc(const LibertyCell *cell,
@@ -423,7 +452,8 @@ LibertyWriter::writeCell(const LibertyCell *cell)
     const LibertyPort *port = port_iter.next();
     if (!port->direction()->isInternal()
         || !cell->timingArcSetsTo(port).empty()
-        || !cell->timingArcSetsFrom(port).empty()) {
+        || !cell->timingArcSetsFrom(port).empty()
+        || isLatchFuncPort(cell, port)) {
       if (port->isPwrGnd())
         writePwrGndPort(port);
       else if (port->isBus())
@@ -458,6 +488,12 @@ LibertyWriter::writeLatch(const Sequential &seq)
     sta::print(stream_, "      clear : \"{}\";\n", funcString(seq.clear(), false));
   if (seq.preset())
     sta::print(stream_, "      preset : \"{}\";\n", funcString(seq.preset(), false));
+  if (seq.clear() && seq.preset()) {
+    sta::print(stream_, "      clear_preset_var1 : {};\n",
+               clearPresetVarString(seq.clearPresetOutput()));
+    sta::print(stream_, "      clear_preset_var2 : {};\n",
+               clearPresetVarString(seq.clearPresetOutputInv()));
+  }
   sta::print(stream_, "    }}\n");
 }
 

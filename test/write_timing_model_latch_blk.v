@@ -1,9 +1,11 @@
 // Latches (positive, negative, latch to latch, input to latch to output,
-// latch to output) and a divide by 2 generated clock with crossings.
+// latch to output, resettable, inferred from timing arcs) and a divide by 2
+// generated clock with crossings.
 module latch_blk(clk, a, b, y, z, w);
   input clk, a, b;
   output y, z, w;
-  wire ck, q1, n1, n2, n3, lq1, m1, q2, m2, lq2, a1, lq3, gclk, divn, gck, q3, n9, q4, q5;
+  wire ck, q1, n1, n2, n3, lq1, m1, q2, m2, lq2, a1, lq3, gclk, divn, gck, q3, n9, q4, q5,
+    lq4, m4, q6, lq5, q7;
   CLKBUF cb(.A(clk), .Y(ck));
   // flop -> latch -> flop
   DFF r1(.CK(ck), .D(q4), .Q(q1));
@@ -30,4 +32,11 @@ module latch_blk(clk, a, b, y, z, w);
   DFF r4(.CK(gck), .D(n9), .Q(q4));
   DFF r5(.CK(gck), .D(b), .Q(q5));
   BUF u10(.A(q5), .Y(w));
+  // flop -> latch reset -> flop
+  LATCHR l4(.G(ck), .D(n2), .RN(q2), .Q(lq4));
+  BUF u11(.A(lq4), .Y(m4));
+  DFF r6(.CK(ck), .D(m4), .Q(q6));
+  // latch without a latch group
+  LATCHI l5(.G(ck), .D(n1), .Q(lq5));
+  DFF r7(.CK(ck), .D(lq5), .Q(q7));
 endmodule

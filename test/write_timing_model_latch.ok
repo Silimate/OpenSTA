@@ -1,12 +1,12 @@
 propagated clocks 0 period 10
-  latch_blk model: 50 of 50 flat endpoints match
-  latch_blk and latch_mid models: 50 of 50 flat endpoints match
+  latch_blk model: 70 of 70 flat endpoints match
+  latch_blk and latch_mid models: 70 of 70 flat endpoints match
 propagated clocks 0 period 3
-  latch_blk model: 50 of 50 flat endpoints match
-  latch_blk and latch_mid models: 50 of 50 flat endpoints match
+  latch_blk model: 70 of 70 flat endpoints match
+  latch_blk and latch_mid models: 70 of 70 flat endpoints match
 propagated clocks 0 period 1.6
-  latch_blk model: 50 of 50 flat endpoints match
-  latch_blk and latch_mid models: 50 of 50 flat endpoints match
+  latch_blk model: 70 of 70 flat endpoints match
+  latch_blk and latch_mid models: 70 of 70 flat endpoints match
 library (latch_blk) {
   comment                        : "";
   delay_model                    : table_lookup;
@@ -36,7 +36,7 @@ library (latch_blk) {
 
 
   cell ("latch_blk") {
-    area : 46.000 
+    area : 62.000 
     is_macro_cell : true;
     latch ("l1/IQ", "l1/IQN") {
       enable : "\"l1/G\"";
@@ -49,6 +49,15 @@ library (latch_blk) {
     latch ("l3/IQ", "l3/IQN") {
       enable : "\"l3/G\"";
       data_in : "\"l3/D\"";
+    }
+    latch ("l4/IQ", "l4/IQN") {
+      enable : "\"l4/G\"";
+      data_in : "\"l4/D\"";
+      clear : "!\"l4/RN\"";
+    }
+    latch ("l5/IQ", "l5/IQN") {
+      enable : "\"l5/G\"";
+      data_in : "\"l5/D\"";
     }
     generated_clock ("gclk") {
       clock_pin : "div/Q";
@@ -257,6 +266,80 @@ library (latch_blk) {
         }
         cell_fall(scalar) {
           values("0.20000");
+        }
+        fall_transition(scalar) {
+          values("0.10000");
+        }
+      }
+    }
+    pin("l4/Q") {
+      direction : internal;
+      function : "\"l4/IQ\"";
+      capacitance : 0.0000;
+      timing() {
+        related_pin : "l4/G";
+        timing_type : rising_edge;
+        cell_rise(scalar) {
+          values("0.26000");
+        }
+        rise_transition(scalar) {
+          values("0.10000");
+        }
+        cell_fall(scalar) {
+          values("0.26000");
+        }
+        fall_transition(scalar) {
+          values("0.10000");
+        }
+      }
+      timing() {
+        related_pin : "l4/D";
+        timing_sense : positive_unate;
+        cell_rise(scalar) {
+          values("0.21000");
+        }
+        rise_transition(scalar) {
+          values("0.10000");
+        }
+        cell_fall(scalar) {
+          values("0.21000");
+        }
+        fall_transition(scalar) {
+          values("0.10000");
+        }
+      }
+    }
+    pin("l5/Q") {
+      direction : internal;
+      function : "\"l5/IQ\"";
+      capacitance : 0.0000;
+      timing() {
+        related_pin : "l5/G";
+        timing_type : rising_edge;
+        cell_rise(scalar) {
+          values("0.24000");
+        }
+        rise_transition(scalar) {
+          values("0.10000");
+        }
+        cell_fall(scalar) {
+          values("0.24000");
+        }
+        fall_transition(scalar) {
+          values("0.10000");
+        }
+      }
+      timing() {
+        related_pin : "l5/D";
+        timing_sense : positive_unate;
+        cell_rise(scalar) {
+          values("0.23000");
+        }
+        rise_transition(scalar) {
+          values("0.10000");
+        }
+        cell_fall(scalar) {
+          values("0.23000");
         }
         fall_transition(scalar) {
           values("0.10000");
@@ -552,6 +635,167 @@ library (latch_blk) {
         }
       }
     }
+    pin("l4/G") {
+      direction : internal;
+      clock : true;
+      capacitance : 0.0000;
+      timing() {
+        related_pin : "clk";
+        timing_sense : positive_unate;
+        timing_type : combinational;
+        cell_rise(scalar) {
+          values("0.00000");
+        }
+        rise_transition(scalar) {
+          values("0.10000");
+        }
+        cell_fall(scalar) {
+          values("0.00000");
+        }
+        fall_transition(scalar) {
+          values("0.10000");
+        }
+      }
+    }
+    pin("l4/D") {
+      direction : internal;
+      capacitance : 0.0000;
+      timing() {
+        related_pin : "l4/G";
+        timing_type : hold_falling;
+        rise_constraint(scalar) {
+          values("0.05000");
+        }
+        fall_constraint(scalar) {
+          values("0.05000");
+        }
+      }
+      timing() {
+        related_pin : "l4/G";
+        timing_type : setup_falling;
+        rise_constraint(scalar) {
+          values("0.10000");
+        }
+        fall_constraint(scalar) {
+          values("0.10000");
+        }
+      }
+      timing() {
+        related_pin : "r1/Q";
+        timing_sense : positive_unate;
+        timing_type : combinational;
+        cell_rise(scalar) {
+          values("1.00000");
+        }
+        rise_transition(scalar) {
+          values("0.10000");
+        }
+        cell_fall(scalar) {
+          values("1.00000");
+        }
+        fall_transition(scalar) {
+          values("0.10000");
+        }
+      }
+    }
+    pin("l4/RN") {
+      direction : internal;
+      capacitance : 0.0000;
+      timing() {
+        related_pin : "clk";
+        timing_type : removal_rising;
+        rise_constraint(scalar) {
+          values("0.15000");
+        }
+      }
+      timing() {
+        related_pin : "clk";
+        timing_type : recovery_rising;
+        rise_constraint(scalar) {
+          values("0.20000");
+        }
+      }
+      timing() {
+        related_pin : "r2/Q";
+        timing_sense : positive_unate;
+        timing_type : combinational;
+        cell_rise(scalar) {
+          values("0.00000");
+        }
+        rise_transition(scalar) {
+          values("0.10000");
+        }
+        retaining_rise(scalar) {
+          values("0.00000");
+        }
+        retain_rise_slew(scalar) {
+          values("0.10000");
+        }
+      }
+    }
+    pin("l5/G") {
+      direction : internal;
+      clock : true;
+      capacitance : 0.0000;
+      timing() {
+        related_pin : "clk";
+        timing_sense : positive_unate;
+        timing_type : combinational;
+        cell_rise(scalar) {
+          values("0.00000");
+        }
+        rise_transition(scalar) {
+          values("0.10000");
+        }
+        cell_fall(scalar) {
+          values("0.00000");
+        }
+        fall_transition(scalar) {
+          values("0.10000");
+        }
+      }
+    }
+    pin("l5/D") {
+      direction : internal;
+      capacitance : 0.0000;
+      timing() {
+        related_pin : "l5/G";
+        timing_type : hold_falling;
+        rise_constraint(scalar) {
+          values("0.06000");
+        }
+        fall_constraint(scalar) {
+          values("0.06000");
+        }
+      }
+      timing() {
+        related_pin : "l5/G";
+        timing_type : setup_falling;
+        rise_constraint(scalar) {
+          values("0.11000");
+        }
+        fall_constraint(scalar) {
+          values("0.11000");
+        }
+      }
+      timing() {
+        related_pin : "r1/Q";
+        timing_sense : positive_unate;
+        timing_type : combinational;
+        cell_rise(scalar) {
+          values("0.50000");
+        }
+        rise_transition(scalar) {
+          values("0.10000");
+        }
+        cell_fall(scalar) {
+          values("0.50000");
+        }
+        fall_transition(scalar) {
+          values("0.10000");
+        }
+      }
+    }
     pin("div/D") {
       direction : internal;
       capacitance : 0.0000;
@@ -807,31 +1051,123 @@ library (latch_blk) {
         }
       }
     }
+    pin("r6/D") {
+      direction : internal;
+      capacitance : 0.0000;
+      timing() {
+        related_pin : "clk";
+        timing_type : hold_rising;
+        rise_constraint(scalar) {
+          values("0.05000");
+        }
+        fall_constraint(scalar) {
+          values("0.05000");
+        }
+      }
+      timing() {
+        related_pin : "clk";
+        timing_type : setup_rising;
+        rise_constraint(scalar) {
+          values("0.10000");
+        }
+        fall_constraint(scalar) {
+          values("0.10000");
+        }
+      }
+      timing() {
+        related_pin : "l4/Q";
+        timing_sense : positive_unate;
+        timing_type : combinational;
+        cell_rise(scalar) {
+          values("0.50000");
+        }
+        rise_transition(scalar) {
+          values("0.10000");
+        }
+        cell_fall(scalar) {
+          values("0.50000");
+        }
+        fall_transition(scalar) {
+          values("0.10000");
+        }
+      }
+    }
+    pin("r7/D") {
+      direction : internal;
+      capacitance : 0.0000;
+      timing() {
+        related_pin : "clk";
+        timing_type : hold_rising;
+        rise_constraint(scalar) {
+          values("0.05000");
+        }
+        fall_constraint(scalar) {
+          values("0.05000");
+        }
+      }
+      timing() {
+        related_pin : "clk";
+        timing_type : setup_rising;
+        rise_constraint(scalar) {
+          values("0.10000");
+        }
+        fall_constraint(scalar) {
+          values("0.10000");
+        }
+      }
+      timing() {
+        related_pin : "l5/Q";
+        timing_sense : positive_unate;
+        timing_type : combinational;
+        cell_rise(scalar) {
+          values("0.00000");
+        }
+        rise_transition(scalar) {
+          values("0.10000");
+        }
+        cell_fall(scalar) {
+          values("0.00000");
+        }
+        fall_transition(scalar) {
+          values("0.10000");
+        }
+      }
+    }
   }
 
 }
 propagated clocks 1 period 10
-  latch_blk model: 50 of 50 flat endpoints match
-  latch_blk and latch_mid models: 50 of 50 flat endpoints match
+  latch_blk model: 70 of 70 flat endpoints match
+  latch_blk and latch_mid models: 70 of 70 flat endpoints match
 propagated clocks 1 period 3
-  latch_blk model: 50 of 50 flat endpoints match
-  latch_blk and latch_mid models: 50 of 50 flat endpoints match
+  latch_blk model: 70 of 70 flat endpoints match
+  latch_blk and latch_mid models: 70 of 70 flat endpoints match
 propagated clocks 1 period 1.6
-  latch_blk model: 50 of 50 flat endpoints match
-  latch_blk and latch_mid models: 50 of 50 flat endpoints match
+  latch_blk model: 70 of 70 flat endpoints match
+  latch_blk and latch_mid models: 70 of 70 flat endpoints match
 latch_blk model endpoints
+  hold asynchronous i0/l4/RN 0.150
+  hold asynchronous i1/k0/l4/RN 0.150
   hold ck i0/div/D 0.400
   hold ck i0/l1/D 2.550
   hold ck i0/l2/D 0.710
   hold ck i0/l3/D 1.150
+  hold ck i0/l4/D 2.050
+  hold ck i0/l5/D 1.540
   hold ck i0/r1/D 0.750
   hold ck i0/r2/D 0.700
+  hold ck i0/r6/D 0.710
+  hold ck i0/r7/D 0.190
   hold ck i1/k0/div/D 0.400
   hold ck i1/k0/l1/D 2.550
   hold ck i1/k0/l2/D 0.710
   hold ck i1/k0/l3/D 1.350
+  hold ck i1/k0/l4/D 2.050
+  hold ck i1/k0/l5/D 1.540
   hold ck i1/k0/r1/D 0.750
   hold ck i1/k0/r2/D 0.700
+  hold ck i1/k0/r6/D 0.710
+  hold ck i1/k0/r7/D 0.190
   hold ck i1/m0/D 1.100
   hold ck i1/m1/D 1.450
   hold ck out0 2.470
@@ -845,18 +1181,28 @@ latch_blk model endpoints
   hold i1/k0/div/Q i1/k0/r3/D -0.250
   hold i1/k0/div/Q i1/k0/r4/D 0.750
   hold i1/k0/div/Q i1/k0/r5/D -0.450
+  setup asynchronous i0/l4/RN 1.100
+  setup asynchronous i1/k0/l4/RN 1.100
   setup ck i0/div/D 1.050
   setup ck i0/l1/D -1.100
   setup ck i0/l2/D 0.000
   setup ck i0/l3/D 0.000
+  setup ck i0/l4/D -0.600
+  setup ck i0/l5/D -0.110
   setup ck i0/r1/D 0.700
   setup ck i0/r2/D 0.100
+  setup ck i0/r6/D 0.090
+  setup ck i0/r7/D 0.580
   setup ck i1/k0/div/D 1.050
   setup ck i1/k0/l1/D -1.100
   setup ck i1/k0/l2/D 0.000
   setup ck i1/k0/l3/D 0.000
+  setup ck i1/k0/l4/D -0.600
+  setup ck i1/k0/l5/D -0.110
   setup ck i1/k0/r1/D 0.700
   setup ck i1/k0/r2/D 0.100
+  setup ck i1/k0/r6/D 0.090
+  setup ck i1/k0/r7/D 0.580
   setup ck i1/m0/D 0.000
   setup ck i1/m1/D 0.000
   setup ck out0 -1.420
@@ -872,3 +1218,6 @@ latch_blk model endpoints
   setup i1/k0/div/Q i1/k0/r5/D 1.900
 path delays and data checks inside the block
 Warning 1386: set_max_delay/set_min_delay/set_data_check paths inside the model block are not captured; time them in a separate sub-block.
+two generated clocks on one pin
+  latch_blk model: 82 of 82 flat endpoints match
+  latch_blk and latch_mid models: 82 of 82 flat endpoints match
