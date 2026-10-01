@@ -1447,8 +1447,6 @@ public:
   PwrActivity activity(const Pin *pin,
                        const Scene *scene);
 
-  // internal_paths models the register -> register paths inside the
-  // block with an internal pin for each endpoint.
   void writeTimingModel(std::string_view lib_name,
                         std::string_view cell_name,
                         std::string_view filename,

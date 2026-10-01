@@ -122,8 +122,6 @@ MakeTimingModel::makeTimingModel()
   sta_->searchPreamble();
 
   findTimingFromInputs();
-  // The filtered searches from the inputs delete the arrivals in
-  // their fanout, so find them again for the clocked paths.
   search_->findAllArrivals();
   findClkedOutputPaths();
   if (internal_paths_)
