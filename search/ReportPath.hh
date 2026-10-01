@@ -277,6 +277,7 @@ protected:
                            const std::string &reason,
                            std::string_view key) const;
   std::string tgtClkName(const PathEnd *end) const;
+  std::string endpointInstName(const PathEnd *end) const;
   std::string_view clkRegLatchDesc(const PathEnd *end) const;
   void reportSrcPath(const PathEnd *end,
                      const PathExpanded &expanded) const;

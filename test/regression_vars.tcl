@@ -256,6 +256,7 @@ record_public_tests {
   verilog_write_gzip
   write_path_spice_arc_sense
   write_timing_model_hier
+  write_timing_model_report
   write_timing_model_scalar
 }
 
