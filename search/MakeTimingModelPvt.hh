@@ -26,10 +26,13 @@
 
 #include <array>
 #include <map>
+#include <set>
 #include <string>
 #include <string_view>
+#include <vector>
 
 #include "Delay.hh"
+#include "GraphClass.hh"
 #include "LibertyClass.hh"
 #include "MinMax.hh"
 #include "NetworkClass.hh"
@@ -67,15 +70,36 @@ public:
   bool operator<(const InternalClkEdge &clk_edge) const;
 };
 
-// Internal path launch from a clock port edge (register) or
-// from a data input port transition.
+// Internal path launch from a clock port edge (register), a data input
+// port transition or a latch output internal pin.
 class InternalLaunch
 {
 public:
   LibertyPort *port;
   const RiseFall *rf;
   bool from_input;
+  bool from_latch{false};
   bool operator<(const InternalLaunch &launch) const;
+};
+
+// Latch inside the block modeled with internal pins.
+class InternalLatch
+{
+public:
+  const Instance *inst{nullptr};
+  const Pin *en_pin{nullptr};
+  const Pin *d_pin{nullptr};
+  std::vector<const Pin*> q_pins;
+};
+
+// Generated clock inside the block with a master clock on a block port.
+class InternalGenClk
+{
+public:
+  const Clock *clk{nullptr};
+  const Pin *pin{nullptr};
+  LibertyPort *port{nullptr};
+  LibertyPort *master_port{nullptr};
 };
 
 // Worst internal path between a launch and capture clock edge
@@ -161,8 +185,10 @@ public:
   bool recordInternalPath(const PathEnd *path_end,
                           const InternalLaunch &launch);
   LibertyPort *clkModelPort(const Pin *clk_src);
+  LibertyPort *internalPort(const Pin *pin);
 
 private:
+  void warnInternalClk();
   void makeLibrary();
   void makeCell();
   float findArea();
@@ -177,7 +203,16 @@ private:
   void makeInternalLauncherArcs(const std::string &pin_name,
                                 const InternalLauncherClkEdges &clk_edge_delays);
   bool recordInternalOutputPath(const Pin *output_pin,
-                                const Path *path);
+                                const Path *path,
+                                const Pin *latch_en_pin);
+  LibertyPort *findOrMakeInternalPort(const std::string &name);
+  LibertyPort *genClkModelPort(const Pin *pin);
+  void findInternalLatches();
+  void findInternalLatchPaths(const InternalLatch &latch);
+  void disableInternalLatchDtoQ(bool disable);
+  void makeInternalLatch(const InternalLatch &latch);
+  void makeInternalGenClkSources();
+  void makeInternalGenClks();
   void mergeInternalLauncher(const InternalLaunch &launch,
                              const MinMax *min_max,
                              const InternalPathDelay &delay);
@@ -249,9 +284,15 @@ private:
   std::map<std::string, LibertyPort*> internal_launcher_ports_;
   // Keyed by output port name.
   std::map<std::string, InternalOutputPaths> internal_output_paths_;
-  bool warned_internal_latch_{false};
   bool warned_internal_clk_{false};
   bool warned_internal_mcp_{false};
+  bool warned_internal_path_delay_{false};
+  std::vector<InternalLatch> internal_latches_;
+  std::vector<Edge*> internal_latch_disabled_edges_;
+  // Latch data endpoint internal pin names.
+  std::set<std::string> internal_latch_d_pins_;
+  // Keyed by generated clock internal pin name.
+  std::map<std::string, InternalGenClk> internal_gen_clks_;
   Sta *sta_;
 };
 

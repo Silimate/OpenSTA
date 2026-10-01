@@ -68,4 +68,34 @@ library(write_timing_model_hier) {
         rise_transition(scalar) { values("0.1"); } fall_transition(scalar) { values("0.1"); } }
       timing() { related_pin : "RN"; timing_sense : positive_unate; timing_type : clear;
         cell_fall(scalar) { values("0.25"); } fall_transition(scalar) { values("0.1"); } } } }
+  cell(LATCH) { area : 3;
+    latch(IQ, IQN) { enable : "G"; data_in : "D"; }
+    pin(G) { direction : input; clock : true; capacitance : 0.001; }
+    pin(D) { direction : input; capacitance : 0.001;
+      timing() { related_pin : "G"; timing_type : setup_falling;
+        rise_constraint(scalar) { values("0.1"); } fall_constraint(scalar) { values("0.1"); } }
+      timing() { related_pin : "G"; timing_type : hold_falling;
+        rise_constraint(scalar) { values("0.05"); } fall_constraint(scalar) { values("0.05"); } } }
+    pin(Q) { direction : output; function : "IQ";
+      timing() { related_pin : "D"; timing_sense : positive_unate;
+        cell_rise(scalar) { values("0.2"); } cell_fall(scalar) { values("0.2"); }
+        rise_transition(scalar) { values("0.1"); } fall_transition(scalar) { values("0.1"); } }
+      timing() { related_pin : "G"; timing_type : rising_edge;
+        cell_rise(scalar) { values("0.25"); } cell_fall(scalar) { values("0.25"); }
+        rise_transition(scalar) { values("0.1"); } fall_transition(scalar) { values("0.1"); } } } }
+  cell(LATCHN) { area : 3;
+    latch(IQ, IQN) { enable : "!GN"; data_in : "D"; }
+    pin(GN) { direction : input; clock : true; capacitance : 0.001; }
+    pin(D) { direction : input; capacitance : 0.001;
+      timing() { related_pin : "GN"; timing_type : setup_rising;
+        rise_constraint(scalar) { values("0.12"); } fall_constraint(scalar) { values("0.12"); } }
+      timing() { related_pin : "GN"; timing_type : hold_rising;
+        rise_constraint(scalar) { values("0.04"); } fall_constraint(scalar) { values("0.04"); } } }
+    pin(Q) { direction : output; function : "IQ";
+      timing() { related_pin : "D"; timing_sense : positive_unate;
+        cell_rise(scalar) { values("0.22"); } cell_fall(scalar) { values("0.22"); }
+        rise_transition(scalar) { values("0.1"); } fall_transition(scalar) { values("0.1"); } }
+      timing() { related_pin : "GN"; timing_type : falling_edge;
+        cell_rise(scalar) { values("0.27"); } cell_fall(scalar) { values("0.27"); }
+        rise_transition(scalar) { values("0.1"); } fall_transition(scalar) { values("0.1"); } } } }
 }
