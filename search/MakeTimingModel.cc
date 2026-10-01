@@ -747,8 +747,8 @@ MakeInternalPathArcs::clkPort(const Pin *clk_src)
   return nullptr;
 }
 
-// Endpoint path in the block with '.' hierarchy separators
-// so the internal pin name is not a hierarchical path.
+// Endpoint path in the block, so the internal pin has the same
+// path as the endpoint in the flat design.
 std::string
 MakeInternalPathArcs::internalPinName(const Pin *pin)
 {
@@ -756,12 +756,10 @@ MakeInternalPathArcs::internalPinName(const Pin *pin)
   std::string path_name = sdc_network->pathName(pin);
   std::string name;
   for (char ch : path_name) {
-    if (ch == sdc_network->pathDivider())
-      name += '.';
-    else if (ch != sdc_network->pathEscape())
+    if (ch != sdc_network->pathEscape())
       name += ch;
   }
-  return name;
+  return portLibertyToSta(name);
 }
 
 // Each endpoint inside the block is modeled with an internal pin that

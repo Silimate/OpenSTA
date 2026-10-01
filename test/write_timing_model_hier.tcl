@@ -77,7 +77,7 @@ foreach {path_delay check} {max setup min hold} {
 }
 
 # The worst slack of each check/path group must match. Internal pin
-# endpoints (inst/a.b.D) must match the flat endpoint (inst/a/b/D).
+# endpoints have the flat endpoint path and must have its slack.
 proc compare_slacks { title flat hier } {
   puts "$title"
   set groups {}
@@ -108,13 +108,11 @@ proc compare_slacks { title flat hier } {
   }
   set matched 0
   dict for {key slack} $hier {
-    lassign $key check path_group endpoint
-    set flat_key [list $check $path_group [string map {. /} $endpoint]]
-    if { [dict exists $flat $flat_key] } {
-      if { [dict get $flat $flat_key] == $slack } {
+    if { [dict exists $flat $key] } {
+      if { [dict get $flat $key] == $slack } {
         incr matched
       } else {
-        puts "  MISMATCH $key flat [dict get $flat $flat_key] model $slack"
+        puts "  MISMATCH $key flat [dict get $flat $key] model $slack"
       }
     }
   }
