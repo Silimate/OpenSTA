@@ -308,7 +308,9 @@ MakeTimingModel::checkClock(Clock *clk)
 class MakeEndTimingArcs : public PathEndVisitor
 {
 public:
-  MakeEndTimingArcs(Sta *sta);
+  MakeEndTimingArcs(LibertyPort *input_port,
+                    MakeTimingModel *internal_model,
+                    Sta *sta);
   MakeEndTimingArcs(const MakeEndTimingArcs &) = default;
   PathEndVisitor *copy() const override;
   void visit(PathEnd *path_end) override;
@@ -316,12 +318,18 @@ public:
   const ClockEdgeDelays &margins() const { return margins_; }
 
 private:
+  LibertyPort *input_port_;
+  MakeTimingModel *internal_model_;
   const RiseFall *input_rf_{nullptr};
   ClockEdgeDelays margins_;
   Sta *sta_;
 };
 
-MakeEndTimingArcs::MakeEndTimingArcs(Sta *sta) :
+MakeEndTimingArcs::MakeEndTimingArcs(LibertyPort *input_port,
+                                     MakeTimingModel *internal_model,
+                                     Sta *sta) :
+  input_port_(input_port),
+  internal_model_(internal_model),
   sta_(sta)
 {
 }
@@ -346,6 +354,10 @@ MakeEndTimingArcs::visit(PathEnd *path_end)
   const Clock *src_clk = src_path->clock(sta_);
   const ClockEdge *tgt_clk_edge = path_end->targetClkEdge(sta_);
   if (src_clk == sdc->defaultArrivalClock() && tgt_clk_edge) {
+    if (internal_model_
+        && internal_model_->recordInternalPath(path_end,
+                                               {input_port_, input_rf_, true}))
+      return;
     Network *network = sta_->network();
     Debug *debug = sta_->debug();
     const MinMax *min_max = path_end->minMax(sta_);
@@ -399,7 +411,8 @@ MakeTimingModel::findTimingFromInput(Port *input_port)
   Instance *top_inst = network_->topInstance();
   Pin *input_pin = network_->findPin(top_inst, input_port);
   if (!sdc_->isClock(input_pin)) {
-    MakeEndTimingArcs end_visitor(sta_);
+    MakeEndTimingArcs end_visitor(modelPort(input_pin),
+                                  internal_paths_ ? this : nullptr, sta_);
     OutputPinDelays output_delays;
     for (const RiseFall *input_rf : RiseFall::range()) {
       const RiseFallBoth *input_rf1 = input_rf->asRiseFallBoth();
@@ -612,32 +625,34 @@ InternalClkEdge::operator<(const InternalClkEdge &clk_edge) const
     || (cmp == 0 && rf->index() < clk_edge.rf->index());
 }
 
+bool
+InternalLaunch::operator<(const InternalLaunch &launch) const
+{
+  if (from_input != launch.from_input)
+    return !from_input;
+  int cmp = port->name().compare(launch.port->name());
+  return cmp < 0
+    || (cmp == 0 && rf->index() < launch.rf->index());
+}
+
 // Register -> register paths inside the block.
 class MakeInternalPathArcs : public PathEndVisitor
 {
 public:
-  MakeInternalPathArcs(LibertyCell *cell,
+  MakeInternalPathArcs(MakeTimingModel *model,
                        Sta *sta);
   MakeInternalPathArcs(const MakeInternalPathArcs &) = default;
   PathEndVisitor *copy() const override;
   void visit(PathEnd *path_end) override;
-  const InternalEndpointPathsMap &endpointPaths() const { return endpoint_paths_; }
 
 private:
-  LibertyPort *clkPort(const Pin *clk_src);
-  std::string internalPinName(const Pin *pin);
-
-  LibertyCell *cell_;
-  InternalEndpointPathsMap endpoint_paths_;
-  bool warned_latch_{false};
-  bool warned_mcp_{false};
-  bool warned_internal_clk_{false};
+  MakeTimingModel *model_;
   Sta *sta_;
 };
 
-MakeInternalPathArcs::MakeInternalPathArcs(LibertyCell *cell,
+MakeInternalPathArcs::MakeInternalPathArcs(MakeTimingModel *model,
                                            Sta *sta) :
-  cell_(cell),
+  model_(model),
   sta_(sta)
 {
 }
@@ -651,28 +666,14 @@ MakeInternalPathArcs::copy() const
 void
 MakeInternalPathArcs::visit(PathEnd *path_end)
 {
-  Report *report = sta_->report();
-  PathEnd::Type type = path_end->type();
-  if (type == PathEnd::Type::latch_check) {
-    if (!warned_latch_)
-      report->warn(1382, "latch paths inside the model block are ignored.");
-    warned_latch_ = true;
-    return;
-  }
-  if (!(type == PathEnd::Type::check
-        || type == PathEnd::Type::gated_clk))
-    return;
-
   Path *path = path_end->path();
   const Sdc *sdc = path->sdc(sta_);
   const Clock *src_clk = path->clock(sta_);
-  const Path *tgt_clk_path = path_end->targetClkPath();
   if (src_clk == nullptr
-      || src_clk == sdc->defaultArrivalClock()
-      || tgt_clk_path == nullptr)
+      || src_clk == sdc->defaultArrivalClock())
     return;
 
-  // Paths from data inputs are modeled by the input setup/hold arcs.
+  // Paths from data inputs are found by the input searches.
   const Path *start = path;
   while (start->prevPath())
     start = start->prevPath();
@@ -681,42 +682,89 @@ MakeInternalPathArcs::visit(PathEnd *path_end)
       && !sdc->isClock(start_pin))
     return;
 
-  LibertyPort *launch_clk_port = clkPort(path->clkInfo(sta_)->clkSrc());
-  LibertyPort *capture_clk_port = clkPort(tgt_clk_path->clkInfo(sta_)->clkSrc());
-  if (launch_clk_port == nullptr || capture_clk_port == nullptr) {
-    if (!warned_internal_clk_)
-      report->warn(1383, "paths clocked by clocks defined inside the model block are ignored.");
-    warned_internal_clk_ = true;
-    return;
+  LibertyPort *launch_clk_port = model_->clkModelPort(path->clkInfo(sta_)->clkSrc());
+  const RiseFall *launch_clk_rf = path_end->sourceClkEdge(sta_)->transition();
+  model_->recordInternalPath(path_end, {launch_clk_port, launch_clk_rf, false});
+}
+
+// Endpoint path in the block, so the internal pin has the same
+// path as the endpoint in the flat design.
+static std::string
+internalPinName(const Pin *pin,
+                const StaState *sta)
+{
+  const Network *sdc_network = sta->sdcNetwork();
+  std::string path_name = sdc_network->pathName(pin);
+  std::string name;
+  for (char ch : path_name) {
+    if (ch != sdc_network->pathEscape())
+      name += ch;
   }
-  if (path_end->multiCyclePath() && !warned_mcp_) {
-    report->warn(1384, "multicycle paths inside the model block are ignored.");
-    warned_mcp_ = true;
+  return portLibertyToSta(name);
+}
+
+// Model port for a clock defined on a block input port.
+LibertyPort *
+MakeTimingModel::clkModelPort(const Pin *clk_src)
+{
+  if (clk_src && network_->isTopLevelPort(clk_src))
+    return modelPort(clk_src);
+  return nullptr;
+}
+
+bool
+MakeTimingModel::recordInternalPath(const PathEnd *path_end,
+                                    const InternalLaunch &launch)
+{
+  PathEnd::Type type = path_end->type();
+  if (type == PathEnd::Type::latch_check) {
+    if (!warned_internal_latch_)
+      report_->warn(1382, "latch paths inside the model block are ignored.");
+    warned_internal_latch_ = true;
+    return false;
+  }
+  if (!(type == PathEnd::Type::check
+        || type == PathEnd::Type::gated_clk))
+    return false;
+
+  const Path *path = path_end->path();
+  const Path *tgt_clk_path = path_end->targetClkPath();
+  LibertyPort *capture_clk_port = tgt_clk_path
+    ? clkModelPort(tgt_clk_path->clkInfo(this)->clkSrc())
+    : nullptr;
+  if (launch.port == nullptr || capture_clk_port == nullptr) {
+    if (!warned_internal_clk_)
+      report_->warn(1383, "paths clocked by clocks defined inside the model block are ignored.");
+    warned_internal_clk_ = true;
+    return false;
+  }
+  if (path_end->multiCyclePath() && !warned_internal_mcp_) {
+    report_->warn(1384, "multicycle paths inside the model block are ignored.");
+    warned_internal_mcp_ = true;
   }
 
-  const MinMax *min_max = path_end->minMax(sta_);
-  const ClockEdge *src_clk_edge = path_end->sourceClkEdge(sta_);
-  const ClockEdge *tgt_clk_edge = path_end->targetClkEdge(sta_);
-  bool setup = (path_end->checkGenericRole(sta_) == TimingRole::setup());
-  // Launch clock port edge to the endpoint.
-  float launch_delay = delayAsFloat(path->arrival(), min_max, sta_)
+  const MinMax *min_max = path_end->minMax(this);
+  const ClockEdge *src_clk_edge = path_end->sourceClkEdge(this);
+  const ClockEdge *tgt_clk_edge = path_end->targetClkEdge(this);
+  bool setup = (path_end->checkGenericRole(this) == TimingRole::setup());
+  // Launch clock port edge or input port to the endpoint.
+  float launch_delay = delayAsFloat(path->arrival(), min_max, this)
     - src_clk_edge->time();
   // Required time relative to the capture clock port edge without the
   // block's cycle accounting, uncertainty and exceptions.
-  Required required = path_end->requiredTime(sta_);
-  float required_offset = delayAsFloat(required, min_max, sta_)
-    - path_end->targetClkTime(sta_)
-    - path_end->targetClkUncertainty(sta_)
-    - path_end->targetClkMcpAdjustment(sta_)
-    - path_end->targetClkPathMargin(sta_);
+  Required required = path_end->requiredTime(this);
+  float required_offset = delayAsFloat(required, min_max, this)
+    - path_end->targetClkTime(this)
+    - path_end->targetClkUncertainty(this)
+    - path_end->targetClkMcpAdjustment(this)
+    - path_end->targetClkPathMargin(this);
   float check_margin = setup ? -required_offset : required_offset;
 
-  InternalClkEdge launch{launch_clk_port, src_clk_edge->transition()};
   InternalClkEdge capture{capture_clk_port, tgt_clk_edge->transition()};
-  std::string pin_name = internalPinName(path->pin(sta_));
-  int rf_index = path_end->transition(sta_)->index();
+  std::string pin_name = internalPinName(path->pin(this), this);
+  int rf_index = path_end->transition(this)->index();
   InternalPathDelay &delay =
-    endpoint_paths_[pin_name][launch][capture][min_max->index()][rf_index];
+    internal_endpoint_paths_[pin_name][launch][capture][min_max->index()][rf_index];
   // Keep the path with the worst slack.
   float violation = setup
     ? launch_delay + check_margin
@@ -727,61 +775,59 @@ MakeInternalPathArcs::visit(PathEnd *path_end)
   if (!delay.exists || violation > worst_violation) {
     delay.launch_delay = launch_delay;
     delay.check_margin = check_margin;
-    delay.slew = delayAsFloat(path->slew(sta_), min_max, sta_);
+    delay.slew = delayAsFloat(path->slew(this), min_max, this);
+    delay.check_role = path_end->checkRole(this);
     delay.exists = true;
   }
-  debugPrint(sta_->debug(), "make_timing_model", 2,
-             "internal {} {} launch {} check {}",
-             pin_name, setup ? "setup" : "hold",
-             delayAsString(launch_delay, sta_),
-             delayAsString(check_margin, sta_));
-}
-
-// Model port for a clock defined on a block input port.
-LibertyPort *
-MakeInternalPathArcs::clkPort(const Pin *clk_src)
-{
-  const Network *network = sta_->network();
-  if (clk_src && network->isTopLevelPort(clk_src))
-    return cell_->findLibertyPort(network->name(network->port(clk_src)));
-  return nullptr;
-}
-
-// Endpoint path in the block, so the internal pin has the same
-// path as the endpoint in the flat design.
-std::string
-MakeInternalPathArcs::internalPinName(const Pin *pin)
-{
-  const Network *sdc_network = sta_->sdcNetwork();
-  std::string path_name = sdc_network->pathName(pin);
-  std::string name;
-  for (char ch : path_name) {
-    if (ch != sdc_network->pathEscape())
-      name += ch;
-  }
-  return portLibertyToSta(name);
+  debugPrint(debug_, "make_timing_model", 2,
+             "internal {} -> {} {} launch {} check {}",
+             launch.port->name(), pin_name, setup ? "setup" : "hold",
+             delayAsString(launch_delay, this),
+             delayAsString(check_margin, this));
+  return true;
 }
 
 // Each endpoint inside the block is modeled with an internal pin that
-// has a clock -> pin arc for each launch clock edge and the setup/hold
-// checks of the endpoint, so the paths to it are timed like register ->
-// register paths with the clocks of the context the model is used in.
+// has a clock -> pin arc for each launch clock edge, an input -> pin
+// arc for each input with a path to it and the checks of the endpoint,
+// so the paths to it are timed with the clocks of the context the model
+// is used in.
 void
 MakeTimingModel::findInternalPaths()
 {
-  MakeInternalPathArcs end_visitor(cell_, sta_);
+  MakeInternalPathArcs end_visitor(this, sta_);
   VisitPathEnds visit_ends(sta_);
   for (Vertex *end : search_->endpoints())
     visit_ends.visitPathEnds(end, scenes_, MinMaxAll::all(), false, &end_visitor);
-  for (const auto &[pin_name, endpoint_paths] : end_visitor.endpointPaths())
+  for (const auto &[pin_name, endpoint_paths] : internal_endpoint_paths_)
     makeInternalPathArcs(pin_name, endpoint_paths);
 }
 
+// Launch delays for one launch and endpoint transition.
+class InternalLaunchDelays
+{
+public:
+  float max_delay{0.0};
+  float max_slew{0.0};
+  bool max_exists{false};
+  float min_delay{0.0};
+  float min_slew{0.0};
+  bool min_exists{false};
+};
+
+// Input -> endpoint delays merged over the input transitions.
+class InternalInputDelays
+{
+public:
+  LibertyPort *input_port{nullptr};
+  OutputDelays delays;
+  float slews[RiseFall::index_count][MinMax::index_count]{};
+};
+
 // The check margins are those of the worst path to the endpoint from any
-// launch clock edge. The launch arc delays absorb the margin differences
-// of the other launch clock edges so each one keeps its worst slack.
-// Launch arcs use the max delays for setup and the min (retaining)
-// delays for hold.
+// launch. The launch arc delays absorb the margin differences of the
+// other launches so each one keeps its worst slack. Launch arcs use the
+// max delays for setup and the min (retaining) delays for hold.
 void
 MakeTimingModel::makeInternalPathArcs(const std::string &pin_name,
                                       const InternalEndpointPaths &endpoint_paths)
@@ -822,74 +868,125 @@ MakeTimingModel::makeInternalPathArcs(const std::string &pin_name,
     for (const MinMax *min_max : MinMax::range()) {
       bool setup = (min_max == MinMax::max());
       TimingArcAttrsPtr attrs = nullptr;
+      const TimingRole *role = setup ? TimingRole::setup() : TimingRole::hold();
       for (const RiseFall *rf : RiseFall::range()) {
         const InternalPathDelay &margin = margins[min_max->index()][rf->index()];
         if (margin.exists) {
-          if (attrs == nullptr)
-            attrs = std::make_shared<TimingArcAttrs>();
+          if (margin.check_role == TimingRole::recovery())
+            role = TimingRole::recovery();
+          else if (margin.check_role == TimingRole::removal())
+            role = TimingRole::removal();
           ScaleFactorType scale_type = setup
             ? ScaleFactorType::setup
             : ScaleFactorType::hold;
+          if (role == TimingRole::recovery())
+            scale_type = ScaleFactorType::recovery;
+          else if (role == TimingRole::removal())
+            scale_type = ScaleFactorType::removal;
+          if (attrs == nullptr)
+            attrs = std::make_shared<TimingArcAttrs>();
           attrs->setModel(rf, makeScalarCheckModel(margin.check_margin,
                                                    scale_type, rf));
         }
       }
-      if (attrs) {
-        const TimingRole *role = setup ? TimingRole::setup() : TimingRole::hold();
+      if (attrs)
         lib_builder_->makeFromTransitionArcs(cell_, capture.port, int_port,
                                              nullptr, capture.rf, role, attrs);
-      }
     }
   }
 
+  std::map<std::string, InternalInputDelays> input_delays;
   for (const auto &[launch, captures] : endpoint_paths) {
     TimingArcAttrsPtr attrs = nullptr;
     for (const RiseFall *rf : RiseFall::range()) {
-      bool max_exists = false;
-      bool min_exists = false;
-      float max_delay = 0.0;
-      float min_delay = 0.0;
-      float max_slew = 0.0;
-      float min_slew = 0.0;
+      InternalLaunchDelays launch_delays;
       for (const auto &[capture, delays] : captures) {
         const InternalPathDelays &margins = check_margins[capture];
         const InternalPathDelay &setup = delays[MinMax::max()->index()][rf->index()];
         if (setup.exists) {
           float delay = setup.launch_delay + setup.check_margin
             - margins[MinMax::max()->index()][rf->index()].check_margin;
-          if (!max_exists || delay > max_delay) {
-            max_delay = delay;
-            max_slew = setup.slew;
-            max_exists = true;
+          if (!launch_delays.max_exists || delay > launch_delays.max_delay) {
+            launch_delays.max_delay = delay;
+            launch_delays.max_slew = setup.slew;
+            launch_delays.max_exists = true;
           }
         }
         const InternalPathDelay &hold = delays[MinMax::min()->index()][rf->index()];
         if (hold.exists) {
           float delay = hold.launch_delay - hold.check_margin
             + margins[MinMax::min()->index()][rf->index()].check_margin;
-          if (!min_exists || delay < min_delay) {
-            min_delay = delay;
-            min_slew = hold.slew;
-            min_exists = true;
+          if (!launch_delays.min_exists || delay < launch_delays.min_delay) {
+            launch_delays.min_delay = delay;
+            launch_delays.min_slew = hold.slew;
+            launch_delays.min_exists = true;
           }
         }
       }
-      if (max_exists || min_exists) {
+      // Without a setup path the min delay is also the max delay.
+      if (!launch_delays.max_exists && launch_delays.min_exists) {
+        launch_delays.max_delay = launch_delays.min_delay;
+        launch_delays.max_slew = launch_delays.min_slew;
+        launch_delays.max_exists = true;
+      }
+      if (!launch_delays.max_exists)
+        continue;
+      if (launch.from_input) {
+        InternalInputDelays &input = input_delays[launch.port->name()];
+        input.input_port = launch.port;
+        input.delays.rf_path_exists[launch.rf->index()][rf->index()] = true;
+        float value;
+        bool exists;
+        input.delays.delays.value(rf, MinMax::max(), value, exists);
+        if (!exists || launch_delays.max_delay > value) {
+          input.delays.delays.setValue(rf, MinMax::max(), launch_delays.max_delay);
+          input.slews[rf->index()][MinMax::max()->index()] = launch_delays.max_slew;
+        }
+        if (launch_delays.min_exists) {
+          input.delays.delays.value(rf, MinMax::min(), value, exists);
+          if (!exists || launch_delays.min_delay < value) {
+            input.delays.delays.setValue(rf, MinMax::min(), launch_delays.min_delay);
+            input.slews[rf->index()][MinMax::min()->index()] = launch_delays.min_slew;
+          }
+        }
+      }
+      else {
         if (attrs == nullptr)
           attrs = std::make_shared<TimingArcAttrs>();
-        // Without a setup path the min delay is also the max delay.
-        if (max_exists)
-          attrs->setModel(rf, makeGateModelScalar(max_delay, max_slew, rf));
-        else
-          attrs->setModel(rf, makeGateModelScalar(min_delay, min_slew, rf));
-        if (min_exists && max_exists && min_delay != max_delay)
-          attrs->setRetainModel(rf, makeGateModelScalar(min_delay, min_slew, rf));
+        attrs->setModel(rf, makeGateModelScalar(launch_delays.max_delay,
+                                                launch_delays.max_slew, rf));
+        if (launch_delays.min_exists
+            && launch_delays.min_delay != launch_delays.max_delay)
+          attrs->setRetainModel(rf, makeGateModelScalar(launch_delays.min_delay,
+                                                        launch_delays.min_slew, rf));
       }
     }
     if (attrs)
       lib_builder_->makeFromTransitionArcs(cell_, launch.port, int_port,
                                            nullptr, launch.rf,
                                            TimingRole::regClkToQ(), attrs);
+  }
+
+  for (const auto &[input_name, input] : input_delays) {
+    TimingArcAttrsPtr attrs = std::make_shared<TimingArcAttrs>();
+    for (const RiseFall *rf : RiseFall::range()) {
+      float max_delay, min_delay;
+      bool max_exists, min_exists;
+      input.delays.delays.value(rf, MinMax::max(), max_delay, max_exists);
+      input.delays.delays.value(rf, MinMax::min(), min_delay, min_exists);
+      if (max_exists) {
+        attrs->setModel(rf, makeGateModelScalar(max_delay,
+                                                input.slews[rf->index()][MinMax::max()->index()],
+                                                rf));
+        if (min_exists && min_delay != max_delay)
+          attrs->setRetainModel(rf, makeGateModelScalar(min_delay,
+                                                        input.slews[rf->index()][MinMax::min()->index()],
+                                                        rf));
+      }
+    }
+    attrs->setTimingSense(input.delays.timingSense());
+    lib_builder_->makeCombinationalArcs(cell_, input.input_port, int_port,
+                                        true, true, attrs);
   }
 }
 

@@ -58,7 +58,7 @@ public:
 using ClockEdgeDelays = std::map<const ClockEdge*, RiseFallMinMax>;
 using OutputPinDelays = std::map<const Pin *, OutputDelays>;
 
-// Model clock port and clock edge of an internal path launch or capture.
+// Model clock port and clock edge of an internal path capture.
 class InternalClkEdge
 {
 public:
@@ -67,25 +67,37 @@ public:
   bool operator<(const InternalClkEdge &clk_edge) const;
 };
 
+// Internal path launch from a clock port edge (register) or
+// from a data input port transition.
+class InternalLaunch
+{
+public:
+  LibertyPort *port;
+  const RiseFall *rf;
+  bool from_input;
+  bool operator<(const InternalLaunch &launch) const;
+};
+
 // Worst internal path between a launch and capture clock edge
 // for a check type (min_max index) and endpoint transition.
 class InternalPathDelay
 {
 public:
-  // Launch clock port edge to the endpoint.
+  // Launch clock port edge or input port to the endpoint.
   float launch_delay{0.0};
   // Check margin relative to the capture clock port edge.
   float check_margin{0.0};
   float slew{0.0};
+  const TimingRole *check_role{nullptr};
   bool exists{false};
 };
 
 using InternalPathDelays =
   std::array<std::array<InternalPathDelay, RiseFall::index_count>,
              MinMax::index_count>;
-// Register -> register paths to an endpoint inside the block.
+// Paths to an endpoint inside the block.
 using InternalEndpointPaths =
-  std::map<InternalClkEdge, std::map<InternalClkEdge, InternalPathDelays>>;
+  std::map<InternalLaunch, std::map<InternalClkEdge, InternalPathDelays>>;
 // Keyed by internal pin name so the model is written in a stable order.
 using InternalEndpointPathsMap = std::map<std::string, InternalEndpointPaths>;
 
@@ -101,6 +113,9 @@ public:
                   Sta *sta);
   ~MakeTimingModel() override;
   LibertyLibrary *makeTimingModel();
+  bool recordInternalPath(const PathEnd *path_end,
+                          const InternalLaunch &launch);
+  LibertyPort *clkModelPort(const Pin *clk_src);
 
 private:
   void makeLibrary();
@@ -169,6 +184,10 @@ private:
   int tbl_template_index_{1};
   Sdc *sdc_;
   Sdc *sdc_backup_{nullptr};
+  InternalEndpointPathsMap internal_endpoint_paths_;
+  bool warned_internal_latch_{false};
+  bool warned_internal_clk_{false};
+  bool warned_internal_mcp_{false};
   Sta *sta_;
 };
 

@@ -55,7 +55,7 @@ create_clock -name clk1 -period 4 \[get_ports ck1\]
 create_clock -name clk2 -period 3 -waveform {0.5 2} \[get_ports ck2\]
 set_clock_uncertainty -setup 0.1 \[all_clocks\]
 set_clock_uncertainty -hold 0.03 \[all_clocks\]
-set_input_delay 0.5 -clock clk1 \[get_ports in0\]
+set_input_delay 0.5 -clock clk1 \[get_ports {in0 rst}\]
 set_output_delay 0.5 -clock clk2 \[get_ports {out0 out1 out2}\]
 [propagated_cmd $propagated]
 foreach {path_delay check} {max setup min hold} {
@@ -76,8 +76,8 @@ foreach {path_delay check} {max setup min hold} {
   return $slacks
 }
 
-# The worst slack of each check/path group must match. Internal pin
-# endpoints have the flat endpoint path and must have its slack.
+# The worst slack of each check/path group must match and the model
+# endpoints (internal pins) must be the flat endpoints with the same slack.
 proc compare_slacks { title flat hier } {
   puts "$title"
   set groups {}
@@ -107,16 +107,21 @@ proc compare_slacks { title flat hier } {
             $check $path_group $flat_wns $flat_count $hier_wns $hier_count $status]
   }
   set matched 0
-  dict for {key slack} $hier {
-    if { [dict exists $flat $key] } {
-      if { [dict get $flat $key] == $slack } {
-        incr matched
-      } else {
-        puts "  MISMATCH $key flat [dict get $flat $key] model $slack"
-      }
+  dict for {key slack} $flat {
+    if { ![dict exists $hier $key] } {
+      puts "  MISMATCH $key missing from model"
+    } elseif { [dict get $hier $key] != $slack } {
+      puts "  MISMATCH $key flat $slack model [dict get $hier $key]"
+    } else {
+      incr matched
     }
   }
-  puts "  $matched endpoints match flat endpoints"
+  dict for {key slack} $hier {
+    if { ![dict exists $flat $key] } {
+      puts "  MISMATCH $key not a flat endpoint"
+    }
+  }
+  puts "  $matched of [dict size $flat] flat endpoints match"
 }
 
 set blk_v write_timing_model_hier_blk.v

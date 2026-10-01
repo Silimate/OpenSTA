@@ -662,19 +662,33 @@ LibertyWriter::timingTypeString(const TimingArcSet *arc_set)
     else
       return "clear";
   }
-  else if (role == TimingRole::setup() || role == TimingRole::recovery()) {
+  else if (role == TimingRole::setup()) {
     const TimingArc *arc = arc_set->arcs()[0];
     if (arc->fromEdge()->asRiseFall() == RiseFall::rise())
       return "setup_rising";
     else
       return "setup_falling";
   }
-  else if (role == TimingRole::hold() || role == TimingRole::removal()) {
+  else if (role == TimingRole::recovery()) {
+    const TimingArc *arc = arc_set->arcs()[0];
+    if (arc->fromEdge()->asRiseFall() == RiseFall::rise())
+      return "recovery_rising";
+    else
+      return "recovery_falling";
+  }
+  else if (role == TimingRole::hold()) {
     const TimingArc *arc = arc_set->arcs()[0];
     if (arc->fromEdge()->asRiseFall() == RiseFall::rise())
       return "hold_rising";
     else
       return "hold_falling";
+  }
+  else if (role == TimingRole::removal()) {
+    const TimingArc *arc = arc_set->arcs()[0];
+    if (arc->fromEdge()->asRiseFall() == RiseFall::rise())
+      return "removal_rising";
+    else
+      return "removal_falling";
   }
   else if (role == TimingRole::nonSeqSetup()) {
     const TimingArc *arc = arc_set->arcs()[0];

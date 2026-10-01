@@ -1,9 +1,9 @@
-// Leaf block: two clock ports, neg-edge capture, cross-clock and
-// reconvergent internal paths.
-module blk(clka, clkb, a, y, z);
-  input clka, clkb, a;
+// Leaf block: two clock ports, neg-edge capture, cross-clock,
+// reconvergent internal paths and an async reset.
+module blk(clka, clkb, a, rn, y, z);
+  input clka, clkb, a, rn;
   output y, z;
-  wire cka, ckan, ckb, q1, q2, q3, q4, q5, n1, n2, n3, s1, l1, l2, l3, c5;
+  wire cka, ckan, ckb, q1, q2, q3, q4, q5, q6, n1, n2, n3, s1, l1, l2, l3, c5, rnb;
   CLKBUF cba(.A(clka), .Y(cka));
   INV cbn(.A(cka), .Y(ckan));
   CLKBUF cbb(.A(clkb), .Y(ckb));
@@ -26,4 +26,7 @@ module blk(clka, clkb, a, y, z);
   AND2 g5(.A(q3), .B(l3), .Y(c5));
   DFF r5(.CK(cka), .D(c5), .Q(q5));
   BUF u9(.A(q5), .Y(z));
+  // async reset from an input
+  BUF ur(.A(rn), .Y(rnb));
+  DFFR r6(.CK(cka), .D(q5), .RN(rnb), .Q(q6));
 endmodule

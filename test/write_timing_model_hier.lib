@@ -49,4 +49,23 @@ library(write_timing_model_hier) {
       timing() { related_pin : "CK"; timing_type : rising_edge;
         cell_rise(scalar) { values("0.3"); } cell_fall(scalar) { values("0.3"); }
         rise_transition(scalar) { values("0.1"); } fall_transition(scalar) { values("0.1"); } } } }
+  cell(DFFR) { area : 5;
+    ff(IQ, IQN) { next_state : "D"; clocked_on : "CK"; clear : "!RN"; }
+    pin(CK) { direction : input; clock : true; capacitance : 0.001; }
+    pin(D) { direction : input; capacitance : 0.001;
+      timing() { related_pin : "CK"; timing_type : setup_rising;
+        rise_constraint(scalar) { values("0.1"); } fall_constraint(scalar) { values("0.1"); } }
+      timing() { related_pin : "CK"; timing_type : hold_rising;
+        rise_constraint(scalar) { values("0.05"); } fall_constraint(scalar) { values("0.05"); } } }
+    pin(RN) { direction : input; capacitance : 0.001;
+      timing() { related_pin : "CK"; timing_type : recovery_rising;
+        rise_constraint(scalar) { values("0.2"); } }
+      timing() { related_pin : "CK"; timing_type : removal_rising;
+        rise_constraint(scalar) { values("0.15"); } } }
+    pin(Q) { direction : output; function : "IQ";
+      timing() { related_pin : "CK"; timing_type : rising_edge;
+        cell_rise(scalar) { values("0.3"); } cell_fall(scalar) { values("0.3"); }
+        rise_transition(scalar) { values("0.1"); } fall_transition(scalar) { values("0.1"); } }
+      timing() { related_pin : "RN"; timing_sense : positive_unate; timing_type : clear;
+        cell_fall(scalar) { values("0.25"); } fall_transition(scalar) { values("0.1"); } } } }
 }

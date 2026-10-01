@@ -1079,13 +1079,13 @@ Delay arcs use the max delays of the block in the cell_rise/cell_fall tables and
 
 Extract the model with the same ideal or propagated clock mode the design it is used in has. Models extracted with ideal clocks do not include the block clock network delays.
 
-Use `-internal_paths` to include the register to register paths inside the block. Each endpoint inside the block is modeled with an internal pin named by its path in the block (for example `core/state_reg/D`), so it has the same path as the endpoint in the flat design. The pin has a clock to pin arc for each launch clock edge (launch clock latency, clock to output and data path delay) and the setup/hold checks of the endpoint, so the paths are timed with the clocks of the design the model is used in. Paths launched or captured by clocks defined inside the block, latch paths and multicycle paths inside the block are not modeled.} \
+Use `-internal_paths` to include the paths to the endpoints inside the block. Each endpoint inside the block is modeled with an internal pin named by its path in the block (for example `core/state_reg/D`), so it has the same path as the endpoint in the flat design. The pin has a clock to pin arc for each launch clock edge (launch clock latency, clock to output and data path delay), a combinational arc from each input with a path to it, and the setup/hold (recovery/removal) checks of the endpoint, so the paths are timed with the clocks of the design the model is used in. Input to register paths are modeled by these arcs instead of setup/hold checks on the inputs. Paths launched or captured by clocks defined inside the block, latch paths and multicycle paths inside the block are not modeled.} \
   -arg_help {
     -scalar {Write scalar (constant) delay models instead of slew/load tables.}
     -library_name {The name to use for the liberty library. Defaults to cell_name.}
     -cell_name {The name to use for the liberty cell. Defaults to the top level module name.}
     -scene {The scene to use for extracting the model.}
-    -internal_paths {Model the register to register paths inside the block.}
+    -internal_paths {Model the paths to the endpoints inside the block with internal pins.}
     filename {Filename for the liberty timing model.}
   }
 
