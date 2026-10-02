@@ -31,6 +31,17 @@ library(write_timing_model_hier) {
       timing() { related_pin : "B"; timing_sense : positive_unate;
         cell_rise(scalar) { values("0.4"); } cell_fall(scalar) { values("0.4"); }
         rise_transition(scalar) { values("0.1"); } fall_transition(scalar) { values("0.1"); } } } }
+  /* Same delays but different slews from A and B. */
+  cell(AND2S) { area : 1;
+    pin(A) { direction : input; capacitance : 0.001; }
+    pin(B) { direction : input; capacitance : 0.001; }
+    pin(Y) { direction : output; function : "A&B";
+      timing() { related_pin : "A"; timing_sense : positive_unate;
+        cell_rise(scalar) { values("0.4"); } cell_fall(scalar) { values("0.4"); }
+        rise_transition(scalar) { values("0.1"); } fall_transition(scalar) { values("0.1"); } }
+      timing() { related_pin : "B"; timing_sense : positive_unate;
+        cell_rise(scalar) { values("0.4"); } cell_fall(scalar) { values("0.4"); }
+        rise_transition(scalar) { values("0.3"); } fall_transition(scalar) { values("0.3"); } } } }
   cell(INV) { area : 1;
     pin(A) { direction : input; capacitance : 0.001; }
     pin(Y) { direction : output; function : "!A";

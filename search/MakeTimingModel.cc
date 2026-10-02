@@ -513,6 +513,52 @@ MakeTimingModel::makeSetupHoldTimingArcs(const Pin *input_pin,
   }
 }
 
+static bool
+sameTableModel(const TableModel *model1,
+               const TableModel *model2)
+{
+  if (model1 == nullptr || model2 == nullptr)
+    return model1 == model2;
+  const Table *table1 = model1->table().get();
+  const Table *table2 = model2->table().get();
+  if (table1->order() != table2->order())
+    return false;
+  const TableAxis *axes1[] = {table1->axis1(), table1->axis2(), table1->axis3()};
+  const TableAxis *axes2[] = {table2->axis1(), table2->axis2(), table2->axis3()};
+  size_t sizes[] = {1, 1, 1};
+  for (int i = 0; i < table1->order(); i++) {
+    if (axes1[i]->variable() != axes2[i]->variable()
+        || axes1[i]->values() != axes2[i]->values())
+      return false;
+    sizes[i] = axes1[i]->size();
+  }
+  for (size_t i1 = 0; i1 < sizes[0]; i1++) {
+    for (size_t i2 = 0; i2 < sizes[1]; i2++) {
+      for (size_t i3 = 0; i3 < sizes[2]; i3++) {
+        if (table1->value(i1, i2, i3) != table2->value(i1, i2, i3))
+          return false;
+      }
+    }
+  }
+  return true;
+}
+
+// Retaining (min) model unless it is the same as the max model.
+static void
+setDistinctRetainModel(TimingArcAttrs *attrs,
+                       const RiseFall *rf,
+                       TimingModel *min_model)
+{
+  auto max_gate = dynamic_cast<const GateTableModel*>(attrs->model(rf));
+  auto min_gate = dynamic_cast<const GateTableModel*>(min_model);
+  if (max_gate && min_gate
+      && sameTableModel(max_gate->delayModel(), min_gate->delayModel())
+      && sameTableModel(max_gate->slewModel(), min_gate->slewModel()))
+    delete min_model;
+  else
+    attrs->setRetainModel(rf, min_model);
+}
+
 void
 MakeTimingModel::makeInputOutputTimingArcs(const Pin *input_pin,
                                            OutputPinDelays &output_pin_delays)
@@ -534,10 +580,10 @@ MakeTimingModel::makeInputOutputTimingArcs(const Pin *input_pin,
         // Shortest path delay for min analysis.
         float min_delay;
         output_delays.delays.value(output_rf, MinMax::min(), min_delay, exists);
-        if (exists && min_delay != delay)
-          attrs->setRetainModel(output_rf,
-                                makeOutputGateModel(output_pin, min_delay,
-                                                    output_rf, MinMax::min()));
+        if (exists)
+          setDistinctRetainModel(attrs.get(), output_rf,
+                                 makeOutputGateModel(output_pin, min_delay,
+                                                     output_rf, MinMax::min()));
       }
     }
     if (attrs) {
@@ -600,11 +646,10 @@ MakeTimingModel::findClkedOutputPaths()
               // Shortest path delay for min analysis.
               if (min_exists) {
                 float min_delay = min_arrival - clk_edge->time();
-                if (min_delay != delay)
-                  attrs->setRetainModel(output_rf,
-                                        makeOutputGateModel(output_pin, min_delay,
-                                                            output_rf,
-                                                            MinMax::min()));
+                setDistinctRetainModel(attrs.get(), output_rf,
+                                       makeOutputGateModel(output_pin, min_delay,
+                                                           output_rf,
+                                                           MinMax::min()));
               }
             }
             if (attrs) {
@@ -976,11 +1021,11 @@ MakeTimingModel::makeInternalLauncherArcs(const std::string &pin_name,
         int index = max_exists ? max_index : min_index;
         attrs->setModel(rf, makeGateModelScalar(delays.delay[index][rf_index],
                                                 delays.slew[index][rf_index], rf));
-        if (max_exists && min_exists
-            && delays.delay[min_index][rf_index] != delays.delay[max_index][rf_index])
-          attrs->setRetainModel(rf, makeGateModelScalar(delays.delay[min_index][rf_index],
-                                                        delays.slew[min_index][rf_index],
-                                                        rf));
+        if (max_exists && min_exists)
+          setDistinctRetainModel(attrs.get(), rf,
+                                 makeGateModelScalar(delays.delay[min_index][rf_index],
+                                                     delays.slew[min_index][rf_index],
+                                                     rf));
       }
     }
     if (attrs)
@@ -1152,10 +1197,10 @@ MakeTimingModel::makeInternalPathArcs(const std::string &pin_name,
           attrs = std::make_shared<TimingArcAttrs>();
         attrs->setModel(rf, makeGateModelScalar(launch_delays.max_delay,
                                                 launch_delays.max_slew, rf));
-        if (launch_delays.min_exists
-            && launch_delays.min_delay != launch_delays.max_delay)
-          attrs->setRetainModel(rf, makeGateModelScalar(launch_delays.min_delay,
-                                                        launch_delays.min_slew, rf));
+        if (launch_delays.min_exists)
+          setDistinctRetainModel(attrs.get(), rf,
+                                 makeGateModelScalar(launch_delays.min_delay,
+                                                     launch_delays.min_slew, rf));
       }
     }
     if (attrs)
@@ -1202,13 +1247,13 @@ MakeTimingModel::makeInternalLaunchArcs(const InternalArcDelaysMap &arc_delays,
                                                 arc.slews[from_index][to_index][index],
                                                 to_rf));
           float min_delay = arc.delays[from_index][to_index][min_index];
-          if (max_exists && min_exists && min_delay != delay)
-            attrs->setRetainModel(to_rf, output_pin
-                                  ? makeOutputGateModel(output_pin, min_delay, to_rf,
-                                                        MinMax::min())
-                                  : makeGateModelScalar(min_delay,
-                                                        arc.slews[from_index][to_index][min_index],
-                                                        to_rf));
+          if (max_exists && min_exists)
+            setDistinctRetainModel(attrs.get(), to_rf, output_pin
+                                   ? makeOutputGateModel(output_pin, min_delay, to_rf,
+                                                         MinMax::min())
+                                   : makeGateModelScalar(min_delay,
+                                                         arc.slews[from_index][to_index][min_index],
+                                                         to_rf));
         }
       }
       if (attrs) {
