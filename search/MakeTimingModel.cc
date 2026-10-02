@@ -1309,9 +1309,8 @@ MakeTimingModel::makeInternalLatch(const InternalLatch &latch)
           if (attrs == nullptr)
             attrs = std::make_shared<TimingArcAttrs>();
           attrs->setModel(to_rf, makeGateModelScalar(max_delay, max_slew, to_rf));
-          if (min_delay != max_delay)
-            attrs->setRetainModel(to_rf, makeGateModelScalar(min_delay, min_slew,
-                                                             to_rf));
+          setDistinctRetainModel(attrs.get(), to_rf,
+                                 makeGateModelScalar(min_delay, min_slew, to_rf));
         }
         if (attrs == nullptr)
           continue;
@@ -1332,10 +1331,9 @@ MakeTimingModel::makeInternalLatch(const InternalLatch &latch)
               float max_slew = delayAsFloat(graph_->slew(q_vertex, to_rf, max_ap));
               float min_slew = delayAsFloat(graph_->slew(q_vertex, to_rf, min_ap));
               dq_attrs->setModel(to_rf, makeGateModelScalar(max_delay, max_slew, to_rf));
-              if (min_delay != max_delay)
-                dq_attrs->setRetainModel(to_rf, makeGateModelScalar(min_delay,
-                                                                    min_slew,
-                                                                    to_rf));
+              setDistinctRetainModel(dq_attrs.get(), to_rf,
+                                     makeGateModelScalar(min_delay, min_slew,
+                                                         to_rf));
             }
             dq_attrs->setTimingSense(sense);
             lib_builder_->makeLatchDtoQArcs(cell_, d_port, q_port, sense, dq_attrs);
