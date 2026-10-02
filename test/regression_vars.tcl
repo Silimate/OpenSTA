@@ -257,6 +257,7 @@ record_public_tests {
   write_path_spice_arc_sense
   write_timing_model_hier
   write_timing_model_latch
+  write_timing_model_min_slew
   write_timing_model_report
   write_timing_model_scalar
 }
