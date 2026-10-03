@@ -88,6 +88,12 @@ public:
                                       const TimingRole *role,
                                       const TimingArcAttrsPtr &attrs);
 
+  TimingArcSet *makeLatchDtoQArcs(LibertyCell *cell,
+                                  LibertyPort *from_port,
+                                  LibertyPort *to_port,
+                                  TimingSense sense,
+                                  const TimingArcAttrsPtr &attrs);
+
 protected:
   ConcretePort *makeBusPort(std::string_view name,
                             int from_index,
@@ -116,11 +122,6 @@ protected:
                            const RiseFall *from_rf,
                            const RiseFall *to_rf,
                            TimingModel *model);
-  TimingArcSet *makeLatchDtoQArcs(LibertyCell *cell,
-                                  LibertyPort *from_port,
-                                  LibertyPort *to_port,
-                                  TimingSense sense,
-                                  const TimingArcAttrsPtr &attrs);
   TimingArcSet *makeRegLatchArcs(LibertyCell *cell,
                                  LibertyPort *from_port,
                                  LibertyPort *to_port,

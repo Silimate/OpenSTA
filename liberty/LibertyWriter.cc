@@ -24,6 +24,7 @@
 
 #include "LibertyWriter.hh"
 
+#include <cctype>
 #include <cmath>
 #include <cstdlib>
 #include <fstream>
@@ -36,6 +37,8 @@
 #include "Transition.hh"
 #include "Units.hh"
 #include "FuncExpr.hh"
+#include "GeneratedClock.hh"
+#include "Sequential.hh"
 #include "PortDirection.hh"
 #include "Liberty.hh"
 #include "TimingRole.hh"
@@ -63,6 +66,8 @@ protected:
   void writeBusDcls();
   void writeCells();
   void writeCell(const LibertyCell *cell);
+  void writeLatch(const Sequential &seq);
+  void writeGeneratedClock(const GeneratedClock *gen_clk);
   void writePort(const LibertyPort *port);
   void writePwrGndPort(const LibertyPort *port);
   void writeBusPort(const LibertyPort *port);
@@ -115,6 +120,108 @@ portStaToLiberty(std::string_view sta_name)
       liberty_name += ch;
   }
   return liberty_name;
+}
+
+// Function port name, escaped if it is not a plain name.
+static std::string
+funcPortName(const LibertyPort *port)
+{
+  std::string name = portStaToLiberty(port->name());
+  bool plain = !name.empty()
+    && (std::isalpha(static_cast<unsigned char>(name[0])) || name[0] == '_');
+  for (char ch : name) {
+    if (!(std::isalnum(static_cast<unsigned char>(ch))
+          || ch == '_' || ch == '.' || ch == '[' || ch == ']'))
+      plain = false;
+  }
+  return plain ? name : "\\\"" + name + "\\\"";
+}
+
+static std::string
+funcString(const FuncExpr *func,
+           bool with_parens)
+{
+  switch (func->op()) {
+  case FuncExpr::Op::port:
+    return funcPortName(func->port());
+  case FuncExpr::Op::not_:
+    return "!" + funcString(func->left(), true);
+  case FuncExpr::Op::or_:
+  case FuncExpr::Op::and_:
+  case FuncExpr::Op::xor_: {
+    char op = (func->op() == FuncExpr::Op::or_)
+      ? '+'
+      : (func->op() == FuncExpr::Op::and_) ? '*' : '^';
+    std::string result;
+    if (with_parens)
+      result += '(';
+    result += funcString(func->left(), true);
+    result += op;
+    result += funcString(func->right(), true);
+    if (with_parens)
+      result += ')';
+    return result;
+  }
+  case FuncExpr::Op::one:
+    return "1";
+  case FuncExpr::Op::zero:
+    return "0";
+  default:
+    return "?";
+  }
+}
+
+static bool
+isLatchOutput(const LibertyCell *cell,
+              const LibertyPort *port)
+{
+  for (const Sequential &seq : cell->sequentials()) {
+    if (seq.isLatch()
+        && (seq.output() == port || seq.outputInv() == port))
+      return true;
+  }
+  return false;
+}
+
+static bool
+isLatchFuncPort(const LibertyCell *cell,
+                const LibertyPort *port)
+{
+  for (const Sequential &seq : cell->sequentials()) {
+    if (seq.isLatch()) {
+      for (const FuncExpr *func : {seq.clock(), seq.data(), seq.clear(),
+                                   seq.preset()}) {
+        if (func && func->hasPort(port))
+          return true;
+      }
+    }
+  }
+  return false;
+}
+
+static const char *
+clearPresetVarString(LogicValue value)
+{
+  switch (value) {
+  case LogicValue::zero:
+    return "L";
+  case LogicValue::one:
+    return "H";
+  default:
+    return "X";
+  }
+}
+
+// Function ports are not internal or are latch outputs.
+static bool
+isWritableFunc(const LibertyCell *cell,
+               const FuncExpr *func)
+{
+  for (const LibertyPort *port : func->ports()) {
+    if (port->direction()->isInternal() && !isLatchOutput(cell, port))
+      return false;
+  }
+  return true;
 }
 
 void
@@ -333,12 +440,20 @@ LibertyWriter::writeCell(const LibertyCell *cell)
   const std::string &user_function_class = cell->userFunctionClass();
   if (!user_function_class.empty())
     sta::print(stream_, "    user_function_class : \"{}\";\n", user_function_class);
+  for (const Sequential &seq : cell->sequentials()) {
+    if (seq.isLatch())
+      writeLatch(seq);
+  }
+  for (const GeneratedClock *gen_clk : cell->generatedClocks())
+    writeGeneratedClock(gen_clk);
 
   LibertyCellPortIterator port_iter(cell);
   while (port_iter.hasNext()) {
     const LibertyPort *port = port_iter.next();
     if (!port->direction()->isInternal()
-        || !cell->timingArcSetsTo(port).empty()) {
+        || !cell->timingArcSetsTo(port).empty()
+        || !cell->timingArcSetsFrom(port).empty()
+        || isLatchFuncPort(cell, port)) {
       if (port->isPwrGnd())
         writePwrGndPort(port);
       else if (port->isBus())
@@ -353,6 +468,66 @@ LibertyWriter::writeCell(const LibertyCell *cell)
 
   sta::print(stream_, "  }}\n");
   sta::print(stream_, "\n");
+}
+
+void
+LibertyWriter::writeLatch(const Sequential &seq)
+{
+  if (seq.outputInv())
+    sta::print(stream_, "    latch (\"{}\", \"{}\") {{\n",
+               portStaToLiberty(seq.output()->name()),
+               portStaToLiberty(seq.outputInv()->name()));
+  else
+    sta::print(stream_, "    latch (\"{}\") {{\n",
+               portStaToLiberty(seq.output()->name()));
+  if (seq.clock())
+    sta::print(stream_, "      enable : \"{}\";\n", funcString(seq.clock(), false));
+  if (seq.data())
+    sta::print(stream_, "      data_in : \"{}\";\n", funcString(seq.data(), false));
+  if (seq.clear())
+    sta::print(stream_, "      clear : \"{}\";\n", funcString(seq.clear(), false));
+  if (seq.preset())
+    sta::print(stream_, "      preset : \"{}\";\n", funcString(seq.preset(), false));
+  if (seq.clear() && seq.preset()) {
+    sta::print(stream_, "      clear_preset_var1 : {};\n",
+               clearPresetVarString(seq.clearPresetOutput()));
+    sta::print(stream_, "      clear_preset_var2 : {};\n",
+               clearPresetVarString(seq.clearPresetOutputInv()));
+  }
+  sta::print(stream_, "    }}\n");
+}
+
+void
+LibertyWriter::writeGeneratedClock(const GeneratedClock *gen_clk)
+{
+  sta::print(stream_, "    generated_clock (\"{}\") {{\n", gen_clk->name());
+  sta::print(stream_, "      clock_pin : \"{}\";\n",
+             portStaToLiberty(gen_clk->clockPin()));
+  sta::print(stream_, "      master_pin : \"{}\";\n",
+             portStaToLiberty(gen_clk->masterPin()));
+  if (gen_clk->dividedBy() > 1)
+    sta::print(stream_, "      divided_by : {};\n", gen_clk->dividedBy());
+  if (gen_clk->multipliedBy() > 1)
+    sta::print(stream_, "      multiplied_by : {};\n", gen_clk->multipliedBy());
+  if (gen_clk->dutyCycle() != 0.0)
+    sta::print(stream_, "      duty_cycle : {};\n", gen_clk->dutyCycle());
+  if (gen_clk->invert())
+    sta::print(stream_, "      invert : true;\n");
+  IntSeq *edges = gen_clk->edges();
+  if (edges && !edges->empty()) {
+    std::string values;
+    for (int edge : *edges)
+      values += (values.empty() ? "" : ", ") + std::to_string(edge);
+    sta::print(stream_, "      edges ({});\n", values);
+  }
+  FloatSeq *shifts = gen_clk->edgeShifts();
+  if (shifts && !shifts->empty()) {
+    std::string values;
+    for (float shift : *shifts)
+      values += (values.empty() ? "" : ", ") + time_unit_->asString(shift, 5);
+    sta::print(stream_, "      shifts ({});\n", values);
+  }
+  sta::print(stream_, "    }}\n");
 }
 
 void
@@ -386,8 +561,9 @@ LibertyWriter::writePortAttrs(const LibertyPort *port)
   auto func = port->function();
   if (func
       // cannot ref internal ports until sequentials are written
-      && !(func->port() && func->port()->direction()->isInternal()))
-    sta::print(stream_, "      function : \"{}\";\n", portStaToLiberty(func->to_string().c_str()));
+      && (!(func->port() && func->port()->direction()->isInternal())
+          || isWritableFunc(port->libertyCell(), func)))
+    sta::print(stream_, "      function : \"{}\";\n", funcString(func, false));
   auto tristate_enable = port->tristateEnable();
   if (tristate_enable) {
     if (tristate_enable->op() == FuncExpr::Op::not_) {
