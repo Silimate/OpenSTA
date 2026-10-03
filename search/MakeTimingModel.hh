@@ -38,6 +38,7 @@ makeTimingModel(std::string_view lib_name,
                 std::string_view filename,
                 const Scene *scene,
                 const bool scalar,
+                const bool internal_paths,
                 Sta *sta);
 
 } // namespace sta

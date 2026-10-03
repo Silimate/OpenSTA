@@ -34,26 +34,6 @@ library (counter) {
       clock : true;
       capacitance : 0.0037;
       max_transition : 1.500;
-      timing() {
-        timing_sense : positive_unate;
-        timing_type : min_clock_tree_path;
-        cell_rise(scalar) {
-          values("0.00000");
-        }
-        cell_fall(scalar) {
-          values("0.00000");
-        }
-      }
-      timing() {
-        timing_sense : positive_unate;
-        timing_type : max_clock_tree_path;
-        cell_rise(scalar) {
-          values("0.00000");
-        }
-        cell_fall(scalar) {
-          values("0.00000");
-        }
-      }
     }
     pin("reset") {
       direction : input;

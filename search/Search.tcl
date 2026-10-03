@@ -1048,6 +1048,7 @@ define_cmd_args "write_timing_model" {[-scalar]
                                         [-scene scene] \
                                         [-library_name lib_name]\
                                         [-cell_name cell_name]\
+                                        [-internal_paths]\
                                         filename} \
   -help {The `write_timing_model` command constructs a liberty timing model for the current design and writes it to filename. cell_name defaults to the cell name of the top level block in the design.
 
@@ -1072,22 +1073,30 @@ clock to output timing paths
 
 Resistance of long wires on inputs and outputs of the block cannot be modeled in Liberty. To reduce inaccuracies from wire resistance in technologies with resistive wires place buffers on inputs and ouputs.
 
-The extracted timing model setup/hold checks are scalar (no input slew dependence). Delay timing arcs are load dependent but do not include input slew dependency.} \
+The extracted timing model setup/hold checks are scalar (no input slew dependence). Delay timing arcs are load dependent but do not include input slew dependency.
+
+Delay arcs use the max delays of the block in the cell_rise/cell_fall tables and the min delays in the retaining_rise/retaining_fall tables, which are used for min (hold) analysis.
+
+Extract the model with the same ideal or propagated clock mode the design it is used in has. Models extracted with ideal clocks do not include the block clock network delays.
+
+Use `-internal_paths` to include the paths to the endpoints inside the block. Each endpoint inside the block is modeled with an internal pin named by its path in the block (for example `core/state_reg/D`), so it has the same path as the endpoint in the flat design. The pin has the setup/hold (recovery/removal) checks of the endpoint, a combinational arc from each input with a path to it, and an arc from the register that launches its worst setup path and the register that launches its worst hold path for each launch clock edge. Launching registers are modeled with an internal pin for their output (for example `core/count_reg/Q`) that has a clock to pin arc (launch clock latency and clock to output delay), so reports show the launching register as the path startpoint. Register to output paths are modeled the same way. Input to register paths are modeled by these arcs instead of setup/hold checks on the inputs. Paths launched or captured by clocks defined inside the block, latch paths and multicycle paths inside the block are not modeled.} \
   -arg_help {
     -scalar {Write scalar (constant) delay models instead of slew/load tables.}
     -library_name {The name to use for the liberty library. Defaults to cell_name.}
     -cell_name {The name to use for the liberty cell. Defaults to the top level module name.}
     -scene {The scene to use for extracting the model.}
+    -internal_paths {Model the paths to the endpoints inside the block with internal pins.}
     filename {Filename for the liberty timing model.}
   }
 
 proc write_timing_model { args } {
   parse_key_args "write_timing_model" args \
-    keys {-library_name -cell_name -scene} flags {-scalar}
+    keys {-library_name -cell_name -scene} flags {-scalar -internal_paths}
   check_argc_eq1 "write_timing_model" $args
 
   set filename [file nativename [lindex $args 0]]
   set scalar [info exists flags(-scalar)]
+  set internal_paths [info exists flags(-internal_paths)]
   if { [info exists keys(-cell_name)] } {
     set cell_name $keys(-cell_name)
   } else {
@@ -1099,7 +1108,8 @@ proc write_timing_model { args } {
     set lib_name $cell_name
   }
   set scene [parse_scene keys]
-  write_timing_model_cmd $lib_name $cell_name $filename $scene $scalar
+  write_timing_model_cmd $lib_name $cell_name $filename $scene $scalar \
+    $internal_paths
 }
 
 ################################################################

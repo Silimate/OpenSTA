@@ -6310,12 +6310,14 @@ Sta::writeTimingModel(std::string_view lib_name,
                       std::string_view cell_name,
                       std::string_view filename,
                       const Scene *scene,
-                      const bool scalar)
+                      const bool scalar,
+                      const bool internal_paths)
 {
   ensureLibLinked();
   ensureGraph();
-  LibertyLibrary *library = makeTimingModel(lib_name, cell_name,
-                                            filename, scene, scalar, this);
+  LibertyLibrary *library = makeTimingModel(lib_name, cell_name, filename,
+                                            scene, scalar, internal_paths,
+                                            this);
   writeLiberty(library, std::string(filename).c_str(), this);
 }
 

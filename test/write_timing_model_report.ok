@@ -1,0 +1,290 @@
+flat
+Startpoint: i2/r1 (rising edge-triggered flip-flop clocked by clk1)
+Endpoint: i2/r2 (rising edge-triggered flip-flop clocked by clk1)
+Path Group: clk1
+Path Type: max
+
+  Delay    Time   Description
+---------------------------------------------------------
+   0.00    0.00   clock clk1 (rise edge)
+   0.00    0.00   clock source latency
+   0.00    0.00 ^ ck1 (in)
+   0.20    0.20 ^ i2/cba/Y (CLKBUF)
+   0.00    0.20 ^ i2/r1/CK (DFF)
+   0.30    0.50 ^ i2/r1/Q (DFF)
+   0.50    1.00 ^ i2/u1/Y (BUF)
+   0.50    1.50 ^ i2/u2/Y (BUF)
+   0.50    2.00 ^ i2/u3/Y (BUF)
+   0.00    2.00 ^ i2/r2/D (DFF)
+           2.00   data arrival time
+
+   4.00    4.00   clock clk1 (rise edge)
+   0.00    4.00   clock source latency
+   0.00    4.00 ^ ck1 (in)
+   0.20    4.20 ^ i2/cba/Y (CLKBUF)
+   0.00    4.20 ^ i2/r2/CK (DFF)
+   0.00    4.20   clock reconvergence pessimism
+  -0.10    4.10   library setup time
+           4.10   data required time
+---------------------------------------------------------
+           4.10   data required time
+          -2.00   data arrival time
+---------------------------------------------------------
+           2.10   slack (MET)
+
+
+Startpoint: i0/m0 (rising edge-triggered flip-flop clocked by clk1)
+Endpoint: i0/k0/r1 (rising edge-triggered flip-flop clocked by clk1)
+Path Group: clk1
+Path Type: max
+
+  Delay    Time   Description
+---------------------------------------------------------
+   0.00    0.00   clock clk1 (rise edge)
+   0.00    0.00   clock source latency
+   0.00    0.00 ^ ck1 (in)
+   0.20    0.20 ^ tc1/Y (CLKBUF)
+   0.00    0.20 ^ i0/m0/CK (DFF)
+   0.30    0.50 ^ i0/m0/Q (DFF)
+   0.00    0.50 ^ i0/k0/r1/D (DFF)
+           0.50   data arrival time
+
+   4.00    4.00   clock clk1 (rise edge)
+   0.00    4.00   clock source latency
+   0.00    4.00 ^ ck1 (in)
+   0.20    4.20 ^ tc1/Y (CLKBUF)
+   0.20    4.40 ^ i0/k0/cba/Y (CLKBUF)
+   0.00    4.40 ^ i0/k0/r1/CK (DFF)
+   0.00    4.40   clock reconvergence pessimism
+  -0.10    4.30   library setup time
+           4.30   data required time
+---------------------------------------------------------
+           4.30   data required time
+          -0.50   data arrival time
+---------------------------------------------------------
+           3.80   slack (MET)
+
+
+Startpoint: i2/r3 (rising edge-triggered flip-flop clocked by clk1')
+Endpoint: i2/r5 (rising edge-triggered flip-flop clocked by clk1)
+Path Group: clk1
+Path Type: min
+
+  Delay    Time   Description
+---------------------------------------------------------
+   2.00    2.00   clock clk1' (rise edge)
+   0.35    2.35   clock network delay (propagated)
+   0.00    2.35 ^ i2/r3/CK (DFF)
+   0.30    2.65 ^ i2/r3/Q (DFF)
+   0.40    3.05 ^ i2/g5/Y (AND2)
+   0.00    3.05 ^ i2/r5/D (DFF)
+           3.05   data arrival time
+
+   0.00    0.00   clock clk1 (rise edge)
+   0.20    0.20   clock network delay (propagated)
+   0.00    0.20   clock reconvergence pessimism
+           0.20 ^ i2/r5/CK (DFF)
+   0.05    0.25   library hold time
+           0.25   data required time
+---------------------------------------------------------
+           0.25   data required time
+          -3.05   data arrival time
+---------------------------------------------------------
+           2.80   slack (MET)
+
+
+Startpoint: rst (input port clocked by clk1)
+Endpoint: i2/r6 (recovery check against rising-edge clock clk1)
+Path Group: asynchronous
+Path Type: max
+
+  Delay    Time   Description
+---------------------------------------------------------
+   0.00    0.00   clock clk1 (rise edge)
+   0.00    0.00   clock network delay (propagated)
+   0.50    0.50 ^ input external delay
+   0.00    0.50 ^ rst (in)
+   0.50    1.00 ^ i2/ur/Y (BUF)
+   0.00    1.00 ^ i2/r6/RN (DFFR)
+           1.00   data arrival time
+
+   4.00    4.00   clock clk1 (rise edge)
+   0.20    4.20   clock network delay (propagated)
+   0.00    4.20   clock reconvergence pessimism
+           4.20 ^ i2/r6/CK (DFFR)
+  -0.20    4.00   library recovery time
+           4.00   data required time
+---------------------------------------------------------
+           4.00   data required time
+          -1.00   data arrival time
+---------------------------------------------------------
+           3.00   slack (MET)
+
+
+Startpoint: i2/r4 (rising edge-triggered flip-flop clocked by clk1)
+Endpoint: out2 (output port clocked by clk2)
+Path Group: clk2
+Path Type: max
+
+  Delay    Time   Description
+---------------------------------------------------------
+   0.00    0.00   clock clk1 (rise edge)
+   0.20    0.20   clock network delay (propagated)
+   0.00    0.20 ^ i2/r4/CK (DFF)
+   0.30    0.50 ^ i2/r4/Q (DFF)
+   0.50    1.00 ^ i2/u5/Y (BUF)
+   0.00    1.00 ^ out2 (out)
+           1.00   data arrival time
+
+   0.50    0.50   clock clk2 (rise edge)
+   0.00    0.50   clock network delay (propagated)
+   0.00    0.50   clock reconvergence pessimism
+  -0.50    0.00   output external delay
+           0.00   data required time
+---------------------------------------------------------
+           0.00   data required time
+          -1.00   data arrival time
+---------------------------------------------------------
+          -1.00   slack (VIOLATED)
+
+model
+Startpoint: i2/r1 (rising edge-triggered flip-flop clocked by clk1)
+Endpoint: i2/r2 (rising edge-triggered flip-flop clocked by clk1)
+Path Group: clk1
+Path Type: max
+
+  Delay    Time   Description
+---------------------------------------------------------
+   0.00    0.00   clock clk1 (rise edge)
+   0.00    0.00   clock source latency
+   0.00    0.00 ^ ck1 (in)
+   0.00    0.00 ^ i2/clka (blk)
+   0.50    0.50 ^ i2/r1/Q (blk)
+   1.50    2.00 ^ i2/r2/D (blk)
+           2.00   data arrival time
+
+   4.00    4.00   clock clk1 (rise edge)
+   0.00    4.00   clock source latency
+   0.00    4.00 ^ ck1 (in)
+   0.00    4.00 ^ i2/clka (blk)
+   0.00    4.00   clock reconvergence pessimism
+   0.10    4.10   library setup time
+           4.10   data required time
+---------------------------------------------------------
+           4.10   data required time
+          -2.00   data arrival time
+---------------------------------------------------------
+           2.10   slack (MET)
+
+
+Startpoint: i0/m0 (rising edge-triggered flip-flop clocked by clk1)
+Endpoint: i0/k0/r1 (rising edge-triggered flip-flop clocked by clk1)
+Path Group: clk1
+Path Type: max
+
+  Delay    Time   Description
+---------------------------------------------------------
+   0.00    0.00   clock clk1 (rise edge)
+   0.00    0.00   clock source latency
+   0.00    0.00 ^ ck1 (in)
+   0.20    0.20 ^ tc1/Y (CLKBUF)
+   0.00    0.20 ^ i0/m0/CK (DFF)
+   0.30    0.50 ^ i0/m0/Q (DFF)
+   0.00    0.50 ^ i0/k0/r1/D (blk)
+           0.50   data arrival time
+
+   4.00    4.00   clock clk1 (rise edge)
+   0.00    4.00   clock source latency
+   0.00    4.00 ^ ck1 (in)
+   0.20    4.20 ^ tc1/Y (CLKBUF)
+   0.00    4.20 ^ i0/k0/clka (blk)
+   0.00    4.20   clock reconvergence pessimism
+   0.10    4.30   library setup time
+           4.30   data required time
+---------------------------------------------------------
+           4.30   data required time
+          -0.50   data arrival time
+---------------------------------------------------------
+           3.80   slack (MET)
+
+
+Startpoint: i2/r3 (falling edge-triggered flip-flop clocked by clk1)
+Endpoint: i2/r5 (rising edge-triggered flip-flop clocked by clk1)
+Path Group: clk1
+Path Type: min
+
+  Delay    Time   Description
+---------------------------------------------------------
+   2.00    2.00   clock clk1 (fall edge)
+   0.00    2.00   clock network delay (propagated)
+   0.00    2.00 v i2/clka (blk)
+   0.65    2.65 ^ i2/r3/Q (blk)
+   0.40    3.05 ^ i2/r5/D (blk)
+           3.05   data arrival time
+
+   0.00    0.00   clock clk1 (rise edge)
+   0.00    0.00   clock network delay (propagated)
+   0.00    0.00   clock reconvergence pessimism
+           0.00 ^ i2/clka (blk)
+   0.25    0.25   library hold time
+           0.25   data required time
+---------------------------------------------------------
+           0.25   data required time
+          -3.05   data arrival time
+---------------------------------------------------------
+           2.80   slack (MET)
+
+
+Startpoint: rst (input port clocked by clk1)
+Endpoint: i2/r6 (recovery check against rising-edge clock clk1)
+Path Group: asynchronous
+Path Type: max
+
+  Delay    Time   Description
+---------------------------------------------------------
+   0.00    0.00   clock clk1 (rise edge)
+   0.00    0.00   clock network delay (propagated)
+   0.50    0.50 ^ input external delay
+   0.00    0.50 ^ rst (in)
+   0.50    1.00 ^ i2/r6/RN (blk)
+           1.00   data arrival time
+
+   4.00    4.00   clock clk1 (rise edge)
+   0.00    4.00   clock network delay (propagated)
+   0.00    4.00   clock reconvergence pessimism
+           4.00 ^ i2/clka (blk)
+   0.00    4.00   library recovery time
+           4.00   data required time
+---------------------------------------------------------
+           4.00   data required time
+          -1.00   data arrival time
+---------------------------------------------------------
+           3.00   slack (MET)
+
+
+Startpoint: i2/r4 (rising edge-triggered flip-flop clocked by clk1)
+Endpoint: out2 (output port clocked by clk2)
+Path Group: clk2
+Path Type: max
+
+  Delay    Time   Description
+---------------------------------------------------------
+   0.00    0.00   clock clk1 (rise edge)
+   0.00    0.00   clock network delay (propagated)
+   0.00    0.00 ^ i2/clkb (blk)
+   0.50    0.50 ^ i2/r4/Q (blk)
+   0.50    1.00 ^ i2/y (blk)
+   0.00    1.00 ^ out2 (out)
+           1.00   data arrival time
+
+   0.50    0.50   clock clk2 (rise edge)
+   0.00    0.50   clock network delay (propagated)
+   0.00    0.50   clock reconvergence pessimism
+  -0.50    0.00   output external delay
+           0.00   data required time
+---------------------------------------------------------
+           0.00   data required time
+          -1.00   data arrival time
+---------------------------------------------------------
+          -1.00   slack (VIOLATED)
+

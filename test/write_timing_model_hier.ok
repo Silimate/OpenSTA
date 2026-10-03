@@ -1,0 +1,602 @@
+propagated clocks 0
+blk model
+  hold  asynchronous flat   0.820 ( 5 endpoints) model   0.820 ( 5 endpoints) match
+  hold  clk1 flat   0.220 (21 endpoints) model   0.220 (21 endpoints) match
+  hold  clk2 flat   0.220 (17 endpoints) model   0.220 (17 endpoints) match
+  setup asynchronous flat  -0.800 ( 5 endpoints) model  -0.800 ( 5 endpoints) match
+  setup clk1 flat  -0.500 (21 endpoints) model  -0.500 (21 endpoints) match
+  setup clk2 flat  -0.900 (17 endpoints) model  -0.900 (17 endpoints) match
+  86 of 86 flat endpoints match
+blk and mid models
+  hold  asynchronous flat   0.820 ( 5 endpoints) model   0.820 ( 5 endpoints) match
+  hold  clk1 flat   0.220 (21 endpoints) model   0.220 (21 endpoints) match
+  hold  clk2 flat   0.220 (17 endpoints) model   0.220 (17 endpoints) match
+  setup asynchronous flat  -0.800 ( 5 endpoints) model  -0.800 ( 5 endpoints) match
+  setup clk1 flat  -0.500 (21 endpoints) model  -0.500 (21 endpoints) match
+  setup clk2 flat  -0.900 (17 endpoints) model  -0.900 (17 endpoints) match
+  86 of 86 flat endpoints match
+blk model endpoints
+  hold asynchronous i0/k0/r6/RN 0.820
+  hold asynchronous i0/k1/r6/RN 1.320
+  hold asynchronous i1/k0/r6/RN 1.320
+  hold asynchronous i1/k1/r6/RN 0.820
+  hold asynchronous i2/r6/RN 0.820
+  hold clk1 i0/k0/r1/D 0.220
+  hold clk1 i0/k0/r2/D 1.720
+  hold clk1 i0/k0/r3/D 2.720
+  hold clk1 i0/k0/r5/D 2.620
+  hold clk1 i0/k0/r6/D 0.220
+  hold clk1 i0/k1/r4/D 0.720
+  hold clk1 i0/m0/D 0.220
+  hold clk1 i1/k0/r4/D 0.720
+  hold clk1 i1/k1/r1/D 0.720
+  hold clk1 i1/k1/r2/D 1.720
+  hold clk1 i1/k1/r3/D 2.720
+  hold clk1 i1/k1/r5/D 2.620
+  hold clk1 i1/k1/r6/D 0.220
+  hold clk1 i1/m1/D 1.220
+  hold clk1 i2/r1/D 1.220
+  hold clk1 i2/r2/D 1.720
+  hold clk1 i2/r3/D 2.720
+  hold clk1 i2/r4/D 0.220
+  hold clk1 i2/r5/D 2.620
+  hold clk1 i2/r6/D 0.220
+  hold clk1 t0/D 0.420
+  hold clk2 i0/k0/r4/D 0.720
+  hold clk2 i0/k1/r1/D 0.720
+  hold clk2 i0/k1/r2/D 1.720
+  hold clk2 i0/k1/r3/D 2.220
+  hold clk2 i0/k1/r5/D 2.120
+  hold clk2 i0/k1/r6/D 0.220
+  hold clk2 i0/m1/D 1.220
+  hold clk2 i1/k0/r1/D 0.220
+  hold clk2 i1/k0/r2/D 1.720
+  hold clk2 i1/k0/r3/D 2.220
+  hold clk2 i1/k0/r5/D 2.120
+  hold clk2 i1/k0/r6/D 0.220
+  hold clk2 i1/k1/r4/D 0.720
+  hold clk2 i1/m0/D 0.720
+  hold clk2 out0 1.770
+  hold clk2 out1 1.770
+  hold clk2 out2 1.770
+  setup asynchronous i0/k0/r6/RN 2.700
+  setup asynchronous i0/k1/r6/RN -0.800
+  setup asynchronous i1/k0/r6/RN -0.800
+  setup asynchronous i1/k1/r6/RN 2.700
+  setup asynchronous i2/r6/RN 2.700
+  setup clk1 i0/k0/r1/D 3.500
+  setup clk1 i0/k0/r2/D 2.000
+  setup clk1 i0/k0/r3/D 1.000
+  setup clk1 i0/k0/r5/D -0.400
+  setup clk1 i0/k0/r6/D 3.500
+  setup clk1 i0/k1/r4/D 0.000
+  setup clk1 i0/m0/D 3.500
+  setup clk1 i1/k0/r4/D 0.000
+  setup clk1 i1/k1/r1/D 3.000
+  setup clk1 i1/k1/r2/D 2.000
+  setup clk1 i1/k1/r3/D 1.000
+  setup clk1 i1/k1/r5/D -0.400
+  setup clk1 i1/k1/r6/D 3.500
+  setup clk1 i1/m1/D -0.500
+  setup clk1 i2/r1/D -0.500
+  setup clk1 i2/r2/D 2.000
+  setup clk1 i2/r3/D 1.000
+  setup clk1 i2/r4/D 3.500
+  setup clk1 i2/r5/D -0.400
+  setup clk1 i2/r6/D 3.500
+  setup clk1 t0/D 3.300
+  setup clk2 i0/k0/r4/D 0.000
+  setup clk2 i0/k1/r1/D 2.000
+  setup clk2 i0/k1/r2/D 1.000
+  setup clk2 i0/k1/r3/D 0.500
+  setup clk2 i0/k1/r5/D -0.900
+  setup clk2 i0/k1/r6/D 2.500
+  setup clk2 i0/m1/D -0.500
+  setup clk2 i1/k0/r1/D 2.500
+  setup clk2 i1/k0/r2/D 1.000
+  setup clk2 i1/k0/r3/D 0.500
+  setup clk2 i1/k0/r5/D -0.900
+  setup clk2 i1/k0/r6/D 2.500
+  setup clk2 i1/k1/r4/D 0.000
+  setup clk2 i1/m0/D 2.000
+  setup clk2 out0 -0.900
+  setup clk2 out1 -0.900
+  setup clk2 out2 -0.900
+library (blk) {
+  comment                        : "";
+  delay_model                    : table_lookup;
+  simulation                     : false;
+  capacitive_load_unit (1,pF);
+  leakage_power_unit             : 1pW;
+  current_unit                   : "1mA";
+  pulling_resistance_unit        : "1ohm";
+  time_unit                      : "1ns";
+  voltage_unit                   : "1v";
+  library_features(report_delay_calculation);
+
+  input_threshold_pct_rise : 50;
+  input_threshold_pct_fall : 50;
+  output_threshold_pct_rise : 50;
+  output_threshold_pct_fall : 50;
+  slew_lower_threshold_pct_rise : 20;
+  slew_lower_threshold_pct_fall : 20;
+  slew_upper_threshold_pct_rise : 80;
+  slew_upper_threshold_pct_fall : 80;
+  slew_derate_from_library : 1.0;
+
+
+  nom_process                    : 1.0;
+  nom_temperature                : 25.0;
+  nom_voltage                    : 1.80;
+
+
+  cell ("blk") {
+    area : 39.000 
+    is_macro_cell : true;
+    pin("clka") {
+      direction : input;
+      clock : true;
+      capacitance : 0.0010;
+    }
+    pin("clkb") {
+      direction : input;
+      clock : true;
+      capacitance : 0.0010;
+    }
+    pin("a") {
+      direction : input;
+      capacitance : 0.0010;
+    }
+    pin("rn") {
+      direction : input;
+      capacitance : 0.0010;
+    }
+    pin("y") {
+      direction : output;
+      capacitance : 0.0000;
+      timing() {
+        related_pin : "r4/Q";
+        timing_sense : positive_unate;
+        timing_type : combinational;
+        cell_rise(scalar) {
+          values("0.50000");
+        }
+        rise_transition(scalar) {
+          values("0.10000");
+        }
+        cell_fall(scalar) {
+          values("0.50000");
+        }
+        fall_transition(scalar) {
+          values("0.10000");
+        }
+      }
+    }
+    pin("z") {
+      direction : output;
+      capacitance : 0.0000;
+      timing() {
+        related_pin : "r5/Q";
+        timing_sense : positive_unate;
+        timing_type : combinational;
+        cell_rise(scalar) {
+          values("0.50000");
+        }
+        rise_transition(scalar) {
+          values("0.10000");
+        }
+        cell_fall(scalar) {
+          values("0.50000");
+        }
+        fall_transition(scalar) {
+          values("0.10000");
+        }
+      }
+    }
+    pin("r1/Q") {
+      direction : internal;
+      capacitance : 0.0000;
+      timing() {
+        related_pin : "clka";
+        timing_type : rising_edge;
+        cell_rise(scalar) {
+          values("0.30000");
+        }
+        rise_transition(scalar) {
+          values("0.10000");
+        }
+        cell_fall(scalar) {
+          values("0.30000");
+        }
+        fall_transition(scalar) {
+          values("0.10000");
+        }
+      }
+    }
+    pin("r2/Q") {
+      direction : internal;
+      capacitance : 0.0000;
+      timing() {
+        related_pin : "clka";
+        timing_type : rising_edge;
+        cell_rise(scalar) {
+          values("0.30000");
+        }
+        rise_transition(scalar) {
+          values("0.10000");
+        }
+        cell_fall(scalar) {
+          values("0.30000");
+        }
+        fall_transition(scalar) {
+          values("0.10000");
+        }
+      }
+    }
+    pin("r3/Q") {
+      direction : internal;
+      capacitance : 0.0000;
+      timing() {
+        related_pin : "clka";
+        timing_type : falling_edge;
+        cell_rise(scalar) {
+          values("0.30000");
+        }
+        rise_transition(scalar) {
+          values("0.10000");
+        }
+        cell_fall(scalar) {
+          values("0.30000");
+        }
+        fall_transition(scalar) {
+          values("0.10000");
+        }
+      }
+    }
+    pin("r4/Q") {
+      direction : internal;
+      capacitance : 0.0000;
+      timing() {
+        related_pin : "clkb";
+        timing_type : rising_edge;
+        cell_rise(scalar) {
+          values("0.30000");
+        }
+        rise_transition(scalar) {
+          values("0.10000");
+        }
+        cell_fall(scalar) {
+          values("0.30000");
+        }
+        fall_transition(scalar) {
+          values("0.10000");
+        }
+      }
+    }
+    pin("r5/Q") {
+      direction : internal;
+      capacitance : 0.0000;
+      timing() {
+        related_pin : "clka";
+        timing_type : rising_edge;
+        cell_rise(scalar) {
+          values("0.30000");
+        }
+        rise_transition(scalar) {
+          values("0.10000");
+        }
+        cell_fall(scalar) {
+          values("0.30000");
+        }
+        fall_transition(scalar) {
+          values("0.10000");
+        }
+      }
+    }
+    pin("r1/D") {
+      direction : internal;
+      capacitance : 0.0000;
+      timing() {
+        related_pin : "clka";
+        timing_type : hold_rising;
+        rise_constraint(scalar) {
+          values("0.05000");
+        }
+        fall_constraint(scalar) {
+          values("0.05000");
+        }
+      }
+      timing() {
+        related_pin : "clka";
+        timing_type : setup_rising;
+        rise_constraint(scalar) {
+          values("0.10000");
+        }
+        fall_constraint(scalar) {
+          values("0.10000");
+        }
+      }
+      timing() {
+        related_pin : "a";
+        timing_sense : positive_unate;
+        timing_type : combinational;
+        cell_rise(scalar) {
+          values("0.00000");
+        }
+        rise_transition(scalar) {
+          values("0.00000");
+        }
+        cell_fall(scalar) {
+          values("0.00000");
+        }
+        fall_transition(scalar) {
+          values("0.00000");
+        }
+      }
+    }
+    pin("r2/D") {
+      direction : internal;
+      capacitance : 0.0000;
+      timing() {
+        related_pin : "clka";
+        timing_type : hold_rising;
+        rise_constraint(scalar) {
+          values("0.05000");
+        }
+        fall_constraint(scalar) {
+          values("0.05000");
+        }
+      }
+      timing() {
+        related_pin : "clka";
+        timing_type : setup_rising;
+        rise_constraint(scalar) {
+          values("0.10000");
+        }
+        fall_constraint(scalar) {
+          values("0.10000");
+        }
+      }
+      timing() {
+        related_pin : "r1/Q";
+        timing_sense : positive_unate;
+        timing_type : combinational;
+        cell_rise(scalar) {
+          values("1.50000");
+        }
+        rise_transition(scalar) {
+          values("0.10000");
+        }
+        cell_fall(scalar) {
+          values("1.50000");
+        }
+        fall_transition(scalar) {
+          values("0.10000");
+        }
+      }
+    }
+    pin("r3/D") {
+      direction : internal;
+      capacitance : 0.0000;
+      timing() {
+        related_pin : "clka";
+        timing_type : hold_falling;
+        rise_constraint(scalar) {
+          values("0.05000");
+        }
+        fall_constraint(scalar) {
+          values("0.05000");
+        }
+      }
+      timing() {
+        related_pin : "clka";
+        timing_type : setup_falling;
+        rise_constraint(scalar) {
+          values("0.10000");
+        }
+        fall_constraint(scalar) {
+          values("0.10000");
+        }
+      }
+      timing() {
+        related_pin : "r1/Q";
+        timing_sense : positive_unate;
+        timing_type : combinational;
+        cell_rise(scalar) {
+          values("0.50000");
+        }
+        rise_transition(scalar) {
+          values("0.10000");
+        }
+        cell_fall(scalar) {
+          values("0.50000");
+        }
+        fall_transition(scalar) {
+          values("0.10000");
+        }
+      }
+    }
+    pin("r4/D") {
+      direction : internal;
+      capacitance : 0.0000;
+      timing() {
+        related_pin : "clkb";
+        timing_type : hold_rising;
+        rise_constraint(scalar) {
+          values("0.05000");
+        }
+        fall_constraint(scalar) {
+          values("0.05000");
+        }
+      }
+      timing() {
+        related_pin : "clkb";
+        timing_type : setup_rising;
+        rise_constraint(scalar) {
+          values("0.10000");
+        }
+        fall_constraint(scalar) {
+          values("0.10000");
+        }
+      }
+      timing() {
+        related_pin : "r2/Q";
+        timing_sense : positive_unate;
+        timing_type : combinational;
+        cell_rise(scalar) {
+          values("0.00000");
+        }
+        rise_transition(scalar) {
+          values("0.10000");
+        }
+        cell_fall(scalar) {
+          values("0.00000");
+        }
+        fall_transition(scalar) {
+          values("0.10000");
+        }
+      }
+    }
+    pin("r5/D") {
+      direction : internal;
+      capacitance : 0.0000;
+      timing() {
+        related_pin : "clka";
+        timing_type : hold_rising;
+        rise_constraint(scalar) {
+          values("0.05000");
+        }
+        fall_constraint(scalar) {
+          values("0.05000");
+        }
+      }
+      timing() {
+        related_pin : "clka";
+        timing_type : setup_rising;
+        rise_constraint(scalar) {
+          values("0.10000");
+        }
+        fall_constraint(scalar) {
+          values("0.10000");
+        }
+      }
+      timing() {
+        related_pin : "r3/Q";
+        timing_sense : positive_unate;
+        timing_type : combinational;
+        cell_rise(scalar) {
+          values("1.90000");
+        }
+        rise_transition(scalar) {
+          values("0.10000");
+        }
+        retaining_rise(scalar) {
+          values("0.40000");
+        }
+        retain_rise_slew(scalar) {
+          values("0.10000");
+        }
+        cell_fall(scalar) {
+          values("1.90000");
+        }
+        fall_transition(scalar) {
+          values("0.10000");
+        }
+        retaining_fall(scalar) {
+          values("0.40000");
+        }
+        retain_fall_slew(scalar) {
+          values("0.10000");
+        }
+      }
+    }
+    pin("r6/D") {
+      direction : internal;
+      capacitance : 0.0000;
+      timing() {
+        related_pin : "clka";
+        timing_type : hold_rising;
+        rise_constraint(scalar) {
+          values("0.05000");
+        }
+        fall_constraint(scalar) {
+          values("0.05000");
+        }
+      }
+      timing() {
+        related_pin : "clka";
+        timing_type : setup_rising;
+        rise_constraint(scalar) {
+          values("0.10000");
+        }
+        fall_constraint(scalar) {
+          values("0.10000");
+        }
+      }
+      timing() {
+        related_pin : "r5/Q";
+        timing_sense : positive_unate;
+        timing_type : combinational;
+        cell_rise(scalar) {
+          values("0.00000");
+        }
+        rise_transition(scalar) {
+          values("0.10000");
+        }
+        cell_fall(scalar) {
+          values("0.00000");
+        }
+        fall_transition(scalar) {
+          values("0.10000");
+        }
+      }
+    }
+    pin("r6/RN") {
+      direction : internal;
+      capacitance : 0.0000;
+      timing() {
+        related_pin : "clka";
+        timing_type : removal_rising;
+        rise_constraint(scalar) {
+          values("0.15000");
+        }
+      }
+      timing() {
+        related_pin : "clka";
+        timing_type : recovery_rising;
+        rise_constraint(scalar) {
+          values("0.20000");
+        }
+      }
+      timing() {
+        related_pin : "rn";
+        timing_sense : positive_unate;
+        timing_type : combinational;
+        cell_rise(scalar) {
+          values("0.50000");
+        }
+        rise_transition(scalar) {
+          values("0.10000");
+        }
+      }
+    }
+  }
+
+}
+propagated clocks 1
+blk model
+  hold  asynchronous flat   0.420 ( 5 endpoints) model   0.420 ( 5 endpoints) match
+  hold  clk1 flat   0.020 (21 endpoints) model   0.020 (21 endpoints) match
+  hold  clk2 flat   0.020 (17 endpoints) model   0.020 (17 endpoints) match
+  setup asynchronous flat  -0.600 ( 5 endpoints) model  -0.600 ( 5 endpoints) match
+  setup clk1 flat  -0.700 (21 endpoints) model  -0.700 (21 endpoints) match
+  setup clk2 flat  -1.100 (17 endpoints) model  -1.100 (17 endpoints) match
+  86 of 86 flat endpoints match
+blk and mid models
+  hold  asynchronous flat   0.420 ( 5 endpoints) model   0.420 ( 5 endpoints) match
+  hold  clk1 flat   0.020 (21 endpoints) model   0.020 (21 endpoints) match
+  hold  clk2 flat   0.020 (17 endpoints) model   0.020 (17 endpoints) match
+  setup asynchronous flat  -0.600 ( 5 endpoints) model  -0.600 ( 5 endpoints) match
+  setup clk1 flat  -0.700 (21 endpoints) model  -0.700 (21 endpoints) match
+  setup clk2 flat  -1.100 (17 endpoints) model  -1.100 (17 endpoints) match
+  86 of 86 flat endpoints match
