@@ -1108,16 +1108,26 @@ void Sdc::createLibertyGeneratedClocks(Clock *clk) {
                                 : generatedClock->clockPin()
             );
 
-            debugPrint(debug_, "libgenclk", 1, "Creating generated clock {} "
-              "from clock {} in instance {}",
-              generatedClockName, clk->name(), instPath);
-
             // Find the output pin, for nested generated clocks
             Pin *clkOutPin = network_->findPin(
               inst,
               generatedClock->clockPin()
             );
-            PinSet clkPins;
+
+            // A name taken by a clock on another pin gets the generated
+            // clock name appended to the generated clock pin path.
+            Clock *nameClock = findClock(generatedClockName);
+            if (nameClock && clkOutPin && !nameClock->pins().contains(clkOutPin))
+              generatedClockName = sta::format(
+                "{}/{}/{}", instPath,
+                generatedClock->clockPin(),
+                generatedClock->name()
+              );
+
+            debugPrint(debug_, "libgenclk", 1, "Creating generated clock {} "
+              "from clock {} in instance {}",
+              generatedClockName, clk->name(), instPath);
+            PinSet clkPins(network_);
             if (clkOutPin)
               clkPins.insert(clkOutPin);
 
