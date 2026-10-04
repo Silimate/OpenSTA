@@ -162,6 +162,7 @@ record_public_tests {
   filter_expr_to_postfix
   generated_clock
   generated_clock_edges_redefine
+  generated_clock_shared_pin
   generated_clock_timing
   get_cell_hierarchy
   get_cells_crash
@@ -256,6 +257,7 @@ record_public_tests {
   verilog_write_gzip
   write_path_spice_arc_sense
   write_timing_model_hier
+  write_timing_model_latch
   write_timing_model_min_slew
   write_timing_model_report
   write_timing_model_scalar

@@ -1,0 +1,48 @@
+library (generated_clock_shared_pin) {
+  delay_model : "table_lookup";
+  time_unit : "1ns";
+  voltage_unit : "1v";
+  input_threshold_pct_rise : 50;
+  input_threshold_pct_fall : 50;
+  output_threshold_pct_rise : 50;
+  output_threshold_pct_fall : 50;
+  slew_lower_threshold_pct_rise : 30;
+  slew_lower_threshold_pct_fall : 30;
+  slew_upper_threshold_pct_rise : 70;
+  slew_upper_threshold_pct_fall : 70;
+  cell (CLK_SHARE) {
+    area : 10.0;
+    pin (CLK_IN) {
+      direction : input;
+      clock : true;
+    }
+    pin (Q1) {
+      direction : output;
+    }
+    pin (Q2) {
+      direction : output;
+    }
+    /* Two generated clocks on Q1, one named like the Q2 pin. */
+    generated_clock (Q2) {
+      clock_pin : "Q1";
+      master_pin : CLK_IN;
+      divided_by : 2;
+    }
+    generated_clock (g4) {
+      clock_pin : "Q1";
+      master_pin : CLK_IN;
+      divided_by : 4;
+    }
+    generated_clock (g8) {
+      clock_pin : "Q2";
+      master_pin : CLK_IN;
+      divided_by : 8;
+    }
+    timing () {
+      related_pin : CLK_IN;
+      timing_type : rising_edge;
+      intrinsic_rise : 1;
+      intrinsic_fall : 1;
+    }
+  }
+}

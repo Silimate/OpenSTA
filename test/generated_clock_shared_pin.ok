@@ -1,0 +1,4 @@
+clk period 10.000000 pins clk
+u0/Q2 period 20.000000 pins u0/Q1
+u0/Q2/g8 period 80.000000 pins u0/Q2
+u0/g4 period 40.000000 pins u0/Q1
