@@ -56,7 +56,8 @@ create_clock -name ck -period $period \[get_ports ck\]
   if { $flat } {
     append body "$::flat_gen_clks\n"
   }
-  append body "set_input_delay 0.5 -clock ck \[get_ports {in0 in1}\]
+  append body "$::top_cmds
+set_input_delay 0.5 -clock ck \[get_ports {in0 in1}\]
 set_output_delay 0.5 -clock ck \[get_ports {out0 out1 out2 out3}\]
 [propagated_cmd $propagated]
 foreach {path_delay check} {max setup min hold} {
@@ -100,6 +101,7 @@ set blk_v write_timing_model_latch_blk.v
 set mid_v write_timing_model_latch_mid.v
 set top_v write_timing_model_latch_top.v
 set gen_clk_sdc "create_generated_clock -name gclk -source \[get_ports clk\] -divide_by 2 \[get_pins div/Q\]"
+set top_cmds ""
 # Named like the generated clocks made from the model generated_clock groups.
 set flat_gen_clks "create_generated_clock -name i0/div/Q -source \[get_ports ck\] -divide_by 2 \[get_pins i0/div/Q\]
 create_generated_clock -name i1/k0/div/Q -source \[get_ports ck\] -divide_by 2 \[get_pins i1/k0/div/Q\]"
@@ -149,3 +151,17 @@ set blk_model [top_slacks blk_model_add latch_blk [list $mid_v $top_v] 1 3 0]
 set mid_model [top_slacks mid_model_add {latch_blk latch_mid} [list $top_v] 1 3 0]
 compare_slacks "latch_blk model" $flat $blk_model
 compare_slacks "latch_blk and latch_mid models" $flat $mid_model
+
+puts "preset and clear arcs"
+set gen_clk_sdc "create_generated_clock -name gclk -source \[get_ports clk\] -divide_by 2 \[get_pins div/Q\]"
+set flat_gen_clks "create_generated_clock -name i0/div/Q -source \[get_ports ck\] -divide_by 2 \[get_pins i0/div/Q\]
+create_generated_clock -name i1/k0/div/Q -source \[get_ports ck\] -divide_by 2 \[get_pins i1/k0/div/Q\]"
+set top_cmds "set sta_preset_clear_arcs_enabled 1"
+write_model latch_blk {} [list $blk_v] 1 "$top_cmds\n$gen_clk_sdc" _clr
+write_model latch_mid latch_blk [list $mid_v] 1 $top_cmds _clr
+set flat [top_slacks flat_clr {} [list $blk_v $mid_v $top_v] 1 1.6 1]
+set blk_model [top_slacks blk_model_clr latch_blk [list $mid_v $top_v] 1 1.6 0]
+set mid_model [top_slacks mid_model_clr {latch_blk latch_mid} [list $top_v] 1 1.6 0]
+compare_slacks "latch_blk model" $flat $blk_model
+compare_slacks "latch_blk and latch_mid models" $flat $mid_model
+puts "  flat i0/r6/D [dict get $flat {setup ck i0/r6/D}]"

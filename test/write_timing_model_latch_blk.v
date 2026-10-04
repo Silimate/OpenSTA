@@ -5,7 +5,7 @@ module latch_blk(clk, a, b, y, z, w);
   input clk, a, b;
   output y, z, w;
   wire ck, q1, n1, n2, n3, lq1, m1, q2, m2, lq2, a1, lq3, gclk, divn, gck, q3, n9, q4, q5,
-    lq4, m4, q6, lq5, q7;
+    lq4, m4, q6, lq5, q7, rn1, rn2, rn3;
   CLKBUF cb(.A(clk), .Y(ck));
   // flop -> latch -> flop
   DFF r1(.CK(ck), .D(q4), .Q(q1));
@@ -33,7 +33,10 @@ module latch_blk(clk, a, b, y, z, w);
   DFF r5(.CK(gck), .D(b), .Q(q5));
   BUF u10(.A(q5), .Y(w));
   // flop -> latch reset -> flop
-  LATCHR l4(.G(ck), .D(n2), .RN(q2), .Q(lq4));
+  BUF u12(.A(q2), .Y(rn1));
+  BUF u13(.A(rn1), .Y(rn2));
+  BUF u14(.A(rn2), .Y(rn3));
+  LATCHR l4(.G(ck), .D(n2), .RN(rn3), .Q(lq4));
   BUF u11(.A(lq4), .Y(m4));
   DFF r6(.CK(ck), .D(m4), .Q(q6));
   // latch without a latch group
