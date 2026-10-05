@@ -54,8 +54,9 @@ proc scan_file { file warn_regexp } {
   }
 }
 
+# SILIMATE: stadb is fork-only; scan it so its IDs cannot collide unnoticed.
 set subdirs {app dcalc graph liberty network parasitics \
-                 power sdc sdf search spice util verilog tcl}
+                 power sdc sdf search spice util verilog tcl stadb}
 set files_c {}
 foreach subdir $subdirs {
     set files [glob -nocomplain [file join $subdir "*.{cc,hh,yy,ll,i}"]]
