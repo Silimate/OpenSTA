@@ -1,6 +1,6 @@
 # Search section: arrivals and case-analysis sim values.
 # Generated clocks plus a search write is unsupported (internal exceptions
-# are not in the SDC section), so that path is asserted as error 2743.
+# are not in the SDC section), so that path is asserted as error 2763.
 
 source stadb_helpers.tcl
 

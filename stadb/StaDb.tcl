@@ -49,7 +49,7 @@ proc read_sta_db { args } {
   check_argc_eq1 "read_sta_db" $args
   set filename [file nativename [lindex $args 0]]
   if { ![file readable $filename] } {
-    sta_error 2740 "$filename is not readable."
+    sta_error 2760 "$filename is not readable."
   }
   read_sta_db_cmd $filename
 }

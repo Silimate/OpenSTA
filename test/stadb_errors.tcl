@@ -81,7 +81,7 @@ if { \[catch { write_sta_db $mcmm } msg\] } {
 }" err_mcmm]
 puts "error scenes: [stadb_scrub $mcmm_out]"
 
-# CCS is dropped with warning 2741, write still succeeds.
+# CCS is dropped with warning 2761, write still succeeds.
 set ccs [make_result_file "stadb_errors.ccs.stadb"]
 set ccs_out [stadb_run "read_liberty asap7_ccsn.lib.gz
 write_sta_db $ccs" err_ccs]

@@ -37,9 +37,10 @@
 namespace sta {
 
 // Report::errorMsg stores "id message"; the Tcl wrapper prints "Error: " +
-// what(). 2740 is the Tcl unreadable-file check; 2741 is the CCS drop warning.
-constexpr int stadb_error_corrupt = 2742;
-constexpr int stadb_error_unsupported = 2743;
+// what(). 2760 is the Tcl unreadable-file check; 2761 is the CCS drop warning.
+// SILIMATE: stadb owns 2760-2779; 2740-2742 belong to SDC name folding.
+constexpr int stadb_error_corrupt = 2762;
+constexpr int stadb_error_unsupported = 2763;
 
 // Floats are stored as raw native bytes, so the format is little endian only.
 static_assert(std::endian::native == std::endian::little,

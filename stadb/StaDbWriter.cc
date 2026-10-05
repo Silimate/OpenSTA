@@ -907,7 +907,7 @@ DbLibertyWriter::write(const std::vector<LibertyLibrary*> &libraries)
   for (LibertyLibrary *library : libraries)
     collectLibrary(library);
   if (ccs_dropped_)
-    sta_->report()->warn(2741, "CCS receiver capacitance and output current "
+    sta_->report()->warn(2761, "CCS receiver capacitance and output current "
                          "data is not saved to the stadb; the restored session "
                          "uses the NLDM tables only.");
   writePools();
