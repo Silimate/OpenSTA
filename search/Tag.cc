@@ -637,7 +637,8 @@ TagHash::TagHash(const StaState *sta) :
 size_t
 TagHash::operator()(const Tag *tag) const
 {
-  return tag->matchHash(true, sta_);
+  // SILIMATE: hash the input delay too, since TagEqual compares it
+  return tag->hash(true, sta_);
 }
 
 TagEqual::TagEqual(const StaState *sta) :
