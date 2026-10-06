@@ -2749,6 +2749,9 @@ LibertyReader::readLeakageGrouops(LibertyCell *cell,
 {
   for (const LibertyGroup *leak_group : cell_group->findSubgroups("leakage_power")) {
     FuncExpr *when = readFuncExpr(cell, leak_group, "when");
+    // A when that does not parse must not stand in for the default state.
+    if (when == nullptr && leak_group->findSimpleAttr("when"))
+      continue;
     float power;
     bool exists;
     leak_group->findAttrFloat("value", power, exists);
