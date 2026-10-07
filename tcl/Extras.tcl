@@ -193,6 +193,7 @@ namespace eval sta {
 # Called by the unknown-command handlers so get_db/set_db scripts get a pointer
 # to the SDC translation guide instead of "invalid command name".
 proc check_unsupported_cmd { name } {
+  set name [string trimleft $name :]
   if { $name == "get_db" || $name == "set_db" } {
     sta_error 2220 "$name is not supported; use SDC object queries instead. See https://docs.silimate.com/preqorsor/sdc-object-queries/"
   }
