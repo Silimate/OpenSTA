@@ -130,10 +130,12 @@ tclListSeq(Tcl_Obj *const source,
   return seq;
 }
 
-template <class SET_TYPE, class OBJECT_TYPE>
+// SILIMATE: SEQ_TYPE elements (sta_enable_collections) are expanded.
+template <class SET_TYPE, class SEQ_TYPE, class OBJECT_TYPE>
 SET_TYPE *
 tclListSetPtr(Tcl_Obj *const source,
               swig_type_info *swig_type,
+              swig_type_info *seq_swig_type,
               Tcl_Interp *interp)
 {
   Tcl_Size argc;
@@ -143,9 +145,17 @@ tclListSetPtr(Tcl_Obj *const source,
     SET_TYPE *set = new SET_TYPE;
     for (int i = 0; i < argc; i++) {
       void *obj;
-      // Ignore returned TCL_ERROR because can't get swig_type_info.
-      SWIG_ConvertPtr(argv[i], &obj, swig_type, false);
-      set->insert(reinterpret_cast<OBJECT_TYPE*>(obj));
+      if (SWIG_IsOK(SWIG_ConvertPtr(argv[i], &obj, seq_swig_type, false))) {
+        if (obj) {
+          SEQ_TYPE *seq = reinterpret_cast<SEQ_TYPE*>(obj);
+          set->insert(seq->begin(), seq->end());
+        }
+      }
+      else {
+        // Ignore returned TCL_ERROR because can't get swig_type_info.
+        SWIG_ConvertPtr(argv[i], &obj, swig_type, false);
+        set->insert(reinterpret_cast<OBJECT_TYPE*>(obj));
+      }
     }
     return set;
   }
@@ -657,7 +667,12 @@ COLLECTION_HELPERS(NetSeq, const Net *, NetSeqIterator);
 }
 
 %typemap(in) ConstClockSeq {
-  $1 = tclListSeq<const Clock*>($input, SWIGTYPE_p_Clock, interp);
+  // SILIMATE: expand ClockSeq collections.
+  ClockSet *clks = tclListSetPtr<ClockSet, ClockSeq, Clock>($input, SWIGTYPE_p_Clock,
+                                                            $descriptor(ClockSeq *), interp);
+  if (clks)
+    $1.assign(clks->begin(), clks->end());
+  delete clks;
 }
 
 COLLECTION_TYPEMAPS(ClockSeq, Clock *, Clock);
@@ -710,7 +725,8 @@ COLLECTION_HELPERS(ClockSeq, Clock *, ClockSeqIterator);
 }
 
 %typemap(in) ClockSet* {
-  $1 = tclListSetPtr<ClockSet, Clock>($input, SWIGTYPE_p_Clock, interp);
+  $1 = tclListSetPtr<ClockSet, ClockSeq, Clock>($input, SWIGTYPE_p_Clock,
+                                                $descriptor(ClockSeq *), interp);
 }
 
 %typemap(out) ClockSet* {

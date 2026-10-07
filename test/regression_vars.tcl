@@ -143,6 +143,7 @@ record_example_tests {
 record_public_tests {
   all_inputs_filters
   case_insensitive_matching
+  clock_set_collections
   collections
   get_ports_not_found
   constraint_modes
