@@ -166,7 +166,6 @@ record_public_tests {
   generated_clock_timing
   get_cell_hierarchy
   get_cells_crash
-  get_db
   get_filter
   get_is_buffer
   get_is_memory

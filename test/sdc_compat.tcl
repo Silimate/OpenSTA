@@ -26,12 +26,16 @@ if { [catch { get_ports -quiet {bus[*]*tail[*]} } gports] } {
 }
 puts "req_msg bits: [sizeof_collection [get_ports req_msg[*]]]"
 
-# get_db pins .name <pattern>
-puts "clk pin count: [llength [get_db pins .name */CLK]]"
+# get_db/set_db in an SDC file point at the SDC translation guide.
+set db_sdc [make_result_file sdc_compat_get_db.sdc]
+set stream [open $db_sdc w]
+puts $stream "set_db program_short_name mytool"
+close $stream
+catch { read_sdc $db_sdc } msg
+puts $msg
 
-# Clock input ports:
-#   get_ports [get_db ports -if {.is_clock_used_as_clock && .direction == in}]
-puts "clock in ports: [lsort [get_object_name [get_db ports -if {.is_clock_used_as_clock && .direction == in}]]]"
+puts "clk pin count: [sizeof_collection [get_pins -hierarchical */CLK]]"
+puts "clock in ports: [get_object_name [get_ports -filter {is_clock_used_as_clock && direction == input}]]"
 puts "clk1 is_clock_used_as_clock: [get_property [get_ports clk] is_clock_used_as_clock]"
 puts "req_val is_clock_used_as_clock: [get_property [get_ports req_val] is_clock_used_as_clock]"
 
@@ -40,7 +44,6 @@ set dpin [index_collection [get_pins -hierarchical */D] 0]
 set qpin [index_collection [get_pins -hierarchical */Q] 0]
 set_case_analysis 1 $dpin
 puts "case set: [get_property $dpin case_value]"
-puts "case db: [get_db $dpin .case_value]"
 puts "case unset: '[get_property $qpin case_value]'"
 
 # get_fanin on an empty collection must not abort.

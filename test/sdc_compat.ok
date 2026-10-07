@@ -3,12 +3,12 @@ alias ok
 RFLATCH size: 0
 glob bus count: 0
 req_msg bits: 32
+Error 2220: sdc_compat_get_db.sdc line 1, set_db is not supported; use SDC object queries instead. See https://docs.silimate.com/preqorsor/sdc-object-queries/
 clk pin count: 35
 clock in ports: clk
 clk1 is_clock_used_as_clock: 1
 req_val is_clock_used_as_clock: 0
 case set: 1
-case db: 1
 case unset: ''
 empty fanin: 0
 captured: hello captured
