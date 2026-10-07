@@ -114,6 +114,8 @@ proc sta_sdc_unknown { args } {
         "Ambiguous command name \"$name\": [lsort $cmds]."
     }
   }
+  # SILIMATE: point unsupported object queries at the SDC translation guide.
+  check_unsupported_cmd $name
   return [uplevel 1 [::unknown {*}$args]]
 }
 

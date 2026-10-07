@@ -39,7 +39,6 @@
 #include "Scene.hh"
 #include "Sta.hh"
 #include "StaConfig.hh"
-#include "PatternMatch.hh"
 #include "liberty/LibertyParser.hh"
 
 using namespace sta;
@@ -1322,20 +1321,6 @@ void
 set_sdc_name_folding(bool enable)
 {
   Sta::sta()->setSdcNameFolding(enable);
-}
-
-bool
-pin_name_compat_match(const char *pattern,
-                      const Pin *pin,
-                      bool regexp,
-                      bool nocase)
-{
-  if (pattern == nullptr || pin == nullptr)
-    return false;
-  Sta *sta = Sta::sta();
-  Network *network = sta->ensureLinked();
-  PatternMatch matcher(pattern, regexp, nocase, sta->tclInterp());
-  return network->pinNameCompatMatch(&matcher, pin);
 }
 
 %} // inline

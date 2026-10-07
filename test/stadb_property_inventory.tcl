@@ -49,27 +49,6 @@ foreach line [split $text "\n"] {
   }
 }
 
-puts "# get_db roots"
-set extras [stadb_repo_file .. tcl Extras.tcl]
-set stream [open $extras "r"]
-set extras_text [read $stream]
-close $stream
-set in_roots 0
-foreach line [split $extras_text "\n"] {
-  if { [string match "*array set get_db_roots *" $line] } {
-    set in_roots 1
-    continue
-  }
-  if { $in_roots } {
-    if { [regexp {^  ([A-Za-z_]+)[ \t]+} $line -> root] } {
-      puts "get_db_root\t$root"
-    } elseif { [string match "array set *" [string trim $line]] \
-                 || [string match "#*" [string trim $line]] } {
-      set in_roots 0
-    }
-  }
-}
-
 # Round-trip dump of scalar properties on example1.
 set dump {
   foreach clk [get_clocks *] {

@@ -110,7 +110,7 @@ public:
   bool caseInsensitiveMatching() const { return case_insensitive_matching_; }
   void setCaseInsensitiveMatching(bool enable) { case_insensitive_matching_ = enable; }
   // TCL variable sta_pin_name_compatibility.
-  // When a get_pins/get_db pin pattern's last component is a sequential
+  // When a get_pins pin pattern's last component is a sequential
   // pin alias (CK/CLK/clk/clock/CP, D/data, Q), also match the liberty
   // register clock/data/Q pin on the same instance. Default off.
   bool pinNameCompatibility() const { return pin_name_compatibility_; }

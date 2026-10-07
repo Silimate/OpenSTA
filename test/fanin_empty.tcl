@@ -1,5 +1,5 @@
 # Empty -to used to pass a null PinSeq* into findFaninPins and abort.
-# get_pins/get_db of missing objects become an empty Tcl list, and
+# get_pins/get_cells of missing objects become an empty Tcl list, and
 # tclListSeqPtr returns nullptr when argc == 0.
 read_liberty ../examples/sky130hd_tt.lib.gz
 read_verilog ../examples/gcd_sky130hd.v
@@ -22,7 +22,7 @@ show "empty string get_fanin" [get_fanin -to ""]
 
 # Insts that do not exist, then fanin of that collection (HPM-style).
 show "missing insts all_fanin" \
-  [all_fanin -to [get_db insts -quiet *no_such_inst*]]
+  [all_fanin -to [get_cells -quiet -hierarchical *no_such_inst*]]
 
 # -only_cells goes through find_fanin_insts, which calls findFaninPins.
 show "missing -only_cells" \
