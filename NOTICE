@@ -1,0 +1,12 @@
+This is Silimate, Inc.'s modified version of OpenSTA, the static timing
+analyzer by Parallax Software, Inc. (https://github.com/parallaxsw/OpenSTA).
+It is distributed under the GNU General Public License version 3; see LICENSE.
+
+Silimate, Inc. has modified this work since April 2024. Files Silimate wrote
+carry a Silimate, Inc. copyright header; files Silimate changed keep Parallax's
+notice. The git history of https://github.com/Silimate/OpenSTA gives each change
+and its date. To list every modification against upstream:
+
+  git remote add upstream https://github.com/parallaxsw/OpenSTA.git
+  git fetch upstream
+  git diff $(git merge-base HEAD upstream/master) HEAD
