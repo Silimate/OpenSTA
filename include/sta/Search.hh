@@ -598,7 +598,7 @@ protected:
   EvalPred *eval_pred_;
 
   // Clock arrivals are known.
-  bool clk_arrivals_valid_;
+  bool clk_arrivals_valid_{false};  // SILIMATE: was uninitialized
   // Per-vertex cache of whether the vertex is clock gated.
   std::vector<char> clk_gated_;
   // Some arrivals exist.
