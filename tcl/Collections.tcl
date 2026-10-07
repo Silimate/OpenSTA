@@ -116,10 +116,9 @@ sta::define_cmd_args "sort_collection" {[-ascending] [-descending] [-dictionary]
     -limit {`count`: Keep only the first count objects after sorting.}
   }
 
-# Add objects to a collection, resulting in a new collection. The base
-# collection remains unchanged. The return type depends on whether the
-# collection is a Tcl list or otherwise.
-# https://docs.altera.com/r/docs/683432/25.3.1/quartus-prime-pro-edition-user-guide-scripting/add_to_collection-quartus-sta
+# Append `objects` to a copy of `collection`, keeping duplicates. The return
+# type depends on whether the collection is a Tcl list or otherwise.
+# https://docs.altera.com/r/docs/683432/26.1.1/quartus-prime-pro-edition-user-guide-scripting/add_to_collection-quartus-sta
 proc add_to_collection {collection objects} {
   if {[sta::is_collection $collection]} {
     return [sta::collection_plus $collection $objects]
@@ -136,12 +135,13 @@ proc add_to_collection {collection objects} {
 }
 
 
-# Duplicates the contents of a collection, resulting in a new collection. The base collection remains unchanged.
-# https://docs.altera.com/r/docs/683432/25.3.1/quartus-prime-pro-edition-user-guide-scripting/dni-copy_collection-quartus-dcmd_dni
+# Alias of index_collection, which copies the whole input when given no indices.
+# https://docs.altera.com/r/docs/683432/26.1.1/quartus-prime-pro-edition-user-guide-scripting/dni-copy_collection-quartus-dcmd_dni
 interp alias {} copy_collection {} index_collection  
 
-# The foreach_in_collection command is similar to the foreach Tcl command. Use it to iterate through all elements in a collection.
-# https://docs.altera.com/r/docs/683432/25.3.1/quartus-prime-pro-edition-user-guide-scripting/foreach_in_collection-quartus-misc
+# Evaluate `body` in the caller's scope once per object, bound to `variable_name`. A
+# collection is walked with an iterator that is freed on every exit path.
+# https://docs.altera.com/r/docs/683432/26.1.1/quartus-prime-pro-edition-user-guide-scripting/foreach_in_collection-quartus-misc
 proc foreach_in_collection {variable_name collection body} {
   if {[sta::is_collection $collection]} {
     set it [sta::collection_get_iterator $collection]
@@ -173,8 +173,8 @@ proc foreach_in_collection {variable_name collection body} {
   }
 }
 
-# Use the get_collection_size command to get the number of elements in a collection.
-# https://docs.altera.com/r/docs/683432/25.3.1/quartus-prime-pro-edition-user-guide-scripting/get_collection_size-quartus-misc
+# Count the objects in a collection, or the elements of a Tcl list.
+# https://docs.altera.com/r/docs/683432/26.1.1/quartus-prime-pro-edition-user-guide-scripting/get_collection_size-quartus-misc
 proc get_collection_size {collection} {
   if {[sta::is_collection $collection]} {
     return [sta::collection_count $collection]
@@ -183,10 +183,9 @@ proc get_collection_size {collection} {
   }
 }
 
-# Given a collection and an index, if the index is in range, create a new collection containing only the single object.
-# Optionally a second index can be passed to create a new collection with the objects between the two indices in the base collection (inclusive).
-# As a custom extension to the spec, passing neither index simply creates a copy.
-# https://docs.altera.com/r/docs/683432/25.3.1/quartus-prime-pro-edition-user-guide-scripting/dni-index_collection-quartus-dcmd_dni
+# Slice objects index1 through index2, both inclusive; indices are integers, end or end-N.
+# One index selects a single object, and no index copies the whole input.
+# https://docs.altera.com/r/docs/683432/26.1.1/quartus-prime-pro-edition-user-guide-scripting/dni-index_collection-quartus-dcmd_dni
 proc index_collection {collection {index1 ""} {index2 ""}} {
   if { "$index2" == "" } {
     if { "$index1" == "" } {
@@ -214,9 +213,9 @@ proc collection_at_index {collection index} {
 # Returns the number of objects in a collection.
 interp alias {} sizeof_collection {} get_collection_size
 
-# Sorts a collection based on one or more attributes, resulting in a new,
-# sorted collection. The sort is ascending by default.
-# https://docs.altera.com/r/docs/683432/25.3.1/quartus-prime-pro-edition-user-guide-scripting/dni-sort_collection-quartus-dcmd_dni
+# Stable-sort a copy by the properties in `criteria`, each later one breaking ties;
+# ascending unless -descending, numeric unless -dictionary.
+# https://docs.altera.com/r/docs/683432/26.1.1/quartus-prime-pro-edition-user-guide-scripting/dni-sort_collection-quartus-dcmd_dni
 proc sort_collection { args } {
   sta::parse_key_args "sort_collection" args \
     keys {-limit} \
@@ -250,7 +249,7 @@ proc sort_collection { args } {
 }
 
 # Returns a part of the collection.
-# https://docs.altera.com/r/docs/683432/25.3.1/quartus-prime-pro-edition-user-guide-scripting/query_collection-quartus-sta
+# https://docs.altera.com/r/docs/683432/26.1.1/quartus-prime-pro-edition-user-guide-scripting/query_collection-quartus-sta
 proc query_collection { args } {
   sta::parse_key_args "query_collection" args \
     keys {-limit} \
@@ -293,8 +292,9 @@ proc query_collection { args } {
   return $result
 }
 
-# Append objects to a collection
-# https://docs.altera.com/r/docs/683432/25.3.1/quartus-prime-pro-edition-user-guide-scripting/dni-append_to_collection-quartus-dcmd_dni
+# Append `objects` in place to the caller's collection variable, creating it if unset;
+# -unique skips objects already present.
+# https://docs.altera.com/r/docs/683432/26.1.1/quartus-prime-pro-edition-user-guide-scripting/dni-append_to_collection-quartus-dcmd_dni
 proc append_to_collection { args } {
   sta::parse_key_args "append_to_collection" args \
     keys {} \
@@ -320,9 +320,9 @@ proc append_to_collection { args } {
   }
 }
 
-# Remove objects from a collection, resulting in a new collection.
-# The base collection remains unchanged.
-# https://docs.altera.com/r/docs/683432/25.3.1/quartus-prime-pro-edition-user-guide-scripting/remove_from_collection-quartus-sta
+# Keep the objects of `collection` absent from `objects`, in order; -intersect keeps
+# the present ones instead.
+# https://docs.altera.com/r/docs/683432/26.1.1/quartus-prime-pro-edition-user-guide-scripting/remove_from_collection-quartus-sta
 proc remove_from_collection { args } {
   sta::parse_key_args "remove_from_collection" args \
     keys {} \
@@ -347,9 +347,9 @@ proc remove_from_collection { args } {
   }
 }
 
-# Filters an existing collection, resulting in a new collection.
-# The base collection remains unchanged.
-# https://docs.altera.com/r/docs/683432/25.3.1/quartus-prime-pro-edition-user-guide-scripting/dni-filter_collection-quartus-dcmd_dni
+# Match `filter` against each object, using the filter for the first object's type;
+# an empty input is returned as is.
+# https://docs.altera.com/r/docs/683432/26.1.1/quartus-prime-pro-edition-user-guide-scripting/dni-filter_collection-quartus-dcmd_dni
 proc filter_collection { args } {
   sta::parse_key_args "filter_collection" args \
     keys {} \
