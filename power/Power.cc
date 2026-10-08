@@ -1808,6 +1808,9 @@ Power::findLeakagePower(const Instance *inst,
           float duty = 1.0 - sum.cond_duty_sum;
           leakage += cell_leakage * duty;
         }
+        // The default group covers the states the when groups leave out.
+        else if (sum.uncond_exists)
+          leakage += sum.uncond_leakage * (1.0 - sum.cond_duty_sum);
       }
       // Ignore unconditional leakage unless there are no conditional leakage groups.
       else if (sum.uncond_exists)
