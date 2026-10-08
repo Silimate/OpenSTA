@@ -1,0 +1,17 @@
+[
+{
+  "name": "u2",
+  "internal": 0.00e+00,
+  "switching": 0.00e+00,
+  "leakage": 2.75e-06,
+  "total": 2.75e-06
+}
+,
+{
+  "name": "u1",
+  "internal": 0.00e+00,
+  "switching": 0.00e+00,
+  "leakage": 1.25e-06,
+  "total": 1.25e-06
+}
+]

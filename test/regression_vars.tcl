@@ -204,6 +204,7 @@ record_public_tests {
   pin_props
   port_delay_delete_inst
   power_calc_no_inv
+  power_leakage_default
   power_network_changed
   power_json
   prima3
