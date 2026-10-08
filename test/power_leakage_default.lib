@@ -1,0 +1,30 @@
+library (power_leakage_default) {
+  time_unit : "1ns";
+  voltage_unit : "1V";
+  current_unit : "1mA";
+  capacitive_load_unit (1, pf);
+  leakage_power_unit : "1W";
+  voltage_map (VDD, 1.0);
+  voltage_map (VSS, 0.0);
+
+  /* The when group covers A high; the default group covers the rest. */
+  cell (PARTIAL_DEFAULT) {
+    pg_pin (VDD) { voltage_name : VDD; pg_type : primary_power; }
+    pg_pin (VSS) { voltage_name : VSS; pg_type : primary_ground; }
+    leakage_power () { value : 1.0e-06; related_pg_pin : VDD; }
+    leakage_power () { value : 2.0e-06; when : "A"; related_pg_pin : VDD; }
+    pin (A) { direction : input; capacitance : 0.001; }
+    pin (Z) { direction : output; function : "A"; }
+  }
+
+  /* cell_leakage_power still covers the rest ahead of the default group. */
+  cell (PARTIAL_CELL_LEAKAGE) {
+    cell_leakage_power : 3.0e-06;
+    pg_pin (VDD) { voltage_name : VDD; pg_type : primary_power; }
+    pg_pin (VSS) { voltage_name : VSS; pg_type : primary_ground; }
+    leakage_power () { value : 1.0e-06; related_pg_pin : VDD; }
+    leakage_power () { value : 2.0e-06; when : "A"; related_pg_pin : VDD; }
+    pin (A) { direction : input; capacitance : 0.001; }
+    pin (Z) { direction : output; function : "A"; }
+  }
+}
