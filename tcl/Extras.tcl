@@ -184,24 +184,6 @@ interp alias {} reset_disable_timing_cell {} unset_disable_timing_cell
 interp alias {} remove_disable_timing_instance {} unset_disable_timing_instance
 interp alias {} reset_disable_timing_instance {} unset_disable_timing_instance
 
-################################################################
-# Unsupported object queries
-################################################################
-
-namespace eval sta {
-
-# Called by the unknown-command handlers so get_db/set_db scripts get a pointer
-# to the SDC translation guide instead of "invalid command name".
-proc check_unsupported_cmd { name } {
-  set name [string trimleft $name :]
-  if { $name == "get_db" || $name == "set_db" } {
-    sta_error 2220 "$name is not supported; use SDC object queries instead. See https://docs.silimate.com/preqorsor/sdc-object-queries/"
-  }
-}
-
-# sta namespace end.
-}
-
 # Get attribute
 sta::define_cmd_args "get_attribute" {[-quiet] object property} \
   -help {The `get_attribute` command returns a property of an object. The object and property arguments may appear in either order. See `get_property` for the list of properties.}

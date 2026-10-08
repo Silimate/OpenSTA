@@ -26,12 +26,12 @@ if { [catch { get_ports -quiet {bus[*]*tail[*]} } gports] } {
 }
 puts "req_msg bits: [sizeof_collection [get_ports req_msg[*]]]"
 
-# get_db/set_db in an SDC file point at the SDC translation guide.
-set db_sdc [make_result_file sdc_compat_get_db.sdc]
-set stream [open $db_sdc w]
-puts $stream "set_db program_short_name mytool"
+# An unknown command in an SDC file reports the file and line.
+set unknown_sdc [make_result_file sdc_compat_unknown.sdc]
+set stream [open $unknown_sdc w]
+puts $stream "no_such_command arg"
 close $stream
-catch { read_sdc $db_sdc } msg
+catch { read_sdc $unknown_sdc } msg
 puts $msg
 
 puts "clk pin count: [sizeof_collection [get_pins -hierarchical */CLK]]"
