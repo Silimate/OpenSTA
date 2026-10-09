@@ -4,10 +4,8 @@ link_design gcd
 
 set_dont_use sky130_fd_sc_hd__a2111o_1
 set_dont_touch sky130_fd_sc_hd__a2111o_1
-# get_db/set_db point at the SDC translation guide
-catch { get_db program_short_name } msg
-puts $msg
-catch { ::set_db program_short_name mytool } msg
+# An unknown command outside read_sdc gets Tcl's standard error
+catch { no_such_command arg } msg
 puts $msg
 all_fanin -to [get_ports resp_rdy]
 all_fanout -from [get_ports req_rdy]
