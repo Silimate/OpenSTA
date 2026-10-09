@@ -109,6 +109,7 @@ public:
   int digits() const { return digits_; }
   void setDigits(int digits);
   void setNoSplit(bool no_split);
+  void setSrcIds(bool src_ids);
   void setReportDedupByWord(bool dedup_by_word);
   void setReportDedupSameDelay(bool dedup_same_delay);
   void setSilimateDedupEndpointRegex(std::string_view silimate_dedup_endpoints_rx); // SILIMATE: Custom regex-based deduplication by removal of matching parts from endpoints
@@ -541,6 +542,7 @@ protected:
   bool report_hier_pins_;
   bool report_net_;
   bool no_split_{false};
+  bool src_ids_{false};
   bool dedup_by_word_{false};
   bool dedup_same_delay_{false};
   std::optional<std::string> silimate_dedup_endpoints_rx_;

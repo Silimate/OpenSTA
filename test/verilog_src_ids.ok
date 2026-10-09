@@ -1,0 +1,8 @@
+counter: src = "counter.v:16.1-32.10" src_ids = "pqid:m0"
+_1415_: src = "counter.v:22.3-28.6" src_ids = "pqid:a1|pqid:b2"
+_1416_: src = "" src_ids = "pqid:c3"
+_1417_: src = "counter.v:30.1-30.5|counter.v:30.1-30.5" src_ids = ""
+_1415_: attr1 = "pqid:n1"
+json: 
+json with src_ids: {"src_ids": "pqid:a1|pqid:b2"} {"src_ids": "pqid:a1|pqid:b2"} {"src_ids": "pqid:c3"} {"src_ids": "pqid:c3"}
+_1415_: src = "counter.v:22.3-28.6|pqid:a1|counter.v:22.3-28.6|pqid:b2"

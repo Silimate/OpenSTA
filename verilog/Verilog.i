@@ -36,6 +36,12 @@ read_verilog_cmd(const char *filename)
 }
 
 void
+set_verilog_src_id_prefix(const char *prefix)
+{
+  Sta::sta()->setVerilogSrcIdPrefix(prefix);
+}
+
+void
 write_verilog_cmd(const char *filename,
                   bool include_pwr_gnd,
                   CellSeq *remove_cells)

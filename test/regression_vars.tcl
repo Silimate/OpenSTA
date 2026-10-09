@@ -252,6 +252,7 @@ record_public_tests {
   verilog_port_concat
   verilog_unsized_constant
   verilog_specify
+  verilog_src_ids
   verilog_unconnected_hpin
   verilog_well_supplies
   verilog_write_escape

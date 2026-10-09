@@ -26,6 +26,7 @@
 
 #include <cstdint>
 #include <cstdlib>
+#include <set>
 #include <string>
 #include <string_view>
 
@@ -169,15 +170,68 @@ VerilogReader::module(Cell *cell)
   return findKey(module_map_, cell);
 }
 
+template <typename Object>
+static void
+setStringProperty(Properties *properties,
+                  const Object *object,
+                  std::string_view object_type,
+                  std::string_view key,
+                  std::string_view value)
+{
+  if (!properties->isUserProperty(object_type, key))
+    properties->defineProperty<Object>(object_type, key, "string");
+  properties->setProperty(object, object_type, key, value);
+}
+
+// Set src, less the entries starting with prefix, and src_ids to those
+// entries. When any are moved, src keeps each other entry once, as Yosys
+// write_verilog -dropsrc does, and is not set at all once empty.
+template <typename Object>
+static void
+setSrcAttribute(Properties *properties,
+                const Object *object,
+                std::string_view object_type,
+                std::string_view value,
+                std::string_view prefix)
+{
+  std::string src, ids;
+  std::set<std::string_view> kept;
+  bool moved = false;
+  if (!prefix.empty()) {
+    size_t start = 0;
+    while (start <= value.size()) {
+      size_t end = value.find('|', start);
+      if (end == std::string_view::npos)
+        end = value.size();
+      std::string_view entry = value.substr(start, end - start);
+      if (entry.starts_with(prefix)) {
+        ids += (ids.empty() ? "" : "|") + std::string(entry);
+        moved = true;
+      }
+      else if (!entry.empty() && kept.insert(entry).second)
+        src += (src.empty() ? "" : "|") + std::string(entry);
+      start = end + 1;
+    }
+  }
+  if (!moved) {
+    setStringProperty(properties, object, object_type, "src", value);
+    return;
+  }
+  if (!src.empty())
+    setStringProperty(properties, object, object_type, "src", src);
+  setStringProperty(properties, object, object_type, "src_ids", ids);
+}
+
 void
 VerilogReader::setAttribute(const Cell *cell,
                             std::string_view key,
                             std::string_view value)
 {
   Properties *properties = network_->properties();
-  if (!properties->isUserProperty("cell", key))
-    properties->defineProperty<Cell>("cell", key, "string");
-  properties->setProperty(cell, "cell", key, value);
+  if (key == "src")
+    setSrcAttribute(properties, cell, "cell", value, src_id_prefix_);
+  else
+    setStringProperty(properties, cell, "cell", key, value);
 }
 
 void
@@ -186,9 +240,10 @@ VerilogReader::setAttribute(const Instance *inst,
                             std::string_view value)
 {
   Properties *properties = network_->properties();
-  if (!properties->isUserProperty("instance", key))
-    properties->defineProperty<Instance>("instance", key, "string");
-  properties->setProperty(inst, "instance", key, value);
+  if (key == "src")
+    setSrcAttribute(properties, inst, "instance", value, src_id_prefix_);
+  else
+    setStringProperty(properties, inst, "instance", key, value);
 }
 
 void

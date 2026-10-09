@@ -784,11 +784,18 @@ Sta::readVerilog(std::string_view filename)
   if (network) {
     if (verilog_reader_ == nullptr)
       verilog_reader_ = new VerilogReader(network);
+    verilog_reader_->setSrcIdPrefix(verilog_src_id_prefix_);
     readNetlistBefore();
     return verilog_reader_->read(filename);
   }
   else
     return false;
+}
+
+void
+Sta::setVerilogSrcIdPrefix(std::string_view prefix)
+{
+  verilog_src_id_prefix_ = prefix;
 }
 
 void
@@ -3086,6 +3093,12 @@ void
 Sta::setReportPathNoSplit(bool no_split)
 {
   report_path_->setNoSplit(no_split);
+}
+
+void
+Sta::setReportPathSrcIds(bool src_ids)
+{
+  report_path_->setSrcIds(src_ids);
 }
 
 void

@@ -160,6 +160,9 @@ public:
                         Scene *scene,
                         const MinMaxAll *min_max);
   bool readVerilog(std::string_view filename);
+  // Instance and cell src entries starting with prefix are kept out of src
+  // and stored in the src_ids property instead. Empty keeps src as read.
+  void setVerilogSrcIdPrefix(std::string_view prefix);
   // Network readers call this to notify the Sta to delete any previously
   // linked network.
   void readNetlistBefore();
@@ -1033,6 +1036,8 @@ public:
                            const ReportFieldGetValue &get_value);
   void setReportPathDigits(int digits);
   void setReportPathNoSplit(bool no_split);
+  // JSON path reports name each instance's src_ids.
+  void setReportPathSrcIds(bool src_ids);
   void setReportDedupByWord(bool dedup_by_word);
   void setReportDedupSameDelay(bool dedup_same_delay);
   void setSilimateDedupEndpointRegex(std::string_view silimate_dedup_endpoints_rx); // SILIMATE: Custom regex-based deduplication by removal of matching parts from endpoints
@@ -1713,6 +1718,7 @@ protected:
   ModeNameMap mode_name_map_;
   ParasiticsNameMap parasitics_name_map_;
   VerilogReader *verilog_reader_{nullptr};
+  std::string verilog_src_id_prefix_;
   CheckTiming *check_timing_{nullptr};
   CheckSlews *check_slews_{nullptr};
   CheckFanouts *check_fanouts_{nullptr};

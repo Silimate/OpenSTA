@@ -275,6 +275,12 @@ ReportPath::setNoSplit(bool no_split)
 }
 
 void
+ReportPath::setSrcIds(bool src_ids)
+{
+  src_ids_ = src_ids;
+}
+
+void
 ReportPath::setDigits(int digits)
 {
   digits_ = digits;
@@ -1309,6 +1315,12 @@ ReportPath::reportJson(const PathExpanded &expanded,
       result += sta::format("{:>{}}    \"verilog_src\": \"{}\",\n",
                             "", indent,
                             properties_->stringProperty(inst, "src"));
+      if (src_ids_) {
+        std::string src_ids = properties_->stringProperty(inst, "src_ids");
+        if (!src_ids.empty())
+          result += sta::format("{:>{}}    \"src_ids\": \"{}\",\n",
+                                "", indent, src_ids);
+      }
     }
 
     result += sta::format("{:>{}}    \"pin\": \"{}\",\n",

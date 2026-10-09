@@ -103,6 +103,8 @@ public:
   VerilogReader(NetworkReader *network);
   ~VerilogReader();
   bool read(std::string_view filename);
+  // src entries starting with prefix go to the src_ids attribute instead.
+  void setSrcIdPrefix(std::string_view prefix) { src_id_prefix_ = prefix; }
 
   void makeModule(std::string_view module_vname,
                   VerilogNetSeq *ports,
@@ -322,6 +324,7 @@ protected:
   const std::string one_net_name_;
   std::string constant10_max_;
   ViewType *view_type_;
+  std::string src_id_prefix_;
 };
 
 } // namespace sta
