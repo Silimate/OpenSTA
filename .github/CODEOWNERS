@@ -1,0 +1,10 @@
+# Code owners, inferred from the last 12 months of commits. Any one listed owner can approve,
+# and the last matching pattern wins.
+# Silimate's owners. This file takes precedence over upstream's root CODEOWNERS.
+
+*                         @stanminlee @akashlevy
+
+/stadb/                   @gigeresk @akashlevy
+
+/.github/                 @akashlevy @stanminlee
+/.github/CODEOWNERS       @akashlevy
