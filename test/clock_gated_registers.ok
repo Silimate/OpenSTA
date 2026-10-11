@@ -1,0 +1,6 @@
+wns max 0.00
+initial: r1
+wns max 0.00
+r1 on clk: 
+wns max 0.00
+r2 on gclk: r2

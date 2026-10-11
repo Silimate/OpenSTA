@@ -202,9 +202,10 @@ public:
 
   // Find arrivals for the clock tree.
   void findClkArrivals();
-  bool isClkGated(const Vertex *vertex) const;
+  bool isClkGated(const Vertex *vertex);
   void updateClkGates(Vertex *vertex);
   void computeClkGates();
+  void ensureClkGates();
   bool isClkGateVertex(Vertex *vertex);
   void seedArrival(Vertex *vertex);
   EvalPred *evalPred() const { return eval_pred_; }
@@ -601,6 +602,7 @@ protected:
   bool clk_arrivals_valid_{false};  // SILIMATE: was uninitialized
   // Per-vertex cache of whether the vertex is clock gated.
   std::vector<char> clk_gated_;
+  bool clk_gates_valid_{false};
   // Some arrivals exist.
   bool arrivals_exist_{false};
   // Arrivals at start points have been initialized.

@@ -144,6 +144,7 @@ record_public_tests {
   all_inputs_filters
   case_insensitive_matching
   clock_set_collections
+  clock_gated_registers
   collections
   get_ports_not_found
   constraint_modes
