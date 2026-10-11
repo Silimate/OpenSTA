@@ -3369,6 +3369,7 @@ Sta::arrival(const Pin *pin,
              const RiseFallBoth *rf,
              const MinMax *min_max)
 {
+  ensureGraph();
   Vertex *vertex, *bidirect_vertex;
   graph_->pinVertices(pin, vertex, bidirect_vertex);
   Arrival worst_arrival = min_max->initValue();
