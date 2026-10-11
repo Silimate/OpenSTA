@@ -154,6 +154,7 @@ record_public_tests {
   disable_clock_gating_check_pin
   disable_clock_gating_check_port
   disable_clock_gating_check_sdc
+  disconnect_load_delay
   disconnect_mcp_pin
   dmp_two_pole_reduce
   equiv_cells_ff_latch

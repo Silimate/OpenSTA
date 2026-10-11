@@ -5131,6 +5131,11 @@ Sta::deleteEdge(Edge *edge)
   if (!edge->role()->isTimingCheck()) {
     search_->deleteEdgeBefore(edge);
     graph_delay_calc_->delayInvalid(to);
+    if (edge->role()->isWire()) {
+      Vertex *from = edge->from(graph_);
+      graph_delay_calc_->delayInvalid(from);
+      search_->requiredInvalid(from);
+    }
     levelize_->relevelizeFrom(to);
     levelize_->deleteEdgeBefore(edge);
     for (Mode *mode : modes_)
@@ -5230,7 +5235,7 @@ Sta::deletePinBefore(const Pin *pin)
           Edge *edge = in_edge_iter.next();
           if (edge->role()->isWire()) {
             Vertex *from = edge->from(graph_);
-            // Only notify to_vertex (from_vertex will be deleted).
+            graph_delay_calc_->delayInvalid(from);
             search_->requiredInvalid(from);
           }
           levelize_->deleteEdgeBefore(edge);
