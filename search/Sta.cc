@@ -5045,7 +5045,7 @@ Sta::connectLoadPinAfter(Vertex *vertex)
     Edge *edge = edge_iter.next();
     if (!edge->role()->isTimingCheck()) {
       Vertex *from_vertex = edge->from(graph_);
-      graph_delay_calc_->delayInvalid(from_vertex);
+      graph_delay_calc_->loadsChanged(from_vertex);
       search_->requiredInvalid(from_vertex);
       levelize_->relevelizeFrom(from_vertex);
       for (Mode *mode : modes_)
@@ -5133,7 +5133,7 @@ Sta::deleteEdge(Edge *edge)
     graph_delay_calc_->delayInvalid(to);
     if (edge->role()->isWire()) {
       Vertex *from = edge->from(graph_);
-      graph_delay_calc_->delayInvalid(from);
+      graph_delay_calc_->loadsChanged(from);
       search_->requiredInvalid(from);
     }
     levelize_->relevelizeFrom(to);
@@ -5235,7 +5235,7 @@ Sta::deletePinBefore(const Pin *pin)
           Edge *edge = in_edge_iter.next();
           if (edge->role()->isWire()) {
             Vertex *from = edge->from(graph_);
-            graph_delay_calc_->delayInvalid(from);
+            graph_delay_calc_->loadsChanged(from);
             search_->requiredInvalid(from);
           }
           levelize_->deleteEdgeBefore(edge);

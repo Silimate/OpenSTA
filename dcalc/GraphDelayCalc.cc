@@ -259,6 +259,21 @@ GraphDelayCalc::delayInvalid(Vertex *vertex)
 }
 
 void
+GraphDelayCalc::loadsChanged(Vertex *drvr_vertex)
+{
+  MultiDrvrNet *multi_drvr = multiDrvrNet(drvr_vertex);
+  if (multi_drvr) {
+    for (Vertex *drvr : multi_drvr->drvrs()) {
+      multi_drvr_net_map_.erase(drvr);
+      delayInvalid(drvr);
+    }
+    delete multi_drvr;
+  }
+  else
+    delayInvalid(drvr_vertex);
+}
+
+void
 GraphDelayCalc::levelsChangedBefore()
 {
   delaysInvalid();
