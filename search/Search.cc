@@ -824,6 +824,7 @@ Search::arrivalsInvalid()
     requireds_seeded_ = false;
     clk_arrivals_valid_ = false;
     clk_gated_.clear();
+    clk_gates_valid_ = false;
     arrival_iter_->clear();
     required_iter_->clear();
     // No need to keep track of incremental updates any more.
@@ -957,8 +958,9 @@ Search::findClkArrivals()
 }
 
 bool
-Search::isClkGated(const Vertex *vertex) const
+Search::isClkGated(const Vertex *vertex)
 {
+  ensureClkGates();
   VertexId idx = graph_->id(vertex);
   return idx < clk_gated_.size() && clk_gated_[idx] != 0;
 }
@@ -1160,6 +1162,15 @@ Search::findArrivals(Level level)
 }
 
 void
+Search::ensureClkGates()
+{
+  if (!clk_gates_valid_) {
+    computeClkGates();
+    clk_gates_valid_ = true;
+  }
+}
+
+void
 Search::computeClkGates()
 {
   // Reset the clock gated set.
@@ -1207,9 +1218,8 @@ Search::findArrivals2(Level level)
   stats.report("Find arrivals");
   debugPrint(debug_, "search", 1, "found {} arrivals", arrival_count);
 
-  // Compute clock gated registers after all arrivals are found.
   if (arrival_count > 0)
-    computeClkGates();
+    clk_gates_valid_ = false;
 }
 
 void
