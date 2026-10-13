@@ -185,6 +185,7 @@ record_public_tests {
   lib_cell_props
   lib_db
   lib_db_cmds
+  lib_db_power
   liberty_arcs_one2one_1
   liberty_arcs_one2one_2
   liberty_backslash_eol

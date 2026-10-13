@@ -369,6 +369,7 @@ public:
                      // Return value.
                      float &voltage,
                      bool &exists) const;
+  const SupplyVoltageMap &supplyVoltages() const { return supply_voltage_map_; }
 
   // Make scaled cell.  Call LibertyCell::addScaledCell after it is complete.
   LibertyCell *makeScaledCell(std::string_view name,

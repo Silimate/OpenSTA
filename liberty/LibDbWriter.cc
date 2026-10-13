@@ -40,6 +40,8 @@
 #include "ConcreteLibrary.hh"
 #include "FuncExpr.hh"
 #include "GeneratedClock.hh"
+#include "InternalPower.hh"
+#include "LeakagePower.hh"
 #include "Liberty.hh"
 #include "PortDirection.hh"
 #include "Report.hh"
@@ -569,6 +571,33 @@ LibWriter::writeCell(LibertyCell *cell)
   w_.u32(static_cast<uint32_t>(arc_sets.size()));
   for (TimingArcSet *set : arc_sets)
     writeArcSet(set);
+
+  // --- power: cell_leakage_power, leakage_power groups, internal_power groups ---
+  float leakage;
+  bool leakage_exists;
+  cell->leakagePower(leakage, leakage_exists);
+  w_.boolean(leakage_exists);
+  w_.f32(leakage_exists ? leakage : 0.0F);
+
+  const LeakagePowerSeq &leakages = cell->leakagePowers();
+  w_.u32(static_cast<uint32_t>(leakages.size()));
+  for (const LeakagePower &pwr : leakages) {
+    writePortRef(pwr.relatedPgPort());
+    writeFuncExpr(pwr.when());
+    w_.f32(pwr.power());
+  }
+
+  // One entry per related pin, as the liberty reader expands them.
+  const InternalPowerSeq &internals = cell->internalPowers();
+  w_.u32(static_cast<uint32_t>(internals.size()));
+  for (const InternalPower &pwr : internals) {
+    writePortRef(pwr.port());
+    writePortRef(pwr.relatedPort());
+    writePortRef(pwr.relatedPgPin());
+    writeFuncExpr(pwr.when());
+    for (const RiseFall *rf : RiseFall::range())
+      writeTableModel(pwr.model(rf).model());
+  }
 }
 
 ////////////////////////////////////////////////////////////////
@@ -584,7 +613,8 @@ LibWriter::writeUnit(const Unit *unit)
 void
 LibWriter::writeLibrary()
 {
-  // Globals → units → defaults → bus dcls → templates → default op-cond/scales → cells.
+  // Globals → units → defaults → bus dcls → templates → default op-cond/scales →
+  // supply voltages → cells.
   w_.str(lib_->name());
   w_.str(lib_->filename());
   w_.u8(static_cast<uint8_t>(lib_->delayModelType()));
@@ -688,6 +718,14 @@ LibWriter::writeLibrary()
                                static_cast<ScaleFactorPvt>(pvt), rf));
       }
     }
+  }
+
+  // voltage_map (power and waveform delay calc look rails up by name).
+  const SupplyVoltageMap &supplies = lib_->supplyVoltages();
+  w_.u32(static_cast<uint32_t>(supplies.size()));
+  for (const auto &[supply, voltage] : supplies) {
+    w_.str(supply);
+    w_.f32(voltage);
   }
 
   LibertyCellIterator cell_iter(lib_);
