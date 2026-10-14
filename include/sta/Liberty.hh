@@ -240,6 +240,7 @@ public:
   ScaleFactors *makeScaleFactors(std::string_view name);
   ScaleFactors *findScaleFactors(std::string_view name);
   ScaleFactors *scaleFactors() const { return scale_factors_; }
+  const ScaleFactorsMap &scaleFactorsMap() const { return scale_factors_map_; }
   float scaleFactor(ScaleFactorType type,
                     const Pvt *pvt) const;
   float scaleFactor(ScaleFactorType type,
@@ -340,6 +341,7 @@ public:
 
   Wireload *makeWireload(std::string_view name);
   const Wireload *findWireload(std::string_view name);
+  const WireloadMap &wireloads() const { return wireloads_; }
   void setDefaultWireload(const Wireload *wireload);
   const Wireload *defaultWireload() const;
   WireloadSelection *makeWireloadSelection(std::string_view name);
@@ -351,6 +353,7 @@ public:
 
   OperatingConditions *makeOperatingConditions(std::string_view name);
   OperatingConditions *findOperatingConditions(std::string_view name);
+  const OperatingConditionsMap &operatingConditions() const { return operating_conditions_; }
   OperatingConditions *defaultOperatingConditions() const;
   void setDefaultOperatingConditions(OperatingConditions *op_cond);
 
@@ -1061,7 +1064,7 @@ public:
   const std::string &name() const { return name_; }
   float scale(ScaleFactorType type,
               ScaleFactorPvt pvt,
-              const RiseFall *rf);
+              const RiseFall *rf) const;
   float scale(ScaleFactorType type,
               ScaleFactorPvt pvt,
               int rf_index);

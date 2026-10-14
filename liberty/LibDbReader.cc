@@ -52,6 +52,7 @@
 #include "TimingRole.hh"
 #include "Transition.hh"
 #include "Units.hh"
+#include "Wireload.hh"
 
 namespace sta {
 
@@ -92,7 +93,7 @@ public:
 
 private:
   void readUnit(Unit *unit);
-  void readCell();
+  void readCell(LibertyCell *test_cell_owner);
   void readPort(LibertyCell *cell);
   void readPortAttrs(LibertyCell *cell);
   FuncExpr *readFuncExpr(LibertyCell *cell);
@@ -490,13 +491,20 @@ LibLoader::readPortAttrs(LibertyCell *cell)
 ////////////////////////////////////////////////////////////////
 
 void
-LibLoader::readCell()
+LibLoader::readCell(LibertyCell *test_cell_owner)
 {
-  // Ports → port attrs → sequentials → statetable → gen clocks → arcs → power →
-  // finish(false).
+  // Ports → port attrs → sequentials → test cell → statetable → gen clocks → arcs →
+  // power → finish(false).
   const std::string name = r_.str();
   const std::string filename = r_.str();
-  LibertyCell *cell = builder_.makeCell(lib_, name, filename);
+  LibertyCell *cell;
+  if (test_cell_owner) {
+    TestCell *test_cell = new TestCell(lib_, name, filename);
+    test_cell_owner->setTestCell(test_cell);
+    cell = test_cell;
+  }
+  else
+    cell = builder_.makeCell(lib_, name, filename);
 
   cell->setArea(r_.f32());
   cell->setDontUse(r_.boolean());
@@ -542,6 +550,9 @@ LibLoader::readCell()
     cell->makeSequential(1, is_register, clk, data, clear, preset,
                          clr_preset_out, clr_preset_out_inv, output, output_inv);
   }
+
+  if (r_.boolean())
+    readCell(cell);
 
   if (r_.boolean()) {
     LibertyPortSeq inputs;
@@ -749,16 +760,19 @@ LibLoader::read()
     }
   }
 
-  if (r_.boolean()) {
+  uint32_t op_cond_count = r_.u32();
+  for (uint32_t i = 0; i < op_cond_count; i++) {
     OperatingConditions *op_cond = lib_->makeOperatingConditions(r_.str());
     op_cond->setProcess(r_.f32());
     op_cond->setVoltage(r_.f32());
     op_cond->setTemperature(r_.f32());
     op_cond->setWireloadTree(static_cast<WireloadTree>(r_.u8()));
-    lib_->setDefaultOperatingConditions(op_cond);
   }
+  if (r_.boolean())
+    lib_->setDefaultOperatingConditions(lib_->findOperatingConditions(r_.str()));
 
-  if (r_.boolean()) {
+  uint32_t scale_count = r_.u32();
+  for (uint32_t i = 0; i < scale_count; i++) {
     ScaleFactors *scales = lib_->makeScaleFactors(r_.str());
     for (int type = 0; type < scale_factor_type_count; type++) {
       for (int pvt = 0; pvt < scale_factor_pvt_count; pvt++) {
@@ -767,7 +781,22 @@ LibLoader::read()
                            static_cast<ScaleFactorPvt>(pvt), rf, r_.f32());
       }
     }
-    lib_->setScaleFactors(scales);
+  }
+  if (r_.boolean())
+    lib_->setScaleFactors(lib_->findScaleFactors(r_.str()));
+
+  uint32_t wireload_count = r_.u32();
+  for (uint32_t i = 0; i < wireload_count; i++) {
+    Wireload *wireload = lib_->makeWireload(r_.str());
+    wireload->setArea(r_.f32());
+    wireload->setResistance(r_.f32());
+    wireload->setCapacitance(r_.f32());
+    wireload->setSlope(r_.f32());
+    uint32_t fanout_count = r_.u32();
+    for (uint32_t j = 0; j < fanout_count; j++) {
+      float fanout = r_.f32();
+      wireload->addFanoutLength(fanout, r_.f32());
+    }
   }
 
   uint32_t supply_count = r_.u32();
@@ -778,7 +807,7 @@ LibLoader::read()
 
   uint32_t cell_count = r_.u32();
   for (uint32_t i = 0; i < cell_count; i++)
-    readCell();
+    readCell(nullptr);
 
   // LibDbReader sets this if we tried to read past the end of the body.
   if (r_.failed())

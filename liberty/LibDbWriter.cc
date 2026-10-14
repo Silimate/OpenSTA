@@ -52,6 +52,7 @@
 #include "TimingRole.hh"
 #include "Transition.hh"
 #include "Units.hh"
+#include "Wireload.hh"
 
 namespace sta {
 
@@ -518,6 +519,13 @@ LibWriter::writeCell(LibertyCell *cell)
     writePortRef(seq.outputInv());
   }
 
+  // Power falls back on the test cell's functions and flops for scan cells
+  // that model them only there.
+  TestCell *test_cell = cell->testCell();
+  w_.boolean(test_cell != nullptr);
+  if (test_cell)
+    writeCell(test_cell);
+
   // Statetable also marks isSequential() (e.g. some clock-gate latches).
   const Statetable *statetable = cell->statetable();
   w_.boolean(statetable != nullptr);
@@ -613,8 +621,8 @@ LibWriter::writeUnit(const Unit *unit)
 void
 LibWriter::writeLibrary()
 {
-  // Globals → units → defaults → bus dcls → templates → default op-cond/scales →
-  // supply voltages → cells.
+  // Globals → units → defaults → bus dcls → templates → op-conds → scale factors →
+  // wire loads → supply voltages → cells.
   w_.str(lib_->name());
   w_.str(lib_->filename());
   w_.u8(static_cast<uint8_t>(lib_->delayModelType()));
@@ -696,27 +704,53 @@ LibWriter::writeLibrary()
     writeAxisRef(tmpl->axis3ptr());
   }
 
-  // Default op-cond / scale factors only (no named-map iterators).
-  OperatingConditions *op_cond = lib_->defaultOperatingConditions();
-  w_.boolean(op_cond != nullptr);
-  if (op_cond) {
-    w_.str(op_cond->name());
-    w_.f32(op_cond->process());
-    w_.f32(op_cond->voltage());
-    w_.f32(op_cond->temperature());
-    w_.u8(static_cast<uint8_t>(op_cond->wireloadTree()));
+  // Every op-cond and scale factor group, then the defaults by name, since
+  // set_operating_conditions and cell scaling_factors look them up by name.
+  const OperatingConditionsMap &op_conds = lib_->operatingConditions();
+  w_.u32(static_cast<uint32_t>(op_conds.size()));
+  for (const auto &[name, op_cond] : op_conds) {
+    w_.str(name);
+    w_.f32(op_cond.process());
+    w_.f32(op_cond.voltage());
+    w_.f32(op_cond.temperature());
+    w_.u8(static_cast<uint8_t>(op_cond.wireloadTree()));
   }
+  const OperatingConditions *default_op_cond = lib_->defaultOperatingConditions();
+  w_.boolean(default_op_cond != nullptr);
+  if (default_op_cond)
+    w_.str(default_op_cond->name());
 
-  ScaleFactors *scales = lib_->scaleFactors();
-  w_.boolean(scales != nullptr);
-  if (scales) {
-    w_.str(scales->name());
+  const ScaleFactorsMap &scale_groups = lib_->scaleFactorsMap();
+  w_.u32(static_cast<uint32_t>(scale_groups.size()));
+  for (const auto &[name, scales] : scale_groups) {
+    w_.str(name);
     for (int type = 0; type < scale_factor_type_count; type++) {
       for (int pvt = 0; pvt < scale_factor_pvt_count; pvt++) {
         for (const RiseFall *rf : RiseFall::range())
-          w_.f32(scales->scale(static_cast<ScaleFactorType>(type),
-                               static_cast<ScaleFactorPvt>(pvt), rf));
+          w_.f32(scales.scale(static_cast<ScaleFactorType>(type),
+                              static_cast<ScaleFactorPvt>(pvt), rf));
       }
+    }
+  }
+  const ScaleFactors *default_scales = lib_->scaleFactors();
+  w_.boolean(default_scales != nullptr);
+  if (default_scales)
+    w_.str(default_scales->name());
+
+  // Wire loads, which set_wire_load_model looks up by name.
+  const WireloadMap &wireloads = lib_->wireloads();
+  w_.u32(static_cast<uint32_t>(wireloads.size()));
+  for (const auto &[name, wireload] : wireloads) {
+    w_.str(name);
+    w_.f32(wireload.area());
+    w_.f32(wireload.resistance());
+    w_.f32(wireload.capacitance());
+    w_.f32(wireload.slope());
+    const FanoutLengthSeq &fanout_lengths = wireload.fanoutLengths();
+    w_.u32(static_cast<uint32_t>(fanout_lengths.size()));
+    for (const FanoutLength *fanout_length : fanout_lengths) {
+      w_.f32(fanout_length->first);
+      w_.f32(fanout_length->second);
     }
   }
 

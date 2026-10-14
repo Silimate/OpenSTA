@@ -1,3 +1,4 @@
 lib_db power asap7 matches: 1
 lib_db power leakage_default matches: 1
 lib_db power bus matches: 1
+lib_db power lib_groups matches: 1

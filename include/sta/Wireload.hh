@@ -62,6 +62,11 @@ public:
            float slope);
   virtual ~Wireload();
   const std::string &name() const { return name_; }
+  float area() const { return area_; }
+  float resistance() const { return resistance_; }
+  float capacitance() const { return capacitance_; }
+  float slope() const { return slope_; }
+  const FanoutLengthSeq &fanoutLengths() const { return fanout_lengths_; }
   void setArea(float area);
   void setResistance(float res);
   void setCapacitance(float cap);
