@@ -18,12 +18,17 @@ write_lib_db \[get_libs *\] $db_file" libdb_pw_${tag}_$i
   }
   set cold_rpt [make_result_file "lib_db_power.$tag.cold.rpt"]
   set warm_rpt [make_result_file "lib_db_power.$tag.warm.rpt"]
+  file delete -force $cold_rpt $warm_rpt
   stadb_run "$cold_reads$design
 report_power -digits 6 > $cold_rpt
 report_power -digits 6 -instances \[get_cells *\] >> $cold_rpt" libdb_pc_$tag
   stadb_run "$warm_reads$design
 report_power -digits 6 > $warm_rpt
 report_power -digits 6 -instances \[get_cells *\] >> $warm_rpt" libdb_pr_$tag
+  # Two reports that failed alike would match, so the source run must have reported power
+  if { ![string match "*\nTotal *" [stadb_contents $cold_rpt]] } {
+    puts "lib_db power $tag: no power report from Liberty source"
+  }
   stadb_check_files "lib_db power $tag" $cold_rpt $warm_rpt
 }
 
