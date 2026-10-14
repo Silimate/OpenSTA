@@ -40,7 +40,7 @@ class Network;
 class Report;
 
 // Bumped when the on-disk layout changes; readers reject any other value.
-constexpr uint32_t lib_db_version = 1;
+constexpr uint32_t lib_db_version = 2;
 // Means "no object here" for shared axes/tables/attrs ids.
 constexpr uint32_t lib_db_id_null = 0xFFFFFFFFu;
 

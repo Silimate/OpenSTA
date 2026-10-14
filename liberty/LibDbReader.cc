@@ -39,6 +39,7 @@
 #include "ConcreteLibrary.hh"
 #include "Debug.hh"
 #include "FuncExpr.hh"
+#include "InternalPower.hh"
 #include "Liberty.hh"
 #include "LibertyBuilder.hh"
 #include "Network.hh"
@@ -491,7 +492,8 @@ LibLoader::readPortAttrs(LibertyCell *cell)
 void
 LibLoader::readCell()
 {
-  // Ports → port attrs → sequentials → statetable → gen clocks → arcs → finish(false).
+  // Ports → port attrs → sequentials → statetable → gen clocks → arcs → power →
+  // finish(false).
   const std::string name = r_.str();
   const std::string filename = r_.str();
   LibertyCell *cell = builder_.makeCell(lib_, name, filename);
@@ -603,6 +605,35 @@ LibLoader::readCell()
   uint32_t arc_set_count = r_.u32();
   for (uint32_t i = 0; i < arc_set_count; i++)
     readArcSet(cell);
+
+  bool leakage_exists = r_.boolean();
+  float leakage = r_.f32();
+  if (leakage_exists)
+    cell->setLeakagePower(leakage);
+
+  uint32_t leakage_count = r_.u32();
+  for (uint32_t i = 0; i < leakage_count; i++) {
+    LibertyPort *related_pg_port = readPortRef(cell);
+    FuncExpr *when = readFuncExpr(cell);
+    float power = r_.f32();
+    cell->makeLeakagePower(related_pg_port, when, power);
+  }
+
+  uint32_t internal_count = r_.u32();
+  for (uint32_t i = 0; i < internal_count; i++) {
+    LibertyPort *port = readPortRef(cell);
+    LibertyPort *related_port = readPortRef(cell);
+    LibertyPort *related_pg_pin = readPortRef(cell);
+    std::shared_ptr<FuncExpr> when(readFuncExpr(cell));
+    InternalPowerModels models{};
+    for (const RiseFall *rf : RiseFall::range()) {
+      TableModel *model = readTableModel();
+      if (model)
+        models[rf->index()] = InternalPowerModel(std::shared_ptr<TableModel>(model));
+    }
+    if (port)
+      cell->makeInternalPower(port, related_port, related_pg_pin, when, models);
+  }
 
   // false = do not re-derive latch enables; arcs/roles already match the original liberty.
   cell->finish(false, report_, debug_);
@@ -737,6 +768,12 @@ LibLoader::read()
       }
     }
     lib_->setScaleFactors(scales);
+  }
+
+  uint32_t supply_count = r_.u32();
+  for (uint32_t i = 0; i < supply_count; i++) {
+    const std::string supply = r_.str();
+    lib_->addSupplyVoltage(supply, r_.f32());
   }
 
   uint32_t cell_count = r_.u32();
