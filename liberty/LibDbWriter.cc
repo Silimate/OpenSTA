@@ -770,7 +770,8 @@ LibWriter::write(const char *path)
     ok = fwrite(strings.bytes().data(), strings.size(), 1, f) == 1;
   if (ok && w_.size())
     ok = fwrite(w_.bytes().data(), w_.size(), 1, f) == 1;
-  fclose(f);
+  // Buffered bytes can still fail to land at close, e.g. on a full disk.
+  ok = fclose(f) == 0 && ok;
 
   if (!ok)
     report_->error(1353, "error writing {}.", path);

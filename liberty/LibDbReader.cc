@@ -492,7 +492,8 @@ LibLoader::readPortAttrs(LibertyCell *cell)
 void
 LibLoader::readCell()
 {
-  // Ports → port attrs → sequentials → statetable → gen clocks → arcs → power → finish(false).
+  // Ports → port attrs → sequentials → statetable → gen clocks → arcs → power →
+  // finish(false).
   const std::string name = r_.str();
   const std::string filename = r_.str();
   LibertyCell *cell = builder_.makeCell(lib_, name, filename);

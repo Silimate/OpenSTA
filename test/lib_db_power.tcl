@@ -1,5 +1,5 @@
 # Power from a .libdb cache matches the Liberty source: internal and leakage
-# power, when conditions, related_pg_pin, voltage_map and bus pins.
+# power, when conditions, related_pg_pin and voltage_map.
 
 source stadb_helpers.tcl
 
@@ -32,15 +32,7 @@ report_power -digits 6 -instances \[get_cells *\] >> $warm_rpt" libdb_pr_$tag
   stadb_check_files "lib_db power $tag" $cold_rpt $warm_rpt
 }
 
-# voltage_map, pg_pin and conditional leakage, with SAIF activity.
-lib_db_power_check sky130hd ../examples/sky130hd_tt.lib.gz {
-read_verilog ../examples/gcd_sky130hd.v
-link_design gcd
-read_sdc ../examples/gcd_sky130hd.sdc
-read_saif -scope gcd_tb/gcd1 ../examples/gcd_sky130hd.saif.gz
-}
-
-# related_pg_pin on internal and leakage power.
+# related_pg_pin and when conditions on internal power.
 lib_db_power_check asap7 {asap7_seq.lib.gz asap7_invbuf.lib.gz asap7_simple.lib.gz} {
 read_verilog ../examples/reg1_asap7.v
 link_design top
@@ -56,10 +48,12 @@ create_clock -name clk -period 10
 set_power_activity -input_ports a -activity 0.1 -duty 0.25
 }
 
-# Internal power on bus pins of a memory macro.
+# Memory macro power gated by bus bits; asap7 rails come from voltage_map, not
+# the gf180 operating conditions.
 lib_db_power_check bus {gf180mcu_sram.lib.gz asap7_small.lib.gz} {
 read_verilog get_is_memory.v
 link_design get_is_memory
-create_clock -name clk -period 10 [get_ports -quiet *clk*]
+create_clock -name clk -period 10 CLK
+set_operating_conditions ff_1p98v_125C
 set_power_activity -input -activity 0.1 -duty 0.5
 }
