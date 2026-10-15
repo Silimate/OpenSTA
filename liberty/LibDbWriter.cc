@@ -40,6 +40,8 @@
 #include "ConcreteLibrary.hh"
 #include "FuncExpr.hh"
 #include "GeneratedClock.hh"
+#include "InternalPower.hh"
+#include "LeakagePower.hh"
 #include "Liberty.hh"
 #include "PortDirection.hh"
 #include "Report.hh"
@@ -50,6 +52,7 @@
 #include "TimingRole.hh"
 #include "Transition.hh"
 #include "Units.hh"
+#include "Wireload.hh"
 
 namespace sta {
 
@@ -291,6 +294,8 @@ LibWriter::writeAttrs(TimingArcSet *set)
   w_.str(set->modeValue());
   writeModel(m0);
   writeModel(m1);
+  for (const RiseFall *rf : RiseFall::range())
+    writeModel(set->retainModel(rf));
 }
 
 void
@@ -516,6 +521,12 @@ LibWriter::writeCell(LibertyCell *cell)
     writePortRef(seq.outputInv());
   }
 
+  // Power falls back on a scan cell's test_cell for its flops and functions.
+  TestCell *test_cell = cell->testCell();
+  w_.boolean(test_cell != nullptr);
+  if (test_cell)
+    writeCell(test_cell);
+
   // Statetable also marks isSequential() (e.g. some clock-gate latches).
   const Statetable *statetable = cell->statetable();
   w_.boolean(statetable != nullptr);
@@ -569,6 +580,40 @@ LibWriter::writeCell(LibertyCell *cell)
   w_.u32(static_cast<uint32_t>(arc_sets.size()));
   for (TimingArcSet *set : arc_sets)
     writeArcSet(set);
+
+  // --- power: cell_leakage_power, leakage_power groups, internal_power groups ---
+  float leakage;
+  bool leakage_exists;
+  cell->leakagePower(leakage, leakage_exists);
+  w_.boolean(leakage_exists);
+  w_.f32(leakage);
+
+  const LeakagePowerSeq &leakages = cell->leakagePowers();
+  w_.u32(static_cast<uint32_t>(leakages.size()));
+  for (const LeakagePower &pwr : leakages) {
+    writePortRef(pwr.relatedPgPort());
+    writeFuncExpr(pwr.when());
+    w_.f32(pwr.power());
+  }
+
+  const InternalPowerSeq &internals = cell->internalPowers();
+  w_.u32(static_cast<uint32_t>(internals.size()));
+  for (const InternalPower &pwr : internals) {
+    writePortRef(pwr.port());
+    writePortRef(pwr.relatedPort());
+    writePortRef(pwr.relatedPgPin());
+    writeFuncExpr(pwr.when());
+    for (const RiseFall *rf : RiseFall::range())
+      writeTableModel(pwr.model(rf).model());
+  }
+
+  // Cells whose pin caps and timing models replace these under an op-cond.
+  const ScaledCellMap &scaled_cells = cell->scaledCells();
+  w_.u32(static_cast<uint32_t>(scaled_cells.size()));
+  for (const auto &[op_cond, scaled_cell] : scaled_cells) {
+    w_.str(op_cond->name());
+    writeCell(scaled_cell);
+  }
 }
 
 ////////////////////////////////////////////////////////////////
@@ -584,7 +629,8 @@ LibWriter::writeUnit(const Unit *unit)
 void
 LibWriter::writeLibrary()
 {
-  // Globals → units → defaults → bus dcls → templates → default op-cond/scales → cells.
+  // Globals → units → defaults → bus dcls → templates → op-conds → scale factors →
+  // wire loads → supply voltages → cells.
   w_.str(lib_->name());
   w_.str(lib_->filename());
   w_.u8(static_cast<uint8_t>(lib_->delayModelType()));
@@ -666,28 +712,58 @@ LibWriter::writeLibrary()
     writeAxisRef(tmpl->axis3ptr());
   }
 
-  // Default op-cond / scale factors only (no named-map iterators).
-  OperatingConditions *op_cond = lib_->defaultOperatingConditions();
-  w_.boolean(op_cond != nullptr);
-  if (op_cond) {
-    w_.str(op_cond->name());
-    w_.f32(op_cond->process());
-    w_.f32(op_cond->voltage());
-    w_.f32(op_cond->temperature());
-    w_.u8(static_cast<uint8_t>(op_cond->wireloadTree()));
+  // Every op-cond and scale factor group, then the defaults by name.
+  const OperatingConditionsMap &op_conds = lib_->operatingConditions();
+  w_.u32(static_cast<uint32_t>(op_conds.size()));
+  for (const auto &[name, op_cond] : op_conds) {
+    w_.str(name);
+    w_.f32(op_cond.process());
+    w_.f32(op_cond.voltage());
+    w_.f32(op_cond.temperature());
+    w_.u8(static_cast<uint8_t>(op_cond.wireloadTree()));
   }
+  const OperatingConditions *default_op_cond = lib_->defaultOperatingConditions();
+  w_.boolean(default_op_cond != nullptr);
+  if (default_op_cond)
+    w_.str(default_op_cond->name());
 
-  ScaleFactors *scales = lib_->scaleFactors();
-  w_.boolean(scales != nullptr);
-  if (scales) {
-    w_.str(scales->name());
+  const ScaleFactorsMap &scale_groups = lib_->scaleFactorsMap();
+  w_.u32(static_cast<uint32_t>(scale_groups.size()));
+  for (const auto &[name, scales] : scale_groups) {
+    w_.str(name);
     for (int type = 0; type < scale_factor_type_count; type++) {
       for (int pvt = 0; pvt < scale_factor_pvt_count; pvt++) {
         for (const RiseFall *rf : RiseFall::range())
-          w_.f32(scales->scale(static_cast<ScaleFactorType>(type),
-                               static_cast<ScaleFactorPvt>(pvt), rf));
+          w_.f32(scales.scale(static_cast<ScaleFactorType>(type),
+                              static_cast<ScaleFactorPvt>(pvt), rf));
       }
     }
+  }
+  const ScaleFactors *default_scales = lib_->scaleFactors();
+  w_.boolean(default_scales != nullptr);
+  if (default_scales)
+    w_.str(default_scales->name());
+
+  const WireloadMap &wireloads = lib_->wireloads();
+  w_.u32(static_cast<uint32_t>(wireloads.size()));
+  for (const auto &[name, wireload] : wireloads) {
+    w_.str(name);
+    w_.f32(wireload.resistance());
+    w_.f32(wireload.capacitance());
+    w_.f32(wireload.slope());
+    const FanoutLengthSeq &fanout_lengths = wireload.fanoutLengths();
+    w_.u32(static_cast<uint32_t>(fanout_lengths.size()));
+    for (const FanoutLength *fanout_length : fanout_lengths) {
+      w_.f32(fanout_length->first);
+      w_.f32(fanout_length->second);
+    }
+  }
+
+  const SupplyVoltageMap &supplies = lib_->supplyVoltages();
+  w_.u32(static_cast<uint32_t>(supplies.size()));
+  for (const auto &[supply, voltage] : supplies) {
+    w_.str(supply);
+    w_.f32(voltage);
   }
 
   LibertyCellIterator cell_iter(lib_);
@@ -732,7 +808,8 @@ LibWriter::write(const char *path)
     ok = fwrite(strings.bytes().data(), strings.size(), 1, f) == 1;
   if (ok && w_.size())
     ok = fwrite(w_.bytes().data(), w_.size(), 1, f) == 1;
-  fclose(f);
+  // Buffered bytes can still fail to land at close, e.g. on a full disk.
+  ok = fclose(f) == 0 && ok;
 
   if (!ok)
     report_->error(1353, "error writing {}.", path);

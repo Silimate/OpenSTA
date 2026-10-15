@@ -39,6 +39,7 @@
 #include "ConcreteLibrary.hh"
 #include "Debug.hh"
 #include "FuncExpr.hh"
+#include "InternalPower.hh"
 #include "Liberty.hh"
 #include "LibertyBuilder.hh"
 #include "Network.hh"
@@ -51,6 +52,7 @@
 #include "TimingRole.hh"
 #include "Transition.hh"
 #include "Units.hh"
+#include "Wireload.hh"
 
 namespace sta {
 
@@ -92,6 +94,7 @@ public:
 private:
   void readUnit(Unit *unit);
   void readCell();
+  void readCellBody(LibertyCell *cell);
   void readPort(LibertyCell *cell);
   void readPortAttrs(LibertyCell *cell);
   FuncExpr *readFuncExpr(LibertyCell *cell);
@@ -304,6 +307,8 @@ LibLoader::readAttrs(LibertyCell *cell)
     if (model)
       attrs->setModel(rf, model);
   }
+  for (const RiseFall *rf : RiseFall::range())
+    attrs->setRetainModel(rf, readModel(cell));
   if (id != lib_db_id_null)
     attrs_.push_back(attrs);
   return attrs;
@@ -491,11 +496,16 @@ LibLoader::readPortAttrs(LibertyCell *cell)
 void
 LibLoader::readCell()
 {
-  // Ports → port attrs → sequentials → statetable → gen clocks → arcs → finish(false).
   const std::string name = r_.str();
   const std::string filename = r_.str();
-  LibertyCell *cell = builder_.makeCell(lib_, name, filename);
+  readCellBody(builder_.makeCell(lib_, name, filename));
+}
 
+void
+LibLoader::readCellBody(LibertyCell *cell)
+{
+  // Ports → port attrs → sequentials → test cell → statetable → gen clocks → arcs →
+  // power → finish(false) → scaled cells.
   cell->setArea(r_.f32());
   cell->setDontUse(r_.boolean());
   cell->setIsMacro(r_.boolean());
@@ -539,6 +549,14 @@ LibLoader::readCell()
     // Already split per bit; size-1 group. makeSequential owns the exprs.
     cell->makeSequential(1, is_register, clk, data, clear, preset,
                          clr_preset_out, clr_preset_out_inv, output, output_inv);
+  }
+
+  if (r_.boolean()) {
+    const std::string name = r_.str();
+    const std::string filename = r_.str();
+    TestCell *test_cell = new TestCell(lib_, name, filename);
+    cell->setTestCell(test_cell);
+    readCellBody(test_cell);
   }
 
   if (r_.boolean()) {
@@ -604,8 +622,46 @@ LibLoader::readCell()
   for (uint32_t i = 0; i < arc_set_count; i++)
     readArcSet(cell);
 
+  bool leakage_exists = r_.boolean();
+  float leakage = r_.f32();
+  if (leakage_exists)
+    cell->setLeakagePower(leakage);
+
+  uint32_t leakage_count = r_.u32();
+  for (uint32_t i = 0; i < leakage_count; i++) {
+    LibertyPort *related_pg_port = readPortRef(cell);
+    FuncExpr *when = readFuncExpr(cell);
+    float power = r_.f32();
+    cell->makeLeakagePower(related_pg_port, when, power);
+  }
+
+  uint32_t internal_count = r_.u32();
+  for (uint32_t i = 0; i < internal_count; i++) {
+    LibertyPort *port = readPortRef(cell);
+    LibertyPort *related_port = readPortRef(cell);
+    LibertyPort *related_pg_pin = readPortRef(cell);
+    std::shared_ptr<FuncExpr> when(readFuncExpr(cell));
+    InternalPowerModels models{};
+    for (const RiseFall *rf : RiseFall::range())
+      models[rf->index()] =
+        InternalPowerModel(std::shared_ptr<TableModel>(readTableModel()));
+    if (port)
+      cell->makeInternalPower(port, related_port, related_pg_pin, when, models);
+  }
+
   // false = do not re-derive latch enables; arcs/roles already match the original liberty.
   cell->finish(false, report_, debug_);
+
+  // Added once ports and arcs are complete, as LibertyReader does.
+  uint32_t scaled_count = r_.u32();
+  for (uint32_t i = 0; i < scaled_count; i++) {
+    OperatingConditions *op_cond = lib_->findOperatingConditions(r_.str());
+    const std::string name = r_.str();
+    const std::string filename = r_.str();
+    LibertyCell *scaled_cell = lib_->makeScaledCell(name, filename);
+    readCellBody(scaled_cell);
+    cell->addScaledCell(op_cond, scaled_cell);
+  }
 }
 
 void
@@ -718,16 +774,19 @@ LibLoader::read()
     }
   }
 
-  if (r_.boolean()) {
+  uint32_t op_cond_count = r_.u32();
+  for (uint32_t i = 0; i < op_cond_count; i++) {
     OperatingConditions *op_cond = lib_->makeOperatingConditions(r_.str());
     op_cond->setProcess(r_.f32());
     op_cond->setVoltage(r_.f32());
     op_cond->setTemperature(r_.f32());
     op_cond->setWireloadTree(static_cast<WireloadTree>(r_.u8()));
-    lib_->setDefaultOperatingConditions(op_cond);
   }
+  if (r_.boolean())
+    lib_->setDefaultOperatingConditions(lib_->findOperatingConditions(r_.str()));
 
-  if (r_.boolean()) {
+  uint32_t scale_count = r_.u32();
+  for (uint32_t i = 0; i < scale_count; i++) {
     ScaleFactors *scales = lib_->makeScaleFactors(r_.str());
     for (int type = 0; type < scale_factor_type_count; type++) {
       for (int pvt = 0; pvt < scale_factor_pvt_count; pvt++) {
@@ -736,7 +795,27 @@ LibLoader::read()
                            static_cast<ScaleFactorPvt>(pvt), rf, r_.f32());
       }
     }
-    lib_->setScaleFactors(scales);
+  }
+  if (r_.boolean())
+    lib_->setScaleFactors(lib_->findScaleFactors(r_.str()));
+
+  uint32_t wireload_count = r_.u32();
+  for (uint32_t i = 0; i < wireload_count; i++) {
+    Wireload *wireload = lib_->makeWireload(r_.str());
+    wireload->setResistance(r_.f32());
+    wireload->setCapacitance(r_.f32());
+    wireload->setSlope(r_.f32());
+    uint32_t fanout_count = r_.u32();
+    for (uint32_t j = 0; j < fanout_count; j++) {
+      float fanout = r_.f32();
+      wireload->addFanoutLength(fanout, r_.f32());
+    }
+  }
+
+  uint32_t supply_count = r_.u32();
+  for (uint32_t i = 0; i < supply_count; i++) {
+    const std::string supply = r_.str();
+    lib_->addSupplyVoltage(supply, r_.f32());
   }
 
   uint32_t cell_count = r_.u32();

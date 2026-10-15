@@ -1,0 +1,105 @@
+library (lib_db_power) {
+  delay_model : table_lookup;
+  time_unit : "1ns";
+  voltage_unit : "1V";
+  current_unit : "1mA";
+  capacitive_load_unit (1, pf);
+
+  /* No pg_pins, so rail voltages come from the operating conditions. */
+  operating_conditions (hot) {
+    voltage : 1.2;
+  }
+
+  scaling_factors (buf_scaling) {
+    k_volt_internal_power_rise : 0.5;
+  }
+
+  /* Fanout 1 sits below the first entry, so the slope extrapolates it. */
+  wire_load (wl) {
+    capacitance : 0.2;
+    slope : 0.5;
+    fanout_length (2, 2.0);
+  }
+
+  lu_table_template (delay_load) {
+    variable_1 : total_output_net_capacitance;
+    index_1 ("0.001, 1.0");
+  }
+  power_lut_template (energy_load) {
+    variable_1 : total_output_net_capacitance;
+    index_1 ("0.001, 1.0");
+  }
+
+  cell (BUF) {
+    scaling_factors : buf_scaling;
+    pin (A) { direction : input; capacitance : 0.01; }
+    pin (Y) {
+      direction : output;
+      function : "A";
+      timing () {
+        related_pin : "A";
+        cell_rise (delay_load) { values ("0.01, 0.5"); }
+        cell_fall (delay_load) { values ("0.01, 0.5"); }
+        rise_transition (delay_load) { values ("0.01, 0.5"); }
+        fall_transition (delay_load) { values ("0.01, 0.5"); }
+        /* Y's fastest slew, this retain slew under hot, caps its activity. */
+        retaining_rise (delay_load) { values ("0.005, 0.2"); }
+        retaining_fall (delay_load) { values ("0.005, 0.2"); }
+        retain_rise_slew (delay_load) { values ("20.0, 20.0"); }
+        retain_fall_slew (delay_load) { values ("20.0, 20.0"); }
+      }
+      internal_power () {
+        related_pin : "A";
+        rise_power (energy_load) { values ("0.001, 0.1"); }
+        fall_power (energy_load) { values ("0.001, 0.1"); }
+      }
+    }
+  }
+
+  /* Replaces BUF's pin caps and timing under the hot operating conditions. */
+  scaled_cell (BUF, hot) {
+    pin (A) { direction : input; capacitance : 0.05; }
+    pin (Y) {
+      direction : output;
+      function : "A";
+      timing () {
+        related_pin : "A";
+        cell_rise (delay_load) { values ("0.02, 0.8"); }
+        cell_fall (delay_load) { values ("0.02, 0.8"); }
+        rise_transition (delay_load) { values ("50.0, 50.0"); }
+        fall_transition (delay_load) { values ("50.0, 50.0"); }
+      }
+    }
+  }
+
+  /* The flop is modeled only in test_cell, as some scan cells are. */
+  cell (SDFF) {
+    pin (D) { direction : input; capacitance : 0.01; }
+    pin (CK) { direction : input; capacitance : 0.01; clock : true; }
+    pin (Q) {
+      direction : output;
+      timing () {
+        related_pin : "CK";
+        timing_type : rising_edge;
+        cell_rise (delay_load) { values ("0.05, 0.6"); }
+        cell_fall (delay_load) { values ("0.05, 0.6"); }
+        rise_transition (delay_load) { values ("0.01, 0.5"); }
+        fall_transition (delay_load) { values ("0.01, 0.5"); }
+      }
+      internal_power () {
+        related_pin : "CK";
+        rise_power (energy_load) { values ("0.002, 0.2"); }
+        fall_power (energy_load) { values ("0.002, 0.2"); }
+      }
+    }
+    test_cell () {
+      ff (IQ, IQN) {
+        next_state : "D";
+        clocked_on : "CK";
+      }
+      pin (D) { direction : input; }
+      pin (CK) { direction : input; clock : true; }
+      pin (Q) { direction : output; function : "IQ"; signal_type : test_scan_out; }
+    }
+  }
+}
