@@ -608,8 +608,9 @@ LibWriter::writeCell(LibertyCell *cell)
   }
 
   // Cells whose pin caps and timing models replace these under an op-cond.
-  w_.u32(static_cast<uint32_t>(cell->scaled_cells_.size()));
-  for (const auto &[op_cond, scaled_cell] : cell->scaled_cells_) {
+  const ScaledCellMap &scaled_cells = cell->scaledCells();
+  w_.u32(static_cast<uint32_t>(scaled_cells.size()));
+  for (const auto &[op_cond, scaled_cell] : scaled_cells) {
     w_.str(op_cond->name());
     writeCell(scaled_cell);
   }
@@ -712,8 +713,9 @@ LibWriter::writeLibrary()
   }
 
   // Every op-cond and scale factor group, then the defaults by name.
-  w_.u32(static_cast<uint32_t>(lib_->operating_conditions_.size()));
-  for (const auto &[name, op_cond] : lib_->operating_conditions_) {
+  const OperatingConditionsMap &op_conds = lib_->operatingConditions();
+  w_.u32(static_cast<uint32_t>(op_conds.size()));
+  for (const auto &[name, op_cond] : op_conds) {
     w_.str(name);
     w_.f32(op_cond.process());
     w_.f32(op_cond.voltage());
@@ -725,8 +727,9 @@ LibWriter::writeLibrary()
   if (default_op_cond)
     w_.str(default_op_cond->name());
 
-  w_.u32(static_cast<uint32_t>(lib_->scale_factors_map_.size()));
-  for (auto &[name, scales] : lib_->scale_factors_map_) {
+  const ScaleFactorsMap &scale_groups = lib_->scaleFactorsMap();
+  w_.u32(static_cast<uint32_t>(scale_groups.size()));
+  for (const auto &[name, scales] : scale_groups) {
     w_.str(name);
     for (int type = 0; type < scale_factor_type_count; type++) {
       for (int pvt = 0; pvt < scale_factor_pvt_count; pvt++) {
@@ -741,8 +744,9 @@ LibWriter::writeLibrary()
   if (default_scales)
     w_.str(default_scales->name());
 
-  w_.u32(static_cast<uint32_t>(lib_->wireloads_.size()));
-  for (const auto &[name, wireload] : lib_->wireloads_) {
+  const WireloadMap &wireloads = lib_->wireloads();
+  w_.u32(static_cast<uint32_t>(wireloads.size()));
+  for (const auto &[name, wireload] : wireloads) {
     w_.str(name);
     w_.f32(wireload.resistance());
     w_.f32(wireload.capacitance());
@@ -755,8 +759,9 @@ LibWriter::writeLibrary()
     }
   }
 
-  w_.u32(static_cast<uint32_t>(lib_->supply_voltage_map_.size()));
-  for (const auto &[supply, voltage] : lib_->supply_voltage_map_) {
+  const SupplyVoltageMap &supplies = lib_->supplyVoltages();
+  w_.u32(static_cast<uint32_t>(supplies.size()));
+  for (const auto &[supply, voltage] : supplies) {
     w_.str(supply);
     w_.f32(voltage);
   }
