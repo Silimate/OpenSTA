@@ -1,8 +1,6 @@
 module lib_db_power (
   input ck,
   input d,
-  input si,
-  input se,
   output y
 );
 
@@ -10,8 +8,6 @@ module lib_db_power (
 
   SDFF r1 (
     .D(d),
-    .SI(si),
-    .SE(se),
     .CK(ck),
     .Q(q)
   );

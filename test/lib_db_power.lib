@@ -3,40 +3,22 @@ library (lib_db_power) {
   time_unit : "1ns";
   voltage_unit : "1V";
   current_unit : "1mA";
-  pulling_resistance_unit : "1kohm";
   capacitive_load_unit (1, pf);
-  leakage_power_unit : "1nW";
-  nom_process : 1.0;
-  nom_temperature : 25.0;
-  nom_voltage : 1.0;
 
   /* No pg_pins, so rail voltages come from the operating conditions. */
-  operating_conditions (typ) {
-    process : 1.0;
-    temperature : 25.0;
-    voltage : 1.0;
-  }
   operating_conditions (hot) {
-    process : 1.0;
-    temperature : 125.0;
     voltage : 1.2;
   }
-  default_operating_conditions : typ;
 
   scaling_factors (buf_scaling) {
     k_volt_internal_power_rise : 0.5;
-    k_volt_internal_power_fall : 0.5;
-    k_temp_internal_power_rise : 0.01;
-    k_temp_internal_power_fall : 0.01;
   }
 
   /* Fanout 1 sits below the first entry, so the slope extrapolates it. */
   wire_load (wl) {
     capacitance : 0.2;
-    resistance : 0.01;
     slope : 0.5;
     fanout_length (2, 2.0);
-    fanout_length (3, 3.0);
   }
 
   lu_table_template (delay_load) {
@@ -49,9 +31,7 @@ library (lib_db_power) {
   }
 
   cell (BUF) {
-    area : 1.0;
     scaling_factors : buf_scaling;
-    cell_leakage_power : 1.0;
     pin (A) { direction : input; capacitance : 0.01; }
     pin (Y) {
       direction : output;
@@ -78,7 +58,6 @@ library (lib_db_power) {
 
   /* Replaces BUF's pin caps and timing under the hot operating conditions. */
   scaled_cell (BUF, hot) {
-    area : 1.0;
     pin (A) { direction : input; capacitance : 0.05; }
     pin (Y) {
       direction : output;
@@ -95,11 +74,7 @@ library (lib_db_power) {
 
   /* The flop is modeled only in test_cell, as some scan cells are. */
   cell (SDFF) {
-    area : 4.0;
-    cell_leakage_power : 2.0;
     pin (D) { direction : input; capacitance : 0.01; }
-    pin (SI) { direction : input; capacitance : 0.01; }
-    pin (SE) { direction : input; capacitance : 0.01; }
     pin (CK) { direction : input; capacitance : 0.01; clock : true; }
     pin (Q) {
       direction : output;
@@ -119,12 +94,10 @@ library (lib_db_power) {
     }
     test_cell () {
       ff (IQ, IQN) {
-        next_state : "(D & !SE) | (SI & SE)";
+        next_state : "D";
         clocked_on : "CK";
       }
       pin (D) { direction : input; }
-      pin (SI) { direction : input; signal_type : test_scan_in; }
-      pin (SE) { direction : input; signal_type : test_scan_enable; }
       pin (CK) { direction : input; clock : true; }
       pin (Q) { direction : output; function : "IQ"; signal_type : test_scan_out; }
     }

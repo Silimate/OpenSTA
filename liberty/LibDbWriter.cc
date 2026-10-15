@@ -294,7 +294,6 @@ LibWriter::writeAttrs(TimingArcSet *set)
   w_.str(set->modeValue());
   writeModel(m0);
   writeModel(m1);
-  // Retaining tables, which min analysis uses in place of the arc's model.
   for (const RiseFall *rf : RiseFall::range())
     writeModel(set->retainModel(rf));
 }
@@ -522,8 +521,7 @@ LibWriter::writeCell(LibertyCell *cell)
     writePortRef(seq.outputInv());
   }
 
-  // Power falls back on the test cell's functions and flops for scan cells
-  // that model them only there.
+  // Power falls back on a scan cell's test_cell for its flops and functions.
   TestCell *test_cell = cell->testCell();
   w_.boolean(test_cell != nullptr);
   if (test_cell)
@@ -598,7 +596,6 @@ LibWriter::writeCell(LibertyCell *cell)
     w_.f32(pwr.power());
   }
 
-  // One entry per related pin, as the liberty reader expands them.
   const InternalPowerSeq &internals = cell->internalPowers();
   w_.u32(static_cast<uint32_t>(internals.size()));
   for (const InternalPower &pwr : internals) {
@@ -611,9 +608,8 @@ LibWriter::writeCell(LibertyCell *cell)
   }
 
   // Cells whose pin caps and timing models replace these under an op-cond.
-  const ScaledCellMap &scaled_cells = cell->scaledCells();
-  w_.u32(static_cast<uint32_t>(scaled_cells.size()));
-  for (const auto &[op_cond, scaled_cell] : scaled_cells) {
+  w_.u32(static_cast<uint32_t>(cell->scaled_cells_.size()));
+  for (const auto &[op_cond, scaled_cell] : cell->scaled_cells_) {
     w_.str(op_cond->name());
     writeCell(scaled_cell);
   }
@@ -715,11 +711,9 @@ LibWriter::writeLibrary()
     writeAxisRef(tmpl->axis3ptr());
   }
 
-  // Every op-cond and scale factor group, then the defaults by name, since
-  // set_operating_conditions and cell scaling_factors look them up by name.
-  const OperatingConditionsMap &op_conds = lib_->operatingConditions();
-  w_.u32(static_cast<uint32_t>(op_conds.size()));
-  for (const auto &[name, op_cond] : op_conds) {
+  // Every op-cond and scale factor group, then the defaults by name.
+  w_.u32(static_cast<uint32_t>(lib_->operating_conditions_.size()));
+  for (const auto &[name, op_cond] : lib_->operating_conditions_) {
     w_.str(name);
     w_.f32(op_cond.process());
     w_.f32(op_cond.voltage());
@@ -731,9 +725,8 @@ LibWriter::writeLibrary()
   if (default_op_cond)
     w_.str(default_op_cond->name());
 
-  const ScaleFactorsMap &scale_groups = lib_->scaleFactorsMap();
-  w_.u32(static_cast<uint32_t>(scale_groups.size()));
-  for (const auto &[name, scales] : scale_groups) {
+  w_.u32(static_cast<uint32_t>(lib_->scale_factors_map_.size()));
+  for (auto &[name, scales] : lib_->scale_factors_map_) {
     w_.str(name);
     for (int type = 0; type < scale_factor_type_count; type++) {
       for (int pvt = 0; pvt < scale_factor_pvt_count; pvt++) {
@@ -748,12 +741,9 @@ LibWriter::writeLibrary()
   if (default_scales)
     w_.str(default_scales->name());
 
-  // Wire loads, which set_wire_load_model looks up by name.
-  const WireloadMap &wireloads = lib_->wireloads();
-  w_.u32(static_cast<uint32_t>(wireloads.size()));
-  for (const auto &[name, wireload] : wireloads) {
+  w_.u32(static_cast<uint32_t>(lib_->wireloads_.size()));
+  for (const auto &[name, wireload] : lib_->wireloads_) {
     w_.str(name);
-    w_.f32(wireload.area());
     w_.f32(wireload.resistance());
     w_.f32(wireload.capacitance());
     w_.f32(wireload.slope());
@@ -765,10 +755,8 @@ LibWriter::writeLibrary()
     }
   }
 
-  // voltage_map (power and waveform delay calc look rails up by name).
-  const SupplyVoltageMap &supplies = lib_->supplyVoltages();
-  w_.u32(static_cast<uint32_t>(supplies.size()));
-  for (const auto &[supply, voltage] : supplies) {
+  w_.u32(static_cast<uint32_t>(lib_->supply_voltage_map_.size()));
+  for (const auto &[supply, voltage] : lib_->supply_voltage_map_) {
     w_.str(supply);
     w_.f32(voltage);
   }

@@ -240,7 +240,6 @@ public:
   ScaleFactors *makeScaleFactors(std::string_view name);
   ScaleFactors *findScaleFactors(std::string_view name);
   ScaleFactors *scaleFactors() const { return scale_factors_; }
-  const ScaleFactorsMap &scaleFactorsMap() const { return scale_factors_map_; }
   float scaleFactor(ScaleFactorType type,
                     const Pvt *pvt) const;
   float scaleFactor(ScaleFactorType type,
@@ -341,7 +340,6 @@ public:
 
   Wireload *makeWireload(std::string_view name);
   const Wireload *findWireload(std::string_view name);
-  const WireloadMap &wireloads() const { return wireloads_; }
   void setDefaultWireload(const Wireload *wireload);
   const Wireload *defaultWireload() const;
   WireloadSelection *makeWireloadSelection(std::string_view name);
@@ -353,7 +351,6 @@ public:
 
   OperatingConditions *makeOperatingConditions(std::string_view name);
   OperatingConditions *findOperatingConditions(std::string_view name);
-  const OperatingConditionsMap &operatingConditions() const { return operating_conditions_; }
   OperatingConditions *defaultOperatingConditions() const;
   void setDefaultOperatingConditions(OperatingConditions *op_cond);
 
@@ -372,7 +369,6 @@ public:
                      // Return value.
                      float &voltage,
                      bool &exists) const;
-  const SupplyVoltageMap &supplyVoltages() const { return supply_voltage_map_; }
 
   // Make scaled cell.  Call LibertyCell::addScaledCell after it is complete.
   LibertyCell *makeScaledCell(std::string_view name,
@@ -463,6 +459,7 @@ private:
   friend class LibertyCellIterator;
   friend class DbLibertyReader;
   friend class DbLibertyWriter;
+  friend class LibWriter;
 };
 
 class LibertyCellIterator : public Iterator<LibertyCell*>
@@ -568,7 +565,6 @@ public:
   // timing arcs.
   bool hasInferedRegTimingArcs() const { return has_infered_reg_timing_arcs_; }
   TestCell *testCell() const { return test_cell_; }
-  const ScaledCellMap &scaledCells() const { return scaled_cells_; }
   void latchEnable(const TimingArcSet *d_to_q_set,
                    // Return values.
                    const LibertyPort *&enable_port,
@@ -745,6 +741,7 @@ private:
   friend class LibertyBuilder;
   friend class DbLibertyReader;
   friend class DbLibertyWriter;
+  friend class LibWriter;
 };
 
 class LibertyCellPortIterator : public Iterator<LibertyPort*>
@@ -1065,7 +1062,7 @@ public:
   const std::string &name() const { return name_; }
   float scale(ScaleFactorType type,
               ScaleFactorPvt pvt,
-              const RiseFall *rf) const;
+              const RiseFall *rf);
   float scale(ScaleFactorType type,
               ScaleFactorPvt pvt,
               int rf_index);

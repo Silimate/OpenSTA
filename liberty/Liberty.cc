@@ -3097,7 +3097,7 @@ ScaleFactors::setScale(ScaleFactorType type,
 float
 ScaleFactors::scale(ScaleFactorType type,
                     ScaleFactorPvt pvt,
-                    const RiseFall *rf) const
+                    const RiseFall *rf)
 {
   return scales_[static_cast<size_t>(type)][static_cast<size_t>(pvt)][rf->index()];
 }

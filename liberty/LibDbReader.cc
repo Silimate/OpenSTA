@@ -132,13 +132,7 @@ LibLoader::readPortRef(LibertyCell *cell)
   if (!r_.boolean())
     return nullptr;
   const std::string &name = r_.str();
-  if (cell == nullptr)
-    return nullptr;
-  LibertyPort *port = cell->findLibertyPort(name);
-  // Statetable inputs may name test_cell ports, as LibertyReader allows.
-  if (port == nullptr && cell->testCell())
-    port = cell->testCell()->findLibertyPort(name);
-  return port;
+  return cell ? cell->findLibertyPort(name) : nullptr;
 }
 
 TableAxisPtr
@@ -313,11 +307,8 @@ LibLoader::readAttrs(LibertyCell *cell)
     if (model)
       attrs->setModel(rf, model);
   }
-  for (const RiseFall *rf : RiseFall::range()) {
-    TimingModel *model = readModel(cell);
-    if (model)
-      attrs->setRetainModel(rf, model);
-  }
+  for (const RiseFall *rf : RiseFall::range())
+    attrs->setRetainModel(rf, readModel(cell));
   if (id != lib_db_id_null)
     attrs_.push_back(attrs);
   return attrs;
@@ -651,11 +642,9 @@ LibLoader::readCellBody(LibertyCell *cell)
     LibertyPort *related_pg_pin = readPortRef(cell);
     std::shared_ptr<FuncExpr> when(readFuncExpr(cell));
     InternalPowerModels models{};
-    for (const RiseFall *rf : RiseFall::range()) {
-      TableModel *model = readTableModel();
-      if (model)
-        models[rf->index()] = InternalPowerModel(std::shared_ptr<TableModel>(model));
-    }
+    for (const RiseFall *rf : RiseFall::range())
+      models[rf->index()] =
+        InternalPowerModel(std::shared_ptr<TableModel>(readTableModel()));
     if (port)
       cell->makeInternalPower(port, related_port, related_pg_pin, when, models);
   }
@@ -813,7 +802,6 @@ LibLoader::read()
   uint32_t wireload_count = r_.u32();
   for (uint32_t i = 0; i < wireload_count; i++) {
     Wireload *wireload = lib_->makeWireload(r_.str());
-    wireload->setArea(r_.f32());
     wireload->setResistance(r_.f32());
     wireload->setCapacitance(r_.f32());
     wireload->setSlope(r_.f32());
