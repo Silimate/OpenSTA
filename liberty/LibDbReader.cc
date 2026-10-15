@@ -93,7 +93,8 @@ public:
 
 private:
   void readUnit(Unit *unit);
-  void readCell(LibertyCell *test_cell_owner);
+  void readCell();
+  void readCellBody(LibertyCell *cell);
   void readPort(LibertyCell *cell);
   void readPortAttrs(LibertyCell *cell);
   FuncExpr *readFuncExpr(LibertyCell *cell);
@@ -131,7 +132,13 @@ LibLoader::readPortRef(LibertyCell *cell)
   if (!r_.boolean())
     return nullptr;
   const std::string &name = r_.str();
-  return cell ? cell->findLibertyPort(name) : nullptr;
+  if (cell == nullptr)
+    return nullptr;
+  LibertyPort *port = cell->findLibertyPort(name);
+  // Statetable inputs may name test_cell ports, as LibertyReader allows.
+  if (port == nullptr && cell->testCell())
+    port = cell->testCell()->findLibertyPort(name);
+  return port;
 }
 
 TableAxisPtr
@@ -305,6 +312,11 @@ LibLoader::readAttrs(LibertyCell *cell)
     TimingModel *model = readModel(cell);
     if (model)
       attrs->setModel(rf, model);
+  }
+  for (const RiseFall *rf : RiseFall::range()) {
+    TimingModel *model = readModel(cell);
+    if (model)
+      attrs->setRetainModel(rf, model);
   }
   if (id != lib_db_id_null)
     attrs_.push_back(attrs);
@@ -491,21 +503,18 @@ LibLoader::readPortAttrs(LibertyCell *cell)
 ////////////////////////////////////////////////////////////////
 
 void
-LibLoader::readCell(LibertyCell *test_cell_owner)
+LibLoader::readCell()
 {
-  // Ports → port attrs → sequentials → test cell → statetable → gen clocks → arcs →
-  // power → finish(false).
   const std::string name = r_.str();
   const std::string filename = r_.str();
-  LibertyCell *cell;
-  if (test_cell_owner) {
-    TestCell *test_cell = new TestCell(lib_, name, filename);
-    test_cell_owner->setTestCell(test_cell);
-    cell = test_cell;
-  }
-  else
-    cell = builder_.makeCell(lib_, name, filename);
+  readCellBody(builder_.makeCell(lib_, name, filename));
+}
 
+void
+LibLoader::readCellBody(LibertyCell *cell)
+{
+  // Ports → port attrs → sequentials → test cell → statetable → gen clocks → arcs →
+  // power → finish(false) → scaled cells.
   cell->setArea(r_.f32());
   cell->setDontUse(r_.boolean());
   cell->setIsMacro(r_.boolean());
@@ -551,8 +560,13 @@ LibLoader::readCell(LibertyCell *test_cell_owner)
                          clr_preset_out, clr_preset_out_inv, output, output_inv);
   }
 
-  if (r_.boolean())
-    readCell(cell);
+  if (r_.boolean()) {
+    const std::string name = r_.str();
+    const std::string filename = r_.str();
+    TestCell *test_cell = new TestCell(lib_, name, filename);
+    cell->setTestCell(test_cell);
+    readCellBody(test_cell);
+  }
 
   if (r_.boolean()) {
     LibertyPortSeq inputs;
@@ -648,6 +662,17 @@ LibLoader::readCell(LibertyCell *test_cell_owner)
 
   // false = do not re-derive latch enables; arcs/roles already match the original liberty.
   cell->finish(false, report_, debug_);
+
+  // Added once ports and arcs are complete, as LibertyReader does.
+  uint32_t scaled_count = r_.u32();
+  for (uint32_t i = 0; i < scaled_count; i++) {
+    OperatingConditions *op_cond = lib_->findOperatingConditions(r_.str());
+    const std::string name = r_.str();
+    const std::string filename = r_.str();
+    LibertyCell *scaled_cell = lib_->makeScaledCell(name, filename);
+    readCellBody(scaled_cell);
+    cell->addScaledCell(op_cond, scaled_cell);
+  }
 }
 
 void
@@ -807,7 +832,7 @@ LibLoader::read()
 
   uint32_t cell_count = r_.u32();
   for (uint32_t i = 0; i < cell_count; i++)
-    readCell(nullptr);
+    readCell();
 
   // LibDbReader sets this if we tried to read past the end of the body.
   if (r_.failed())

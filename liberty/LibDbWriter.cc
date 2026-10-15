@@ -294,6 +294,9 @@ LibWriter::writeAttrs(TimingArcSet *set)
   w_.str(set->modeValue());
   writeModel(m0);
   writeModel(m1);
+  // Retaining tables, which min analysis uses in place of the arc's model.
+  for (const RiseFall *rf : RiseFall::range())
+    writeModel(set->retainModel(rf));
 }
 
 void
@@ -605,6 +608,14 @@ LibWriter::writeCell(LibertyCell *cell)
     writeFuncExpr(pwr.when());
     for (const RiseFall *rf : RiseFall::range())
       writeTableModel(pwr.model(rf).model());
+  }
+
+  // Cells whose pin caps and timing models replace these under an op-cond.
+  const ScaledCellMap &scaled_cells = cell->scaledCells();
+  w_.u32(static_cast<uint32_t>(scaled_cells.size()));
+  for (const auto &[op_cond, scaled_cell] : scaled_cells) {
+    w_.str(op_cond->name());
+    writeCell(scaled_cell);
   }
 }
 

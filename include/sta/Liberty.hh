@@ -568,6 +568,7 @@ public:
   // timing arcs.
   bool hasInferedRegTimingArcs() const { return has_infered_reg_timing_arcs_; }
   TestCell *testCell() const { return test_cell_; }
+  const ScaledCellMap &scaledCells() const { return scaled_cells_; }
   void latchEnable(const TimingArcSet *d_to_q_set,
                    // Return values.
                    const LibertyPort *&enable_port,

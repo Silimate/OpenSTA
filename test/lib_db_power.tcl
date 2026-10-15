@@ -1,6 +1,6 @@
 # Power from a .libdb cache matches the Liberty source: internal and leakage
 # power, when conditions, related_pg_pin, voltage_map, test cells, scaling
-# factors, operating conditions and wire loads.
+# factors, operating conditions, scaled cells, retain arcs and wire loads.
 
 source stadb_helpers.tcl
 
@@ -60,13 +60,14 @@ set_operating_conditions ff_1p98v_125C
 set_power_activity -input -activity 0.1 -duty 0.5
 }
 
-# A flop modeled only in its test_cell, a cell's named scaling_factors, and a
-# wire load, under non-default operating conditions that supply the rail voltage.
+# A flop modeled only in its test_cell, a cell's named scaling_factors, scaled
+# cell and retain slews, and a wire load, under non-default operating conditions
+# that supply the rail voltage.
 lib_db_power_check lib_groups lib_db_power.lib {
 read_verilog lib_db_power.v
 link_design lib_db_power
 create_clock -name clk -period 10 ck
 set_operating_conditions hot
 set_wire_load_model -name wl
-set_power_activity -input -activity 0.1 -duty 0.5
+set_power_activity -input -activity 1.0 -duty 0.5
 }

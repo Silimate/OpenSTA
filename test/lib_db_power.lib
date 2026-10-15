@@ -62,11 +62,33 @@ library (lib_db_power) {
         cell_fall (delay_load) { values ("0.01, 0.5"); }
         rise_transition (delay_load) { values ("0.01, 0.5"); }
         fall_transition (delay_load) { values ("0.01, 0.5"); }
+        /* Y's fastest slew, this retain slew under hot, caps its activity. */
+        retaining_rise (delay_load) { values ("0.005, 0.2"); }
+        retaining_fall (delay_load) { values ("0.005, 0.2"); }
+        retain_rise_slew (delay_load) { values ("20.0, 20.0"); }
+        retain_fall_slew (delay_load) { values ("20.0, 20.0"); }
       }
       internal_power () {
         related_pin : "A";
         rise_power (energy_load) { values ("0.001, 0.1"); }
         fall_power (energy_load) { values ("0.001, 0.1"); }
+      }
+    }
+  }
+
+  /* Replaces BUF's pin caps and timing under the hot operating conditions. */
+  scaled_cell (BUF, hot) {
+    area : 1.0;
+    pin (A) { direction : input; capacitance : 0.05; }
+    pin (Y) {
+      direction : output;
+      function : "A";
+      timing () {
+        related_pin : "A";
+        cell_rise (delay_load) { values ("0.02, 0.8"); }
+        cell_fall (delay_load) { values ("0.02, 0.8"); }
+        rise_transition (delay_load) { values ("50.0, 50.0"); }
+        fall_transition (delay_load) { values ("50.0, 50.0"); }
       }
     }
   }
