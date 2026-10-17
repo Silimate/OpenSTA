@@ -2321,7 +2321,7 @@ WriteSdc::writeMaxDynamicPower() const
   float max_power = sdc_->maxDynamicPower();
   if (max_power > 0.0) {
     gzprintf(stream_, "set_max_dynamic_power ");
-    writeFloat(scalePower(max_power));
+    writePower(max_power);
     gzprintf(stream_, "\n");
   }
 }
@@ -2332,7 +2332,7 @@ WriteSdc::writeMaxLeakagePower() const
   float max_power = sdc_->maxLeakagePower();
   if (max_power > 0.0) {
     gzprintf(stream_, "set_max_leakage_power ");
-    writeFloat(scalePower(max_power));
+    writePower(max_power);
     gzprintf(stream_, "\n");
   }
 }
@@ -2812,12 +2812,6 @@ WriteSdc::scaleResistance(float res) const
   return res / units_->resistanceUnit()->scale();
 }
 
-float
-WriteSdc::scalePower(float power) const
-{
-  return power / units_->powerUnit()->scale();
-}
-
 void
 WriteSdc::writeFloat(float value) const
 {
@@ -2828,6 +2822,13 @@ void
 WriteSdc::writeTime(float time) const
 {
   sta::print(stream_, "{}", sta::formatRuntime("{:.{}f}", scaleTime(time), digits_));
+}
+
+// Watts with the unit, so the budget reads back under any command power unit.
+void
+WriteSdc::writePower(float power) const
+{
+  sta::print(stream_, "{} W", sta::formatRuntime("{:.{}e}", power, digits_));
 }
 
 void

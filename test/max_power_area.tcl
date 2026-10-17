@@ -34,6 +34,14 @@ set_max_dynamic_power 2
 set_max_leakage_power 3 W
 report_max_power
 
+# Written budgets carry their unit, so they read back under another command unit.
+write_sdc -no_timestamp $sdc_file
+set_units -power uW
+set_max_dynamic_power 0
+set_max_leakage_power 0
+read_sdc $sdc_file
+report_max_power
+
 catch { set_max_leakage_power 8 uA } msg
 puts $msg
 catch { set_max_leakage_power 8 xW } msg
