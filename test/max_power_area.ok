@@ -8,5 +8,7 @@ max_dynamic_power 2.000e-03
 max_leakage_power 3.000e+00
 max_dynamic_power 2.000e-03
 max_leakage_power 3.000e+00
-Error 487: max_power_area.tcl line 45, set_max_leakage_power unit 'uA' is not a power unit.
-Error 344: max_power_area.tcl line 47, unknown power prefix 'x'.
+max_dynamic_power 4.000e-18
+max_leakage_power 2.000e+03
+Error 487: max_power_area.tcl line 50, set_max_leakage_power unit 'uA' is not one of GW MW KW kW W mW uW nW pW fW aW.
+Error 565: max_power_area.tcl line 52, set_max_leakage_power requires one positional argument.

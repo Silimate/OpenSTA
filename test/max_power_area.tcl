@@ -42,7 +42,12 @@ set_max_leakage_power 0
 read_sdc $sdc_file
 report_max_power
 
+# The SDC 2.1 parser's -unit form.
+set_max_dynamic_power 4 -unit aW
+set_max_leakage_power 2 -unit KW
+report_max_power
+
 catch { set_max_leakage_power 8 uA } msg
 puts $msg
-catch { set_max_leakage_power 8 xW } msg
+catch { set_max_leakage_power 8 uW -unit uW } msg
 puts $msg
