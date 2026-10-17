@@ -2321,7 +2321,7 @@ WriteSdc::writeMaxDynamicPower() const
   float max_power = sdc_->maxDynamicPower();
   if (max_power > 0.0) {
     gzprintf(stream_, "set_max_dynamic_power ");
-    writeFloat(max_power);
+    writeFloat(scalePower(max_power));
     gzprintf(stream_, "\n");
   }
 }
@@ -2332,7 +2332,7 @@ WriteSdc::writeMaxLeakagePower() const
   float max_power = sdc_->maxLeakagePower();
   if (max_power > 0.0) {
     gzprintf(stream_, "set_max_leakage_power ");
-    writeFloat(max_power);
+    writeFloat(scalePower(max_power));
     gzprintf(stream_, "\n");
   }
 }
@@ -2810,6 +2810,12 @@ float
 WriteSdc::scaleResistance(float res) const
 {
   return res / units_->resistanceUnit()->scale();
+}
+
+float
+WriteSdc::scalePower(float power) const
+{
+  return power / units_->powerUnit()->scale();
 }
 
 void
