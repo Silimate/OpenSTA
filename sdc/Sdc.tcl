@@ -4540,9 +4540,7 @@ define_cmd_args "set_max_dynamic_power" {power [unit]} \
   -help {The `set_max_dynamic_power` command is ignored during timing but is included in SDC files that are written.}
 
 proc set_max_dynamic_power { power {unit {}} } {
-  check_positive_float "power" $power
-  # Optional SDC unit argument is accepted but ignored; use set_units.
-  set_max_dynamic_power_cmd $power
+  set_max_dynamic_power_cmd [power_arg_sta "set_max_dynamic_power" $power $unit]
 }
 
 ################################################################
@@ -4551,9 +4549,19 @@ define_cmd_args "set_max_leakage_power" {power [unit]} \
   -help {The `set_max_leakage_power` command is ignored during timing but is included in SDC files that are written.}
 
 proc set_max_leakage_power { power {unit {}} } {
+  set_max_leakage_power_cmd [power_arg_sta "set_max_leakage_power" $power $unit]
+}
+
+# Power in the command power unit (set_units -power), or in the SDC unit (mW, uW...) if given.
+proc power_arg_sta { cmd power unit } {
   check_positive_float "power" $power
-  # Optional SDC unit argument is accepted but ignored; use set_units.
-  set_max_leakage_power_cmd $power
+  if { $unit == {} } {
+    return [power_ui_sta $power]
+  }
+  if { ![regexp {^(.?)[Ww]$} $unit ignore prefix] } {
+    sta_error 2750 "$cmd unit '$unit' is not a power unit."
+  }
+  return [expr {$power * [unit_prefix_scale "power" $prefix]}]
 }
 
 ################################################################
