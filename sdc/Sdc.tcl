@@ -4559,7 +4559,7 @@ proc power_arg_sta { cmd power unit } {
     return [power_ui_sta $power]
   }
   if { ![regexp {^(.?)[Ww]$} $unit ignore prefix] } {
-    sta_error 2750 "$cmd unit '$unit' is not a power unit."
+    sta_error 487 "$cmd unit '$unit' is not a power unit."
   }
   return [expr {$power * [unit_prefix_scale "power" $prefix]}]
 }
