@@ -63,6 +63,7 @@ public:
   // Invalidate vertex and downstream delays/slews.
   void delayInvalid(Vertex *vertex);
   void delayInvalid(const Pin *pin);
+  void loadsChanged(Vertex *drvr_vertex);
   void deleteVertexBefore(Vertex *vertex);
   void levelChangedBefore(Vertex *vertex);
   // Reset to virgin state.
