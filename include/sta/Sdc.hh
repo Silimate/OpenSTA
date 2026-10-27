@@ -532,6 +532,8 @@ public:
   // Clocks explicitly excluded by set_clock_group.
   bool sameClockGroupExplicit(const Clock *clk1,
                               const Clock *clk2);
+  // SILIMATE: the set_clock_groups commands in effect, by name.
+  const ClockGroupsNameMap &clockGroups() const { return clk_groups_name_map_; }
   void setClockSense(PinSet *pins,
                      ClockSet *clks,
                      ClockSense sense);
