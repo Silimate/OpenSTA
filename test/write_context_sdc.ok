@@ -49,6 +49,12 @@ set_load -wire_load -rise -min 0.000000 [get_ports {q}]
 set_load -wire_load -rise -max 2.000000 [get_ports {q}]
 set_load -wire_load -fall -min 0.000000 [get_ports {q}]
 set_load -wire_load -fall -max 2.000000 [get_ports {q}]
+set_input_delay 0.300000 -add_delay [get_ports {a}]
+set_load -pin_load -rise -min 0.934558 [get_ports {y}]
+set_load -pin_load -rise -max 0.934558 [get_ports {y}]
+set_load -pin_load -fall -min 0.835243 [get_ports {y}]
+set_load -pin_load -fall -max 0.835243 [get_ports {y}]
+set_load -wire_load 0.700000 [get_ports {y}]
 Error: 1388 r_in is not a hierarchical instance.
 Error: 1387 write_context_sdc needs at least one instance.
 blk max in 0.123 out 0.195

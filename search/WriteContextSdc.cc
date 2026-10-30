@@ -65,8 +65,8 @@ public:
   RiseFallMinMax wire_caps;
 };
 
-// Leaf pins and top level ports on a net outside an instance, and the drivers
-// inside it.
+// Leaf pins and top level ports on a net outside an instance, and the net's
+// drivers on either side.
 class BoundaryPins : public PinVisitor
 {
 public:
@@ -75,7 +75,7 @@ public:
   void operator()(const Pin *pin) override;
 
   PinSeq outside;
-  PinSeq inside_drvrs;
+  PinSeq drvrs;
 
 private:
   const Instance *inst_;
@@ -95,8 +95,8 @@ BoundaryPins::operator()(const Pin *pin)
   if (network_->isLeaf(pin) || network_->isTopLevelPort(pin)) {
     if (!network_->isInside(pin, inst_))
       outside.push_back(pin);
-    else if (network_->isDriver(pin))
-      inside_drvrs.push_back(pin);
+    if (network_->isDriver(pin))
+      drvrs.push_back(pin);
   }
 }
 
@@ -301,7 +301,7 @@ writeContextSdc(const InstanceSeq &insts,
           }
         }
         // Pin loads outside the block by OpenSTA's own pin rule, and the net's wire
-        // load (parasitics, set_load) as the block's driver sees it.
+        // load (parasitics, set_load) as its driver sees it, inside the block or not.
         if (!loads.empty()) {
           for (const RiseFall *rf : RiseFall::range()) {
             for (const MinMax *min_max : MinMax::range()) {
@@ -311,7 +311,7 @@ writeContextSdc(const InstanceSeq &insts,
               for (const Pin *load : loads)
                 sdc->pinCaps(load, rf, scene, min_max, pin_cap, port_wire_cap, fanout);
               context.pin_caps.mergeValue(rf, min_max, pin_cap);
-              for (const Pin *drvr : boundary.inside_drvrs) {
+              for (const Pin *drvr : boundary.drvrs) {
                 float drvr_pin_cap, wire_cap;
                 sta->connectedCap(drvr, rf, scene, min_max, drvr_pin_cap, wire_cap);
                 context.wire_caps.mergeValue(rf, min_max, wire_cap);

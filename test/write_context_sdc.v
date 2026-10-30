@@ -9,11 +9,19 @@ module blk (ck, d, q);
   BUF_X1 b3 (.A(q0), .Z(q));
 endmodule
 
+module thru (a, y);
+  input a;
+  output y;
+
+  assign y = a;
+endmodule
+
 // u_blk1 sits behind long input and output chains, u_blk2 behind short
-// ones with an extra load on its output, u_blk3 behind a top input.
-module top (clk, in, in2, out1, out2, out3, out4);
+// ones with an extra load on its output, u_blk3 behind a top input, and
+// u_thru passes a top input straight to a top output.
+module top (clk, in, in2, out1, out2, out3, out4, out5);
   input clk, in, in2;
-  output out1, out2, out3, out4;
+  output out1, out2, out3, out4, out5;
   wire r_q, a1, a2, a3, a4, q1, q2, c1, c2, c3, c4;
 
   DFF_X1 r_in (.D(in), .CK(clk), .Q(r_q));
@@ -24,6 +32,7 @@ module top (clk, in, in2, out1, out2, out3, out4);
   blk u_blk1 (.ck(clk), .d(a4), .q(q1));
   blk u_blk2 (.ck(clk), .d(r_q), .q(q2));
   blk u_blk3 (.ck(clk), .d(in2), .q(out4));
+  thru u_thru (.a(in2), .y(out5));
   BUF_X1 c_1 (.A(q1), .Z(c1));
   BUF_X1 c_2 (.A(c1), .Z(c2));
   BUF_X1 c_3 (.A(c2), .Z(c3));

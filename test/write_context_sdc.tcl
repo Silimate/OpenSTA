@@ -16,13 +16,15 @@ proc slack_at { key pin path_delay } {
   return [format %.3f [get_property $path_end slack]]
 }
 
-# in2 has no clock, and u_blk1's output net a wire load
+# in2 has no clock, u_blk1's output net a wire load, and out5 (driven
+# through u_thru) a wire load of its own
 link_design top
 create_clock -name clk -period 1 [get_ports clk]
 set_input_delay 0.1 -clock clk [get_ports in]
 set_input_delay 0.3 [get_ports in2]
-set_output_delay 0.1 -clock clk [get_ports {out1 out2 out3 out4}]
+set_output_delay 0.1 -clock clk [get_ports {out1 out2 out3 out4 out5}]
 set_load 2 [get_nets q1]
+set_load -wire_load 0.7 [get_ports out5]
 foreach inst {u_blk1 u_blk2 u_blk3} {
   foreach path_delay {max min} {
     puts "$inst $path_delay in [slack_thru $inst/d $path_delay] out [slack_thru $inst/q $path_delay]"
@@ -38,6 +40,9 @@ write_context_sdc -instances {u_blk1 u_blk2} $blk_sdc
 report_file $blk1_sdc
 report_file $blk3_sdc
 report_file $blk_sdc
+set thru_sdc [make_result_file write_context_sdc_thru.sdc]
+write_context_sdc -instances u_thru $thru_sdc
+report_file $thru_sdc
 
 set bad_sdc [make_result_file write_context_sdc_bad.sdc]
 foreach insts {r_in {}} {
