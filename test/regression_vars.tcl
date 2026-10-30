@@ -260,6 +260,7 @@ record_public_tests {
   verilog_well_supplies
   verilog_write_escape
   verilog_write_gzip
+  write_context_sdc
   write_path_spice_arc_sense
   write_timing_model_hier
   write_timing_model_latch

@@ -1113,6 +1113,36 @@ proc write_timing_model { args } {
 }
 
 ################################################################
+
+define_cmd_args "write_context_sdc" {-instances instances filename} \
+  -help {The `write_context_sdc` command writes the SDC a design with the module of the instances as its top level needs to see the timing the instances' ports see in the current design.
+
+```
+clocks          create_clock on each port a clock reaches; other clocks the delays refer to are virtual
+input ports     set_input_delay from the arrival at the driver outside the instance, set_input_transition from its slew
+output ports    set_output_delay from the required time at the loads outside the instance, set_load from their pin capacitance and the net's wire capacitance
+```
+
+Delays are relative to the clock edge that launches the path; arrivals from inputs with no clock (`sta_input_port_default_clock`) get an input delay with no clock. Output delays are written against the next edge of that clock for setup and the launching edge for hold, so the design with the module as top sees the same required times. With several instances the file keeps the worst value of each port bit and launching clock edge: the latest max and earliest min arrival and the tightest required time. The instances must have the same port names.
+
+Generated clocks are written as clocks with their own period and waveform. Exceptions and clock latency are not written. The file names only the module's ports and the clocks it creates, so `read_sdc` reads it after `link_design` of the module.} \
+  -arg_help {
+    -instances {The hierarchical instances whose ports are characterized.}
+    filename {Filename for the SDC.}
+  }
+
+proc write_context_sdc { args } {
+  parse_key_args "write_context_sdc" args keys {-instances} flags {}
+  check_argc_eq1 "write_context_sdc" $args
+
+  set insts {}
+  if { [info exists keys(-instances)] } {
+    set insts [get_instances_error "-instances" $keys(-instances)]
+  }
+  write_context_sdc_cmd $insts [file nativename [lindex $args 0]]
+}
+
+################################################################
 #
 # Helper functions
 #
