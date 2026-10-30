@@ -65,41 +65,6 @@ public:
   RiseFallMinMax wire_caps;
 };
 
-// Leaf pins and top level ports on a net outside an instance, and the net's
-// drivers on either side.
-class BoundaryPins : public PinVisitor
-{
-public:
-  BoundaryPins(const Instance *inst,
-               const Network *network);
-  void operator()(const Pin *pin) override;
-
-  PinSeq outside;
-  PinSeq drvrs;
-
-private:
-  const Instance *inst_;
-  const Network *network_;
-};
-
-BoundaryPins::BoundaryPins(const Instance *inst,
-                           const Network *network) :
-  inst_(inst),
-  network_(network)
-{
-}
-
-void
-BoundaryPins::operator()(const Pin *pin)
-{
-  if (network_->isLeaf(pin) || network_->isTopLevelPort(pin)) {
-    if (!network_->isInside(pin, inst_))
-      outside.push_back(pin);
-    if (network_->isDriver(pin))
-      drvrs.push_back(pin);
-  }
-}
-
 // Port names of the instance's module, so instances of different modules
 // are not merged.
 static std::string
@@ -146,15 +111,9 @@ writeValues(std::ofstream &stream,
             std::string_view args,
             std::string_view object)
 {
-  bool all_equal = values.hasValue(RiseFall::rise(), MinMax::max());
-  float rise_max = all_equal ? values.value(RiseFall::rise(), MinMax::max()) : 0.0;
-  for (const RiseFall *rf : RiseFall::range()) {
-    for (const MinMax *min_max : MinMax::range())
-      all_equal &= values.hasValue(rf, min_max)
-        && values.value(rf, min_max) == rise_max;
-  }
-  if (all_equal)
-    stream << sta::format("{} {:.6f}{} {}\n", cmd, rise_max / scale, args, object);
+  float value;
+  if (values.isOneValue(value))
+    stream << sta::format("{} {:.6f}{} {}\n", cmd, value / scale, args, object);
   else {
     for (const RiseFall *rf : RiseFall::range()) {
       for (const MinMax *min_max : MinMax::range()) {
@@ -193,16 +152,14 @@ writeDelays(std::ofstream &stream,
   }
 }
 
+// Slews and loads are never negative, so a zero maximum means they are all zero.
 static bool
 allZero(const RiseFallMinMax &values)
 {
-  for (const RiseFall *rf : RiseFall::range()) {
-    for (const MinMax *min_max : MinMax::range()) {
-      if (values.hasValue(rf, min_max) && values.value(rf, min_max) != 0.0)
-        return false;
-    }
-  }
-  return true;
+  float max;
+  bool exists;
+  values.maxValue(max, exists);
+  return !exists || max == 0.0;
 }
 
 void
@@ -212,14 +169,13 @@ writeContextSdc(const InstanceSeq &insts,
 {
   sta->ensureLibLinked();
   sta->findRequireds();
-  const Network *network = sta->network();
+  Network *network = sta->network();
   const Network *sdc_network = sta->sdcNetwork();
   Report *report = sta->report();
   Scene *scene = sta->cmdScene();
   const Sdc *sdc = scene->sdc();
-  const Clock *default_clk = sdc->defaultArrivalClock();
+  Clock *default_clk = sdc->defaultArrivalClock();
   const ClockEdge *default_edge = sdc->defaultArrivalClockEdge();
-  SceneSeq scenes{scene};
 
   if (insts.empty())
     report->error(1387, "write_context_sdc needs at least one instance.");
@@ -256,25 +212,25 @@ writeContextSdc(const InstanceSeq &insts,
   std::vector<std::string> port_names;
   std::map<std::string, PortContext> contexts;
   for (const Instance *inst : insts) {
+    // An inout port's leaf pins include those inside the instance.
+    auto inside = [=](const Pin *pin) { return network->isInside(pin, inst); };
     std::unique_ptr<InstancePinIterator> pin_iter(network->pinIterator(inst));
     while (pin_iter->hasNext()) {
       const Pin *pin = pin_iter->next();
-      const Net *net = network->net(pin);
-      if (net == nullptr)
+      if (network->net(pin) == nullptr)
         continue;
       std::string port_name = sdc_network->name(network->port(pin));
       auto [context_iter, inserted] = contexts.try_emplace(port_name);
       if (inserted)
         port_names.push_back(port_name);
       PortContext &context = context_iter->second;
-      BoundaryPins boundary(inst, network);
-      network->visitConnectedPins(net, boundary);
       const PortDirection *dir = network->direction(pin);
 
       if (dir->isAnyInput()) {
-        for (const Pin *drvr : boundary.outside) {
-          if (!network->isDriver(drvr))
-            continue;
+        PinSet drvrs(network);
+        findLeafDriverPins(pin, network, &drvrs);
+        std::erase_if(drvrs, inside);
+        for (const Pin *drvr : drvrs) {
           ClockSet clks = sta->clocks(drvr, scene->mode());
           if (!clks.empty()) {
             context.clocks.insert(clks.begin(), clks.end());
@@ -284,7 +240,8 @@ writeContextSdc(const InstanceSeq &insts,
           mergeDelays(vertex, input_delay, scene, sta, context.input_delays);
           for (const RiseFall *rf : RiseFall::range()) {
             for (const MinMax *min_max : MinMax::range()) {
-              Slew slew = sta->slew(vertex, rf->asRiseFallBoth(), scenes, min_max);
+              DcalcAPIndex ap_index = scene->dcalcAnalysisPtIndex(min_max);
+              Slew slew = sta->graph()->slew(vertex, rf, ap_index);
               context.slews.mergeValue(rf, min_max, delayAsFloat(slew));
             }
           }
@@ -292,13 +249,12 @@ writeContextSdc(const InstanceSeq &insts,
       }
 
       if (dir->isAnyOutput()) {
-        PinSeq loads;
-        for (const Pin *load : boundary.outside) {
-          if (network->isLoad(load)) {
-            loads.push_back(load);
-            Vertex *vertex = sta->graph()->pinLoadVertex(load);
-            mergeDelays(vertex, output_delay, scene, sta, context.output_delays);
-          }
+        PinSet loads(network);
+        findLeafLoadPins(pin, network, &loads);
+        std::erase_if(loads, inside);
+        for (const Pin *load : loads) {
+          Vertex *vertex = sta->graph()->pinLoadVertex(load);
+          mergeDelays(vertex, output_delay, scene, sta, context.output_delays);
         }
         // Pin loads outside the block by OpenSTA's own pin rule, and the net's wire
         // load (parasitics, set_load) as its driver sees it, inside the block or not.
@@ -311,7 +267,7 @@ writeContextSdc(const InstanceSeq &insts,
               for (const Pin *load : loads)
                 sdc->pinCaps(load, rf, scene, min_max, pin_cap, port_wire_cap, fanout);
               context.pin_caps.mergeValue(rf, min_max, pin_cap);
-              for (const Pin *drvr : boundary.drvrs) {
+              for (const Pin *drvr : *network->drivers(pin)) {
                 float drvr_pin_cap, wire_cap;
                 sta->connectedCap(drvr, rf, scene, min_max, drvr_pin_cap, wire_cap);
                 context.wire_caps.mergeValue(rf, min_max, wire_cap);
@@ -324,7 +280,7 @@ writeContextSdc(const InstanceSeq &insts,
   }
 
   // Clocks the file needs: those on block ports and those the delays refer to.
-  std::set<const Clock*> used_clks;
+  ClockSet used_clks;
   for (const auto &[port_name, context] : contexts) {
     used_clks.insert(context.clocks.begin(), context.clocks.end());
     for (const auto &[clk_edge, delays] : context.input_delays)
@@ -332,11 +288,8 @@ writeContextSdc(const InstanceSeq &insts,
     for (const auto &[clk_edge, delays] : context.output_delays)
       used_clks.insert(clk_edge->clock());
   }
-  ClockSeq clks;
-  for (Clock *clk : sdc->sortedClocks()) {
-    if (used_clks.count(clk) && clk != default_clk)
-      clks.push_back(clk);
-  }
+  used_clks.erase(default_clk);
+  ClockSeq clks = sortByName(&used_clks);
 
   std::string filename_str(filename);
   std::ofstream stream(filename_str);
