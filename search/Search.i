@@ -1328,7 +1328,8 @@ void
 write_context_sdc_cmd(InstanceSeq *insts,
                       const char *filename)
 {
-  writeContextSdc(*insts, filename, Sta::sta());
+  // An empty Tcl list arrives as nullptr.
+  writeContextSdc(insts ? *insts : InstanceSeq(), filename, Sta::sta());
 }
 
 %} // inline

@@ -65,34 +65,39 @@ public:
   RiseFallMinMax wire_caps;
 };
 
-// Leaf pins and top level ports on a net that are outside an instance.
-class OutsidePins : public PinVisitor
+// Leaf pins and top level ports on a net outside an instance, and the drivers
+// inside it.
+class BoundaryPins : public PinVisitor
 {
 public:
-  OutsidePins(const Instance *inst,
-              const Network *network);
+  BoundaryPins(const Instance *inst,
+               const Network *network);
   void operator()(const Pin *pin) override;
 
-  PinSeq pins;
+  PinSeq outside;
+  PinSeq inside_drvrs;
 
 private:
   const Instance *inst_;
   const Network *network_;
 };
 
-OutsidePins::OutsidePins(const Instance *inst,
-                         const Network *network) :
+BoundaryPins::BoundaryPins(const Instance *inst,
+                           const Network *network) :
   inst_(inst),
   network_(network)
 {
 }
 
 void
-OutsidePins::operator()(const Pin *pin)
+BoundaryPins::operator()(const Pin *pin)
 {
-  if ((network_->isLeaf(pin) || network_->isTopLevelPort(pin))
-      && !network_->isInside(pin, inst_))
-    pins.push_back(pin);
+  if (network_->isLeaf(pin) || network_->isTopLevelPort(pin)) {
+    if (!network_->isInside(pin, inst_))
+      outside.push_back(pin);
+    else if (network_->isDriver(pin))
+      inside_drvrs.push_back(pin);
+  }
 }
 
 // Port names of the instance's module, so instances of different modules
@@ -141,8 +146,8 @@ writeValues(std::ofstream &stream,
             std::string_view args,
             std::string_view object)
 {
-  float rise_max = values.value(RiseFall::rise(), MinMax::max());
-  bool all_equal = true;
+  bool all_equal = values.hasValue(RiseFall::rise(), MinMax::max());
+  float rise_max = all_equal ? values.value(RiseFall::rise(), MinMax::max()) : 0.0;
   for (const RiseFall *rf : RiseFall::range()) {
     for (const MinMax *min_max : MinMax::range())
       all_equal &= values.hasValue(rf, min_max)
@@ -168,9 +173,14 @@ writeDelays(std::ofstream &stream,
             std::string_view cmd,
             const ClockEdgeValues &delays,
             const ClockSeq &clks,
+            const ClockEdge *default_edge,
             float scale,
             std::string_view object)
 {
+  // Arrivals from inputs with no clock (sta_input_port_default_clock) keep none.
+  auto default_iter = delays.find(default_edge);
+  if (default_iter != delays.end())
+    writeValues(stream, cmd, default_iter->second, scale, " -add_delay", object);
   for (const Clock *clk : clks) {
     for (const RiseFall *clk_rf : RiseFall::range()) {
       auto delay_iter = delays.find(clk->edge(clk_rf));
@@ -208,6 +218,7 @@ writeContextSdc(const InstanceSeq &insts,
   Scene *scene = sta->cmdScene();
   const Sdc *sdc = scene->sdc();
   const Clock *default_clk = sdc->defaultArrivalClock();
+  const ClockEdge *default_edge = sdc->defaultArrivalClockEdge();
   SceneSeq scenes{scene};
 
   if (insts.empty())
@@ -225,7 +236,7 @@ writeContextSdc(const InstanceSeq &insts,
   // Input delay of a path is its arrival after its launching edge.
   PathDelayFunc input_delay = [=](const Path *path) -> Delay {
     const ClockEdge *clk_edge = path->clkEdge(sta);
-    if (clk_edge == nullptr || clk_edge->clock() == default_clk)
+    if (clk_edge == nullptr)
       return INF;
     return delayAsFloat(path->arrival(), path->minMax(sta), sta) - clk_edge->time();
   };
@@ -256,12 +267,12 @@ writeContextSdc(const InstanceSeq &insts,
       if (inserted)
         port_names.push_back(port_name);
       PortContext &context = context_iter->second;
-      OutsidePins outside(inst, network);
-      network->visitConnectedPins(net, outside);
+      BoundaryPins boundary(inst, network);
+      network->visitConnectedPins(net, boundary);
       const PortDirection *dir = network->direction(pin);
 
       if (dir->isAnyInput()) {
-        for (const Pin *drvr : outside.pins) {
+        for (const Pin *drvr : boundary.outside) {
           if (!network->isDriver(drvr))
             continue;
           ClockSet clks = sta->clocks(drvr, scene->mode());
@@ -282,24 +293,29 @@ writeContextSdc(const InstanceSeq &insts,
 
       if (dir->isAnyOutput()) {
         PinSeq loads;
-        for (const Pin *load : outside.pins) {
+        for (const Pin *load : boundary.outside) {
           if (network->isLoad(load)) {
             loads.push_back(load);
             Vertex *vertex = sta->graph()->pinLoadVertex(load);
             mergeDelays(vertex, output_delay, scene, sta, context.output_delays);
           }
         }
-        // Loads the block's driver sees outside it, by OpenSTA's own pin rule.
+        // Pin loads outside the block by OpenSTA's own pin rule, and the net's wire
+        // load (parasitics, set_load) as the block's driver sees it.
         if (!loads.empty()) {
           for (const RiseFall *rf : RiseFall::range()) {
             for (const MinMax *min_max : MinMax::range()) {
               float pin_cap = 0.0;
-              float wire_cap = 0.0;
+              float port_wire_cap = 0.0;
               float fanout = 0.0;
               for (const Pin *load : loads)
-                sdc->pinCaps(load, rf, scene, min_max, pin_cap, wire_cap, fanout);
+                sdc->pinCaps(load, rf, scene, min_max, pin_cap, port_wire_cap, fanout);
               context.pin_caps.mergeValue(rf, min_max, pin_cap);
-              context.wire_caps.mergeValue(rf, min_max, wire_cap);
+              for (const Pin *drvr : boundary.inside_drvrs) {
+                float drvr_pin_cap, wire_cap;
+                sta->connectedCap(drvr, rf, scene, min_max, drvr_pin_cap, wire_cap);
+                context.wire_caps.mergeValue(rf, min_max, wire_cap);
+              }
             }
           }
         }
@@ -318,7 +334,7 @@ writeContextSdc(const InstanceSeq &insts,
   }
   ClockSeq clks;
   for (Clock *clk : sdc->sortedClocks()) {
-    if (used_clks.count(clk))
+    if (used_clks.count(clk) && clk != default_clk)
       clks.push_back(clk);
   }
 
@@ -354,12 +370,12 @@ writeContextSdc(const InstanceSeq &insts,
   for (const std::string &port_name : port_names) {
     std::string object = sta::format("[get_ports {{{}}}]", port_name);
     writeDelays(stream, "set_input_delay", contexts[port_name].input_delays, clks,
-                time_scale, object);
+                default_edge, time_scale, object);
   }
   for (const std::string &port_name : port_names) {
     std::string object = sta::format("[get_ports {{{}}}]", port_name);
     writeDelays(stream, "set_output_delay", contexts[port_name].output_delays, clks,
-                time_scale, object);
+                default_edge, time_scale, object);
   }
   for (const std::string &port_name : port_names) {
     const PortContext &context = contexts[port_name];

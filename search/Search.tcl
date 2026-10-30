@@ -1120,10 +1120,10 @@ define_cmd_args "write_context_sdc" {-instances instances filename} \
 ```
 clocks          create_clock on each port a clock reaches; other clocks the delays refer to are virtual
 input ports     set_input_delay from the arrival at the driver outside the instance, set_input_transition from its slew
-output ports    set_output_delay from the required time at the loads outside the instance, set_load from their capacitance
+output ports    set_output_delay from the required time at the loads outside the instance, set_load from their pin capacitance and the net's wire capacitance
 ```
 
-Delays are relative to the clock edge that launches the path. Output delays are written against the next edge of that clock for setup and the launching edge for hold, so the design with the module as top sees the same required times. With several instances the file keeps the worst value of each port bit and launching clock edge: the latest max and earliest min arrival and the tightest required time. The instances must have the same port names.
+Delays are relative to the clock edge that launches the path; arrivals from inputs with no clock (`sta_input_port_default_clock`) get an input delay with no clock. Output delays are written against the next edge of that clock for setup and the launching edge for hold, so the design with the module as top sees the same required times. With several instances the file keeps the worst value of each port bit and launching clock edge: the latest max and earliest min arrival and the tightest required time. The instances must have the same port names.
 
 Generated clocks are written as clocks with their own period and waveform. Exceptions and clock latency are not written. The file names only the module's ports and the clocks it creates, so `read_sdc` reads it after `link_design` of the module.} \
   -arg_help {

@@ -10,10 +10,10 @@ module blk (ck, d, q);
 endmodule
 
 // u_blk1 sits behind long input and output chains, u_blk2 behind short
-// ones with an extra load on its output.
-module top (clk, in, out1, out2, out3);
-  input clk, in;
-  output out1, out2, out3;
+// ones with an extra load on its output, u_blk3 behind a top input.
+module top (clk, in, in2, out1, out2, out3, out4);
+  input clk, in, in2;
+  output out1, out2, out3, out4;
   wire r_q, a1, a2, a3, a4, q1, q2, c1, c2, c3, c4;
 
   DFF_X1 r_in (.D(in), .CK(clk), .Q(r_q));
@@ -23,6 +23,7 @@ module top (clk, in, out1, out2, out3);
   BUF_X1 a_4 (.A(a3), .Z(a4));
   blk u_blk1 (.ck(clk), .d(a4), .q(q1));
   blk u_blk2 (.ck(clk), .d(r_q), .q(q2));
+  blk u_blk3 (.ck(clk), .d(in2), .q(out4));
   BUF_X1 c_1 (.A(q1), .Z(c1));
   BUF_X1 c_2 (.A(c1), .Z(c2));
   BUF_X1 c_3 (.A(c2), .Z(c3));
