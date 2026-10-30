@@ -1,0 +1,43 @@
+u_blk1 max in 0.123 out 0.208
+u_blk1 min in 0.612 out 0.549
+u_blk2 max in 0.442 out 0.517
+u_blk2 min in 0.398 out 0.319
+create_clock -name {clk} -period 1.000000 -waveform {0.000000 0.500000} [get_ports {ck}]
+set_input_delay -rise -min 0.520874 -clock [get_clocks {clk}] -add_delay [get_ports {d}]
+set_input_delay -rise -max 0.520874 -clock [get_clocks {clk}] -add_delay [get_ports {d}]
+set_input_delay -fall -min 0.559687 -clock [get_clocks {clk}] -add_delay [get_ports {d}]
+set_input_delay -fall -max 0.559687 -clock [get_clocks {clk}] -add_delay [get_ports {d}]
+set_output_delay -rise -min 0.197830 -clock [get_clocks {clk}] -add_delay [get_ports {q}]
+set_output_delay -rise -max 0.287010 -clock [get_clocks {clk}] -add_delay [get_ports {q}]
+set_output_delay -fall -min 0.317684 -clock [get_clocks {clk}] -add_delay [get_ports {q}]
+set_output_delay -fall -max 0.477411 -clock [get_clocks {clk}] -add_delay [get_ports {q}]
+set_input_transition -rise -min 0.017790 [get_ports {d}]
+set_input_transition -rise -max 0.017790 [get_ports {d}]
+set_input_transition -fall -min 0.014584 [get_ports {d}]
+set_input_transition -fall -max 0.014584 [get_ports {d}]
+set_load -pin_load -rise -min 0.934558 [get_ports {q}]
+set_load -pin_load -rise -max 0.934558 [get_ports {q}]
+set_load -pin_load -fall -min 0.835243 [get_ports {q}]
+set_load -pin_load -fall -max 0.835243 [get_ports {q}]
+create_clock -name {clk} -period 1.000000 -waveform {0.000000 0.500000} [get_ports {ck}]
+set_input_delay -rise -min 0.301104 -clock [get_clocks {clk}] -add_delay [get_ports {d}]
+set_input_delay -rise -max 0.520874 -clock [get_clocks {clk}] -add_delay [get_ports {d}]
+set_input_delay -fall -min 0.237958 -clock [get_clocks {clk}] -add_delay [get_ports {d}]
+set_input_delay -fall -max 0.559687 -clock [get_clocks {clk}] -add_delay [get_ports {d}]
+set_output_delay -rise -min -0.024673 -clock [get_clocks {clk}] -add_delay [get_ports {q}]
+set_output_delay -rise -max 0.287010 -clock [get_clocks {clk}] -add_delay [get_ports {q}]
+set_output_delay -fall -min -0.003743 -clock [get_clocks {clk}] -add_delay [get_ports {q}]
+set_output_delay -fall -max 0.477411 -clock [get_clocks {clk}] -add_delay [get_ports {q}]
+set_input_transition -rise -min 0.017790 [get_ports {d}]
+set_input_transition -rise -max 0.029186 [get_ports {d}]
+set_input_transition -fall -min 0.014584 [get_ports {d}]
+set_input_transition -fall -max 0.018365 [get_ports {d}]
+set_load -pin_load -rise -min 0.934558 [get_ports {q}]
+set_load -pin_load -rise -max 2.752875 [get_ports {q}]
+set_load -pin_load -fall -min 0.835243 [get_ports {q}]
+set_load -pin_load -fall -max 2.506700 [get_ports {q}]
+Error: 1388 r_in is not a hierarchical instance.
+blk max in 0.123 out 0.208
+blk min in 0.612 out 0.549
+blk max in 0.120 out 0.199
+blk min in 0.392 out 0.310

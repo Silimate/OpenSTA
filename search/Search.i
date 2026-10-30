@@ -34,6 +34,7 @@
 #include "search/Levelize.hh"
 #include "search/ReportPath.hh"
 #include "search/Tag.hh"
+#include "search/WriteContextSdc.hh"
 #include "PathExpanded.hh"
 #include "Bfs.hh"
 #include "Scene.hh"
@@ -1321,6 +1322,13 @@ void
 set_sdc_name_folding(bool enable)
 {
   Sta::sta()->setSdcNameFolding(enable);
+}
+
+void
+write_context_sdc_cmd(InstanceSeq *insts,
+                      const char *filename)
+{
+  writeContextSdc(*insts, filename, Sta::sta());
 }
 
 %} // inline
