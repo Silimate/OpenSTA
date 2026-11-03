@@ -1,0 +1,493 @@
+write_timing_model -scalar
+  cell ("io_delays_blk") {
+    area : 5.000 
+    is_macro_cell : true;
+    pin("clk") {
+      direction : input;
+      clock : true;
+      capacitance : 0.0010;
+    }
+    pin("a") {
+      direction : input;
+      capacitance : 0.0010;
+    }
+    pin("b") {
+      direction : input;
+      capacitance : 0.0010;
+    }
+    pin("d") {
+      direction : input;
+      capacitance : 0.0010;
+      timing() {
+        related_pin : "clk";
+        timing_type : hold_rising;
+        rise_constraint(scalar) {
+          values("0.05000");
+        }
+        fall_constraint(scalar) {
+          values("0.05000");
+        }
+      }
+      timing() {
+        related_pin : "clk";
+        timing_type : setup_rising;
+        rise_constraint(scalar) {
+          values("0.10000");
+        }
+        fall_constraint(scalar) {
+          values("0.10000");
+        }
+      }
+    }
+    pin("y") {
+      direction : output;
+      capacitance : 0.0000;
+      timing() {
+        related_pin : "a";
+        timing_sense : positive_unate;
+        timing_type : combinational;
+        cell_rise(scalar) {
+          values("0.40000");
+        }
+        rise_transition(scalar) {
+          values("0.10000");
+        }
+        cell_fall(scalar) {
+          values("0.40000");
+        }
+        fall_transition(scalar) {
+          values("0.10000");
+        }
+      }
+      timing() {
+        related_pin : "b";
+        timing_sense : positive_unate;
+        timing_type : combinational;
+        cell_rise(scalar) {
+          values("0.40000");
+        }
+        rise_transition(scalar) {
+          values("0.10000");
+        }
+        cell_fall(scalar) {
+          values("0.40000");
+        }
+        fall_transition(scalar) {
+          values("0.10000");
+        }
+      }
+    }
+    pin("q") {
+      direction : output;
+      capacitance : 0.0000;
+      timing() {
+        related_pin : "clk";
+        timing_type : rising_edge;
+        cell_rise(scalar) {
+          values("0.30000");
+        }
+        rise_transition(scalar) {
+          values("0.10000");
+        }
+        cell_fall(scalar) {
+          values("0.30000");
+        }
+        fall_transition(scalar) {
+          values("0.10000");
+        }
+      }
+    }
+  }
+
+}
+write_timing_model -scalar -io_delays
+  cell ("io_delays_blk") {
+    area : 5.000 
+    is_macro_cell : true;
+    pin("clk") {
+      direction : input;
+      clock : true;
+      capacitance : 0.0010;
+    }
+    pin("a") {
+      direction : input;
+      capacitance : 0.0010;
+      timing() {
+        related_pin : "clk";
+        timing_type : hold_rising;
+        rise_constraint(scalar) {
+          values("-3.40000");
+        }
+        fall_constraint(scalar) {
+          values("-3.40000");
+        }
+      }
+      timing() {
+        related_pin : "clk";
+        timing_type : setup_rising;
+        rise_constraint(scalar) {
+          values("3.40000");
+        }
+        fall_constraint(scalar) {
+          values("3.40000");
+        }
+      }
+    }
+    pin("b") {
+      direction : input;
+      capacitance : 0.0010;
+      timing() {
+        related_pin : "clk";
+        timing_type : hold_rising;
+        rise_constraint(scalar) {
+          values("-3.40000");
+        }
+        fall_constraint(scalar) {
+          values("-3.40000");
+        }
+      }
+      timing() {
+        related_pin : "clk";
+        timing_type : setup_rising;
+        rise_constraint(scalar) {
+          values("3.40000");
+        }
+        fall_constraint(scalar) {
+          values("3.40000");
+        }
+      }
+    }
+    pin("d") {
+      direction : input;
+      capacitance : 0.0010;
+      timing() {
+        related_pin : "clk";
+        timing_type : hold_rising;
+        rise_constraint(scalar) {
+          values("0.05000");
+        }
+        fall_constraint(scalar) {
+          values("0.05000");
+        }
+      }
+      timing() {
+        related_pin : "clk";
+        timing_type : setup_rising;
+        rise_constraint(scalar) {
+          values("0.10000");
+        }
+        fall_constraint(scalar) {
+          values("0.10000");
+        }
+      }
+    }
+    pin("y") {
+      direction : output;
+      capacitance : 0.0000;
+      timing() {
+        related_pin : "a";
+        timing_sense : positive_unate;
+        timing_type : combinational;
+        cell_rise(scalar) {
+          values("2.40000");
+        }
+        rise_transition(scalar) {
+          values("0.10000");
+        }
+        retaining_rise(scalar) {
+          values("0.40000");
+        }
+        retain_rise_slew(scalar) {
+          values("0.10000");
+        }
+        cell_fall(scalar) {
+          values("2.40000");
+        }
+        fall_transition(scalar) {
+          values("0.10000");
+        }
+        retaining_fall(scalar) {
+          values("0.40000");
+        }
+        retain_fall_slew(scalar) {
+          values("0.10000");
+        }
+      }
+      timing() {
+        related_pin : "b";
+        timing_sense : positive_unate;
+        timing_type : combinational;
+        cell_rise(scalar) {
+          values("2.40000");
+        }
+        rise_transition(scalar) {
+          values("0.10000");
+        }
+        retaining_rise(scalar) {
+          values("0.40000");
+        }
+        retain_rise_slew(scalar) {
+          values("0.10000");
+        }
+        cell_fall(scalar) {
+          values("2.40000");
+        }
+        fall_transition(scalar) {
+          values("0.10000");
+        }
+        retaining_fall(scalar) {
+          values("0.40000");
+        }
+        retain_fall_slew(scalar) {
+          values("0.10000");
+        }
+      }
+      timing() {
+        related_pin : "clk";
+        timing_type : rising_edge;
+        cell_rise(scalar) {
+          values("2.40000");
+        }
+        rise_transition(scalar) {
+          values("0.10000");
+        }
+        cell_fall(scalar) {
+          values("2.40000");
+        }
+        fall_transition(scalar) {
+          values("0.10000");
+        }
+      }
+    }
+    pin("q") {
+      direction : output;
+      capacitance : 0.0000;
+      timing() {
+        related_pin : "clk";
+        timing_type : rising_edge;
+        cell_rise(scalar) {
+          values("0.30000");
+        }
+        rise_transition(scalar) {
+          values("0.10000");
+        }
+        cell_fall(scalar) {
+          values("0.30000");
+        }
+        fall_transition(scalar) {
+          values("0.10000");
+        }
+      }
+    }
+  }
+
+}
+write_timing_model -io_delays
+  cell ("io_delays_blk") {
+    area : 5.000 
+    is_macro_cell : true;
+    pin("clk") {
+      direction : input;
+      clock : true;
+      capacitance : 0.0010;
+    }
+    pin("a") {
+      direction : input;
+      capacitance : 0.0010;
+      timing() {
+        related_pin : "clk";
+        timing_type : hold_rising;
+        rise_constraint(scalar) {
+          values("-3.40000");
+        }
+        fall_constraint(scalar) {
+          values("-3.40000");
+        }
+      }
+      timing() {
+        related_pin : "clk";
+        timing_type : setup_rising;
+        rise_constraint(scalar) {
+          values("3.40000");
+        }
+        fall_constraint(scalar) {
+          values("3.40000");
+        }
+      }
+    }
+    pin("b") {
+      direction : input;
+      capacitance : 0.0010;
+      timing() {
+        related_pin : "clk";
+        timing_type : hold_rising;
+        rise_constraint(scalar) {
+          values("-3.40000");
+        }
+        fall_constraint(scalar) {
+          values("-3.40000");
+        }
+      }
+      timing() {
+        related_pin : "clk";
+        timing_type : setup_rising;
+        rise_constraint(scalar) {
+          values("3.40000");
+        }
+        fall_constraint(scalar) {
+          values("3.40000");
+        }
+      }
+    }
+    pin("d") {
+      direction : input;
+      capacitance : 0.0010;
+      timing() {
+        related_pin : "clk";
+        timing_type : hold_rising;
+        rise_constraint(scalar) {
+          values("0.05000");
+        }
+        fall_constraint(scalar) {
+          values("0.05000");
+        }
+      }
+      timing() {
+        related_pin : "clk";
+        timing_type : setup_rising;
+        rise_constraint(scalar) {
+          values("0.10000");
+        }
+        fall_constraint(scalar) {
+          values("0.10000");
+        }
+      }
+    }
+    pin("y") {
+      direction : output;
+      capacitance : 0.0000;
+      timing() {
+        related_pin : "a";
+        timing_sense : positive_unate;
+        timing_type : combinational;
+        cell_rise(scalar) {
+          values("2.40000");
+        }
+        rise_transition(scalar) {
+          values("0.10000");
+        }
+        retaining_rise(scalar) {
+          values("0.40000");
+        }
+        retain_rise_slew(scalar) {
+          values("0.10000");
+        }
+        cell_fall(scalar) {
+          values("2.40000");
+        }
+        fall_transition(scalar) {
+          values("0.10000");
+        }
+        retaining_fall(scalar) {
+          values("0.40000");
+        }
+        retain_fall_slew(scalar) {
+          values("0.10000");
+        }
+      }
+      timing() {
+        related_pin : "b";
+        timing_sense : positive_unate;
+        timing_type : combinational;
+        cell_rise(scalar) {
+          values("2.40000");
+        }
+        rise_transition(scalar) {
+          values("0.10000");
+        }
+        retaining_rise(scalar) {
+          values("0.40000");
+        }
+        retain_rise_slew(scalar) {
+          values("0.10000");
+        }
+        cell_fall(scalar) {
+          values("2.40000");
+        }
+        fall_transition(scalar) {
+          values("0.10000");
+        }
+        retaining_fall(scalar) {
+          values("0.40000");
+        }
+        retain_fall_slew(scalar) {
+          values("0.10000");
+        }
+      }
+      timing() {
+        related_pin : "clk";
+        timing_type : rising_edge;
+        cell_rise(scalar) {
+          values("2.40000");
+        }
+        rise_transition(scalar) {
+          values("0.10000");
+        }
+        cell_fall(scalar) {
+          values("2.40000");
+        }
+        fall_transition(scalar) {
+          values("0.10000");
+        }
+      }
+    }
+    pin("q") {
+      direction : output;
+      capacitance : 0.0000;
+      timing() {
+        related_pin : "clk";
+        timing_type : rising_edge;
+        cell_rise(scalar) {
+          values("0.30000");
+        }
+        rise_transition(scalar) {
+          values("0.10000");
+        }
+        cell_fall(scalar) {
+          values("0.30000");
+        }
+        fall_transition(scalar) {
+          values("0.10000");
+        }
+      }
+    }
+  }
+
+}
+Startpoint: a (input port clocked by clk)
+Endpoint: y (output port clocked by clk)
+Path Group: clk
+Path Type: max
+
+  Delay    Time   Description
+---------------------------------------------------------
+   0.00    0.00   clock clk (rise edge)
+   0.00    0.00   clock network delay (ideal)
+   2.00    2.00 ^ input external delay
+   0.00    2.00 ^ a (in)
+   0.40    2.40 ^ u1/Y (AND2)
+   0.00    2.40 ^ y (out)
+           2.40   data arrival time
+
+  10.00   10.00   clock clk (rise edge)
+   0.00   10.00   clock network delay (ideal)
+   0.00   10.00   clock reconvergence pessimism
+  -3.00    7.00   output external delay
+           7.00   data required time
+---------------------------------------------------------
+           7.00   data required time
+          -2.40   data arrival time
+---------------------------------------------------------
+           4.60   slack (MET)
+
+

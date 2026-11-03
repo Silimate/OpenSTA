@@ -1049,6 +1049,7 @@ define_cmd_args "write_timing_model" {[-scalar]
                                         [-library_name lib_name]\
                                         [-cell_name cell_name]\
                                         [-internal_paths]\
+                                        [-io_delays]\
                                         filename} \
   -help {The `write_timing_model` command constructs a liberty timing model for the current design and writes it to filename. cell_name defaults to the cell name of the top level block in the design.
 
@@ -1060,6 +1061,8 @@ set_output_delay
 set_load
 set_timing_derate
 ```
+
+Use `-io_delays` to keep `set_input_delay` and `set_output_delay`: the input delays are added to the input to output arcs, which also become clock to output arcs from the input delay clocks, and the output delays are added to the setup and hold checks of the inputs with paths to the outputs. `-scalar` keeps `set_load`, `set_timing_derate` and clock source latency, because scalar delays do not scale with the load of the context the model is used in.
 
 Using `set_input_transition` with the slew from the block context will be used will improve the match between the timing model and the block netlist.  Paths defined on clocks that are defined on internal pins are ignored because the model has no way to include the clock definition.
 
@@ -1086,17 +1089,20 @@ Use `-internal_paths` to include the paths to the endpoints inside the block. Ea
     -cell_name {The name to use for the liberty cell. Defaults to the top level module name.}
     -scene {The scene to use for extracting the model.}
     -internal_paths {Model the paths to the endpoints inside the block with internal pins.}
+    -io_delays {Keep set_input_delay and set_output_delay in the model.}
     filename {Filename for the liberty timing model.}
   }
 
 proc write_timing_model { args } {
   parse_key_args "write_timing_model" args \
-    keys {-library_name -cell_name -scene} flags {-scalar -internal_paths}
+    keys {-library_name -cell_name -scene} \
+    flags {-scalar -internal_paths -io_delays}
   check_argc_eq1 "write_timing_model" $args
 
   set filename [file nativename [lindex $args 0]]
   set scalar [info exists flags(-scalar)]
   set internal_paths [info exists flags(-internal_paths)]
+  set io_delays [info exists flags(-io_delays)]
   if { [info exists keys(-cell_name)] } {
     set cell_name $keys(-cell_name)
   } else {
@@ -1109,7 +1115,7 @@ proc write_timing_model { args } {
   }
   set scene [parse_scene keys]
   write_timing_model_cmd $lib_name $cell_name $filename $scene $scalar \
-    $internal_paths
+    $internal_paths $io_delays
 }
 
 ################################################################

@@ -3,6 +3,12 @@
 This file summarizes user visible changes for each release.
 See [API changes](ApiChanges.md) for changes to the STA API.
 
+## 2026/11/03
+
+`write_timing_model -scalar` leaves `set_input_delay` and
+`set_output_delay` out of the model, as `write_timing_model` without
+`-scalar` does. The new `-io_delays` flag keeps them in either mode.
+
 ## 2026/09/24
 
 In a future release the TCL command interpreter will not support

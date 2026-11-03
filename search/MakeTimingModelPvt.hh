@@ -180,6 +180,7 @@ public:
                   const Scene *scene,
                   const bool scalar,
                   const bool internal_paths,
+                  const bool io_delays,
                   Sta *sta);
   ~MakeTimingModel() override;
   LibertyLibrary *makeTimingModel();
@@ -273,6 +274,7 @@ private:
   SceneSet scenes_;
   const bool scalar_;
   const bool internal_paths_;
+  const bool io_delays_;
   LibertyLibrary *library_;
   LibertyCell *cell_{nullptr};
   const MinMax *min_max_;
