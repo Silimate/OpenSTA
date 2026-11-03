@@ -267,6 +267,7 @@ record_public_tests {
   write_timing_model_min_slew
   write_timing_model_report
   write_timing_model_scalar
+  write_timing_model_shared_nets
 }
 
 define_test_group fast [group_tests all]
