@@ -378,6 +378,7 @@ Search::deleteTags()
   tag_group_free_indices_.clear();
 
   tag_next_ = 0;
+  filter_tags_.clear();
   deleteContents(tag_set_);
 
   deleteContents(clk_info_set_);
@@ -613,7 +614,7 @@ Search::deleteTagGroup(TagGroup *group)
 void
 Search::deleteFilterTags()
 {
-  for (TagIndex i = 0; i < tag_next_; i++) {
+  for (TagIndex i : filter_tags_) {
     Tag *tag = tags_[i];
     if (tag && (tag->isFilter() || tag->clkInfo()->crprPathRefsFilter())) {
       tags_[i] = nullptr;
@@ -621,6 +622,7 @@ Search::deleteFilterTags()
       delete tag;
     }
   }
+  filter_tags_.clear();
 }
 
 void
@@ -3067,7 +3069,10 @@ Search::findTag(Scene *scene,
       own_states = false;
       // Make sure tag can be indexed in tags_ before it is visible to
       // other threads via tag_set_.
-      tags_[tagsTableRfIndex(tag_index, rf1)] = tag1;
+      TagIndex tags_index = tagsTableRfIndex(tag_index, rf1);
+      tags_[tags_index] = tag1;
+      if (tag1->isFilter() || clk_info->crprPathRefsFilter())
+        filter_tags_.push_back(tags_index);
       tag_set_->insert(tag1);
       if (tag_cache)
         tag_cache->insert(tag1);
