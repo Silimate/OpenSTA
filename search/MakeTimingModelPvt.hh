@@ -282,6 +282,7 @@ private:
   void saveSdc();
   void restoreSdc();
   void swapSdcWithBackup();
+  void swappedSdcInvalid();
 
   std::string lib_name_;
   std::string cell_name_;

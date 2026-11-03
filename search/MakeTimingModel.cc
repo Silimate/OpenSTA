@@ -155,7 +155,7 @@ MakeTimingModel::saveSdc()
 {
   sdc_backup_ = new Sdc(sdc_->mode(), this);
   swapSdcWithBackup();
-  sta_->delaysInvalid();
+  swappedSdcInvalid();
 }
 
 void
@@ -163,7 +163,18 @@ MakeTimingModel::restoreSdc()
 {
   swapSdcWithBackup();
   delete sdc_backup_;
-  sta_->delaysInvalid();
+  swappedSdcInvalid();
+}
+
+// Loads and derates change delays, but input and output delays, the
+// only ones -scalar swaps, only change arrival and required times.
+void
+MakeTimingModel::swappedSdcInvalid()
+{
+  if (scalar_)
+    sta_->arrivalsInvalid();
+  else
+    sta_->delaysInvalid();
 }
 
 // Input and output delays budget the block's context, so they are left
