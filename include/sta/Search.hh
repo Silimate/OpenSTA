@@ -644,6 +644,8 @@ protected:
   TagSet *tag_set_;
   std::vector<Tag **> tags_prev_;
   TagIndex tag_next_{0};
+  // Indices of the filter tags, so deleting them does not visit every tag.
+  std::vector<TagIndex> filter_tags_;
   std::mutex tag_lock_;
 
   // Capacity of tag_groups_.

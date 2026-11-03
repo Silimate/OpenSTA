@@ -49,6 +49,7 @@
 #include "LibertyClass.hh"
 #include "Network.hh"
 #include "NetworkClass.hh"
+#include "Parasitics.hh"
 #include "Path.hh"
 #include "PathEnd.hh"
 #include "PortDirection.hh"
@@ -154,7 +155,7 @@ MakeTimingModel::saveSdc()
 {
   sdc_backup_ = new Sdc(sdc_->mode(), this);
   swapSdcWithBackup();
-  sta_->delaysInvalid();
+  swappedSdcInvalid();
 }
 
 void
@@ -162,7 +163,18 @@ MakeTimingModel::restoreSdc()
 {
   swapSdcWithBackup();
   delete sdc_backup_;
-  sta_->delaysInvalid();
+  swappedSdcInvalid();
+}
+
+// Loads and derates change delays, but input and output delays, the
+// only ones -scalar swaps, only change arrival and required times.
+void
+MakeTimingModel::swappedSdcInvalid()
+{
+  if (scalar_)
+    sta_->arrivalsInvalid();
+  else
+    sta_->delaysInvalid();
 }
 
 // Input and output delays budget the block's context, so they are left
@@ -250,8 +262,7 @@ MakeTimingModel::makePorts()
         Port *bit_port = member_iter->next();
         Pin *pin = network_->findPin(top_inst, bit_port);
         LibertyPort *lib_bit_port = modelPort(pin);
-        float load_cap = graph_delay_calc_->loadCap(pin, scene_, min_max_);
-        lib_bit_port->setCapacitance(load_cap);
+        lib_bit_port->setCapacitance(portLoadCap(pin));
         setPortLimits(pin, lib_bit_port);
       }
       delete member_iter;
@@ -260,12 +271,46 @@ MakeTimingModel::makePorts()
       LibertyPort *lib_port = lib_builder_->makePort(cell_, port_name);
       lib_port->setDirection(network_->direction(port));
       Pin *pin = network_->findPin(top_inst, port);
-      float load_cap = graph_delay_calc_->loadCap(pin, scene_, min_max_);
-      lib_port->setCapacitance(load_cap);
+      lib_port->setCapacitance(portLoadCap(pin));
       setPortLimits(pin, lib_port);
     }
   }
   delete port_iter;
+}
+
+// Ports whose connected pins are found from the same nets, such as
+// outputs tied to a constant, visit the same pins in the same order.
+bool
+MakeTimingModel::sharedPortNets(const Pin *pin,
+                                PortNets &nets) const
+{
+  Term *term = network_->term(pin);
+  nets = {network_->net(pin), term ? network_->net(term) : nullptr};
+  return nets.first || nets.second;
+}
+
+// Without parasitics, a wire load or a load or second driver of its own,
+// the capacitance on a port only depends on the pins it is connected
+// to, so it is found once for the ports on the same nets.
+float
+MakeTimingModel::portLoadCap(const Pin *pin)
+{
+  PortNets nets;
+  Parasitics *parasitics = scene_->parasitics(min_max_);
+  bool shared = sharedPortNets(pin, nets)
+    && (parasitics == nullptr || !parasitics->haveParasitics())
+    && sdc_->wireload(min_max_) == nullptr
+    && !sdc_->drvrPinHasWireCap(pin)
+    && network_->drivers(nets.first ? nets.first : nets.second)->size() <= 1;
+  if (shared) {
+    auto itr = port_load_caps_.find(nets);
+    if (itr != port_load_caps_.end())
+      return itr->second;
+  }
+  float load_cap = graph_delay_calc_->loadCap(pin, scene_, min_max_);
+  if (shared)
+    port_load_caps_[nets] = load_cap;
+  return load_cap;
 }
 
 // Find port max_cap/max_slew limits.
@@ -274,42 +319,51 @@ MakeTimingModel::setPortLimits(const Pin *pin,
                                LibertyPort *lib_port)
 {
   const PortDirection *dir = network_->direction(pin);
-  float slew_limit = std::numeric_limits<float>::max();
-  float cap_limit = std::numeric_limits<float>::max();
-  bool slew_exists = false;
-  bool cap_exists = false;
-  PinConnectedPinIterator *pin_iter = network_->connectedPinIterator(pin);
-  while (pin_iter->hasNext()) {
-    const Pin *pin = pin_iter->next();
-    const LibertyPort *port = network_->libertyPort(pin);
-    if (port) {
-      const LibertyLibrary *lib = port->libertyCell()->libertyLibrary();
-      float limit;
-      bool exists;
-      port->slewLimit(min_max_, limit, exists);
-      if (!exists)
-        lib->defaultMaxSlew(limit, exists);
-      if (exists && limit < slew_limit) {
-        slew_limit = limit;
-        slew_exists = true;
-      }
-
-      if (dir->isAnyOutput()) {
-        port->capacitanceLimit(min_max_, limit, exists);
+  PortNets nets;
+  bool shared = sharedPortNets(pin, nets);
+  std::pair<PortNets, bool> key(nets, dir->isAnyOutput());
+  auto itr = shared ? port_limits_.find(key) : port_limits_.end();
+  PortLimits limits;
+  if (itr != port_limits_.end())
+    limits = itr->second;
+  else {
+    limits = {std::numeric_limits<float>::max(), false,
+              std::numeric_limits<float>::max(), false};
+    PinConnectedPinIterator *pin_iter = network_->connectedPinIterator(pin);
+    while (pin_iter->hasNext()) {
+      const Pin *pin = pin_iter->next();
+      const LibertyPort *port = network_->libertyPort(pin);
+      if (port) {
+        const LibertyLibrary *lib = port->libertyCell()->libertyLibrary();
+        float limit;
+        bool exists;
+        port->slewLimit(min_max_, limit, exists);
         if (!exists)
-          lib->defaultMaxCapacitance(limit, exists);
-        if (exists && limit < cap_limit) {
-          cap_limit = limit;
-          cap_exists = true;
+          lib->defaultMaxSlew(limit, exists);
+        if (exists && limit < limits.slew_limit) {
+          limits.slew_limit = limit;
+          limits.slew_exists = true;
+        }
+
+        if (dir->isAnyOutput()) {
+          port->capacitanceLimit(min_max_, limit, exists);
+          if (!exists)
+            lib->defaultMaxCapacitance(limit, exists);
+          if (exists && limit < limits.cap_limit) {
+            limits.cap_limit = limit;
+            limits.cap_exists = true;
+          }
         }
       }
     }
+    delete pin_iter;
+    if (shared)
+      port_limits_[key] = limits;
   }
-  delete pin_iter;
-  if (slew_exists)
-    lib_port->setSlewLimit(slew_limit, min_max_);
-  if (cap_exists)
-    lib_port->setCapacitanceLimit(cap_limit, min_max_);
+  if (limits.slew_exists)
+    lib_port->setSlewLimit(limits.slew_limit, min_max_);
+  if (limits.cap_exists)
+    lib_port->setCapacitanceLimit(limits.cap_limit, min_max_);
 }
 
 void
@@ -450,7 +504,7 @@ MakeTimingModel::findTimingFromInput(Port *input_port)
       VisitPathEnds visit_ends(sta_);
       for (Vertex *end : endpoints)
         visit_ends.visitPathEnds(end, scenes_, MinMaxAll::all(), true, &end_visitor);
-      findOutputDelays(input_rf, output_delays);
+      findOutputDelays(input_rf, endpoints, output_delays);
       search_->deleteFilteredArrivals();
 
       sta_->removeInputDelay(input_pin, input_rf1, sdc_->defaultArrivalClock(),
@@ -462,15 +516,17 @@ MakeTimingModel::findTimingFromInput(Port *input_port)
   }
 }
 
+// Output ports have no fanout, so the ones with paths from the input are
+// among the endpoints of its search.
 void
 MakeTimingModel::findOutputDelays(const RiseFall *input_rf,
+                                  const VertexSeq &endpoints,
                                   OutputPinDelays &output_pin_delays)
 {
-  InstancePinIterator *output_iter = network_->pinIterator(network_->topInstance());
-  while (output_iter->hasNext()) {
-    Pin *output_pin = output_iter->next();
-    if (network_->direction(output_pin)->isOutput()) {
-      Vertex *output_vertex = graph_->pinLoadVertex(output_pin);
+  for (Vertex *output_vertex : endpoints) {
+    const Pin *output_pin = output_vertex->pin();
+    if (network_->isTopLevelPort(output_pin)
+        && network_->direction(output_pin)->isOutput()) {
       VertexPathIterator path_iter(output_vertex, this);
       while (path_iter.hasNext()) {
         Path *path = path_iter.next();
@@ -486,7 +542,6 @@ MakeTimingModel::findOutputDelays(const RiseFall *input_rf,
       }
     }
   }
-  delete output_iter;
 }
 
 void

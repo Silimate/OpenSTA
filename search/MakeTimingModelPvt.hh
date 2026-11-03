@@ -60,6 +60,18 @@ public:
 
 using ClockEdgeDelays = std::map<const ClockEdge*, RiseFallMinMax>;
 using OutputPinDelays = std::map<const Pin *, OutputDelays>;
+// The nets a block port's connected pins are found from: the net above
+// the port's pin and the net below its terminal.
+using PortNets = std::pair<const Net*, const Net*>;
+
+class PortLimits
+{
+public:
+  float slew_limit;
+  bool slew_exists;
+  float cap_limit;
+  bool cap_exists;
+};
 
 // Model clock port and clock edge of an internal path capture.
 class InternalClkEdge
@@ -195,6 +207,9 @@ private:
   void makeCell();
   float findArea();
   void makePorts();
+  float portLoadCap(const Pin *pin);
+  bool sharedPortNets(const Pin *pin,
+                      PortNets &nets) const;
   void setPortLimits(const Pin *pin,
                      LibertyPort *lib_port);
   void checkClock(Clock *clk);
@@ -236,6 +251,7 @@ private:
                         TimingSense sense,
                         const ClkDelays &delays);
   void findOutputDelays(const RiseFall *input_rf,
+                        const VertexSeq &endpoints,
                         OutputPinDelays &output_pin_delays);
   void makeSetupHoldTimingArcs(const Pin *input_pin,
                                const ClockEdgeDelays &clk_margins);
@@ -266,6 +282,7 @@ private:
   void saveSdc();
   void restoreSdc();
   void swapSdcWithBackup();
+  void swappedSdcInvalid();
 
   std::string lib_name_;
   std::string cell_name_;
@@ -282,6 +299,9 @@ private:
   // Output driver table model template to model template.
   std::map<const TableTemplate*, TableTemplate*> template_map_;
   int tbl_template_index_{1};
+  // Port loads and limits by the nets the ports are on.
+  std::map<PortNets, float> port_load_caps_;
+  std::map<std::pair<PortNets, bool>, PortLimits> port_limits_;
   Sdc *sdc_;
   Sdc *sdc_backup_{nullptr};
   InternalEndpointPathsMap internal_endpoint_paths_;
