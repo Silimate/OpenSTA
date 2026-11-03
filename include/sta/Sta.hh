@@ -1452,7 +1452,8 @@ public:
                         std::string_view filename,
                         const Scene *scene,
                         const bool scalar,
-                        const bool internal_paths = false);
+                        const bool internal_paths = false,
+                        const bool io_delays = false);
 
   // Find equivalent cells in equiv_libs.
   // Optionally add mappings for cells in map_libs.

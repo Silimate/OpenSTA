@@ -77,10 +77,11 @@ makeTimingModel(std::string_view lib_name,
                 const Scene *scene,
                 const bool scalar,
                 const bool internal_paths,
+                const bool io_delays,
                 Sta *sta)
 {
   MakeTimingModel maker(lib_name, cell_name, filename, scene, scalar,
-                        internal_paths, sta);
+                        internal_paths, io_delays, sta);
   return maker.makeTimingModel();
 }
 
@@ -90,6 +91,7 @@ MakeTimingModel::MakeTimingModel(std::string_view lib_name,
                                  const Scene *scene,
                                  const bool scalar,
                                  const bool internal_paths,
+                                 const bool io_delays,
                                  Sta *sta) :
   StaState(sta),
   lib_name_(lib_name),
@@ -98,6 +100,7 @@ MakeTimingModel::MakeTimingModel(std::string_view lib_name,
   scene_(scene),
   scalar_(scalar),
   internal_paths_(internal_paths),
+  io_delays_(io_delays),
   cell_(nullptr),
   min_max_(MinMax::max()),
   lib_builder_(new LibertyBuilder(debug_,
@@ -113,7 +116,8 @@ MakeTimingModel::~MakeTimingModel() { delete lib_builder_; }
 LibertyLibrary *
 MakeTimingModel::makeTimingModel()
 {
-  if (!scalar_)
+  bool save_sdc = !scalar_ || !io_delays_;
+  if (save_sdc)
     saveSdc();
 
   tbl_template_index_ = 1;
@@ -138,7 +142,7 @@ MakeTimingModel::makeTimingModel()
 
   cell_->finish(false, report_, debug_);
 
-  if (!scalar_)
+  if (save_sdc)
     restoreSdc();
 
   return library_;
@@ -161,13 +165,20 @@ MakeTimingModel::restoreSdc()
   sta_->delaysInvalid();
 }
 
+// Input and output delays budget the block's context, so they are left
+// out of the model unless io_delays_. Scalar models keep the loads,
+// derates and clock insertion delays, because their delays do not
+// scale with the context's load.
 void
 MakeTimingModel::swapSdcWithBackup()
 {
-  Sdc::swapPortDelays(sdc_, sdc_backup_);
-  Sdc::swapPortExtCaps(sdc_, sdc_backup_);
-  Sdc::swapDeratingFactors(sdc_, sdc_backup_);
-  Sdc::swapClockInsertions(sdc_, sdc_backup_);
+  if (!io_delays_)
+    Sdc::swapPortDelays(sdc_, sdc_backup_);
+  if (!scalar_) {
+    Sdc::swapPortExtCaps(sdc_, sdc_backup_);
+    Sdc::swapDeratingFactors(sdc_, sdc_backup_);
+    Sdc::swapClockInsertions(sdc_, sdc_backup_);
+  }
 }
 
 void
