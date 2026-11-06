@@ -55,7 +55,7 @@ proc scan_file { file warn_regexp } {
 }
 
 set subdirs {app dcalc graph liberty network parasitics \
-                 power sdc sdf search spice util verilog tcl}
+                 power sdc sdf search spice stadb util verilog tcl}
 set files_c {}
 foreach subdir $subdirs {
     set files [glob -nocomplain [file join $subdir "*.{cc,hh,yy,ll,i}"]]
