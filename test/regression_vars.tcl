@@ -220,6 +220,7 @@ record_public_tests {
   report_checks_src_attr
   report_json1
   report_json2
+  reset_path
   sdc_compat
   sdc_name_folding
   sdc_strip_escaped_bus

@@ -3322,6 +3322,27 @@ proc unset_path_exceptions_cmd { cmd cmd_args } {
 
 ################################################################
 
+define_cmd_args "reset_path" \
+  {[-setup] [-hold] [-rise] [-fall] [-from from_list]\
+     [-rise_from from_list] [-fall_from from_list]\
+     [-through|-thr|-th through_list] [-rise_through|-rise_thr|-rise_th through_list]\
+     [-fall_through|-fall_thr|-fall_th through_list] [-to to_list] [-rise_to to_list]\
+     [-fall_to to_list]} \
+  -help {The `reset_path` command resets paths to single-cycle timing by removing any matching `set_false_path`, `set_multicycle_path`, `set_max_delay`, `set_min_delay`, and `set_path_margin` exceptions.} \
+  -arg_help {
+    -setup {Only reset setup (max) exceptions.}
+    -hold {Only reset hold (min) exceptions.}
+    -from {`from`: A list of clocks, instances, ports or pins.}
+    -through {`through`: A list of instances, pins or nets.}
+    -to {`to`: A list of clocks, instances, ports or pins.}
+  }
+
+proc reset_path { args } {
+  unset_path_exceptions_cmd "reset_path" $args
+}
+
+################################################################
+
 define_cmd_args "set_output_delay" \
   {[-rise] [-fall] [-max] [-min]\
      [-clock clock] [-clock_fall]\
