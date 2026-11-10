@@ -123,26 +123,26 @@ proc get_object_args { objects clks_var libcells_var libports_var \
         set matches [get_clocks -quiet $obj]
       }
       if { [sizeof_collection $matches] > 0 } {
-        set clks [add_to_collection $clks $matches]
+        append_objects clks $matches
         } else {
         if { $libcells_var != {} } {
           set matches [get_lib_cells -quiet $obj]
         }
         if { [sizeof_collection $matches] > 0 } {
-          set libcells [add_to_collection $libcells $matches]
+          append_objects libcells $matches
         } else {
           if { $libports_var != {} } {
             set matches [get_lib_pins -quiet $obj]
           }
           if { [sizeof_collection $matches] > 0 } {
-            set libports [add_to_collection $libports $matches]
+            append_objects libports $matches
           } else {
             
             if { $cells_var != {} } {
               set matches [find_cells_matching $obj 0 0]
             }
             if { [sizeof_collection $matches] > 0 } {
-              set cells [add_to_collection $cells $matches]
+              append_objects cells $matches
             } else {
               # Try exact instance/port/pin/net names before name folding
               # (sta_sdc_name_folding) so a folded match of one object type
@@ -185,7 +185,7 @@ proc get_implicit_netlist_object_arg { obj insts_var ports_var pins_var \
     upvar 1 insts insts
     set matches [get_cells -quiet $obj]
     if { [sizeof_collection $matches] > 0 } {
-      set insts [add_to_collection $insts $matches]
+      append_objects insts $matches
       return 1
     }
   }
@@ -193,7 +193,7 @@ proc get_implicit_netlist_object_arg { obj insts_var ports_var pins_var \
     upvar 1 ports ports
     set matches [get_ports -quiet $obj]
     if { [sizeof_collection $matches] > 0 }  {
-      set ports [add_to_collection $ports $matches]
+      append_objects ports $matches
       return 1
     }
   }
@@ -201,7 +201,7 @@ proc get_implicit_netlist_object_arg { obj insts_var ports_var pins_var \
     upvar 1 pins pins
     set matches [get_pins -quiet $obj]
     if { [sizeof_collection $matches] > 0 } {
-      set pins [add_to_collection $pins $matches]
+      append_objects pins $matches
       return 1
     }
   }
@@ -209,11 +209,18 @@ proc get_implicit_netlist_object_arg { obj insts_var ports_var pins_var \
     upvar 1 nets nets
     set matches [get_nets -quiet $obj]
     if { [sizeof_collection $matches] > 0 } {
-      set nets [add_to_collection $nets $matches]
+      append_objects nets $matches
       return 1
     }
   }
   return 0
+}
+
+proc append_objects { list_var objects } {
+  upvar 1 $list_var list
+  foreach_in_collection object $objects {
+    lappend list $object
+  }
 }
 
 proc parse_clk_cell_port_args { objects clks_var cells_var ports_var } {
