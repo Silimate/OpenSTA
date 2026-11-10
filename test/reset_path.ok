@@ -1,0 +1,42 @@
+-- initial
+set_max_delay -through [get_pins {u1/Z}] 3.0000
+set_false_path -from [get_cells {r1}]
+set_false_path -from [get_cells {r2}] -to [get_cells {r3}]
+-- reset_path -from r1
+set_max_delay -through [get_pins {u1/Z}] 3.0000
+set_false_path -from [get_cells {r2}] -to [get_cells {r3}]
+-- reset_path -from r2
+set_max_delay -through [get_pins {u1/Z}] 3.0000
+-- reset_path -through u1/Z
+-- reset_path -from r1 -to r3 with -from {r1 r2}
+set_false_path -from [get_cells {r2}] -to [get_cells {r3}]
+-- reset_path -to r3
+-- reset_path -hold
+set_multicycle_path -setup -to [get_pins {r3/D}] 2
+-- reset_path -setup
+-- reset_path -from/-to leaves -rise_from/-fall_to
+set_false_path -rise_from [get_cells {r1}]
+set_false_path -fall_to [get_pins {r3/D}]
+-- reset_path -rise_from/-fall_to
+-- reset_path -fall leaves -rise
+set_false_path -from [get_cells {r1}] -rise
+set_false_path -from [get_cells {r2}] -rise -to [get_cells {r3}]
+-- reset_path -rise
+-- reset_path -from r1 with -fall -from {r1 r2}
+set_false_path -from [get_cells {r2}] -fall
+-- reset_path set_min_delay/set_path_margin leaves group_path
+group_path -name g1 -from [get_ports {in2}]
+No paths found.
+
+max_delay/setup group clk
+
+                                     Required  Actual
+Endpoint                               Delay   Delay   Slack
+------------------------------------------------------------
+r3/D (DFF_X1)                           9.96    0.13    9.83 (MET)
+
+-- read_sdc with reset_path
+group_path -name g1 -from [get_ports {in2}]
+set_multicycle_path -setup -from [get_cells {r2}] 2
+Error 449: reset_path.tcl line 89, -from, -through or -to required.
+Error 448: reset_path.tcl line 91, positional arguments not supported.
