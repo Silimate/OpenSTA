@@ -1,0 +1,65 @@
+u_blk1 max in 0.123 out 0.195
+u_blk1 min in 0.612 out 0.576
+u_blk2 max in 0.442 out 0.517
+u_blk2 min in 0.398 out 0.319
+u_blk3 max in 0.390 out 0.557
+u_blk3 min in 0.381 out 0.409
+create_clock -name {clk} -period 1.000000 -waveform {0.000000 0.500000} [get_ports {ck}]
+set_input_delay -rise -min 0.520874 -clock [get_clocks {clk}] -add_delay [get_ports {d}]
+set_input_delay -rise -max 0.520874 -clock [get_clocks {clk}] -add_delay [get_ports {d}]
+set_input_delay -fall -min 0.559687 -clock [get_clocks {clk}] -add_delay [get_ports {d}]
+set_input_delay -fall -max 0.559687 -clock [get_clocks {clk}] -add_delay [get_ports {d}]
+set_output_delay -rise -min 0.206632 -clock [get_clocks {clk}] -add_delay [get_ports {q}]
+set_output_delay -rise -max 0.295812 -clock [get_clocks {clk}] -add_delay [get_ports {q}]
+set_output_delay -fall -min 0.320285 -clock [get_clocks {clk}] -add_delay [get_ports {q}]
+set_output_delay -fall -max 0.480013 -clock [get_clocks {clk}] -add_delay [get_ports {q}]
+set_input_transition -rise -min 0.017790 [get_ports {d}]
+set_input_transition -rise -max 0.017790 [get_ports {d}]
+set_input_transition -fall -min 0.014584 [get_ports {d}]
+set_input_transition -fall -max 0.014584 [get_ports {d}]
+set_load -pin_load -rise -min 0.934558 [get_ports {q}]
+set_load -pin_load -rise -max 0.934558 [get_ports {q}]
+set_load -pin_load -fall -min 0.835243 [get_ports {q}]
+set_load -pin_load -fall -max 0.835243 [get_ports {q}]
+set_load -wire_load 2.000000 [get_ports {q}]
+create_clock -name {clk} -period 1.000000 -waveform {0.000000 0.500000} [get_ports {ck}]
+set_input_delay 0.300000 -add_delay [get_ports {d}]
+set_output_delay -rise -min 0.100000 -clock [get_clocks {clk}] -add_delay [get_ports {q}]
+set_output_delay -rise -max 0.100000 -clock [get_clocks {clk}] -add_delay [get_ports {q}]
+set_output_delay -fall -min 0.100000 -clock [get_clocks {clk}] -add_delay [get_ports {q}]
+set_output_delay -fall -max 0.100000 -clock [get_clocks {clk}] -add_delay [get_ports {q}]
+create_clock -name {clk} -period 1.000000 -waveform {0.000000 0.500000} [get_ports {ck}]
+set_input_delay -rise -min 0.301104 -clock [get_clocks {clk}] -add_delay [get_ports {d}]
+set_input_delay -rise -max 0.520874 -clock [get_clocks {clk}] -add_delay [get_ports {d}]
+set_input_delay -fall -min 0.237958 -clock [get_clocks {clk}] -add_delay [get_ports {d}]
+set_input_delay -fall -max 0.559687 -clock [get_clocks {clk}] -add_delay [get_ports {d}]
+set_output_delay -rise -min -0.024673 -clock [get_clocks {clk}] -add_delay [get_ports {q}]
+set_output_delay -rise -max 0.295812 -clock [get_clocks {clk}] -add_delay [get_ports {q}]
+set_output_delay -fall -min -0.003743 -clock [get_clocks {clk}] -add_delay [get_ports {q}]
+set_output_delay -fall -max 0.480013 -clock [get_clocks {clk}] -add_delay [get_ports {q}]
+set_input_transition -rise -min 0.017790 [get_ports {d}]
+set_input_transition -rise -max 0.029186 [get_ports {d}]
+set_input_transition -fall -min 0.014584 [get_ports {d}]
+set_input_transition -fall -max 0.018365 [get_ports {d}]
+set_load -pin_load -rise -min 0.934558 [get_ports {q}]
+set_load -pin_load -rise -max 2.752875 [get_ports {q}]
+set_load -pin_load -fall -min 0.835243 [get_ports {q}]
+set_load -pin_load -fall -max 2.506700 [get_ports {q}]
+set_load -wire_load -rise -min 0.000000 [get_ports {q}]
+set_load -wire_load -rise -max 2.000000 [get_ports {q}]
+set_load -wire_load -fall -min 0.000000 [get_ports {q}]
+set_load -wire_load -fall -max 2.000000 [get_ports {q}]
+set_input_delay 0.300000 -add_delay [get_ports {a}]
+set_load -pin_load -rise -min 0.934558 [get_ports {y}]
+set_load -pin_load -rise -max 0.934558 [get_ports {y}]
+set_load -pin_load -fall -min 0.835243 [get_ports {y}]
+set_load -pin_load -fall -max 0.835243 [get_ports {y}]
+set_load -wire_load 0.700000 [get_ports {y}]
+Error: 1388 r_in is not a hierarchical instance.
+Error: 1387 write_context_sdc needs at least one instance.
+blk max in 0.123 out 0.195
+blk min in 0.612 out 0.576
+blk max in 0.390 out 0.557
+blk min in 0.381 out 0.409
+blk max in 0.120 out 0.189
+blk min in 0.392 out 0.310
