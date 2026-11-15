@@ -27,9 +27,10 @@
 #include <bit>
 #include <cstdint>
 #include <cstring>
+#include <deque>
+#include <memory>
 #include <string>
 #include <string_view>
-#include <unordered_map>
 #include <vector>
 
 #include "Error.hh"
@@ -88,25 +89,91 @@ struct DbStrId
 
 // Interned strings. Id 0 is reserved for the null/empty string so that record
 // fields can use 0 as "absent" without a separate presence flag.
+//
+// A session interns every pin's hierarchical name, so the table is sized for
+// tens of millions of strings: each is stored once, in an arena, and indexed
+// by an open addressed table of ids rather than by a map of string copies.
 class DbStringTable
 {
 public:
   DbStringTable();
+  DbStringTable(const DbStringTable &) = delete;
+  DbStringTable &operator=(const DbStringTable &) = delete;
   DbStrId intern(std::string_view str);
-  // Empty string for id 0 or any out of range id.
+  // Adds str as the next id without looking for an earlier copy, for a table
+  // read back from a file, whose ids must stay as written. A later intern
+  // resolves a repeated string to its first id.
+  void append(std::string_view str);
+  // Empty string for any out of range id.
   std::string_view string(DbStrId id) const;
   // Null for id 0, so results can feed APIs that take const char *.
   const char *cstring(DbStrId id) const;
-  size_t size() const { return strings_.size(); }
-  const std::vector<std::string> &strings() const { return strings_; }
+  size_t size() const { return entries_.size(); }
+  // Leaves only the null string, as id 0.
   void clear();
-  void setStrings(std::vector<std::string> strings);
+  // Leaves no strings at all, for a reader about to append a file's table,
+  // which carries its own id 0.
+  void reset();
 
 private:
-  // The map owns its keys rather than viewing into strings_, whose elements
-  // move when the vector grows.
-  std::vector<std::string> strings_;
-  std::unordered_map<std::string, uint32_t> ids_;
+  struct Slot
+  {
+    uint32_t id;
+    uint32_t hash;
+  };
+  static constexpr uint32_t slot_empty = 0xffffffffu;
+
+  static uint32_t hash(std::string_view str);
+  const char *store(std::string_view str);
+  void indexPending();
+  // Returns the id already holding str, or claims slot for id when there is
+  // none.
+  uint32_t findOrInsert(std::string_view str,
+                        uint32_t hash,
+                        uint32_t id);
+  void rehash(size_t slot_count);
+
+  // Each string lives once, as a 4 byte length, its bytes and a NUL, in arena
+  // blocks that never move, so views and C strings stay valid as it grows.
+  std::vector<std::unique_ptr<char[]>> blocks_;
+  char *block_next_ = nullptr;
+  size_t block_left_ = 0;
+  // Record start by id. A deque grows without copying what it already holds,
+  // which at tens of millions of ids would briefly need three times the space.
+  std::deque<const char*> entries_;
+  // Linear probing over ids, at most three quarters full.
+  std::vector<Slot> slots_;
+  // Leading entries_ that slots_ covers. Appended ids are indexed on the next
+  // intern, so a reader that never interns never builds the index.
+  size_t indexed_ = 0;
+};
+
+// Dense map from an object id to its position in a section array. The ids
+// come from tables that hand them out densely, so a flat array costs 4 bytes
+// an id where a hash map from pointers costs about 40 an entry, and every
+// graph pin needs one.
+class DbIndexMap
+{
+public:
+  static constexpr uint32_t missing = 0xffffffffu;
+  // Sized for ids below id_limit; set() grows it for larger ones.
+  void reset(size_t id_limit) { indexes_.assign(id_limit, missing); }
+  void set(uint32_t id, uint32_t index);
+  uint32_t find(uint32_t id) const
+  {
+    return id < indexes_.size() ? indexes_[id] : missing;
+  }
+
+private:
+  std::vector<uint32_t> indexes_;
+};
+
+// Receives the bytes of a streaming DbWriter.
+class DbByteSink
+{
+public:
+  virtual ~DbByteSink() = default;
+  virtual void write(const uint8_t *data, size_t size) = 0;
 };
 
 // Append-only byte buffer. Unsigned integers use LEB128 varints and signed
@@ -152,6 +219,13 @@ public:
   // Length prefixed raw bytes, for payloads with their own encoding.
   void putBlob(const void *data, size_t size);
 
+  // Sends the bytes to sink in blocks of about block_size as they are written,
+  // so a section never has to be held whole. bytes(), size() and takeBytes()
+  // then cover only what has not been sent yet; flush() sends it.
+  void streamTo(DbByteSink *sink,
+                size_t block_size);
+  void flush();
+
   DbStringTable *strings() const { return strings_; }
   const std::vector<uint8_t> &bytes() const { return bytes_; }
   std::vector<uint8_t> takeBytes() { return std::move(bytes_); }
@@ -159,8 +233,16 @@ public:
   void clear() { bytes_.clear(); }
 
 private:
+  void spill()
+  {
+    if (sink_ && bytes_.size() >= block_size_)
+      flush();
+  }
+
   std::vector<uint8_t> bytes_;
   DbStringTable *strings_;
+  DbByteSink *sink_ = nullptr;
+  size_t block_size_ = 0;
 };
 
 // Bounds checked reader over a byte range owned by the caller.

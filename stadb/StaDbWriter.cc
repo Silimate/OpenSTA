@@ -82,7 +82,9 @@ class DbLibertyWriter
 {
 public:
   DbLibertyWriter(DbWriter &writer, Sta *sta);
-  void write(const std::vector<LibertyLibrary*> &libraries);
+  // Warns when CCS data is left out, unless warn_ccs is false.
+  void write(const std::vector<LibertyLibrary*> &libraries,
+             bool warn_ccs);
 
 private:
   void collectLibrary(LibertyLibrary *library);
@@ -902,11 +904,12 @@ DbLibertyWriter::writeLibrary(LibertyLibrary *library)
 }
 
 void
-DbLibertyWriter::write(const std::vector<LibertyLibrary*> &libraries)
+DbLibertyWriter::write(const std::vector<LibertyLibrary*> &libraries,
+                       bool warn_ccs)
 {
   for (LibertyLibrary *library : libraries)
     collectLibrary(library);
-  if (ccs_dropped_)
+  if (ccs_dropped_ && warn_ccs)
     sta_->report()->warn(8001, "CCS receiver capacitance and output current "
                          "data is not saved to the stadb; the restored session "
                          "uses the NLDM tables only.");
@@ -937,13 +940,16 @@ private:
   void writeInstances();
   void writeNets();
   void writePins();
+  DbNetworkId instanceId(const Instance *inst) const;
+  DbNetworkId netId(const Net *net) const;
 
   DbWriter &writer_;
   ConcreteNetwork *network_;
   std::vector<Instance*> instances_;
-  std::unordered_map<const Instance*, DbNetworkId> instance_ids_;
+  // Section index by network object id.
+  DbIndexMap instance_ids_;
   std::vector<Net*> nets_;
-  std::unordered_map<const Net*, DbNetworkId> net_ids_;
+  DbIndexMap net_ids_;
   std::vector<Pin*> pins_;
   // Pins carrying a term, in term creation order.
   std::vector<DbNetworkId> term_pins_;
@@ -1009,10 +1015,15 @@ DbNetworkWriter::collect()
   std::sort(nets_.begin(), nets_.end(), by_id);
   std::sort(pins_.begin(), pins_.end(), by_id);
 
+  // Sorted by id, so the last one is the largest.
+  if (!instances_.empty())
+    instance_ids_.reset(static_cast<size_t>(network_->id(instances_.back())) + 1);
   for (size_t i = 0; i < instances_.size(); i++)
-    instance_ids_[instances_[i]] = static_cast<DbNetworkId>(i);
+    instance_ids_.set(network_->id(instances_[i]), static_cast<DbNetworkId>(i));
+  if (!nets_.empty())
+    net_ids_.reset(static_cast<size_t>(network_->id(nets_.back())) + 1);
   for (size_t i = 0; i < nets_.size(); i++)
-    net_ids_[nets_[i]] = static_cast<DbNetworkId>(i);
+    net_ids_.set(network_->id(nets_[i]), static_cast<DbNetworkId>(i));
 
   // Terms get their own order because they are not created with their pin.
   // connect() makes a term the first time a net reaches the top instance,
@@ -1028,6 +1039,22 @@ DbNetworkWriter::collect()
               return network_->id(network_->term(pins_[a]))
                 < network_->id(network_->term(pins_[b]));
             });
+}
+
+// An object the walk did not collect comes back as 0, as it did from the
+// std::unordered_map operator[] these lookups replaced.
+DbNetworkId
+DbNetworkWriter::instanceId(const Instance *inst) const
+{
+  DbNetworkId id = instance_ids_.find(network_->id(inst));
+  return id == DbIndexMap::missing ? 0 : id;
+}
+
+DbNetworkId
+DbNetworkWriter::netId(const Net *net) const
+{
+  DbNetworkId id = net_ids_.find(network_->id(net));
+  return id == DbIndexMap::missing ? 0 : id;
 }
 
 void
@@ -1149,7 +1176,7 @@ DbNetworkWriter::writeInstances()
     DbInstanceRec rec;
     rec.name = writer_.strings()->intern(network_->name(inst));
     rec.cell = cell_ids_[network_->cell(inst)];
-    rec.parent = parent ? instance_ids_[parent] : db_network_id_null;
+    rec.parent = parent ? instanceId(parent) : db_network_id_null;
     visit(writer_, rec);
 
     // Includes the "src" attribute that report_json exposes as verilog_src.
@@ -1173,8 +1200,8 @@ DbNetworkWriter::writeNets()
     Net *merged_into = network_->mergedInto(net);
     DbNetRec rec;
     rec.name = writer_.strings()->intern(network_->name(net));
-    rec.instance = instance_ids_[network_->instance(net)];
-    rec.merged_into = merged_into ? net_ids_[merged_into] : db_network_id_null;
+    rec.instance = instanceId(network_->instance(net));
+    rec.merged_into = merged_into ? netId(merged_into) : db_network_id_null;
     if (network_->isGround(net))
       rec.constant = stadb_constant_zero;
     else if (network_->isPower(net))
@@ -1193,11 +1220,11 @@ DbNetworkWriter::writePins()
     Net *term_net = term ? network_->net(term) : nullptr;
     ConcretePort *cport = reinterpret_cast<ConcretePort*>(network_->port(pin));
     DbPinRec rec;
-    rec.instance = instance_ids_[network_->instance(pin)];
+    rec.instance = instanceId(network_->instance(pin));
     rec.pin_index = cport->pinIndex();
-    rec.net = net ? net_ids_[net] : db_network_id_null;
+    rec.net = net ? netId(net) : db_network_id_null;
     rec.has_term = term != nullptr;
-    rec.term_net = term_net ? net_ids_[term_net] : db_network_id_null;
+    rec.term_net = term_net ? netId(term_net) : db_network_id_null;
     visit(writer_, rec);
   }
 
@@ -1230,54 +1257,65 @@ writeStaDb(std::string_view filename,
     throw DbUnsupported(sta::format("stadb supports a single scene but the "
                                     "session has {}", scenes.size()));
 
-  DbFileWriter file;
-
   std::vector<LibertyLibrary*> libraries;
   LibertyLibraryIterator *lib_iter = sta->network()->libertyLibraryIterator();
   while (lib_iter->hasNext())
     libraries.push_back(lib_iter->next());
   delete lib_iter;
 
-  DbWriter liberty_writer(file.strings());
-  DbLibertyWriter liberty(liberty_writer, sta);
-  liberty.write(libraries);
-  file.addSection(DbSectionId::liberty, liberty_writer.takeBytes());
-
+  // The table of contents leads the file, so which sections follow is settled
+  // before any is written.
+  //
   // Only a linked network is worth storing; an unlinked one is just the
-  // liberty cells that the section above already holds.
+  // liberty cells that the liberty section already holds.
   ConcreteNetwork *network = dynamic_cast<ConcreteNetwork*>(sta->network());
-  if (network && network->isLinked()) {
-    DbWriter network_writer(file.strings());
-    DbNetworkWriter net_section(network_writer, network);
-    net_section.write();
-    file.addSection(DbSectionId::network, network_writer.takeBytes());
+  bool linked = network && network->isLinked();
+  // The graph is only present once something has asked for timing. Writing
+  // before that is legitimate, and just produces a smaller file that costs
+  // the reader a graph build.
+  bool has_graph = linked && sta->graph();
+  // Arrivals are what make a restore useful, but they are also the part
+  // most likely to be absent: the graph exists as soon as anything
+  // levelizes, long before a search has run.
+  bool has_search = has_graph && sta->search()
+    && sta->search()->arrivalsValid();
+  // Liberty and the string table, then network and sdc when linked.
+  size_t section_count = 2 + (linked ? 2 : 0) + (has_graph ? 1 : 0)
+    + (has_search ? 1 : 0);
+
+  DbFileWriter file(filename, compress, section_count);
+  bool first_liberty_pass = true;
+  file.addSection(DbSectionId::liberty, [&](DbWriter &writer) {
+    DbLibertyWriter liberty(writer, sta);
+    // A second pass, which stores the section undeflated, does not warn again.
+    liberty.write(libraries, first_liberty_pass);
+    first_liberty_pass = false;
+  });
+
+  if (linked) {
+    file.addSection(DbSectionId::network, [&](DbWriter &writer) {
+      DbNetworkWriter net_section(writer, network);
+      net_section.write();
+    });
 
     // Constraints name network objects, so they are only meaningful alongside
     // a network.
-    DbWriter sdc_writer(file.strings());
-    writeStaDbSdc(sdc_writer, sta);
-    file.addSection(DbSectionId::sdc, sdc_writer.takeBytes());
+    file.addSection(DbSectionId::sdc, [&](DbWriter &writer) {
+      writeStaDbSdc(writer, sta);
+    });
 
-    // The graph is only present once something has asked for timing. Writing
-    // before that is legitimate, and just produces a smaller file that costs
-    // the reader a graph build.
-    if (sta->graph()) {
-      DbWriter graph_writer(file.strings());
-      writeStaDbGraph(graph_writer, sta);
-      file.addSection(DbSectionId::graph, graph_writer.takeBytes());
-
-      // Arrivals are what make a restore useful, but they are also the part
-      // most likely to be absent: the graph exists as soon as anything
-      // levelizes, long before a search has run.
-      if (sta->search() && sta->search()->arrivalsValid()) {
-        DbWriter search_writer(file.strings());
-        writeStaDbSearch(search_writer, sta);
-        file.addSection(DbSectionId::search, search_writer.takeBytes());
-      }
+    if (has_graph) {
+      file.addSection(DbSectionId::graph, [&](DbWriter &writer) {
+        writeStaDbGraph(writer, sta);
+      });
+      if (has_search)
+        file.addSection(DbSectionId::search, [&](DbWriter &writer) {
+          writeStaDbSearch(writer, sta);
+        });
     }
   }
 
-  file.write(filename, compress);
+  file.finish();
   stats.report("Write sta db");
 }
 

@@ -6,6 +6,7 @@ error magic after design: Error: 8002 RESULTS/stadb_errors.junk.stadb is not a s
 error magic keeps cells: 5
 error pocv: Warning 1578: No liberty POCV/LVF models found.
 Error: 8003 stadb cannot store a graph with POCV enabled
+error pocv wrote: 0
 error scenes: Error: 8003 stadb supports a single scene but the session has 2
 error ccs: Warning 8001: CCS receiver capacitance and output current data is not saved to the stadb; the restored session uses the NLDM tables only.
 error ccs wrote: 1

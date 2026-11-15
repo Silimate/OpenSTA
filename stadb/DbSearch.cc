@@ -94,6 +94,7 @@ private:
   void collect();
   void writeTagPool();
   bool tagIsWritable(const Tag *tag) const;
+  uint32_t claimPathTags();
   uint32_t writeVertexPaths(DbWriter &paths);
   void writeFlags();
   void writeSim();
@@ -122,8 +123,9 @@ private:
   const Network *network_;
   Sdc *sdc_;
   std::vector<Vertex*> vertices_;
-  std::unordered_map<const Vertex*, uint32_t> vertex_indexes_;
-  std::unordered_map<const Edge*, uint32_t> edge_indexes_;
+  // Section index by graph id.
+  DbIndexMap vertex_indexes_;
+  DbIndexMap edge_indexes_;
   std::unordered_map<const ClkInfo*, uint32_t> clk_info_ids_;
   std::unordered_map<const Tag*, uint32_t> tag_ids_;
   std::unordered_map<const ExceptionPath*, uint32_t> exception_ids_;
@@ -155,8 +157,11 @@ DbSearchWriter::collect()
               return graph_->id(a) < graph_->id(b);
             });
   std::vector<Edge*> edges;
+  // Sorted by id, so the last one is the largest.
+  if (!vertices_.empty())
+    vertex_indexes_.reset(static_cast<size_t>(graph_->id(vertices_.back())) + 1);
   for (uint32_t i = 0; i < vertices_.size(); i++) {
-    vertex_indexes_[vertices_[i]] = i;
+    vertex_indexes_.set(graph_->id(vertices_[i]), i);
     VertexOutEdgeIterator edge_iter(vertices_[i], graph_);
     while (edge_iter.hasNext())
       edges.push_back(edge_iter.next());
@@ -165,8 +170,10 @@ DbSearchWriter::collect()
             [this](const Edge *a, const Edge *b) {
               return graph_->id(a) < graph_->id(b);
             });
+  if (!edges.empty())
+    edge_indexes_.reset(static_cast<size_t>(graph_->id(edges.back())) + 1);
   for (uint32_t i = 0; i < edges.size(); i++)
-    edge_indexes_[edges[i]] = i;
+    edge_indexes_.set(graph_->id(edges[i]), i);
 
   // Exceptions are named by their position in the same content sorted order
   // the sdc section writes them in, which both sides can recompute. Their Sdc
@@ -182,19 +189,19 @@ DbSearchWriter::collect()
 uint32_t
 DbSearchWriter::vertexIndex(const Vertex *vertex) const
 {
-  auto itr = vertex_indexes_.find(vertex);
-  if (itr == vertex_indexes_.end())
+  uint32_t index = vertex_indexes_.find(graph_->id(vertex));
+  if (index == DbIndexMap::missing)
     throw DbCorrupt("stadb search references an unknown vertex");
-  return itr->second;
+  return index;
 }
 
 uint32_t
 DbSearchWriter::edgeIndex(const Edge *edge) const
 {
-  auto itr = edge_indexes_.find(edge);
-  if (itr == edge_indexes_.end())
+  uint32_t index = edge_indexes_.find(graph_->id(edge));
+  if (index == DbIndexMap::missing)
     throw DbCorrupt("stadb search references an unknown edge");
-  return itr->second;
+  return index;
 }
 
 void
@@ -391,6 +398,31 @@ DbSearchWriter::writeTagPool()
   }
 }
 
+// Hands out the pool ids of the tags the paths refer to, meeting them in the
+// order writeVertexPaths does, so the pool is complete before it is written
+// ahead of the paths. The paths can then go straight into the section instead
+// of a buffer of their own, which on a large design is most of the section.
+// Returns how many vertices have paths.
+uint32_t
+DbSearchWriter::claimPathTags()
+{
+  uint32_t vertex_count = 0;
+  for (Vertex *vertex : vertices_) {
+    if (search_->tagGroup(vertex)) {
+      vertex_count++;
+      VertexPathIterator path_iter(vertex, sta_);
+      while (path_iter.hasNext()) {
+        Path *path = path_iter.next();
+        tagId(path->tag(sta_));
+        Path *prev = path->prevPath();
+        if (prev)
+          tagId(prev->tag(sta_));
+      }
+    }
+  }
+  return vertex_count;
+}
+
 uint32_t
 DbSearchWriter::writeVertexPaths(DbWriter &paths)
 {
@@ -492,12 +524,14 @@ DbSearchWriter::write()
   collect();
 
   writeTagPool();
-  DbWriter paths(writer_.strings());
-  uint32_t vertex_count = writeVertexPaths(paths);
+  uint32_t vertex_count = claimPathTags();
   writer_.putU32(pool_count_);
   writer_.putBytes(pool_.bytes().data(), pool_.size());
+  pool_.takeBytes();
   writer_.putU32(vertex_count);
-  writer_.putBytes(paths.bytes().data(), paths.size());
+  uint32_t pool_count = pool_count_;
+  if (writeVertexPaths(writer_) != vertex_count || pool_count_ != pool_count)
+    throw DbCorrupt("stadb search paths changed between passes");
   writeFlags();
   writeSim();
 }

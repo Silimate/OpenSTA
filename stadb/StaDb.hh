@@ -35,6 +35,10 @@ class Sta;
 // Throws DbUnsupported when the session contains state the format cannot
 // represent, such as multiple scenes or CCS timing data. Callers treat that as
 // "do not cache" rather than as a run failure.
+//
+// Sections stream into the file as they are encoded, so the write needs little
+// memory beyond the session itself. A write that fails part way removes the
+// file rather than leave a partial one.
 void writeStaDb(std::string_view filename,
                 bool compress,
                 Sta *sta);

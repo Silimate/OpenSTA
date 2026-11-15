@@ -24,6 +24,9 @@
 
 #include "DbFile.hh"
 
+#include <algorithm>
+#include <cstdio>
+#include <filesystem>
 #include <fstream>
 
 #include "Error.hh"
@@ -37,14 +40,19 @@ namespace sta {
 static constexpr size_t stadb_toc_entry_size = 4 + 8 + 8 + 8 + 4;
 
 uint32_t
-dbChecksum(const uint8_t *data, size_t size)
+dbChecksum(uint32_t hash, const uint8_t *data, size_t size)
 {
-  uint32_t hash = 2166136261u;
   for (size_t i = 0; i < size; i++) {
     hash ^= data[i];
     hash *= 16777619u;
   }
   return hash;
+}
+
+uint32_t
+dbChecksum(const uint8_t *data, size_t size)
+{
+  return dbChecksum(2166136261u, data, size);
 }
 
 uint64_t
@@ -61,30 +69,295 @@ dbDigest(uint64_t seed, const void *data, size_t size)
 
 ////////////////////////////////////////////////////////////////
 
-// Deflates bytes when zlib is available. Returns false when compression is
-// unavailable or did not help, leaving the caller to store the payload as is.
-static bool
-dbCompress(const std::vector<uint8_t> &raw,
-           std::vector<uint8_t> &compressed)
+// Section bytes travel to the file in blocks of this size, and deflate
+// writes its output in blocks of the same size.
+static constexpr size_t stadb_stream_block = 1 << 20;
+
+static constexpr size_t
+headerSize(size_t section_count)
+{
+  // magic, version, ABI guard, flags, input digest, scene count, section count
+  return 4 + 4 + 8 + 4 + 8 + 4 + 4 + section_count * stadb_toc_entry_size;
+}
+
+// Writes one section's bytes into the file as they arrive, deflated when asked,
+// and tallies what its table of contents entry records.
+class DbSectionSink : public DbByteSink
+{
+public:
+  DbSectionSink(std::ofstream &stream,
+                bool deflate,
+                std::vector<uint8_t> &out_block);
+  ~DbSectionSink() override;
+  void write(const uint8_t *data, size_t size) override;
+  // Flushes what deflate still holds.
+  void finish();
+  // True when deflate reported an error, in which case the section is stored
+  // as is, as it was when compress2 failed.
+  bool failed() const { return failed_; }
+  uint64_t rawSize() const { return raw_size_; }
+  uint64_t storedSize() const { return stored_size_; }
+  uint32_t checksum() const { return checksum_; }
+
+private:
+  void emit(const uint8_t *data, size_t size);
+  void pump(int flush);
+
+  std::ofstream &stream_;
+  bool deflate_;
+  bool failed_;
+  std::vector<uint8_t> &out_block_;
+  uint64_t raw_size_;
+  uint64_t stored_size_;
+  uint32_t checksum_;
+#ifdef ZLIB_FOUND
+  z_stream zstream_;
+#endif
+};
+
+DbSectionSink::DbSectionSink(std::ofstream &stream,
+                             bool deflate,
+                             std::vector<uint8_t> &out_block) :
+  stream_(stream),
+  deflate_(deflate),
+  failed_(false),
+  out_block_(out_block),
+  raw_size_(0),
+  stored_size_(0),
+  checksum_(dbChecksum(nullptr, 0))
 {
 #ifdef ZLIB_FOUND
-  if (raw.empty())
-    return false;
-  uLongf bound = compressBound(static_cast<uLong>(raw.size()));
-  compressed.resize(bound);
-  int status = compress2(compressed.data(), &bound, raw.data(),
-                         static_cast<uLong>(raw.size()), Z_BEST_SPEED);
-  if (status != Z_OK || bound >= raw.size()) {
-    compressed.clear();
-    return false;
+  if (deflate_) {
+    zstream_ = z_stream{};
+    // The level and the default window and memory settings are what compress2
+    // used, so the deflated bytes match it.
+    if (deflateInit(&zstream_, Z_BEST_SPEED) != Z_OK) {
+      deflate_ = false;
+      failed_ = true;
+    }
   }
-  compressed.resize(bound);
-  return true;
 #else
-  (void) raw;
-  (void) compressed;
-  return false;
+  if (deflate_) {
+    deflate_ = false;
+    failed_ = true;
+  }
 #endif
+}
+
+DbSectionSink::~DbSectionSink()
+{
+#ifdef ZLIB_FOUND
+  if (deflate_)
+    deflateEnd(&zstream_);
+#endif
+}
+
+void
+DbSectionSink::emit(const uint8_t *data, size_t size)
+{
+  stream_.write(reinterpret_cast<const char*>(data), size);
+  stored_size_ += size;
+  checksum_ = dbChecksum(checksum_, data, size);
+}
+
+void
+DbSectionSink::pump(int flush)
+{
+#ifdef ZLIB_FOUND
+  while (true) {
+    zstream_.next_out = out_block_.data();
+    zstream_.avail_out = static_cast<uInt>(out_block_.size());
+    int status = ::deflate(&zstream_, flush);
+    if (status == Z_STREAM_ERROR) {
+      failed_ = true;
+      return;
+    }
+    emit(out_block_.data(), out_block_.size() - zstream_.avail_out);
+    // Done once the input is consumed with room to spare, or, when finishing,
+    // once the stream has ended.
+    if (flush == Z_FINISH ? status == Z_STREAM_END : zstream_.avail_out != 0)
+      return;
+  }
+#else
+  (void) flush;
+#endif
+}
+
+void
+DbSectionSink::write(const uint8_t *data, size_t size)
+{
+  raw_size_ += size;
+  if (failed_)
+    // The section is about to be rewritten as is, so the rest is not needed.
+    return;
+  if (!deflate_) {
+    emit(data, size);
+    return;
+  }
+#ifdef ZLIB_FOUND
+  while (size > 0 && !failed_) {
+    // avail_in is an unsigned int.
+    size_t chunk = std::min<size_t>(size, size_t(1) << 30);
+    zstream_.next_in = const_cast<Bytef*>(data);
+    zstream_.avail_in = static_cast<uInt>(chunk);
+    pump(Z_NO_FLUSH);
+    data += chunk;
+    size -= chunk;
+  }
+#endif
+}
+
+void
+DbSectionSink::finish()
+{
+#ifdef ZLIB_FOUND
+  if (deflate_ && !failed_) {
+    zstream_.next_in = nullptr;
+    zstream_.avail_in = 0;
+    pump(Z_FINISH);
+  }
+#endif
+}
+
+////////////////////////////////////////////////////////////////
+
+DbFileWriter::DbFileWriter(std::string_view filename,
+                           bool compress,
+                           size_t section_count) :
+  filename_(filename),
+  compress_(compress),
+  section_count_(section_count),
+  finished_(false),
+  offset_(headerSize(section_count)),
+  end_(offset_),
+  flags_(0),
+  input_digest_(0)
+{
+  stream_.open(filename_, std::ios::binary | std::ios::trunc | std::ios::out);
+  if (!stream_.is_open())
+    throw FileNotWritable(filename);
+  // Placeholder header, filled in once the section offsets are known.
+  std::vector<char> zeros(offset_, 0);
+  stream_.write(zeros.data(), zeros.size());
+  checkStream();
+#ifndef ZLIB_FOUND
+  // Every section is stored as is, without first trying to deflate it.
+  compress_ = false;
+#endif
+  if (compress_)
+    out_block_.resize(stadb_stream_block);
+}
+
+DbFileWriter::~DbFileWriter()
+{
+  if (!finished_ && stream_.is_open()) {
+    stream_.close();
+    std::remove(filename_.c_str());
+  }
+}
+
+void
+DbFileWriter::checkStream()
+{
+  if (stream_.fail())
+    throw FileNotWritable(filename_);
+}
+
+void
+DbFileWriter::seek(uint64_t offset)
+{
+  stream_.seekp(static_cast<std::streamoff>(offset));
+  checkStream();
+}
+
+DbFileWriter::TocEntry
+DbFileWriter::encodeSection(DbSectionId id,
+                            const std::function<void(DbWriter &)> &encode,
+                            bool deflate)
+{
+  DbSectionSink sink(stream_, deflate, out_block_);
+  DbWriter writer(&strings_);
+  writer.streamTo(&sink, stadb_stream_block);
+  encode(writer);
+  writer.flush();
+  sink.finish();
+  checkStream();
+  end_ = std::max(end_, offset_ + sink.storedSize());
+  if (sink.failed())
+    // Larger than any raw size, so the caller stores the section as is.
+    return TocEntry{id, offset_, UINT64_MAX, sink.rawSize(), 0};
+  return TocEntry{id, offset_, sink.storedSize(), sink.rawSize(),
+                  sink.checksum()};
+}
+
+void
+DbFileWriter::addSection(DbSectionId id,
+                         const std::function<void(DbWriter &)> &encode)
+{
+  if (compress_) {
+    TocEntry entry = encodeSection(id, encode, true);
+    if (entry.raw_size > 0 && entry.stored_size < entry.raw_size) {
+      flags_ |= stadb_flag_compressed;
+      toc_.push_back(entry);
+      offset_ += entry.stored_size;
+      return;
+    }
+    // A section is stored verbatim when deflating it did not pay off, so the
+    // per section raw and stored sizes are what actually select the decode
+    // path.
+    seek(offset_);
+  }
+  TocEntry entry = encodeSection(id, encode, false);
+  toc_.push_back(entry);
+  offset_ += entry.stored_size;
+}
+
+void
+DbFileWriter::finish()
+{
+  // The string table is emitted last because encoding the other sections is
+  // what populates it.
+  addSection(DbSectionId::strings, [this](DbWriter &writer) {
+    writer.putU64(strings_.size());
+    for (size_t id = 0; id < strings_.size(); id++) {
+      std::string_view str = strings_.string(DbStrId(static_cast<uint32_t>(id)));
+      writer.putBlob(str.data(), str.size());
+    }
+  });
+  if (toc_.size() != section_count_)
+    throw DbCorrupt(sta::format("stadb writer planned {} sections but wrote {}",
+                                section_count_, toc_.size()));
+
+  DbWriter header;
+  header.putRawU32(stadb_magic);
+  header.putRawU32(stadb_version);
+  header.putRawU64(stadbAbiGuard());
+  header.putRawU32(flags_);
+  header.putRawU64(input_digest_);
+  header.putRawU32(stadb_scene_count);
+  header.putRawU32(static_cast<uint32_t>(toc_.size()));
+  for (const TocEntry &entry : toc_) {
+    header.putRawU32(static_cast<uint32_t>(entry.id));
+    header.putRawU64(entry.offset);
+    header.putRawU64(entry.stored_size);
+    header.putRawU64(entry.raw_size);
+    header.putRawU32(entry.checksum);
+  }
+  seek(0);
+  stream_.write(reinterpret_cast<const char*>(header.bytes().data()),
+                header.size());
+  stream_.close();
+  if (stream_.fail())
+    throw FileNotWritable(filename_);
+  finished_ = true;
+  // A section rewritten undeflated is shorter than the deflated try it
+  // overwrote, which leaves a tail when it was the last one.
+  if (end_ > offset_) {
+    std::error_code error;
+    std::filesystem::resize_file(filename_, offset_, error);
+    if (error)
+      throw FileNotWritable(filename_);
+  }
 }
 
 static void
@@ -115,83 +388,6 @@ dbUncompress(const uint8_t *stored,
   throw DbCorrupt("stadb file is compressed but zlib is not available");
 #endif
 }
-
-////////////////////////////////////////////////////////////////
-
-DbFileWriter::DbFileWriter() :
-  input_digest_(0)
-{
-}
-
-void
-DbFileWriter::addSection(DbSectionId id, std::vector<uint8_t> bytes)
-{
-  sections_.emplace_back(id, std::move(bytes));
-}
-
-void
-DbFileWriter::write(std::string_view filename, bool compress)
-{
-  // The string table is emitted last because encoding the other sections is
-  // what populates it.
-  DbWriter string_writer(&strings_);
-  const std::vector<std::string> &strings = strings_.strings();
-  string_writer.putU64(strings.size());
-  for (const std::string &str : strings)
-    string_writer.putBlob(str.data(), str.size());
-  addSection(DbSectionId::strings, string_writer.takeBytes());
-
-  // Compress payloads first so the table of contents can carry final offsets.
-  std::vector<std::vector<uint8_t>> stored(sections_.size());
-  std::vector<uint64_t> raw_sizes(sections_.size());
-  uint32_t flags = 0;
-  for (size_t i = 0; i < sections_.size(); i++) {
-    const std::vector<uint8_t> &raw = sections_[i].second;
-    raw_sizes[i] = raw.size();
-    std::vector<uint8_t> deflated;
-    if (compress && dbCompress(raw, deflated)) {
-      stored[i] = std::move(deflated);
-      flags |= stadb_flag_compressed;
-    }
-    else
-      stored[i] = raw;
-  }
-  // A section is stored verbatim when deflating it did not pay off, so the
-  // per section raw and stored sizes are what actually select the decode path.
-
-  DbWriter header;
-  header.putRawU32(stadb_magic);
-  header.putRawU32(stadb_version);
-  header.putRawU64(stadbAbiGuard());
-  header.putRawU32(flags);
-  header.putRawU64(input_digest_);
-  header.putRawU32(stadb_scene_count);
-  header.putRawU32(static_cast<uint32_t>(sections_.size()));
-
-  uint64_t offset = header.size() + sections_.size() * stadb_toc_entry_size;
-  for (size_t i = 0; i < sections_.size(); i++) {
-    header.putRawU32(static_cast<uint32_t>(sections_[i].first));
-    header.putRawU64(offset);
-    header.putRawU64(stored[i].size());
-    header.putRawU64(raw_sizes[i]);
-    header.putRawU32(dbChecksum(stored[i].data(), stored[i].size()));
-    offset += stored[i].size();
-  }
-
-  std::string name(filename);
-  std::ofstream stream(name, std::ios::binary | std::ios::trunc);
-  if (!stream.is_open())
-    throw FileNotWritable(filename);
-  stream.write(reinterpret_cast<const char*>(header.bytes().data()),
-               header.size());
-  for (const std::vector<uint8_t> &bytes : stored)
-    stream.write(reinterpret_cast<const char*>(bytes.data()), bytes.size());
-  stream.close();
-  if (stream.fail())
-    throw FileNotWritable(filename);
-}
-
-////////////////////////////////////////////////////////////////
 
 DbFileReader::DbFileReader() :
   input_digest_(0)
@@ -267,14 +463,10 @@ DbFileReader::read(std::string_view filename)
     throw DbCorrupt("stadb has no string table");
   DbReader string_reader = sectionReader(DbSectionId::strings);
   size_t string_count = string_reader.getCount("string table");
-  std::vector<std::string> strings;
-  strings.reserve(string_count);
-  for (size_t i = 0; i < string_count; i++) {
-    std::string_view str = string_reader.getBlob();
-    strings.emplace_back(str);
-  }
+  strings_.reset();
+  for (size_t i = 0; i < string_count; i++)
+    strings_.append(string_reader.getBlob());
   string_reader.checkFullyConsumed("string table");
-  strings_.setStrings(std::move(strings));
 }
 
 bool
