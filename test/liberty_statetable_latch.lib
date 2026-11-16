@@ -241,4 +241,65 @@ library (statetable_latch) {
       }
     }
   }
+
+  /* An edge-triggered statetable with a combinational X -> Q arc is a register:
+     the arc stays combinational even though X is checked against CK. */
+  cell (EDGE_FLOP) {
+    area : 2;
+    statetable ("CK D", "IQ") {
+      table : "R L : - : L, R H : - : H, ~R - : - : N";
+    }
+    pin (CK) {
+      direction : input;
+      clock : true;
+      capacitance : 0.002;
+    }
+    pin (D) {
+      direction : input;
+      capacitance : 0.001;
+      timing () {
+        related_pin : "CK";
+        timing_type : setup_rising;
+        rise_constraint (scalar) { values ("20"); }
+        fall_constraint (scalar) { values ("20"); }
+      }
+      timing () {
+        related_pin : "CK";
+        timing_type : hold_rising;
+        rise_constraint (scalar) { values ("10"); }
+        fall_constraint (scalar) { values ("10"); }
+      }
+    }
+    pin (X) {
+      direction : input;
+      capacitance : 0.001;
+      timing () {
+        related_pin : "CK";
+        timing_type : setup_rising;
+        rise_constraint (scalar) { values ("20"); }
+        fall_constraint (scalar) { values ("20"); }
+      }
+    }
+    pin (Q) {
+      direction : output;
+      capacitance : 0.002;
+      timing () {
+        related_pin : "CK";
+        timing_sense : non_unate;
+        timing_type : rising_edge;
+        cell_rise (scalar) { values ("60"); }
+        rise_transition (scalar) { values ("20"); }
+        cell_fall (scalar) { values ("60"); }
+        fall_transition (scalar) { values ("20"); }
+      }
+      timing () {
+        related_pin : "X";
+        timing_sense : positive_unate;
+        cell_rise (scalar) { values ("40"); }
+        rise_transition (scalar) { values ("20"); }
+        cell_fall (scalar) { values ("40"); }
+        fall_transition (scalar) { values ("20"); }
+      }
+    }
+  }
 }

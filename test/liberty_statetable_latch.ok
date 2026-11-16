@@ -52,6 +52,36 @@ Timing arcs
   combinational
   ^ -> v
   v -> ^
+Cell EDGE_FLOP
+Library statetable_latch
+File liberty_statetable_latch.lib
+ CK input 0.00
+ D input 0.00
+ X input 0.00
+ Q output 0.00
+ IQ unknown
+
+Timing arcs
+ CK -> D
+  setup
+  ^ -> ^
+  ^ -> v
+ CK -> D
+  hold
+  ^ -> ^
+  ^ -> v
+ CK -> X
+  setup
+  ^ -> ^
+  ^ -> v
+ CK -> Q
+  Reg Clk to Q
+  ^ -> ^
+  ^ -> v
+ X -> Q
+  combinational
+  ^ -> ^
+  v -> v
 max_delay/setup group clk0
 
                                      Required  Actual

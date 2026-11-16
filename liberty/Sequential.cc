@@ -112,6 +112,21 @@ Statetable::Statetable(LibertyPortSeq &input_ports,
 {
 }
 
+bool
+Statetable::isLevelSensitive() const
+{
+  for (const StatetableRow &row : table_) {
+    for (StateInputValue value : row.inputValues()) {
+      if (value == StateInputValue::rise
+          || value == StateInputValue::fall
+          || value == StateInputValue::not_rise
+          || value == StateInputValue::not_fall)
+        return false;
+    }
+  }
+  return true;
+}
+
 StatetableRow::StatetableRow(StateInputValues &input_values,
                              StateInternalValues &current_values,
                              StateInternalValues &next_values) :

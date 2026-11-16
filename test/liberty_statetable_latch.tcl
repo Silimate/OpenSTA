@@ -5,6 +5,8 @@ source stadb_helpers.tcl
 
 read_liberty liberty_statetable_latch.lib
 report_lib_cell statetable_latch/LATCH_ARRAY
+# An edge-triggered statetable stays a register.
+report_lib_cell statetable_latch/EDGE_FLOP
 
 set design {read_verilog liberty_statetable_latch.v
 link_design top
