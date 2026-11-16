@@ -113,8 +113,8 @@ public:
   const LibertyPortSeq &inputPorts() const { return input_ports_; }
   const LibertyPortSeq &internalPorts() const { return internal_ports_; }
   const StatetableRows &table() const { return table_; }
-  // True when no row depends on a rising or falling input.
-  bool isLevelSensitive() const;
+  // True for a latch: one internal node and no rising or falling rows.
+  bool isLatch() const;
 
 protected:
   Statetable(LibertyPortSeq &input_ports,

@@ -113,8 +113,11 @@ Statetable::Statetable(LibertyPortSeq &input_ports,
 }
 
 bool
-Statetable::isLevelSensitive() const
+Statetable::isLatch() const
 {
+  // A register needs an edge row or a second (master) node to see a clock edge.
+  if (internal_ports_.size() != 1)
+    return false;
   for (const StatetableRow &row : table_) {
     for (StateInputValue value : row.inputValues()) {
       if (value == StateInputValue::rise

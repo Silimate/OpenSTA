@@ -1295,8 +1295,8 @@ LibertyCell::finish(bool infer_latches,
   makeTimingArcPortMaps();
   findDefaultCondArcs();
   makeLatchEnables(report, debug);
-  // A level-sensitive statetable declares latches, so they need no -infer_latches.
-  if (infer_latches || (statetable_ && statetable_->isLevelSensitive()))
+  // A statetable that describes a latch needs no -infer_latches.
+  if (infer_latches || (statetable_ && statetable_->isLatch()))
     inferLatchRoles(report, debug);
 }
 
