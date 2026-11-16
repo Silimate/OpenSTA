@@ -113,7 +113,8 @@ public:
   const LibertyPortSeq &inputPorts() const { return input_ports_; }
   const LibertyPortSeq &internalPorts() const { return internal_ports_; }
   const StatetableRows &table() const { return table_; }
-  // True for a latch: one internal node and no rising or falling rows.
+  // True for a latch: no rising or falling rows, and no node loads another
+  // node's stored value (a register's second stage does).
   bool isLatch() const;
 
 protected:

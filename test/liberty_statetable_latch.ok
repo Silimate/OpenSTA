@@ -52,6 +52,32 @@ Timing arcs
   combinational
   ^ -> v
   v -> ^
+Cell COMPLEMENT_LATCH
+Library statetable_latch
+File liberty_statetable_latch.lib
+ EN input 0.00
+ D input 0.00
+ Q output 0.00
+ IQ unknown
+ IQN unknown
+
+Timing arcs
+ EN -> D
+  setup
+  v -> ^
+  v -> v
+ EN -> D
+  hold
+  v -> ^
+  v -> v
+ D -> Q
+  Latch D to Q
+  ^ -> ^
+  v -> v
+ EN -> Q
+  Latch En to Q
+  ^ -> ^
+  ^ -> v
 Cell EDGE_FLOP
 Library statetable_latch
 File liberty_statetable_latch.lib
@@ -106,6 +132,32 @@ Timing arcs
   ^ -> ^
   ^ -> v
  CK -> Q
+  Reg Clk to Q
+  ^ -> ^
+  ^ -> v
+ X -> Q
+  combinational
+  ^ -> ^
+  v -> v
+Cell LSSD_REGISTER
+Library statetable_latch
+File liberty_statetable_latch.lib
+ C input 0.00
+ D input 0.00
+ A input 0.00
+ I input 0.00
+ B input 0.00
+ X input 0.00
+ Q output 0.00
+ L1 unknown
+ L2 unknown
+
+Timing arcs
+ B -> X
+  setup
+  v -> ^
+  v -> v
+ B -> Q
   Reg Clk to Q
   ^ -> ^
   ^ -> v

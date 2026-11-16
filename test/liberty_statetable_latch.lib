@@ -363,4 +363,124 @@ library (statetable_latch) {
       }
     }
   }
+
+  /* A latch that stores its value and its complement: two internal nodes, each
+     loaded only from the inputs, so it is still a latch. */
+  cell (COMPLEMENT_LATCH) {
+    area : 2;
+    statetable ("EN D", "IQ IQN") {
+      table : "L - : - - : N N, H L : - - : L H, H H : - - : H L";
+    }
+    pin (EN) {
+      direction : input;
+      clock : true;
+      capacitance : 0.001;
+    }
+    pin (D) {
+      direction : input;
+      capacitance : 0.001;
+      timing () {
+        related_pin : "EN";
+        timing_type : setup_falling;
+        rise_constraint (scalar) { values ("20"); }
+        fall_constraint (scalar) { values ("20"); }
+      }
+      timing () {
+        related_pin : "EN";
+        timing_type : hold_falling;
+        rise_constraint (scalar) { values ("10"); }
+        fall_constraint (scalar) { values ("10"); }
+      }
+    }
+    pin (Q) {
+      direction : output;
+      capacitance : 0.002;
+      state_function : "IQ";
+      timing () {
+        related_pin : "D";
+        timing_sense : positive_unate;
+        cell_rise (scalar) { values ("50"); }
+        rise_transition (scalar) { values ("20"); }
+        cell_fall (scalar) { values ("50"); }
+        fall_transition (scalar) { values ("20"); }
+      }
+      timing () {
+        related_pin : "EN";
+        timing_sense : non_unate;
+        timing_type : rising_edge;
+        cell_rise (scalar) { values ("60"); }
+        rise_transition (scalar) { values ("20"); }
+        cell_fall (scalar) { values ("60"); }
+        fall_transition (scalar) { values ("20"); }
+      }
+    }
+  }
+
+  /* An LSSD scan register: system clock C or scan clock A loads L1, slave clock B
+     copies L1 into L2. Level rows only, but L2 loads L1's stored value, so it is a
+     register even though data flows through while C and B are both high. */
+  cell (LSSD_REGISTER) {
+    area : 4;
+    statetable ("C D A I B", "L1 L2") {
+      table : "L - L - L : - - : N N, H L L - L : - - : L N, H H L - L : - - : H N, \
+               L - H L L : - - : L N, L - H H L : - - : H N, L - L - H : L - : N L, \
+               L - L - H : H - : N H, H L L - H : L - : L L, H L L - H : H - : L H, \
+               H H L - H : L - : H L, H H L - H : H - : H H";
+    }
+    pin (C) {
+      direction : input;
+      clock : true;
+      capacitance : 0.001;
+    }
+    pin (D) {
+      direction : input;
+      capacitance : 0.001;
+    }
+    pin (A) {
+      direction : input;
+      clock : true;
+      capacitance : 0.001;
+    }
+    pin (I) {
+      direction : input;
+      capacitance : 0.001;
+    }
+    pin (B) {
+      direction : input;
+      clock : true;
+      capacitance : 0.001;
+    }
+    pin (X) {
+      direction : input;
+      capacitance : 0.001;
+      timing () {
+        related_pin : "B";
+        timing_type : setup_falling;
+        rise_constraint (scalar) { values ("20"); }
+        fall_constraint (scalar) { values ("20"); }
+      }
+    }
+    pin (Q) {
+      direction : output;
+      capacitance : 0.002;
+      state_function : "L2";
+      timing () {
+        related_pin : "B";
+        timing_sense : non_unate;
+        timing_type : rising_edge;
+        cell_rise (scalar) { values ("60"); }
+        rise_transition (scalar) { values ("20"); }
+        cell_fall (scalar) { values ("60"); }
+        fall_transition (scalar) { values ("20"); }
+      }
+      timing () {
+        related_pin : "X";
+        timing_sense : positive_unate;
+        cell_rise (scalar) { values ("40"); }
+        rise_transition (scalar) { values ("20"); }
+        cell_fall (scalar) { values ("40"); }
+        fall_transition (scalar) { values ("20"); }
+      }
+    }
+  }
 }

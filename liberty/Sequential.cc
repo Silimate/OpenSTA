@@ -115,9 +115,12 @@ Statetable::Statetable(LibertyPortSeq &input_ports,
 bool
 Statetable::isLatch() const
 {
-  // A register needs an edge row or a second (master) node to see a clock edge.
-  if (internal_ports_.size() != 1)
-    return false;
+  auto is_value = [](StateInternalValue value) {
+    return value == StateInternalValue::low
+      || value == StateInternalValue::high
+      || value == StateInternalValue::low_high
+      || value == StateInternalValue::high_low;
+  };
   for (const StatetableRow &row : table_) {
     for (StateInputValue value : row.inputValues()) {
       if (value == StateInputValue::rise
@@ -125,6 +128,17 @@ Statetable::isLatch() const
           || value == StateInputValue::not_rise
           || value == StateInputValue::not_fall)
         return false;
+    }
+    // A register's second stage loads the first stage's stored value.
+    const StateInternalValues &currents = row.currentValues();
+    const StateInternalValues &nexts = row.nextValues();
+    for (size_t i = 0; i < nexts.size(); i++) {
+      if (is_value(nexts[i])) {
+        for (size_t j = 0; j < currents.size(); j++) {
+          if (j != i && is_value(currents[j]))
+            return false;
+        }
+      }
     }
   }
   return true;

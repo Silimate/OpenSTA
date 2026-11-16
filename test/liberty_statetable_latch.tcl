@@ -5,10 +5,13 @@ source stadb_helpers.tcl
 
 read_liberty liberty_statetable_latch.lib
 report_lib_cell statetable_latch/LATCH_ARRAY
-# Edge-triggered statetables stay registers, including one written as master/slave
-# latches with level rows only.
+# A latch can store more than one node, such as its complement.
+report_lib_cell statetable_latch/COMPLEMENT_LATCH
+# Statetable registers stay registers: edge rows, master/slave latches written with
+# level rows only, and an LSSD register with separate master and slave clocks.
 report_lib_cell statetable_latch/EDGE_FLOP
 report_lib_cell statetable_latch/MASTER_SLAVE_FLOP
+report_lib_cell statetable_latch/LSSD_REGISTER
 
 set design {read_verilog liberty_statetable_latch.v
 link_design top
