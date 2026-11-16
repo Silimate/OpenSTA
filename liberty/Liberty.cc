@@ -1295,7 +1295,8 @@ LibertyCell::finish(bool infer_latches,
   makeTimingArcPortMaps();
   findDefaultCondArcs();
   makeLatchEnables(report, debug);
-  if (infer_latches)
+  // A statetable declares storage, so its latches need no -infer_latches.
+  if (infer_latches || statetable_)
     inferLatchRoles(report, debug);
 }
 
@@ -1714,24 +1715,30 @@ LibertyCell::makeLatchEnables(Report *report,
       if (d_to_q->role() == TimingRole::latchDtoQ()) {
         LibertyPort *d = d_to_q->from();
         LibertyPort *q = d_to_q->to();
-        TimingArcSet *en_to_q = nullptr;
-        TimingArcSet *en_to_q_when = nullptr;
-        // Prefer en_to_q with matching when.
+        // One en_to_q per enable port; d shared by latches with separate enables has several.
+        TimingArcSetSeq en_to_qs;
         for (TimingArcSet *arc_to_q : timingArcSetsTo(q)) {
           if (arc_to_q->role() == TimingRole::latchEnToQ()) {
-            if (condMatch(arc_to_q, d_to_q))
-              en_to_q_when = arc_to_q;
-            else
-              en_to_q = arc_to_q;
+            TimingArcSet **same_en = nullptr;
+            for (TimingArcSet *&en_to_q : en_to_qs) {
+              if (en_to_q->from() == arc_to_q->from())
+                same_en = &en_to_q;
+            }
+            // Prefer en_to_q with matching when.
+            if (same_en == nullptr)
+              en_to_qs.push_back(arc_to_q);
+            else if (condMatch(arc_to_q, d_to_q) || !condMatch(*same_en, d_to_q))
+              *same_en = arc_to_q;
           }
         }
-        if (en_to_q_when)
-          en_to_q = en_to_q_when;
-        if (en_to_q) {
+        for (TimingArcSet *en_to_q : en_to_qs) {
           LibertyPort *en = en_to_q->from();
           const RiseFall *en_rf = en_to_q->isRisingFallingEdge();
           if (en_rf) {
             TimingArcSet *setup_check = findLatchSetup(d, en, en_rf, q, d_to_q, report);
+            // Of several enables, d belongs only to those it is checked against.
+            if (setup_check == nullptr && en_to_qs.size() > 1)
+              continue;
             LatchEnable *latch_enable = makeLatchEnable(d, en, en_rf, q, d_to_q,
                                                         en_to_q, setup_check, debug);
             FuncExpr *en_func = latch_enable->enableFunc();
@@ -1756,7 +1763,7 @@ LibertyCell::makeLatchEnables(Report *report,
             }
           }
         }
-        else
+        if (en_to_qs.empty())
           report->warn(1121, "cell {}/{} no latch enable found for {} -> {}.",
                        library_->name(),
                        name(),
@@ -1899,9 +1906,12 @@ LibertyCell::inferLatchRoles(Report *report,
             if (en_rf) {
               TimingArcSet *setup_check = findLatchSetup(d, en, en_rf, q, en_to_q,
                                                          report);
-              makeLatchEnable(d, en, en_rf, q, d_to_q, en_to_q, setup_check, debug);
-              d_to_q->setRole(TimingRole::latchDtoQ());
-              en_to_q->setRole(TimingRole::latchEnToQ());
+              // No setup check against the enable: d is not latch data (e.g. a read select).
+              if (setup_check) {
+                makeLatchEnable(d, en, en_rf, q, d_to_q, en_to_q, setup_check, debug);
+                d_to_q->setRole(TimingRole::latchDtoQ());
+                en_to_q->setRole(TimingRole::latchEnToQ());
+              }
             }
           }
         }
