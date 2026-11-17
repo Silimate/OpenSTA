@@ -82,7 +82,9 @@ class DbLibertyWriter
 {
 public:
   DbLibertyWriter(DbWriter &writer, Sta *sta);
-  void write(const std::vector<LibertyLibrary*> &libraries);
+  // Warns when CCS data is left out, unless warn_ccs is false.
+  void write(const std::vector<LibertyLibrary*> &libraries,
+             bool warn_ccs);
 
 private:
   void collectLibrary(LibertyLibrary *library);
@@ -902,11 +904,12 @@ DbLibertyWriter::writeLibrary(LibertyLibrary *library)
 }
 
 void
-DbLibertyWriter::write(const std::vector<LibertyLibrary*> &libraries)
+DbLibertyWriter::write(const std::vector<LibertyLibrary*> &libraries,
+                       bool warn_ccs)
 {
   for (LibertyLibrary *library : libraries)
     collectLibrary(library);
-  if (ccs_dropped_)
+  if (ccs_dropped_ && warn_ccs)
     sta_->report()->warn(8001, "CCS receiver capacitance and output current "
                          "data is not saved to the stadb; the restored session "
                          "uses the NLDM tables only.");
@@ -1308,54 +1311,65 @@ writeStaDb(std::string_view filename,
     throw DbUnsupported(sta::format("stadb supports a single scene but the "
                                     "session has {}", scenes.size()));
 
-  DbFileWriter file;
-
   std::vector<LibertyLibrary*> libraries;
   LibertyLibraryIterator *lib_iter = sta->network()->libertyLibraryIterator();
   while (lib_iter->hasNext())
     libraries.push_back(lib_iter->next());
   delete lib_iter;
 
-  DbWriter liberty_writer(file.strings());
-  DbLibertyWriter liberty(liberty_writer, sta);
-  liberty.write(libraries);
-  file.addSection(DbSectionId::liberty, liberty_writer.takeBytes());
-
+  // The table of contents leads the file, so which sections follow is settled
+  // before any is written.
+  //
   // Only a linked network is worth storing; an unlinked one is just the
-  // liberty cells that the section above already holds.
+  // liberty cells that the liberty section already holds.
   ConcreteNetwork *network = dynamic_cast<ConcreteNetwork*>(sta->network());
-  if (network && network->isLinked()) {
-    DbWriter network_writer(file.strings());
-    DbNetworkWriter net_section(network_writer, network);
-    net_section.write();
-    file.addSection(DbSectionId::network, network_writer.takeBytes());
+  bool linked = network && network->isLinked();
+  // The graph is only present once something has asked for timing. Writing
+  // before that is legitimate, and just produces a smaller file that costs
+  // the reader a graph build.
+  bool has_graph = linked && sta->graph();
+  // Arrivals are what make a restore useful, but they are also the part
+  // most likely to be absent: the graph exists as soon as anything
+  // levelizes, long before a search has run.
+  bool has_search = has_graph && sta->search()
+    && sta->search()->arrivalsValid();
+  // Liberty and the string table, then network and sdc when linked.
+  size_t section_count = 2 + (linked ? 2 : 0) + (has_graph ? 1 : 0)
+    + (has_search ? 1 : 0);
+
+  DbFileWriter file(filename, compress, section_count);
+  bool first_liberty_pass = true;
+  file.addSection(DbSectionId::liberty, [&](DbWriter &writer) {
+    DbLibertyWriter liberty(writer, sta);
+    // A second pass, which stores the section undeflated, does not warn again.
+    liberty.write(libraries, first_liberty_pass);
+    first_liberty_pass = false;
+  });
+
+  if (linked) {
+    file.addSection(DbSectionId::network, [&](DbWriter &writer) {
+      DbNetworkWriter net_section(writer, network);
+      net_section.write();
+    });
 
     // Constraints name network objects, so they are only meaningful alongside
     // a network.
-    DbWriter sdc_writer(file.strings());
-    writeStaDbSdc(sdc_writer, sta);
-    file.addSection(DbSectionId::sdc, sdc_writer.takeBytes());
+    file.addSection(DbSectionId::sdc, [&](DbWriter &writer) {
+      writeStaDbSdc(writer, sta);
+    });
 
-    // The graph is only present once something has asked for timing. Writing
-    // before that is legitimate, and just produces a smaller file that costs
-    // the reader a graph build.
-    if (sta->graph()) {
-      DbWriter graph_writer(file.strings());
-      writeStaDbGraph(graph_writer, sta);
-      file.addSection(DbSectionId::graph, graph_writer.takeBytes());
-
-      // Arrivals are what make a restore useful, but they are also the part
-      // most likely to be absent: the graph exists as soon as anything
-      // levelizes, long before a search has run.
-      if (sta->search() && sta->search()->arrivalsValid()) {
-        DbWriter search_writer(file.strings());
-        writeStaDbSearch(search_writer, sta);
-        file.addSection(DbSectionId::search, search_writer.takeBytes());
-      }
+    if (has_graph) {
+      file.addSection(DbSectionId::graph, [&](DbWriter &writer) {
+        writeStaDbGraph(writer, sta);
+      });
+      if (has_search)
+        file.addSection(DbSectionId::search, [&](DbWriter &writer) {
+          writeStaDbSearch(writer, sta);
+        });
     }
   }
 
-  file.write(filename, compress);
+  file.finish();
   stats.report("Write sta db");
 }
 

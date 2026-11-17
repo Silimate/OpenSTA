@@ -237,9 +237,30 @@ DbWriter::DbWriter(DbStringTable *strings) :
 }
 
 void
+DbWriter::streamTo(DbByteSink *sink,
+                   size_t block_size)
+{
+  flush();
+  sink_ = sink;
+  block_size_ = block_size;
+  if (sink_)
+    bytes_.reserve(block_size_ + 16);
+}
+
+void
+DbWriter::flush()
+{
+  if (sink_ && !bytes_.empty()) {
+    sink_->write(bytes_.data(), bytes_.size());
+    bytes_.clear();
+  }
+}
+
+void
 DbWriter::putU8(uint8_t v)
 {
   bytes_.push_back(v);
+  spill();
 }
 
 void
@@ -250,6 +271,7 @@ DbWriter::putU64(uint64_t v)
     v >>= 7;
   }
   bytes_.push_back(static_cast<uint8_t>(v));
+  spill();
 }
 
 void
@@ -283,7 +305,14 @@ void
 DbWriter::putBytes(const void *data, size_t size)
 {
   const uint8_t *bytes = static_cast<const uint8_t*>(data);
+  if (sink_ && size >= block_size_) {
+    // Too big to be worth buffering, such as a spliced sub-buffer.
+    flush();
+    sink_->write(bytes, size);
+    return;
+  }
   bytes_.insert(bytes_.end(), bytes, bytes + size);
+  spill();
 }
 
 void

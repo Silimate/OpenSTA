@@ -53,8 +53,13 @@ if { [catch { read_sta_db $junk } msg] } {
   puts "error magic keeps cells: [llength [stadb_names [get_cells *]]]"
 }
 
-# POCV graph cannot be stored.
+# POCV graph cannot be stored. That is found part way through the file, and
+# the failed write removes the file, here a stale one, rather than leave a
+# partial one.
 set pocv [make_result_file "stadb_errors.pocv.stadb"]
+set stream [open $pocv "w"]
+puts $stream "stale"
+close $stream
 set pocv_out [stadb_run "read_liberty ../examples/nangate45_slow.lib.gz
 read_verilog ../examples/example1.v
 link_design top
@@ -65,6 +70,7 @@ if { \[catch { write_sta_db $pocv } msg\] } {
   puts \$msg
 }" err_pocv]
 puts "error pocv: [stadb_scrub $pocv_out]"
+puts "error pocv wrote: [file exists $pocv]"
 
 # Multi-scene cannot be stored.
 set mcmm [make_result_file "stadb_errors.mcmm.stadb"]
