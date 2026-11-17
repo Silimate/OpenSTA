@@ -1,5 +1,7 @@
 network hierarchy matches: 1
 network hierarchy verilog matches: 1
+network relinked ids matches: 1
+network relinked ids verilog matches: 1
 network buses matches: 1
 network verilog_src matches: 1
 network verilog_src present: 1
