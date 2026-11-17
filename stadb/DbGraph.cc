@@ -88,8 +88,9 @@ private:
   DcalcAPIndex ap_count_;
   std::vector<Vertex*> vertices_;
   std::vector<Edge*> edges_;
-  std::unordered_map<const Vertex*, uint32_t> vertex_indexes_;
-  std::unordered_map<const Edge*, uint32_t> edge_indexes_;
+  // Section index by graph id.
+  DbIndexMap vertex_indexes_;
+  DbIndexMap edge_indexes_;
   std::unordered_map<const TimingArcSet*, uint32_t> arc_set_indexes_;
 };
 
@@ -114,8 +115,11 @@ DbGraphWriter::collect()
             [this](const Vertex *a, const Vertex *b) {
               return graph_->id(a) < graph_->id(b);
             });
+  // Sorted by id, so the last one is the largest.
+  if (!vertices_.empty())
+    vertex_indexes_.reset(static_cast<size_t>(graph_->id(vertices_.back())) + 1);
   for (uint32_t i = 0; i < vertices_.size(); i++)
-    vertex_indexes_[vertices_[i]] = i;
+    vertex_indexes_.set(graph_->id(vertices_[i]), i);
 
   for (Vertex *vertex : vertices_) {
     VertexOutEdgeIterator edge_iter(vertex, graph_);
@@ -126,26 +130,28 @@ DbGraphWriter::collect()
             [this](const Edge *a, const Edge *b) {
               return graph_->id(a) < graph_->id(b);
             });
+  if (!edges_.empty())
+    edge_indexes_.reset(static_cast<size_t>(graph_->id(edges_.back())) + 1);
   for (uint32_t i = 0; i < edges_.size(); i++)
-    edge_indexes_[edges_[i]] = i;
+    edge_indexes_.set(graph_->id(edges_[i]), i);
 }
 
 uint32_t
 DbGraphWriter::vertexIndex(const Vertex *vertex) const
 {
-  auto itr = vertex_indexes_.find(vertex);
-  if (itr == vertex_indexes_.end())
+  uint32_t index = vertex_indexes_.find(graph_->id(vertex));
+  if (index == DbIndexMap::missing)
     throw DbCorrupt("stadb graph edge references an unknown vertex");
-  return itr->second;
+  return index;
 }
 
 uint32_t
 DbGraphWriter::edgeIndex(const Edge *edge) const
 {
-  auto itr = edge_indexes_.find(edge);
-  if (itr == edge_indexes_.end())
+  uint32_t index = edge_indexes_.find(graph_->id(edge));
+  if (index == DbIndexMap::missing)
     throw DbCorrupt("stadb graph references an unknown edge");
-  return itr->second;
+  return index;
 }
 
 uint32_t

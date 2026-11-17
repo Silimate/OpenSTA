@@ -122,8 +122,9 @@ private:
   const Network *network_;
   Sdc *sdc_;
   std::vector<Vertex*> vertices_;
-  std::unordered_map<const Vertex*, uint32_t> vertex_indexes_;
-  std::unordered_map<const Edge*, uint32_t> edge_indexes_;
+  // Section index by graph id.
+  DbIndexMap vertex_indexes_;
+  DbIndexMap edge_indexes_;
   std::unordered_map<const ClkInfo*, uint32_t> clk_info_ids_;
   std::unordered_map<const Tag*, uint32_t> tag_ids_;
   std::unordered_map<const ExceptionPath*, uint32_t> exception_ids_;
@@ -155,8 +156,11 @@ DbSearchWriter::collect()
               return graph_->id(a) < graph_->id(b);
             });
   std::vector<Edge*> edges;
+  // Sorted by id, so the last one is the largest.
+  if (!vertices_.empty())
+    vertex_indexes_.reset(static_cast<size_t>(graph_->id(vertices_.back())) + 1);
   for (uint32_t i = 0; i < vertices_.size(); i++) {
-    vertex_indexes_[vertices_[i]] = i;
+    vertex_indexes_.set(graph_->id(vertices_[i]), i);
     VertexOutEdgeIterator edge_iter(vertices_[i], graph_);
     while (edge_iter.hasNext())
       edges.push_back(edge_iter.next());
@@ -165,8 +169,10 @@ DbSearchWriter::collect()
             [this](const Edge *a, const Edge *b) {
               return graph_->id(a) < graph_->id(b);
             });
+  if (!edges.empty())
+    edge_indexes_.reset(static_cast<size_t>(graph_->id(edges.back())) + 1);
   for (uint32_t i = 0; i < edges.size(); i++)
-    edge_indexes_[edges[i]] = i;
+    edge_indexes_.set(graph_->id(edges[i]), i);
 
   // Exceptions are named by their position in the same content sorted order
   // the sdc section writes them in, which both sides can recompute. Their Sdc
@@ -182,19 +188,19 @@ DbSearchWriter::collect()
 uint32_t
 DbSearchWriter::vertexIndex(const Vertex *vertex) const
 {
-  auto itr = vertex_indexes_.find(vertex);
-  if (itr == vertex_indexes_.end())
+  uint32_t index = vertex_indexes_.find(graph_->id(vertex));
+  if (index == DbIndexMap::missing)
     throw DbCorrupt("stadb search references an unknown vertex");
-  return itr->second;
+  return index;
 }
 
 uint32_t
 DbSearchWriter::edgeIndex(const Edge *edge) const
 {
-  auto itr = edge_indexes_.find(edge);
-  if (itr == edge_indexes_.end())
+  uint32_t index = edge_indexes_.find(graph_->id(edge));
+  if (index == DbIndexMap::missing)
     throw DbCorrupt("stadb search references an unknown edge");
-  return itr->second;
+  return index;
 }
 
 void

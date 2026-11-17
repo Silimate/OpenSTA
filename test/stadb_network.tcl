@@ -27,6 +27,35 @@ write_verilog $hier_warm_v" net_hr]
 stadb_check "network hierarchy" $cold_h $warm_h
 stadb_check_files "network hierarchy verilog" $hier_cold_v $hier_warm_v
 
+# Network object ids keep counting across links and deleted objects. The
+# relinked nets start past the first link's ids, and the late instance
+# spreads the instance ids too thin for an id array.
+set ids_file [make_result_file "stadb_network.ids.stadb"]
+set ids_cold_v [make_result_file "stadb_network.ids.cold.v"]
+set ids_warm_v [make_result_file "stadb_network.ids.warm.v"]
+set ids_build {read_liberty ../examples/nangate45_slow.lib.gz
+read_verilog get_cell_hierarchy.v
+link_design dut
+read_verilog get_cell_hierarchy.v
+link_design dut
+for {set i 0} {$i < 2000} {incr i} {
+  delete_net [make_net churn$i]
+}
+make_instance late_buf NangateOpenCellLibrary_slow/BUF_X1
+connect_pin in1 late_buf/A
+create_clock -name clk -period 10 {clk1 clk2 clk3}}
+stadb_run "$ids_build
+sta::find_timing -full_update
+write_sta_db $ids_file" net_iw
+set cold_i [stadb_run "$ids_build
+$hier_dump
+write_verilog $ids_cold_v" net_ic]
+set warm_i [stadb_run "read_sta_db $ids_file
+$hier_dump
+write_verilog $ids_warm_v" net_ir]
+stadb_check "network relinked ids" $cold_i $warm_i
+stadb_check_files "network relinked ids verilog" $ids_cold_v $ids_warm_v
+
 set bus_file [make_result_file "stadb_network.bus.stadb"]
 set bus_cold_v [make_result_file "stadb_network.bus.cold.v"]
 set bus_warm_v [make_result_file "stadb_network.bus.warm.v"]

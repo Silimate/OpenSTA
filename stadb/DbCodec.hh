@@ -109,6 +109,34 @@ private:
   std::unordered_map<std::string, uint32_t> ids_;
 };
 
+// Dense map from an object id to its position in a section array. The ids
+// come from tables that hand them out densely, so a flat array costs 4 bytes
+// an id where a hash map from pointers costs about 40 an entry, and every
+// graph pin needs one.
+class DbIndexMap
+{
+public:
+  static constexpr uint32_t missing = 0xffffffffu;
+  // Sized for ids from first_id up to, not including, id_limit; set() grows
+  // it for ids outside that range.
+  void reset(size_t id_limit) { reset(0, id_limit); }
+  void reset(uint32_t first_id,
+             size_t id_limit);
+  void clear();
+  bool empty() const { return indexes_.empty(); }
+  void set(uint32_t id, uint32_t index);
+  uint32_t find(uint32_t id) const
+  {
+    return id >= first_id_ && id - first_id_ < indexes_.size()
+      ? indexes_[id - first_id_]
+      : missing;
+  }
+
+private:
+  uint32_t first_id_ = 0;
+  std::vector<uint32_t> indexes_;
+};
+
 // Append-only byte buffer. Unsigned integers use LEB128 varints and signed
 // integers use zigzag varints, which keeps the dense object id fields that
 // dominate the graph sections down to one or two bytes each.

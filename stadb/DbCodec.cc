@@ -96,6 +96,40 @@ DbStringTable::setStrings(std::vector<std::string> strings)
 
 ////////////////////////////////////////////////////////////////
 
+void
+DbIndexMap::reset(uint32_t first_id,
+                  size_t id_limit)
+{
+  first_id_ = first_id;
+  indexes_.assign(id_limit > first_id ? id_limit - first_id : 0, missing);
+}
+
+void
+DbIndexMap::clear()
+{
+  first_id_ = 0;
+  indexes_.clear();
+  indexes_.shrink_to_fit();
+}
+
+void
+DbIndexMap::set(uint32_t id,
+                uint32_t index)
+{
+  if (indexes_.empty())
+    first_id_ = id;
+  else if (id < first_id_) {
+    indexes_.insert(indexes_.begin(), first_id_ - id, missing);
+    first_id_ = id;
+  }
+  size_t offset = id - first_id_;
+  if (offset >= indexes_.size())
+    indexes_.resize(offset + 1, missing);
+  indexes_[offset] = index;
+}
+
+////////////////////////////////////////////////////////////////
+
 DbWriter::DbWriter(DbStringTable *strings) :
   strings_(strings)
 {
