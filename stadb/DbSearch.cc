@@ -94,6 +94,7 @@ private:
   void collect();
   void writeTagPool();
   bool tagIsWritable(const Tag *tag) const;
+  uint32_t claimPathTags();
   uint32_t writeVertexPaths(DbWriter &paths);
   void writeFlags();
   void writeSim();
@@ -397,6 +398,31 @@ DbSearchWriter::writeTagPool()
   }
 }
 
+// Hands out the pool ids of the tags the paths refer to, meeting them in the
+// order writeVertexPaths does, so the pool is complete before it is written
+// ahead of the paths. The paths can then go straight into the section instead
+// of a buffer of their own, which on a large design is most of the section.
+// Returns how many vertices have paths.
+uint32_t
+DbSearchWriter::claimPathTags()
+{
+  uint32_t vertex_count = 0;
+  for (Vertex *vertex : vertices_) {
+    if (search_->tagGroup(vertex)) {
+      vertex_count++;
+      VertexPathIterator path_iter(vertex, sta_);
+      while (path_iter.hasNext()) {
+        Path *path = path_iter.next();
+        tagId(path->tag(sta_));
+        Path *prev = path->prevPath();
+        if (prev)
+          tagId(prev->tag(sta_));
+      }
+    }
+  }
+  return vertex_count;
+}
+
 uint32_t
 DbSearchWriter::writeVertexPaths(DbWriter &paths)
 {
@@ -498,12 +524,14 @@ DbSearchWriter::write()
   collect();
 
   writeTagPool();
-  DbWriter paths(writer_.strings());
-  uint32_t vertex_count = writeVertexPaths(paths);
+  uint32_t vertex_count = claimPathTags();
   writer_.putU32(pool_count_);
   writer_.putBytes(pool_.bytes().data(), pool_.size());
+  pool_.takeBytes();
   writer_.putU32(vertex_count);
-  writer_.putBytes(paths.bytes().data(), paths.size());
+  uint32_t pool_count = pool_count_;
+  if (writeVertexPaths(writer_) != vertex_count || pool_count_ != pool_count)
+    throw DbCorrupt("stadb search paths changed between passes");
   writeFlags();
   writeSim();
 }
