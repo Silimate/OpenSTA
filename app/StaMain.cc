@@ -98,11 +98,18 @@ sourceTclFile(const char *filename,
               bool verbose,
               Tcl_Interp *interp)
 {
-  std::string cmd = sta::format("sta::include_file {} {} {}",
-                                filename,
-                                echo ? "1" : "0",
-                                verbose ? "1" : "0");
-  int code = Tcl_Eval(interp, cmd.c_str());
+  // Build the command as a list so the file name stays one word even
+  // when it contains spaces, braces or other Tcl syntax.
+  Tcl_Obj *words[] = {
+    Tcl_NewStringObj("sta::include_file", -1),
+    Tcl_NewStringObj(filename, -1),
+    Tcl_NewStringObj(echo ? "1" : "0", -1),
+    Tcl_NewStringObj(verbose ? "1" : "0", -1)
+  };
+  Tcl_Obj *cmd = Tcl_NewListObj(4, words);
+  Tcl_IncrRefCount(cmd);
+  int code = Tcl_EvalObjEx(interp, cmd, 0);
+  Tcl_DecrRefCount(cmd);
   const char *result = Tcl_GetStringResult(interp);
   if (result[0] != '\0')
     printf("%s\n", result);
