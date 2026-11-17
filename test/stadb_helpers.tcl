@@ -25,9 +25,13 @@ array set stadb_fix_sites {
   error     {stadb/DbFile.cc DbCodec.cc}
 }
 
+# Name the child script after the calling test: regression deletes
+# results/<test>.* as each test starts, so a shared "stadb." prefix let
+# the stadb test delete other tests' scripts while they ran.
 proc stadb_run { body { tag "child" } } {
   global stadb_helpers_file
-  set script [make_result_file "stadb.$tag.tcl"]
+  set test [file rootname [file tail [info script]]]
+  set script [make_result_file "$test.$tag.tcl"]
   set stream [open $script "w"]
   puts $stream "source $stadb_helpers_file"
   puts $stream $body
