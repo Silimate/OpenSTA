@@ -135,10 +135,11 @@ DbFileWriter::write(std::string_view filename, bool compress)
   // The string table is emitted last because encoding the other sections is
   // what populates it.
   DbWriter string_writer(&strings_);
-  const std::vector<std::string> &strings = strings_.strings();
-  string_writer.putU64(strings.size());
-  for (const std::string &str : strings)
+  string_writer.putU64(strings_.size());
+  for (size_t id = 0; id < strings_.size(); id++) {
+    std::string_view str = strings_.string(DbStrId(static_cast<uint32_t>(id)));
     string_writer.putBlob(str.data(), str.size());
+  }
   addSection(DbSectionId::strings, string_writer.takeBytes());
 
   // Compress payloads first so the table of contents can carry final offsets.
@@ -267,14 +268,10 @@ DbFileReader::read(std::string_view filename)
     throw DbCorrupt("stadb has no string table");
   DbReader string_reader = sectionReader(DbSectionId::strings);
   size_t string_count = string_reader.getCount("string table");
-  std::vector<std::string> strings;
-  strings.reserve(string_count);
-  for (size_t i = 0; i < string_count; i++) {
-    std::string_view str = string_reader.getBlob();
-    strings.emplace_back(str);
-  }
+  strings_.reset();
+  for (size_t i = 0; i < string_count; i++)
+    strings_.append(string_reader.getBlob());
   string_reader.checkFullyConsumed("string table");
-  strings_.setStrings(std::move(strings));
 }
 
 bool

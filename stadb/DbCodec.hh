@@ -27,9 +27,10 @@
 #include <bit>
 #include <cstdint>
 #include <cstring>
+#include <deque>
+#include <memory>
 #include <string>
 #include <string_view>
-#include <unordered_map>
 #include <vector>
 
 #include "Error.hh"
@@ -88,25 +89,63 @@ struct DbStrId
 
 // Interned strings. Id 0 is reserved for the null/empty string so that record
 // fields can use 0 as "absent" without a separate presence flag.
+//
+// A session interns every pin's hierarchical name, so the table is sized for
+// tens of millions of strings: each is stored once, in an arena, and indexed
+// by an open addressed table of ids rather than by a map of string copies.
 class DbStringTable
 {
 public:
   DbStringTable();
+  DbStringTable(const DbStringTable &) = delete;
+  DbStringTable &operator=(const DbStringTable &) = delete;
   DbStrId intern(std::string_view str);
-  // Empty string for id 0 or any out of range id.
+  // Adds str as the next id without looking for an earlier copy, for a table
+  // read back from a file, whose ids must stay as written. A later intern
+  // resolves a repeated string to its first id.
+  void append(std::string_view str);
+  // Empty string for any out of range id.
   std::string_view string(DbStrId id) const;
   // Null for id 0, so results can feed APIs that take const char *.
   const char *cstring(DbStrId id) const;
-  size_t size() const { return strings_.size(); }
-  const std::vector<std::string> &strings() const { return strings_; }
+  size_t size() const { return entries_.size(); }
+  // Leaves only the null string, as id 0.
   void clear();
-  void setStrings(std::vector<std::string> strings);
+  // Leaves no strings at all, for a reader about to append a file's table,
+  // which carries its own id 0.
+  void reset();
 
 private:
-  // The map owns its keys rather than viewing into strings_, whose elements
-  // move when the vector grows.
-  std::vector<std::string> strings_;
-  std::unordered_map<std::string, uint32_t> ids_;
+  struct Slot
+  {
+    uint32_t id;
+    uint32_t hash;
+  };
+  static constexpr uint32_t slot_empty = 0xffffffffu;
+
+  static uint32_t hash(std::string_view str);
+  const char *store(std::string_view str);
+  void indexPending();
+  // Returns the id already holding str, or claims slot for id when there is
+  // none.
+  uint32_t findOrInsert(std::string_view str,
+                        uint32_t hash,
+                        uint32_t id);
+  void rehash(size_t slot_count);
+
+  // Each string lives once, as a 4 byte length, its bytes and a NUL, in arena
+  // blocks that never move, so views and C strings stay valid as it grows.
+  std::vector<std::unique_ptr<char[]>> blocks_;
+  char *block_next_ = nullptr;
+  size_t block_left_ = 0;
+  // Record start by id. A deque grows without copying what it already holds,
+  // which at tens of millions of ids would briefly need three times the space.
+  std::deque<const char*> entries_;
+  // Linear probing over ids, at most three quarters full.
+  std::vector<Slot> slots_;
+  // Leading entries_ that slots_ covers. Appended ids are indexed on the next
+  // intern, so a reader that never interns never builds the index.
+  size_t indexed_ = 0;
 };
 
 // Dense map from an object id to its position in a section array. The ids
