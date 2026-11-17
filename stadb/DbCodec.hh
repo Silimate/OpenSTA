@@ -156,15 +156,23 @@ class DbIndexMap
 {
 public:
   static constexpr uint32_t missing = 0xffffffffu;
-  // Sized for ids below id_limit; set() grows it for larger ones.
-  void reset(size_t id_limit) { indexes_.assign(id_limit, missing); }
+  // Sized for ids from first_id up to, not including, id_limit; set() grows
+  // it for ids outside that range.
+  void reset(size_t id_limit) { reset(0, id_limit); }
+  void reset(uint32_t first_id,
+             size_t id_limit);
+  void clear();
+  bool empty() const { return indexes_.empty(); }
   void set(uint32_t id, uint32_t index);
   uint32_t find(uint32_t id) const
   {
-    return id < indexes_.size() ? indexes_[id] : missing;
+    return id >= first_id_ && id - first_id_ < indexes_.size()
+      ? indexes_[id - first_id_]
+      : missing;
   }
 
 private:
+  uint32_t first_id_ = 0;
   std::vector<uint32_t> indexes_;
 };
 

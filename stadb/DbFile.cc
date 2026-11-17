@@ -233,27 +233,43 @@ DbFileWriter::DbFileWriter(std::string_view filename,
   flags_(0),
   input_digest_(0)
 {
-  stream_.open(filename_, std::ios::binary | std::ios::trunc | std::ios::out);
-  if (!stream_.is_open())
-    throw FileNotWritable(filename);
-  // Placeholder header, filled in once the section offsets are known.
-  std::vector<char> zeros(offset_, 0);
-  stream_.write(zeros.data(), zeros.size());
-  checkStream();
 #ifndef ZLIB_FOUND
   // Every section is stored as is, without first trying to deflate it.
   compress_ = false;
 #endif
   if (compress_)
     out_block_.resize(stadb_stream_block);
+  // Placeholder header, filled in once the section offsets are known.
+  std::vector<char> zeros(offset_, 0);
+  stream_.open(filename_, std::ios::binary | std::ios::trunc | std::ios::out);
+  // A file that cannot be opened is left as it was.
+  if (!stream_.is_open())
+    throw FileNotWritable(filename);
+  stream_.write(zeros.data(), zeros.size());
+  // The destructor does not run when the constructor throws.
+  if (stream_.fail()) {
+    discard();
+    throw FileNotWritable(filename);
+  }
 }
 
 DbFileWriter::~DbFileWriter()
 {
-  if (!finished_ && stream_.is_open()) {
+  if (!finished_)
+    discard();
+}
+
+// Removes a file the writer opened but did not finish, so a failed write
+// leaves no partial or stale database behind.
+void
+DbFileWriter::discard()
+{
+  if (stream_.is_open())
     stream_.close();
+  std::error_code error;
+  // Never remove a device or pipe that was named as the output.
+  if (std::filesystem::is_regular_file(filename_, error))
     std::remove(filename_.c_str());
-  }
 }
 
 void
@@ -349,7 +365,6 @@ DbFileWriter::finish()
   stream_.close();
   if (stream_.fail())
     throw FileNotWritable(filename_);
-  finished_ = true;
   // A section rewritten undeflated is shorter than the deflated try it
   // overwrote, which leaves a tail when it was the last one.
   if (end_ > offset_) {
@@ -358,6 +373,7 @@ DbFileWriter::finish()
     if (error)
       throw FileNotWritable(filename_);
   }
+  finished_ = true;
 }
 
 static void

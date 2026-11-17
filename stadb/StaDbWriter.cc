@@ -923,6 +923,10 @@ DbLibertyWriter::write(const std::vector<LibertyLibrary*> &libraries,
 
 // Encodes the linked network: the cell masters that liberty does not supply
 // (verilog modules), then the instance tree with its nets, pins and terms.
+// Ids an object kind may spread over, per network object written, before
+// its lookups stop using an id array.
+static constexpr size_t dense_id_span_per_object = 2;
+
 class DbNetworkWriter
 {
 public:
@@ -942,11 +946,21 @@ private:
   void writePins();
   DbNetworkId instanceId(const Instance *inst) const;
   DbNetworkId netId(const Net *net) const;
+  template <class Object>
+  void indexIds(const std::vector<Object*> &objects,
+                size_t id_span_limit,
+                DbIndexMap &ids);
+  template <class Object>
+  DbNetworkId lookupId(const std::vector<Object*> &objects,
+                       const DbIndexMap &ids,
+                       const Object *object) const;
 
   DbWriter &writer_;
   ConcreteNetwork *network_;
+  // Sorted by network object id.
   std::vector<Instance*> instances_;
-  // Section index by network object id.
+  // Section index by network object id, or empty when the ids are too
+  // spread out for an array (see indexIds).
   DbIndexMap instance_ids_;
   std::vector<Net*> nets_;
   DbIndexMap net_ids_;
@@ -1015,15 +1029,12 @@ DbNetworkWriter::collect()
   std::sort(nets_.begin(), nets_.end(), by_id);
   std::sort(pins_.begin(), pins_.end(), by_id);
 
-  // Sorted by id, so the last one is the largest.
-  if (!instances_.empty())
-    instance_ids_.reset(static_cast<size_t>(network_->id(instances_.back())) + 1);
-  for (size_t i = 0; i < instances_.size(); i++)
-    instance_ids_.set(network_->id(instances_[i]), static_cast<DbNetworkId>(i));
-  if (!nets_.empty())
-    net_ids_.reset(static_cast<size_t>(network_->id(nets_.back())) + 1);
-  for (size_t i = 0; i < nets_.size(); i++)
-    net_ids_.set(network_->id(nets_[i]), static_cast<DbNetworkId>(i));
+  // Instances, pins, terms and nets share one id counter, so each kind's
+  // ids spread over about as many ids as the design has objects.
+  size_t id_span_limit = dense_id_span_per_object
+    * (instances_.size() + nets_.size() + pins_.size()) + 1;
+  indexIds(instances_, id_span_limit, instance_ids_);
+  indexIds(nets_, id_span_limit, net_ids_);
 
   // Terms get their own order because they are not created with their pin.
   // connect() makes a term the first time a net reaches the top instance,
@@ -1041,20 +1052,63 @@ DbNetworkWriter::collect()
             });
 }
 
+// ConcreteNetwork takes object ids from one counter for the whole process,
+// which clearing a design does not reset, and objects deleted since the
+// design was linked leave gaps. The id arrays therefore start at the
+// smallest id collected, and are used only while the ids spread over at most
+// id_span_limit ids. Past that, lookups binary search the sorted objects, so
+// memory follows the design being written rather than every object the
+// process has made.
+template <class Object>
+void
+DbNetworkWriter::indexIds(const std::vector<Object*> &objects,
+                          size_t id_span_limit,
+                          DbIndexMap &ids)
+{
+  ids.clear();
+  if (objects.empty())
+    return;
+  ObjectId first_id = network_->id(objects.front());
+  size_t id_limit = static_cast<size_t>(network_->id(objects.back())) + 1;
+  if (id_limit - first_id > id_span_limit)
+    return;
+  ids.reset(first_id, id_limit);
+  for (size_t i = 0; i < objects.size(); i++)
+    ids.set(network_->id(objects[i]), static_cast<DbNetworkId>(i));
+}
+
 // An object the walk did not collect comes back as 0, as it did from the
 // std::unordered_map operator[] these lookups replaced.
+template <class Object>
+DbNetworkId
+DbNetworkWriter::lookupId(const std::vector<Object*> &objects,
+                          const DbIndexMap &ids,
+                          const Object *object) const
+{
+  ObjectId id = network_->id(object);
+  if (!ids.empty()) {
+    DbNetworkId index = ids.find(id);
+    return index == DbIndexMap::missing ? 0 : index;
+  }
+  auto it = std::lower_bound(objects.begin(), objects.end(), id,
+                             [this](const Object *a, ObjectId id) {
+                               return network_->id(a) < id;
+                             });
+  if (it != objects.end() && network_->id(*it) == id)
+    return static_cast<DbNetworkId>(it - objects.begin());
+  return 0;
+}
+
 DbNetworkId
 DbNetworkWriter::instanceId(const Instance *inst) const
 {
-  DbNetworkId id = instance_ids_.find(network_->id(inst));
-  return id == DbIndexMap::missing ? 0 : id;
+  return lookupId(instances_, instance_ids_, inst);
 }
 
 DbNetworkId
 DbNetworkWriter::netId(const Net *net) const
 {
-  DbNetworkId id = net_ids_.find(network_->id(net));
-  return id == DbIndexMap::missing ? 0 : id;
+  return lookupId(nets_, net_ids_, net);
 }
 
 void

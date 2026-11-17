@@ -48,7 +48,8 @@ class DbFileWriter
 {
 public:
   // Creates filename, leaving room for a table of contents of section_count
-  // entries, the string table included. Throws FileNotWritable.
+  // entries, the string table included. Throws FileNotWritable, leaving a
+  // file it could not open as it was.
   DbFileWriter(std::string_view filename,
                bool compress,
                size_t section_count);
@@ -83,6 +84,7 @@ private:
                          bool deflate);
   void seek(uint64_t offset);
   void checkStream();
+  void discard();
 
   std::string filename_;
   bool compress_;
