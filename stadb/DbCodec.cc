@@ -24,6 +24,9 @@
 
 #include "DbCodec.hh"
 
+#include <algorithm>
+#include <functional>
+
 #include "Format.hh"
 
 namespace sta {
@@ -41,57 +44,155 @@ DbCorrupt::what() const noexcept
 
 ////////////////////////////////////////////////////////////////
 
+// Arena block size. Strings longer than a block get a block of their own.
+static constexpr size_t string_block_size = 1 << 20;
+// Length prefix ahead of each string's bytes in the arena.
+static constexpr size_t string_length_size = sizeof(uint32_t);
+
 DbStringTable::DbStringTable()
 {
   clear();
 }
 
 void
+DbStringTable::reset()
+{
+  blocks_.clear();
+  block_next_ = nullptr;
+  block_left_ = 0;
+  entries_.clear();
+  slots_.clear();
+  indexed_ = 0;
+}
+
+void
 DbStringTable::clear()
 {
-  strings_.clear();
-  ids_.clear();
+  reset();
   // Id 0 is the null/empty string.
-  strings_.emplace_back("");
-  ids_.emplace("", 0);
+  intern("");
+}
+
+uint32_t
+DbStringTable::hash(std::string_view str)
+{
+  uint64_t full = std::hash<std::string_view>()(str);
+  return static_cast<uint32_t>(full ^ (full >> 32));
+}
+
+const char *
+DbStringTable::store(std::string_view str)
+{
+  if (str.size() >= slot_empty)
+    throw DbCorrupt("stadb string is too long to store");
+  size_t record_size = string_length_size + str.size() + 1;
+  if (record_size > block_left_) {
+    size_t block_size = std::max(record_size, string_block_size);
+    blocks_.emplace_back(new char[block_size]);
+    block_next_ = blocks_.back().get();
+    block_left_ = block_size;
+  }
+  char *record = block_next_;
+  uint32_t length = static_cast<uint32_t>(str.size());
+  std::memcpy(record, &length, string_length_size);
+  if (!str.empty())
+    std::memcpy(record + string_length_size, str.data(), str.size());
+  record[string_length_size + str.size()] = '\0';
+  block_next_ += record_size;
+  block_left_ -= record_size;
+  return record;
+}
+
+void
+DbStringTable::rehash(size_t slot_count)
+{
+  std::vector<Slot> slots(slot_count, Slot{slot_empty, 0});
+  size_t mask = slot_count - 1;
+  for (const Slot &slot : slots_) {
+    if (slot.id != slot_empty) {
+      size_t i = slot.hash & mask;
+      while (slots[i].id != slot_empty)
+        i = (i + 1) & mask;
+      slots[i] = slot;
+    }
+  }
+  slots_ = std::move(slots);
+}
+
+uint32_t
+DbStringTable::findOrInsert(std::string_view str,
+                            uint32_t hash,
+                            uint32_t id)
+{
+  // Grow before the table passes three quarters full; probe lengths climb
+  // steeply past that.
+  if ((indexed_ + 1) * 4 > slots_.size() * 3)
+    rehash(std::max<size_t>(slots_.size() * 2, 64));
+  size_t mask = slots_.size() - 1;
+  size_t i = hash & mask;
+  while (slots_[i].id != slot_empty) {
+    if (slots_[i].hash == hash
+        && string(DbStrId(slots_[i].id)) == str)
+      return slots_[i].id;
+    i = (i + 1) & mask;
+  }
+  slots_[i] = Slot{id, hash};
+  indexed_++;
+  return id;
+}
+
+// Indexes ids added by append() since the last intern. A repeat keeps its
+// first id, as the map this table replaced did.
+void
+DbStringTable::indexPending()
+{
+  while (indexed_ < entries_.size()) {
+    uint32_t id = static_cast<uint32_t>(indexed_);
+    std::string_view str = string(DbStrId(id));
+    if (findOrInsert(str, hash(str), id) != id)
+      // Counted as covered even though only its first copy is in the index.
+      indexed_++;
+  }
 }
 
 DbStrId
 DbStringTable::intern(std::string_view str)
 {
-  std::string key(str);
-  auto itr = ids_.find(key);
-  if (itr != ids_.end())
-    return DbStrId(itr->second);
-  uint32_t id = static_cast<uint32_t>(strings_.size());
-  strings_.push_back(key);
-  ids_.emplace(std::move(key), id);
+  indexPending();
+  if (entries_.size() >= slot_empty)
+    throw DbCorrupt("stadb string table is full");
+  uint32_t next_id = static_cast<uint32_t>(entries_.size());
+  uint32_t id = findOrInsert(str, hash(str), next_id);
+  if (id == next_id)
+    entries_.push_back(store(str));
   return DbStrId(id);
+}
+
+void
+DbStringTable::append(std::string_view str)
+{
+  if (entries_.size() >= slot_empty)
+    throw DbCorrupt("stadb string table is full");
+  entries_.push_back(store(str));
 }
 
 std::string_view
 DbStringTable::string(DbStrId id) const
 {
-  if (id.id < strings_.size())
-    return strings_[id.id];
-  return std::string_view();
+  if (id.id >= entries_.size())
+    return std::string_view();
+  const char *record = entries_[id.id];
+  uint32_t length;
+  std::memcpy(&length, record, string_length_size);
+  return std::string_view(record + string_length_size, length);
 }
 
 const char *
 DbStringTable::cstring(DbStrId id) const
 {
-  if (id.isNull() || id.id >= strings_.size())
+  if (id.isNull() || id.id >= entries_.size())
     return nullptr;
-  return strings_[id.id].c_str();
-}
-
-void
-DbStringTable::setStrings(std::vector<std::string> strings)
-{
-  strings_ = std::move(strings);
-  ids_.clear();
-  for (uint32_t id = 0; id < strings_.size(); id++)
-    ids_.emplace(strings_[id], id);
+  return entries_[id.id] + string_length_size;
 }
 
 ////////////////////////////////////////////////////////////////
