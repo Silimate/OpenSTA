@@ -103,6 +103,12 @@ DbStringTable::store(std::string_view str)
   return record;
 }
 
+// Moves every indexed string into a table of slot_count slots. A string's
+// home slot is its hash masked to the table size, so it changes when the
+// table grows: each occupied slot is probed into place again rather than
+// copied across. slot_count must be a power of two so that the mask,
+// slot_count - 1, reaches every slot; findOrInsert only passes 64 or a
+// doubling.
 void
 DbStringTable::rehash(size_t slot_count)
 {
