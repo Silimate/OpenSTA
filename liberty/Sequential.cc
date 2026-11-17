@@ -112,6 +112,38 @@ Statetable::Statetable(LibertyPortSeq &input_ports,
 {
 }
 
+bool
+Statetable::isLatch() const
+{
+  auto is_value = [](StateInternalValue value) {
+    return value == StateInternalValue::low
+      || value == StateInternalValue::high
+      || value == StateInternalValue::low_high
+      || value == StateInternalValue::high_low;
+  };
+  for (const StatetableRow &row : table_) {
+    for (StateInputValue value : row.inputValues()) {
+      if (value == StateInputValue::rise
+          || value == StateInputValue::fall
+          || value == StateInputValue::not_rise
+          || value == StateInputValue::not_fall)
+        return false;
+    }
+    // A register's second stage loads the first stage's stored value.
+    const StateInternalValues &currents = row.currentValues();
+    const StateInternalValues &nexts = row.nextValues();
+    for (size_t i = 0; i < nexts.size(); i++) {
+      if (is_value(nexts[i])) {
+        for (size_t j = 0; j < currents.size(); j++) {
+          if (j != i && is_value(currents[j]))
+            return false;
+        }
+      }
+    }
+  }
+  return true;
+}
+
 StatetableRow::StatetableRow(StateInputValues &input_values,
                              StateInternalValues &current_values,
                              StateInternalValues &next_values) :

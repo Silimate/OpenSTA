@@ -1,0 +1,215 @@
+Warning 1298: liberty_statetable_latch.lib line 18, statetable input port CP not found.
+Warning 1298: liberty_statetable_latch.lib line 18, statetable input port E not found.
+Warning 1298: liberty_statetable_latch.lib line 127, statetable input port CP not found.
+Warning 1298: liberty_statetable_latch.lib line 127, statetable input port E not found.
+Cell LATCH_ARRAY
+Library statetable_latch
+File liberty_statetable_latch.lib
+ CP0 input 0.00
+ CP1 input 0.00
+ D input 0.00
+ S0 input 0.00
+ S1 input 0.00
+ IQ_0 internal
+ IQ_1 internal
+ Q output 0.00
+ IQ unknown
+
+Timing arcs
+ CP0 -> D
+  setup
+  v -> ^
+  v -> v
+ CP0 -> D
+  hold
+  v -> ^
+  v -> v
+ CP1 -> D
+  setup
+  v -> ^
+  v -> v
+ CP1 -> D
+  hold
+  v -> ^
+  v -> v
+ D -> Q
+  Latch D to Q
+  ^ -> v
+  v -> ^
+ CP0 -> Q
+  Latch En to Q
+  ^ -> ^
+  ^ -> v
+ S0 -> Q
+  combinational
+  ^ -> v
+  v -> ^
+ CP1 -> Q
+  Latch En to Q
+  ^ -> ^
+  ^ -> v
+ S1 -> Q
+  combinational
+  ^ -> v
+  v -> ^
+Cell COMPLEMENT_LATCH
+Library statetable_latch
+File liberty_statetable_latch.lib
+ EN input 0.00
+ D input 0.00
+ Q output 0.00
+ IQ unknown
+ IQN unknown
+
+Timing arcs
+ EN -> D
+  setup
+  v -> ^
+  v -> v
+ EN -> D
+  hold
+  v -> ^
+  v -> v
+ D -> Q
+  Latch D to Q
+  ^ -> ^
+  v -> v
+ EN -> Q
+  Latch En to Q
+  ^ -> ^
+  ^ -> v
+Cell EDGE_FLOP
+Library statetable_latch
+File liberty_statetable_latch.lib
+ CK input 0.00
+ D input 0.00
+ X input 0.00
+ Q output 0.00
+ IQ unknown
+
+Timing arcs
+ CK -> D
+  setup
+  ^ -> ^
+  ^ -> v
+ CK -> D
+  hold
+  ^ -> ^
+  ^ -> v
+ CK -> X
+  setup
+  ^ -> ^
+  ^ -> v
+ CK -> Q
+  Reg Clk to Q
+  ^ -> ^
+  ^ -> v
+ X -> Q
+  combinational
+  ^ -> ^
+  v -> v
+Cell MASTER_SLAVE_FLOP
+Library statetable_latch
+File liberty_statetable_latch.lib
+ CK input 0.00
+ D input 0.00
+ X input 0.00
+ Q output 0.00
+ IQM unknown
+ IQS unknown
+
+Timing arcs
+ CK -> D
+  setup
+  ^ -> ^
+  ^ -> v
+ CK -> D
+  hold
+  ^ -> ^
+  ^ -> v
+ CK -> X
+  setup
+  ^ -> ^
+  ^ -> v
+ CK -> Q
+  Reg Clk to Q
+  ^ -> ^
+  ^ -> v
+ X -> Q
+  combinational
+  ^ -> ^
+  v -> v
+Cell LSSD_REGISTER
+Library statetable_latch
+File liberty_statetable_latch.lib
+ C input 0.00
+ D input 0.00
+ A input 0.00
+ I input 0.00
+ B input 0.00
+ X input 0.00
+ Q output 0.00
+ L1 unknown
+ L2 unknown
+
+Timing arcs
+ B -> X
+  setup
+  v -> ^
+  v -> v
+ B -> Q
+  Reg Clk to Q
+  ^ -> ^
+  ^ -> v
+ X -> Q
+  combinational
+  ^ -> ^
+  v -> v
+max_delay/setup group clk0
+
+                                     Required  Actual
+Endpoint                               Delay   Delay   Slack
+------------------------------------------------------------
+u1/D (LATCH_ARRAY)                    300.00  300.00    0.00 (MET)
+max_delay/setup group clk1
+
+                                     Required  Actual
+Endpoint                               Delay   Delay   Slack
+------------------------------------------------------------
+u1/D (LATCH_ARRAY)                    500.00  300.00  200.00 (MET)
+
+Startpoint: u2 (positive level-sensitive latch clocked by clk0)
+Endpoint: q_sep (output port clocked by vclk)
+Path Group: vclk
+Path Type: max
+
+  Delay    Time   Description
+---------------------------------------------------------
+   0.00    0.00   clock clk0 (rise edge)
+   0.00    0.00   clock network delay (ideal)
+ 300.00  300.00   time given to startpoint
+   0.00  300.00 v u2/D0 (LATCH_ARRAY_SEP)
+ 100.00  400.00 ^ u2/Q (LATCH_ARRAY_SEP)
+   0.00  400.00 ^ q_sep (out)
+         400.00   data arrival time
+
+1000.00 1000.00   clock vclk (rise edge)
+   0.00 1000.00   clock network delay (ideal)
+   0.00 1000.00   clock reconvergence pessimism
+   0.00 1000.00   output external delay
+        1000.00   data required time
+---------------------------------------------------------
+        1000.00   data required time
+        -400.00   data arrival time
+---------------------------------------------------------
+         600.00   slack (MET)
+
+
+max_delay/setup group vclk
+
+                                     Required  Actual
+Endpoint                               Delay   Delay   Slack
+------------------------------------------------------------
+q (output)                           1000.00  340.00  660.00 (MET)
+
+liberty_statetable_latch lib_db matches: 1
