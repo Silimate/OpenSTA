@@ -176,6 +176,14 @@ private:
   std::vector<uint32_t> indexes_;
 };
 
+// Receives the bytes of a streaming DbWriter.
+class DbByteSink
+{
+public:
+  virtual ~DbByteSink() = default;
+  virtual void write(const uint8_t *data, size_t size) = 0;
+};
+
 // Append-only byte buffer. Unsigned integers use LEB128 varints and signed
 // integers use zigzag varints, which keeps the dense object id fields that
 // dominate the graph sections down to one or two bytes each.
@@ -219,6 +227,13 @@ public:
   // Length prefixed raw bytes, for payloads with their own encoding.
   void putBlob(const void *data, size_t size);
 
+  // Sends the bytes to sink in blocks of about block_size as they are written,
+  // so a section never has to be held whole. bytes(), size() and takeBytes()
+  // then cover only what has not been sent yet; flush() sends it.
+  void streamTo(DbByteSink *sink,
+                size_t block_size);
+  void flush();
+
   DbStringTable *strings() const { return strings_; }
   const std::vector<uint8_t> &bytes() const { return bytes_; }
   std::vector<uint8_t> takeBytes() { return std::move(bytes_); }
@@ -226,8 +241,16 @@ public:
   void clear() { bytes_.clear(); }
 
 private:
+  void spill()
+  {
+    if (sink_ && bytes_.size() >= block_size_)
+      flush();
+  }
+
   std::vector<uint8_t> bytes_;
   DbStringTable *strings_;
+  DbByteSink *sink_ = nullptr;
+  size_t block_size_ = 0;
 };
 
 // Bounds checked reader over a byte range owned by the caller.
