@@ -232,6 +232,7 @@ record_public_tests {
   set_path_margin5
   set_path_margin6
   slash_port_test
+  source_path_spaces
   stadb
   stadb_cmds
   stadb_errors

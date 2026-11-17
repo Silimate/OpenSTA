@@ -1,0 +1,8 @@
+exit status 0
+sourced 'cmd file.tcl' in 'source_path_spaces.dir with space'
+exit status 0
+sourced 'cmd file.tcl' in 'source_path_spaces.dir {braces} [brackets] $dollar'
+exit status 0
+puts "init file sourced"
+init file sourced
+sourced 'cmd file.tcl' in 'source_path_spaces.dir {braces} [brackets] $dollar'
