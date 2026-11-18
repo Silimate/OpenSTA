@@ -38,10 +38,10 @@ constexpr uint32_t stadb_magic = 0x42445453;
 
 // Bump on any incompatible layout change that sizeof alone does not catch,
 // such as reordering fields within a record or changing an encoding.
-constexpr uint32_t stadb_version = 1;
+constexpr uint32_t stadb_version = 2;
 
-// v1 supports exactly one scene. Kept as a stored field so that adding corners
-// later is a version bump rather than a format redesign.
+// The format supports exactly one scene. Kept as a stored field so that
+// adding corners later is a version bump rather than a format redesign.
 constexpr uint32_t stadb_scene_count = 1;
 
 enum class DbSectionId : uint32_t {
@@ -67,7 +67,7 @@ constexpr uint64_t stadb_max_section_bytes = 1ull << 36;
 
 // Whole-file cap applied before the container vector is allocated. Stored
 // payloads cannot exceed the decompressed sizes already refused above, and
-// v1 writes a handful of sections.
+// the format writes a handful of sections.
 constexpr uint64_t stadb_max_file_bytes = stadb_max_section_bytes * 8;
 
 // Sanity bound on a bus port's bit count, which is generated from an index

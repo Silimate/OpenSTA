@@ -601,8 +601,7 @@ DbLibertyWriter::writePortAttrs(const LibertyPort *port)
   rec.voltage_name = writer_.strings()->intern(port->voltageName());
   rec.scan_signal_type = static_cast<uint8_t>(port->scanSignalType());
   port->fanoutLoad(rec.fanout_load, rec.fanout_load_exists);
-  bool min_period_exists;
-  port->minPeriod(rec.min_period, min_period_exists);
+  port->minPeriod(rec.min_period, rec.min_period_exists);
   rec.is_clk = port->isClock();
   rec.is_reg_clk = port->isRegClk();
   rec.is_check_clk = port->isCheckClk();

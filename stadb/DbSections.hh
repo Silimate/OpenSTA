@@ -99,6 +99,7 @@ STADB_RECORD(DbCellRec, STADB_REC_CELL)
   X(f32, fanout_load)              \
   X(b, fanout_load_exists)         \
   X(f32, min_period)               \
+  X(b, min_period_exists)          \
   X(b, is_clk)                     \
   X(b, is_reg_clk)                 \
   X(b, is_check_clk)               \
