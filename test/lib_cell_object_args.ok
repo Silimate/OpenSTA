@@ -1,0 +1,8 @@
+LibertyCell: 1
+u1 BUF_X2
+LibertyCellSeq: 1
+u1 BUF_X4
+u3 INV_X1
+Warning 116: lib_cell_object_args.tcl line 25, lib_cell type 'InstanceSeq' is not a liberty cell.
+instance: 0
+u1 BUF_X4
