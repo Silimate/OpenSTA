@@ -392,7 +392,8 @@ DbLibertyReader::readPortAttrs(LibertyPort *lib_port)
   lib_port->setScanSignalType(static_cast<ScanSignalType>(rec.scan_signal_type));
   if (rec.fanout_load_exists)
     lib_port->setFanoutLoad(rec.fanout_load);
-  lib_port->setMinPeriod(rec.min_period);
+  if (rec.min_period_exists)
+    lib_port->setMinPeriod(rec.min_period);
   lib_port->setIsClock(rec.is_clk);
   lib_port->setIsRegClk(rec.is_reg_clk);
   lib_port->setIsCheckClk(rec.is_check_clk);

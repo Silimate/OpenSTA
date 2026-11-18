@@ -1,0 +1,5 @@
+reg2reg group reported: 1
+liberty register data pins matches: 1
+liberty register path groups matches: 1
+sram min period checked: 1
+liberty sram min period matches: 1

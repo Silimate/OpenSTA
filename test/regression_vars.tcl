@@ -243,6 +243,7 @@ record_public_tests {
   stadb_parasitics
   stadb_partial
   stadb_property_inventory
+  stadb_reg_data_pins
   stadb_sdc
   stadb_sdc_inventory
   stadb_search
