@@ -183,6 +183,7 @@ record_public_tests {
   include_error_line
   input_delay_ref_pin_rebuild
   inst_props
+  lib_cell_object_args
   lib_cell_props
   lib_db
   lib_db_cmds

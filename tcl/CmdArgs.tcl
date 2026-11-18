@@ -757,8 +757,8 @@ proc get_lib_cell_arg { arg_name arg error_proc } {
     if { $object_type == "LibertyCell" } {
       set lib_cell $arg
     } elseif { $object_type == "LibertyCellSeq" } {
-      set lib_cell [collection_at_index $object_type 0]
-    }else {
+      set lib_cell [collection_at_index $arg 0]
+    } else {
       $error_proc 116 "$arg_name type '$object_type' is not a liberty cell."
     }
     # Parse library_name/cell_name.
