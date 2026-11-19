@@ -214,6 +214,7 @@ set(STA_SOURCE
   search/VertexVisitor.cc
   search/VisitPathEnds.cc
   search/WorstSlack.cc
+  search/WriteContextSdc.cc
 
   spice/WritePathSpice.cc
   spice/WriteSpice.cc
