@@ -1935,6 +1935,22 @@ condFlipsPort(const FuncExpr *cond1,
   return true;
 }
 
+// True if cond only holds with port at level: port is one of its ANDed terms.
+static bool
+condRequires(const FuncExpr *cond,
+             const LibertyPort *port,
+             bool level)
+{
+  if (cond == nullptr)
+    return false;
+  if (cond->op() == FuncExpr::Op::and_)
+    return condRequires(cond->left(), port, level)
+      || condRequires(cond->right(), port, level);
+  const FuncExpr *term = (cond->op() == FuncExpr::Op::not_) ? cond->left() : cond;
+  return term && term->op() == FuncExpr::Op::port && term->port() == port
+    && level == (term == cond);
+}
+
 // How well en_to_q's enable fits d_to_q's when condition as the enable that
 // opens it, for a data pin shared by latches with separate enables.
 int
@@ -1947,15 +1963,13 @@ LibertyCell::latchEnableRank(const TimingArcSet *d_to_q,
   if (condMatch(en_to_q, d_to_q))
     return 3;
   const LibertyPort *en = en_to_q->from();
-  TimingSense en_sense = cond->portTimingSense(en);
-  // The condition does not say whether en is open.
-  if (en_sense != TimingSense::positive_unate
-      && en_sense != TimingSense::negative_unate)
-    return 1;
+  bool open_high = en_to_q->isRisingFallingEdge() == RiseFall::rise();
   // The condition holds en closed.
-  if ((en_sense == TimingSense::positive_unate)
-      != (en_to_q->isRisingFallingEdge() == RiseFall::rise()))
+  if (condRequires(cond, en, !open_high))
     return 0;
+  // The condition does not say that en is open.
+  if (!condRequires(cond, en, open_high))
+    return 1;
   // Another d -> q arc has en closed, so en is not what opens this one.
   for (const TimingArcSet *other : timingArcSets(d_to_q->from(), d_to_q->to())) {
     if (other->cond() && condFlipsPort(other->cond(), cond, en))
