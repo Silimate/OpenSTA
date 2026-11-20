@@ -1294,10 +1294,11 @@ LibertyCell::finish(bool infer_latches,
   translatePresetClrCheckRoles();
   makeTimingArcPortMaps();
   findDefaultCondArcs();
-  makeLatchEnables(report, debug);
   // A statetable that describes a latch needs no -infer_latches.
   if (infer_latches || (statetable_ && statetable_->isLatch()))
-    inferLatchRoles(report, debug);
+    inferLatchRoles(report);
+  // From the roles, inferred or reloaded with the library.
+  makeLatchEnables(report, debug);
 }
 
 void
@@ -1712,6 +1713,9 @@ LibertyCell::makeLatchEnables(Report *report,
   if (isSequential()
       || hasInferedRegTimingArcs()) {
     for (TimingArcSet *d_to_q : timing_arc_sets_) {
+      // Found here, not when the arc is made, so a reloaded library has it too.
+      if (isLatchDataArc(d_to_q))
+        d_to_q->setRole(TimingRole::latchDtoQ());
       if (d_to_q->role() == TimingRole::latchDtoQ()) {
         LibertyPort *d = d_to_q->from();
         LibertyPort *q = d_to_q->to();
@@ -1774,6 +1778,26 @@ LibertyCell::makeLatchEnables(Report *report,
   }
 }
 
+// True for a combinational arc from the data of a latch whose stored bit reaches
+// the output, e.g. gated by other pins as !(IQ*S0).
+bool
+LibertyCell::isLatchDataArc(const TimingArcSet *arc_set)
+{
+  const LibertyPort *from = arc_set->from();
+  FuncExpr *func = arc_set->to() ? arc_set->to()->function() : nullptr;
+  if (arc_set->role() == TimingRole::combinational()
+      && from && func
+      // Not when from also reaches the output directly.
+      && !func->hasPort(from)) {
+    for (LibertyPort *func_port : func->ports()) {
+      Sequential *seq = outputPortSequential(func_port);
+      if (seq && seq->isLatch() && seq->data() && seq->data()->hasPort(from))
+        return true;
+    }
+  }
+  return false;
+}
+
 bool
 LibertyCell::condMatch(const TimingArcSet *arc_set1,
                        const TimingArcSet *arc_set2)
@@ -1800,6 +1824,15 @@ LibertyCell::findLatchSetup(const LibertyPort *d,
         const RiseFall *from_rf = arc->fromEdge()->asRiseFall();
         if (from_rf == en_rf->opposite()
             && condMatch(arc_set, en_to_q))
+          return arc_set;
+      }
+    }
+  }
+  // Then for one with another when: the check need not be conditioned like the arc.
+  for (TimingArcSet *arc_set : en_d_arcs) {
+    if (arc_set->role() == TimingRole::setup()) {
+      for (TimingArc *arc : arc_set->arcs()) {
+        if (arc->fromEdge()->asRiseFall() == en_rf->opposite())
           return arc_set;
       }
     }
@@ -1863,7 +1896,12 @@ LibertyCell::makeLatchEnable(LibertyPort *d,
   FuncExpr *en_func = findLatchEnableFunc(d, en, en_rf);
   latch_enables_.emplace_back(d, en, en_rf, en_func, q, d_to_q, en_to_q, setup_check);
   size_t idx = latch_enables_.size() - 1;
-  latch_d_to_q_map_[d_to_q] = idx;
+  // Of several enables, d_to_q keeps the one that fits its when condition best.
+  auto [d_to_q_idx, is_first] = latch_d_to_q_map_.try_emplace(d_to_q, idx);
+  if (!is_first
+      && latchEnableRank(d_to_q, en_to_q)
+      >= latchEnableRank(d_to_q, latch_enables_[d_to_q_idx->second].enToQ()))
+    d_to_q_idx->second = idx;
   latch_check_map_[setup_check] = idx;
   d->setIsLatchData(true);
   q->setIsLatchOutput(true);
@@ -1880,9 +1918,54 @@ LibertyCell::makeLatchEnable(LibertyPort *d,
   return &latch_enables_.back();
 }
 
+// True if cond1 is cond2 with port at the opposite level.
+static bool
+condFlipsPort(const FuncExpr *cond1,
+              const FuncExpr *cond2,
+              const LibertyPort *port)
+{
+  LibertyPortSet ports = cond1->ports();
+  if (ports != cond2->ports())
+    return false;
+  for (const LibertyPort *cond_port : ports) {
+    bool same = cond1->portTimingSense(cond_port) == cond2->portTimingSense(cond_port);
+    if (same == (cond_port == port))
+      return false;
+  }
+  return true;
+}
+
+// How well en_to_q's enable fits d_to_q's when condition as the enable that
+// opens it, for a data pin shared by latches with separate enables.
+int
+LibertyCell::latchEnableRank(const TimingArcSet *d_to_q,
+                             const TimingArcSet *en_to_q)
+{
+  const FuncExpr *cond = d_to_q->cond();
+  if (cond == nullptr)
+    return 1;
+  if (condMatch(en_to_q, d_to_q))
+    return 3;
+  const LibertyPort *en = en_to_q->from();
+  TimingSense en_sense = cond->portTimingSense(en);
+  // The condition does not say whether en is open.
+  if (en_sense != TimingSense::positive_unate
+      && en_sense != TimingSense::negative_unate)
+    return 1;
+  // The condition holds en closed.
+  if ((en_sense == TimingSense::positive_unate)
+      != (en_to_q->isRisingFallingEdge() == RiseFall::rise()))
+    return 0;
+  // Another d -> q arc has en closed, so en is not what opens this one.
+  for (const TimingArcSet *other : timingArcSets(d_to_q->from(), d_to_q->to())) {
+    if (other->cond() && condFlipsPort(other->cond(), cond, en))
+      return 1;
+  }
+  return 2;
+}
+
 void
-LibertyCell::inferLatchRoles(Report *report,
-                             Debug *debug)
+LibertyCell::inferLatchRoles(Report *report)
 {
   if (hasInferedRegTimingArcs()) {
     // Hunt down potential latch D/EN/Q triples.
@@ -1900,7 +1983,8 @@ LibertyCell::inferLatchRoles(Report *report,
                     || d_to_q->sense() == TimingSense::negative_unate))
                // Previously identified as D->Q arc.
                || d_to_q_role == TimingRole::latchDtoQ())
-              && condMatch(en_to_q, d_to_q)) {
+              // A statetable latch's arcs are conditioned on each other's pins.
+              && (condMatch(en_to_q, d_to_q) || statetable_)) {
             LibertyPort *d = d_to_q->from();
             const RiseFall *en_rf = en_to_q->isRisingFallingEdge();
             if (en_rf) {
@@ -1908,7 +1992,6 @@ LibertyCell::inferLatchRoles(Report *report,
                                                          report);
               // No setup check against the enable: d is not latch data (e.g. a read select).
               if (setup_check) {
-                makeLatchEnable(d, en, en_rf, q, d_to_q, en_to_q, setup_check, debug);
                 d_to_q->setRole(TimingRole::latchDtoQ());
                 en_to_q->setRole(TimingRole::latchEnToQ());
               }
