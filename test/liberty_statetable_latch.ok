@@ -284,6 +284,10 @@ D -> Q Latch D to Q enable CP0 ^
   ^ -> v 100.00:100.00
   v -> ^ 100.00:100.00
 D -> Q Latch D to Q enable CP0 ^
+  Condition: !(!CP0+!S0)
+  ^ -> v 100.00:100.00
+  v -> ^ 100.00:100.00
+D -> Q Latch D to Q enable CP0 ^
   Condition: CP0*(CP1+S0)
   ^ -> v 100.00:100.00
   v -> ^ 100.00:100.00

@@ -1935,20 +1935,33 @@ condFlipsPort(const FuncExpr *cond1,
   return true;
 }
 
-// True if cond only holds with port at level: port is one of its ANDed terms.
+// True if cond having value means port is at level. Follows and, or and not;
+// an xor or a constant never says so.
 static bool
-condRequires(const FuncExpr *cond,
-             const LibertyPort *port,
-             bool level)
+condImplies(const FuncExpr *cond,
+            bool value,
+            const LibertyPort *port,
+            bool level)
 {
   if (cond == nullptr)
     return false;
-  if (cond->op() == FuncExpr::Op::and_)
-    return condRequires(cond->left(), port, level)
-      || condRequires(cond->right(), port, level);
-  const FuncExpr *term = (cond->op() == FuncExpr::Op::not_) ? cond->left() : cond;
-  return term && term->op() == FuncExpr::Op::port && term->port() == port
-    && level == (term == cond);
+  switch (cond->op()) {
+  case FuncExpr::Op::port:
+    return cond->port() == port && value == level;
+  case FuncExpr::Op::not_:
+    return condImplies(cond->left(), !value, port, level);
+  case FuncExpr::Op::and_:
+  case FuncExpr::Op::or_: {
+    bool left = condImplies(cond->left(), value, port, level);
+    bool right = condImplies(cond->right(), value, port, level);
+    // A true and, or a false or, fixes both operands: either one will do.
+    return ((cond->op() == FuncExpr::Op::and_) == value)
+      ? left || right
+      : left && right;
+  }
+  default:
+    return false;
+  }
 }
 
 // How well en_to_q's enable fits d_to_q's when condition as the enable that
@@ -1965,10 +1978,10 @@ LibertyCell::latchEnableRank(const TimingArcSet *d_to_q,
   const LibertyPort *en = en_to_q->from();
   bool open_high = en_to_q->isRisingFallingEdge() == RiseFall::rise();
   // The condition holds en closed.
-  if (condRequires(cond, en, !open_high))
+  if (condImplies(cond, true, en, !open_high))
     return 0;
   // The condition does not say that en is open.
-  if (!condRequires(cond, en, open_high))
+  if (!condImplies(cond, true, en, open_high))
     return 1;
   // Another d -> q arc has en closed, so en is not what opens this one.
   for (const TimingArcSet *other : timingArcSets(d_to_q->from(), d_to_q->to())) {

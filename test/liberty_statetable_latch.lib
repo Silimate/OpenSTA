@@ -848,8 +848,8 @@ library (statetable_latch) {
     }
   }
   /* Two latch groups share the data pin and are read through selects. Two data
-     arcs hold the other word's enable closed; the third needs CP0 only, with
-     CP1 in an OR. */
+     arcs hold the other word's enable closed; the other two need CP0 only, one
+     with CP1 in an OR and one written with NOTs. */
   cell (GATED_LATCH_ARRAY) {
     area : 4;
     latch (IQ0, IQ0N) { enable : "CP0"; data_in : "D"; }
@@ -925,6 +925,15 @@ library (statetable_latch) {
       timing () {
         related_pin : "D";
         when : "CP0&(CP1|S0)";
+        timing_sense : negative_unate;
+        cell_rise (scalar) { values ("100"); }
+        rise_transition (scalar) { values ("20"); }
+        cell_fall (scalar) { values ("100"); }
+        fall_transition (scalar) { values ("20"); }
+      }
+      timing () {
+        related_pin : "D";
+        when : "!(!CP0|!S0)";
         timing_sense : negative_unate;
         cell_rise (scalar) { values ("100"); }
         rise_transition (scalar) { values ("20"); }
