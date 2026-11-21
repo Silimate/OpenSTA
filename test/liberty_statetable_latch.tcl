@@ -14,6 +14,10 @@ report_lib_cell statetable_latch/MASTER_SLAVE_FLOP
 report_lib_cell statetable_latch/LSSD_REGISTER
 # A latch group read through a select keeps its D -> Q arc.
 report_lib_cell statetable_latch/GATED_LATCH
+# A word mapped with input_map is read as a latch, here open low with inverted
+# data. A table with a clear is not, and its latch is inferred as before.
+report_lib_cell statetable_latch/LATCH_LOW
+report_lib_cell statetable_latch/LATCH_CLEAR
 
 set design {read_verilog liberty_statetable_latch.v
 link_design top
@@ -29,11 +33,10 @@ set reports {report_checks -to [get_pins u1/D] -group_path_count 2 -format end
 report_checks -through [get_pins u2/D0] -to [get_ports q_sep]
 report_checks -from [get_ports s0] -to [get_ports q] -format end}
 
-# A data arc with a when goes with the enable that when holds open (u3), whose
-# arc has the same when (u4), or that it does not hold closed (u6). d arrives
-# while u5 and word 0 of the others are closed and their word 1 is open: it
-# waits at u5, where s0 still reaches the output, and gets through the others
-# only while word 1 is read.
+# A data arc with a when goes with the word the output reads while it holds (u3,
+# u4, u6). d arrives while u5 and word 0 of the others are closed and their word 1
+# is open: it waits at u5, where s0 still reaches the output, and gets through the
+# others only while word 1 is read.
 append reports {
 report_edges -from u3/D -to u3/Q
 report_edges -from u4/D -to u4/Q
@@ -52,6 +55,22 @@ report_checks -through [get_pins {u4/D u6/D}] -to [get_ports {q_sel q_gated2}]\
 set_case_analysis 1 [get_ports s0]
 report_checks -through [get_pins {u3/D u4/D u6/D}]\
   -to [get_ports {q_when q_sel q_gated2}] -group_path_count 3 -format end}
+
+# u7 is open while its enable is low: d gets through with it tied low, not high.
+append reports {
+report_edges -from u7/D -to u7/Q
+set_case_analysis 0 [get_ports en]
+report_checks -through [get_pins u7/D] -to [get_ports q_low] -format end
+set_case_analysis 1 [get_ports en]
+report_checks -through [get_pins u7/D] -to [get_ports q_low] -format end}
+
+# Power and cell equivalence take a mapped word's latch, which has no inverted
+# output.
+append reports {
+report_power -instances [get_cells u7]
+sta::make_equiv_cells [get_libs statetable_latch]
+puts "find_equiv_cells LATCH_LOW:\
+ [llength [sta::find_equiv_cells [get_lib_cell statetable_latch/LATCH_LOW]]]"}
 
 eval $design
 eval $reports
