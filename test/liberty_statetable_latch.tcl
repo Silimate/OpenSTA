@@ -12,11 +12,16 @@ report_lib_cell statetable_latch/COMPLEMENT_LATCH
 report_lib_cell statetable_latch/EDGE_FLOP
 report_lib_cell statetable_latch/MASTER_SLAVE_FLOP
 report_lib_cell statetable_latch/LSSD_REGISTER
-# A latch group read through a select keeps its D -> Q arc.
+# A latch group read through a select keeps its D -> Q arc, unless no enable arc
+# reaches the output.
 report_lib_cell statetable_latch/GATED_LATCH
+report_lib_cell statetable_latch/GATED_NO_ENABLE
 # A word mapped with input_map is read as a latch, here open low with inverted
-# data. A table with a clear is not, and its latch is inferred as before.
+# data. An arc that nothing places in one word stays combinational without a
+# setup check. A clock gate and a table with a clear are handled as before.
 report_lib_cell statetable_latch/LATCH_LOW
+report_lib_cell statetable_latch/LATCH_ARRAY_UNCHECKED
+report_lib_cell statetable_latch/GATE_MAP
 report_lib_cell statetable_latch/LATCH_CLEAR
 
 set design {read_verilog liberty_statetable_latch.v
@@ -41,6 +46,7 @@ append reports {
 report_edges -from u3/D -to u3/Q
 report_edges -from u4/D -to u4/Q
 report_edges -from u6/D -to u6/Q
+report_edges -from u6/D -to u6/QU
 report_checks -through [get_pins u5/D] -to [get_ports q_gated]
 report_checks -from [get_ports s0] -to [get_ports q_gated] -format end
 set_case_analysis 1 [get_ports s0]

@@ -6,11 +6,15 @@ Warning 1298: liberty_statetable_latch.lib line 490, statetable input port CP no
 Warning 1298: liberty_statetable_latch.lib line 490, statetable input port E not found.
 Warning 1298: liberty_statetable_latch.lib line 673, statetable input port CP not found.
 Warning 1298: liberty_statetable_latch.lib line 673, statetable input port E not found.
-Warning 1298: liberty_statetable_latch.lib line 971, statetable input port CP not found.
-Warning 1298: liberty_statetable_latch.lib line 971, statetable input port E not found.
-Warning 1298: liberty_statetable_latch.lib line 1026, statetable input port CP not found.
-Warning 1298: liberty_statetable_latch.lib line 1026, statetable input port E not found.
-Warning 1298: liberty_statetable_latch.lib line 1026, statetable input port CLR not found.
+Warning 1298: liberty_statetable_latch.lib line 1020, statetable input port CP not found.
+Warning 1298: liberty_statetable_latch.lib line 1020, statetable input port E not found.
+Warning 1298: liberty_statetable_latch.lib line 1121, statetable input port CP not found.
+Warning 1298: liberty_statetable_latch.lib line 1121, statetable input port E not found.
+Warning 1298: liberty_statetable_latch.lib line 1191, statetable input port CP not found.
+Warning 1298: liberty_statetable_latch.lib line 1191, statetable input port E not found.
+Warning 1298: liberty_statetable_latch.lib line 1235, statetable input port CP not found.
+Warning 1298: liberty_statetable_latch.lib line 1235, statetable input port E not found.
+Warning 1298: liberty_statetable_latch.lib line 1235, statetable input port CLR not found.
 Cell LATCH_ARRAY
 Library statetable_latch
 File liberty_statetable_latch.lib
@@ -205,6 +209,29 @@ Timing arcs
   combinational
   ^ -> v
   v -> ^
+Cell GATED_NO_ENABLE
+Library statetable_latch
+File liberty_statetable_latch.lib
+ CP input 0.00
+ D input 0.00
+ S input 0.00
+ Q output function=!(IQ*S) 0.00
+ IQ internal
+ IQN internal
+
+Timing arcs
+ CP -> D
+  setup
+  v -> ^
+  v -> v
+ D -> Q
+  combinational
+  ^ -> v
+  v -> ^
+ S -> Q
+  combinational
+  ^ -> v
+  v -> ^
 Cell LATCH_LOW
 Library statetable_latch
 File liberty_statetable_latch.lib
@@ -230,6 +257,50 @@ Timing arcs
  EN -> Q
   Latch En to Q
   v -> ^
+  v -> v
+Cell LATCH_ARRAY_UNCHECKED
+Library statetable_latch
+File liberty_statetable_latch.lib
+ CP0 input 0.00
+ CP1 input 0.00
+ D input 0.00
+ S0 input 0.00
+ S1 input 0.00
+ IQ_0 internal
+ IQ_1 internal
+ Q output function=!((IQ_1*S1)+(IQ_0*S0)) 0.00
+ IQ unknown
+
+Timing arcs
+ D -> Q
+  combinational
+  ^ -> v
+  v -> ^
+ CP0 -> Q
+  Latch En to Q
+  ^ -> ^
+  ^ -> v
+ CP1 -> Q
+  Latch En to Q
+  ^ -> ^
+  ^ -> v
+Cell GATE_MAP
+Library statetable_latch
+File liberty_statetable_latch.lib
+ CK input 0.00
+ EN input 0.00
+ IQ_0 internal
+ GCK output 0.00
+ IQ unknown
+
+Timing arcs
+ CK -> EN
+  setup
+  ^ -> ^
+  ^ -> v
+ CK -> GCK
+  combinational
+  ^ -> ^
   v -> v
 Cell LATCH_CLEAR
 Library statetable_latch
@@ -345,12 +416,23 @@ D -> Q Latch D to Q enable CP0 ^
   Condition: !(!CP0+!S0)
   ^ -> v 100.00:100.00
   v -> ^ 100.00:100.00
+D -> Q Latch D to Q enable CP0 ^
+  Condition: CP0*(CP1+S0)
+  ^ -> v 100.00:100.00
+  v -> ^ 100.00:100.00
+D -> Q Latch D to Q enable CP0 ^
+  Condition: !CP1
+  ^ -> v 100.00:100.00
+  v -> ^ 100.00:100.00
 D -> Q Latch D to Q enable CP1 ^
   Condition: !CP0*S1
   ^ -> v 100.00:100.00
   v -> ^ 100.00:100.00
 D -> Q Latch D to Q enable CP0 ^
   Condition: !CP1*S0
+  ^ -> v 100.00:100.00
+  v -> ^ 100.00:100.00
+D -> QU combinational
   ^ -> v 100.00:100.00
   v -> ^ 100.00:100.00
 No paths found.
