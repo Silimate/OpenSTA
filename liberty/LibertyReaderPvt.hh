@@ -331,6 +331,8 @@ protected:
                        std::string_view seq_group_name,
                        std::string_view clk_attr_name,
                        std::string_view data_attr_name);
+  void makeStatetableLatches(LibertyCell *cell,
+                             const LibertyPortGroupMap &port_group_map);
   FuncExpr *makeSeqFunc(LibertyCell *cell,
                         const LibertyGroup *seq_group,
                         std::string_view attr_name,

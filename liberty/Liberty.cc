@@ -1294,11 +1294,10 @@ LibertyCell::finish(bool infer_latches,
   translatePresetClrCheckRoles();
   makeTimingArcPortMaps();
   findDefaultCondArcs();
+  makeLatchEnables(report, debug);
   // A statetable that describes a latch needs no -infer_latches.
   if (infer_latches || (statetable_ && statetable_->isLatch()))
-    inferLatchRoles(report);
-  // From the roles, inferred or reloaded with the library.
-  makeLatchEnables(report, debug);
+    inferLatchRoles(report, debug);
 }
 
 void
@@ -1735,10 +1734,13 @@ LibertyCell::makeLatchEnables(Report *report,
               *same_en = arc_to_q;
           }
         }
+        // Latches that share d each have an enable: d_to_q has the one of its latch.
+        Sequential *seq = en_to_qs.size() > 1 ? latchDataSequential(d_to_q) : nullptr;
         for (TimingArcSet *en_to_q : en_to_qs) {
           LibertyPort *en = en_to_q->from();
           const RiseFall *en_rf = en_to_q->isRisingFallingEdge();
-          if (en_rf) {
+          if (en_rf
+              && (seq == nullptr || seq->clock()->hasPort(en))) {
             TimingArcSet *setup_check = findLatchSetup(d, en, en_rf, q, d_to_q, report);
             // Of several enables, d belongs only to those it is checked against.
             if (setup_check == nullptr && en_to_qs.size() > 1)
@@ -1796,6 +1798,131 @@ LibertyCell::isLatchDataArc(const TimingArcSet *arc_set)
     }
   }
   return false;
+}
+
+// Value of func with the ports in levels at those levels. When that is unknown,
+// the ports func then depends on are appended to ports.
+static LogicValue
+funcValueGiven(const FuncExpr *func,
+               const std::map<const LibertyPort*, bool> &levels,
+               // Return value.
+               LibertyPortSeq &ports)
+{
+  size_t port_count = ports.size();
+  LogicValue value = LogicValue::unknown;
+  switch (func->op()) {
+  case FuncExpr::Op::port: {
+    auto level = levels.find(func->port());
+    if (level == levels.end())
+      ports.push_back(func->port());
+    else
+      value = level->second ? LogicValue::one : LogicValue::zero;
+    break;
+  }
+  case FuncExpr::Op::not_: {
+    LogicValue left = funcValueGiven(func->left(), levels, ports);
+    if (left != LogicValue::unknown)
+      value = left == LogicValue::zero ? LogicValue::one : LogicValue::zero;
+    break;
+  }
+  case FuncExpr::Op::and_:
+  case FuncExpr::Op::or_: {
+    // The operand value that decides an and, or an or, by itself.
+    LogicValue decides = func->op() == FuncExpr::Op::and_
+      ? LogicValue::zero
+      : LogicValue::one;
+    LogicValue left = funcValueGiven(func->left(), levels, ports);
+    LogicValue right = funcValueGiven(func->right(), levels, ports);
+    if (left == decides || right == decides)
+      value = decides;
+    else
+      value = left == LogicValue::unknown ? left : right;
+    break;
+  }
+  case FuncExpr::Op::one:
+    value = LogicValue::one;
+    break;
+  case FuncExpr::Op::zero:
+    value = LogicValue::zero;
+    break;
+  default:
+    // An xor keeps the ports of both operands.
+    funcValueGiven(func->left(), levels, ports);
+    funcValueGiven(func->right(), levels, ports);
+    break;
+  }
+  // A known value depends on no port.
+  if (value != LogicValue::unknown)
+    ports.resize(port_count);
+  return value;
+}
+
+// The level each of cond's ports has to be at for cond to hold.
+static std::map<const LibertyPort*, bool>
+condPortLevels(const FuncExpr *cond)
+{
+  std::map<const LibertyPort*, bool> levels;
+  if (cond) {
+    for (LibertyPort *port : cond->ports()) {
+      for (bool level : {false, true}) {
+        LibertyPortSeq ports;
+        // cond cannot hold with port at level.
+        if (funcValueGiven(cond, {{port, level}}, ports) == LogicValue::zero)
+          levels[port] = !level;
+      }
+    }
+  }
+  return levels;
+}
+
+// The one latch of d_to_q's data pin whose stored bit the output reads while the
+// when condition holds and whose enable it does not hold closed, else nullptr.
+Sequential *
+LibertyCell::latchDataSequential(const TimingArcSet *d_to_q)
+{
+  const LibertyPort *d = d_to_q->from();
+  const FuncExpr *func = d_to_q->to()->function();
+  std::vector<Sequential*> seqs, always_seqs;
+  if (func) {
+    std::map<const LibertyPort*, bool> levels = condPortLevels(d_to_q->cond());
+    // The ports the output reads while the when condition holds.
+    LibertyPortSeq port_seq;
+    funcValueGiven(func, levels, port_seq);
+    LibertyPortSet ports(port_seq.begin(), port_seq.end());
+    // Those it reads whatever level another is at, such as another latch's select.
+    LibertyPortSet always_ports = ports;
+    for (LibertyPort *port : ports) {
+      if (outputPortSequential(port) == nullptr) {
+        for (bool level : {false, true}) {
+          levels[port] = level;
+          port_seq.clear();
+          funcValueGiven(func, levels, port_seq);
+          LibertyPortSet level_ports(port_seq.begin(), port_seq.end());
+          std::erase_if(always_ports, [&level_ports](LibertyPort *always_port) {
+            return !level_ports.contains(always_port);
+          });
+        }
+        levels.erase(port);
+      }
+    }
+    for (LibertyPort *port : ports) {
+      Sequential *seq = outputPortSequential(port);
+      port_seq.clear();
+      if (seq && seq->isLatch()
+          && seq->data() && seq->data()->hasPort(d)
+          && seq->clock()
+          // Not a latch that the when condition holds closed.
+          && funcValueGiven(seq->clock(), levels, port_seq) != LogicValue::zero) {
+        seqs.push_back(seq);
+        if (always_ports.contains(port))
+          always_seqs.push_back(seq);
+      }
+    }
+  }
+  // A latch the output always reads comes before one it reads only for some pins.
+  if (!always_seqs.empty())
+    seqs = always_seqs;
+  return seqs.size() == 1 ? seqs[0] : nullptr;
 }
 
 bool
@@ -1896,12 +2023,7 @@ LibertyCell::makeLatchEnable(LibertyPort *d,
   FuncExpr *en_func = findLatchEnableFunc(d, en, en_rf);
   latch_enables_.emplace_back(d, en, en_rf, en_func, q, d_to_q, en_to_q, setup_check);
   size_t idx = latch_enables_.size() - 1;
-  // Of several enables, d_to_q keeps the one that fits its when condition best.
-  auto [d_to_q_idx, is_first] = latch_d_to_q_map_.try_emplace(d_to_q, idx);
-  if (!is_first
-      && latchEnableRank(d_to_q, en_to_q)
-      >= latchEnableRank(d_to_q, latch_enables_[d_to_q_idx->second].enToQ()))
-    d_to_q_idx->second = idx;
+  latch_d_to_q_map_[d_to_q] = idx;
   latch_check_map_[setup_check] = idx;
   d->setIsLatchData(true);
   q->setIsLatchOutput(true);
@@ -1918,81 +2040,9 @@ LibertyCell::makeLatchEnable(LibertyPort *d,
   return &latch_enables_.back();
 }
 
-// True if cond1 is cond2 with port at the opposite level.
-static bool
-condFlipsPort(const FuncExpr *cond1,
-              const FuncExpr *cond2,
-              const LibertyPort *port)
-{
-  LibertyPortSet ports = cond1->ports();
-  if (ports != cond2->ports())
-    return false;
-  for (const LibertyPort *cond_port : ports) {
-    bool same = cond1->portTimingSense(cond_port) == cond2->portTimingSense(cond_port);
-    if (same == (cond_port == port))
-      return false;
-  }
-  return true;
-}
-
-// True if cond having value means port is at level. Follows and, or and not;
-// an xor or a constant never says so.
-static bool
-condImplies(const FuncExpr *cond,
-            bool value,
-            const LibertyPort *port,
-            bool level)
-{
-  if (cond == nullptr)
-    return false;
-  switch (cond->op()) {
-  case FuncExpr::Op::port:
-    return cond->port() == port && value == level;
-  case FuncExpr::Op::not_:
-    return condImplies(cond->left(), !value, port, level);
-  case FuncExpr::Op::and_:
-  case FuncExpr::Op::or_: {
-    bool left = condImplies(cond->left(), value, port, level);
-    bool right = condImplies(cond->right(), value, port, level);
-    // A true and, or a false or, fixes both operands: either one will do.
-    return ((cond->op() == FuncExpr::Op::and_) == value)
-      ? left || right
-      : left && right;
-  }
-  default:
-    return false;
-  }
-}
-
-// How well en_to_q's enable fits d_to_q's when condition as the enable that
-// opens it, for a data pin shared by latches with separate enables.
-int
-LibertyCell::latchEnableRank(const TimingArcSet *d_to_q,
-                             const TimingArcSet *en_to_q)
-{
-  const FuncExpr *cond = d_to_q->cond();
-  if (cond == nullptr)
-    return 1;
-  if (condMatch(en_to_q, d_to_q))
-    return 3;
-  const LibertyPort *en = en_to_q->from();
-  bool open_high = en_to_q->isRisingFallingEdge() == RiseFall::rise();
-  // The condition holds en closed.
-  if (condImplies(cond, true, en, !open_high))
-    return 0;
-  // The condition does not say that en is open.
-  if (!condImplies(cond, true, en, open_high))
-    return 1;
-  // Another d -> q arc has en closed, so en is not what opens this one.
-  for (const TimingArcSet *other : timingArcSets(d_to_q->from(), d_to_q->to())) {
-    if (other->cond() && condFlipsPort(other->cond(), cond, en))
-      return 1;
-  }
-  return 2;
-}
-
 void
-LibertyCell::inferLatchRoles(Report *report)
+LibertyCell::inferLatchRoles(Report *report,
+                             Debug *debug)
 {
   if (hasInferedRegTimingArcs()) {
     // Hunt down potential latch D/EN/Q triples.
@@ -2010,8 +2060,7 @@ LibertyCell::inferLatchRoles(Report *report)
                     || d_to_q->sense() == TimingSense::negative_unate))
                // Previously identified as D->Q arc.
                || d_to_q_role == TimingRole::latchDtoQ())
-              // A statetable latch's arcs are conditioned on each other's pins.
-              && (condMatch(en_to_q, d_to_q) || statetable_)) {
+              && condMatch(en_to_q, d_to_q)) {
             LibertyPort *d = d_to_q->from();
             const RiseFall *en_rf = en_to_q->isRisingFallingEdge();
             if (en_rf) {
@@ -2019,6 +2068,7 @@ LibertyCell::inferLatchRoles(Report *report)
                                                          report);
               // No setup check against the enable: d is not latch data (e.g. a read select).
               if (setup_check) {
+                makeLatchEnable(d, en, en_rf, q, d_to_q, en_to_q, setup_check, debug);
                 d_to_q->setRole(TimingRole::latchDtoQ());
                 en_to_q->setRole(TimingRole::latchEnToQ());
               }

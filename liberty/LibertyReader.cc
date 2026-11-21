@@ -983,6 +983,7 @@ LibertyReader::readCell(LibertyCell *cell,
   readTestCell(cell, cell_group);
 
   readCellAttributes(cell, cell_group);
+  makeStatetableLatches(cell, port_group_map);
 
   // Set port directions before making timing arcs etc.
   for (auto const &[port_group, ports] : port_group_map)
@@ -1710,6 +1711,64 @@ LibertyReader::makeSequentials(LibertyCell *cell,
     cell->makeSequential(size, is_register, clk_expr, data_expr, clr_expr,
                          preset_expr, clr_preset_var1, clr_preset_var2,
                          out_port, out_port_inv);
+  }
+}
+
+// A pin that maps a latch statetable onto pins with input_map is a latch like one
+// from a latch group, and a state function of such pins is an output's function.
+void
+LibertyReader::makeStatetableLatches(LibertyCell *cell,
+                                     const LibertyPortGroupMap &port_group_map)
+{
+  const Statetable *statetable = cell->statetable();
+  if (statetable) {
+    const LibertyPortSeq &nodes = statetable->internalPorts();
+    bool made_latch = false;
+    for (auto const &[port_group, ports] : port_group_map) {
+      const std::string &node_name = port_group->findAttrString("internal_node");
+      StringSeq inputs = parseTokens(port_group->findAttrString("input_map"));
+      for (size_t node = 0; node < nodes.size(); node++) {
+        size_t enable, data;
+        bool enable_inv, data_inv;
+        if (nodes[node]->name() == node_name
+            // An inverted node is left to latch inference.
+            && port_group->findSimpleAttr("inverted_output") == nullptr
+            && statetable->latchInputs(node, enable, enable_inv, data, data_inv)
+            && enable < inputs.size()
+            && data < inputs.size()) {
+          LibertyPort *enable_port = cell->findLibertyPort(inputs[enable]);
+          LibertyPort *data_port = cell->findLibertyPort(inputs[data]);
+          if (enable_port && data_port) {
+            for (LibertyPort *port : ports) {
+              FuncExpr *enable_expr = FuncExpr::makePort(enable_port);
+              FuncExpr *data_expr = FuncExpr::makePort(data_port);
+              cell->makeSequential(1, false,
+                                   enable_inv
+                                   ? FuncExpr::makeNot(enable_expr)
+                                   : enable_expr,
+                                   data_inv
+                                   ? FuncExpr::makeNot(data_expr)
+                                   : data_expr,
+                                   nullptr, nullptr,
+                                   LogicValue::unknown, LogicValue::unknown,
+                                   port, nullptr);
+              made_latch = true;
+            }
+          }
+        }
+      }
+    }
+    if (made_latch) {
+      for (auto const &[port_group, ports] : port_group_map) {
+        const std::string &func = port_group->findAttrString("state_function");
+        if (!func.empty()) {
+          FuncExpr *func_expr = parseFunc(func, "state_function", cell,
+                                          port_group->line());
+          for (LibertyPort *port : ports)
+            port->setFunction(func_expr);
+        }
+      }
+    }
   }
 }
 

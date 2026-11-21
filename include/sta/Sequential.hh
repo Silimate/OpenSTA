@@ -116,6 +116,14 @@ public:
   // True for a latch: no rising or falling rows, and no node loads another
   // node's stored value (a register's second stage does).
   bool isLatch() const;
+  // For a node that copies one input while another is at one level and holds
+  // otherwise: the indices of the two inputs and whether each is inverted.
+  bool latchInputs(size_t node,
+                   // Return values.
+                   size_t &enable,
+                   bool &enable_inv,
+                   size_t &data,
+                   bool &data_inv) const;
 
 protected:
   Statetable(LibertyPortSeq &input_ports,

@@ -667,9 +667,8 @@ protected:
                                TimingArcSet *en_to_q,
                                TimingArcSet *setup_check,
                                Debug *debug);
-  int latchEnableRank(const TimingArcSet *d_to_q,
-                      const TimingArcSet *en_to_q);
   bool isLatchDataArc(const TimingArcSet *arc_set);
+  Sequential *latchDataSequential(const TimingArcSet *d_to_q);
   TimingArcSet *findLatchSetup(const LibertyPort *d,
                                const LibertyPort *en,
                                const RiseFall *en_rf,
@@ -680,7 +679,8 @@ protected:
                  const TimingArcSet *arc_set2);
   void findDefaultCondArcs();
   void translatePresetClrCheckRoles();
-  void inferLatchRoles(Report *report);
+  void inferLatchRoles(Report *report,
+                       Debug *debug);
   void makeTimingArcPortMaps();
   bool hasBufferFunc(const LibertyPort *input,
                      const LibertyPort *output) const;
