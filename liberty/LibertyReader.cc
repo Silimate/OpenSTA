@@ -983,11 +983,13 @@ LibertyReader::readCell(LibertyCell *cell,
   readTestCell(cell, cell_group);
 
   readCellAttributes(cell, cell_group);
-  makeStatetableLatches(cell, port_group_map);
 
   // Set port directions before making timing arcs etc.
   for (auto const &[port_group, ports] : port_group_map)
     readPortDir(ports, port_group);
+  // A clock gate keeps its own handling.
+  if (cell_group->findAttrString("clock_gating_integrated_cell").empty())
+    makeStatetableLatches(cell, port_group_map);
 
   for (auto const &[port_group, ports] : port_group_map) {
     readPortAttributes(cell, ports, port_group);
@@ -1714,51 +1716,65 @@ LibertyReader::makeSequentials(LibertyCell *cell,
   }
 }
 
-// A pin that maps a latch statetable onto pins with input_map is a latch like one
-// from a latch group, and a state function of such pins is an output's function.
+// A statetable whose internal node pins are all latches mapped onto pins with
+// input_map is read as those latches, like latch groups, with each state function
+// as an output's function.
 void
 LibertyReader::makeStatetableLatches(LibertyCell *cell,
                                      const LibertyPortGroupMap &port_group_map)
 {
+  struct NodeLatch {
+    LibertyPort *node;
+    LibertyPort *enable;
+    bool enable_inv;
+    LibertyPort *data;
+    bool data_inv;
+  };
   const Statetable *statetable = cell->statetable();
   if (statetable) {
     const LibertyPortSeq &nodes = statetable->internalPorts();
-    bool made_latch = false;
+    std::vector<NodeLatch> latches;
+    bool all_latches = true;
     for (auto const &[port_group, ports] : port_group_map) {
       const std::string &node_name = port_group->findAttrString("internal_node");
-      StringSeq inputs = parseTokens(port_group->findAttrString("input_map"));
-      for (size_t node = 0; node < nodes.size(); node++) {
-        size_t enable, data;
-        bool enable_inv, data_inv;
-        if (nodes[node]->name() == node_name
-            // An inverted node is left to latch inference.
-            && port_group->findSimpleAttr("inverted_output") == nullptr
-            && statetable->latchInputs(node, enable, enable_inv, data, data_inv)
-            && enable < inputs.size()
-            && data < inputs.size()) {
-          LibertyPort *enable_port = cell->findLibertyPort(inputs[enable]);
-          LibertyPort *data_port = cell->findLibertyPort(inputs[data]);
-          if (enable_port && data_port) {
-            for (LibertyPort *port : ports) {
-              FuncExpr *enable_expr = FuncExpr::makePort(enable_port);
-              FuncExpr *data_expr = FuncExpr::makePort(data_port);
-              cell->makeSequential(1, false,
-                                   enable_inv
-                                   ? FuncExpr::makeNot(enable_expr)
-                                   : enable_expr,
-                                   data_inv
-                                   ? FuncExpr::makeNot(data_expr)
-                                   : data_expr,
-                                   nullptr, nullptr,
-                                   LogicValue::unknown, LogicValue::unknown,
-                                   port, nullptr);
-              made_latch = true;
+      if (!node_name.empty()) {
+        StringSeq inputs = parseTokens(port_group->findAttrString("input_map"));
+        bool is_latch = false;
+        for (size_t node = 0; node < nodes.size(); node++) {
+          size_t enable, data;
+          bool enable_inv, data_inv;
+          if (nodes[node]->name() == node_name
+              // An inverted node is left to latch inference.
+              && port_group->findSimpleAttr("inverted_output") == nullptr
+              && statetable->latchInputs(node, enable, enable_inv, data, data_inv)
+              && enable < inputs.size()
+              && data < inputs.size()) {
+            LibertyPort *enable_port = cell->findLibertyPort(inputs[enable]);
+            LibertyPort *data_port = cell->findLibertyPort(inputs[data]);
+            // A node that loads another node is a register stage, not a latch.
+            if (enable_port && data_port
+                && !enable_port->direction()->isInternal()
+                && !data_port->direction()->isInternal()) {
+              for (LibertyPort *port : ports)
+                latches.push_back({port, enable_port, enable_inv, data_port, data_inv});
+              is_latch = true;
             }
           }
         }
+        all_latches &= is_latch;
       }
     }
-    if (made_latch) {
+    if (all_latches && !latches.empty()) {
+      for (const NodeLatch &latch : latches) {
+        FuncExpr *enable = FuncExpr::makePort(latch.enable);
+        FuncExpr *data = FuncExpr::makePort(latch.data);
+        cell->makeSequential(latch.node->size(), false,
+                             latch.enable_inv ? FuncExpr::makeNot(enable) : enable,
+                             latch.data_inv ? FuncExpr::makeNot(data) : data,
+                             nullptr, nullptr,
+                             LogicValue::unknown, LogicValue::unknown,
+                             latch.node, nullptr);
+      }
       for (auto const &[port_group, ports] : port_group_map) {
         const std::string &func = port_group->findAttrString("state_function");
         if (!func.empty()) {

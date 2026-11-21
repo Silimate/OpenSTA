@@ -658,7 +658,8 @@ protected:
                         Debug *debug);
   FuncExpr *findLatchEnableFunc(const LibertyPort *d,
                                 const LibertyPort *en,
-                                const RiseFall *en_rf) const;
+                                const RiseFall *en_rf,
+                                const Sequential *d_seq) const;
   LatchEnable *makeLatchEnable(LibertyPort *d,
                                LibertyPort *en,
                                const RiseFall *en_rf,
@@ -666,9 +667,10 @@ protected:
                                TimingArcSet *d_to_q,
                                TimingArcSet *en_to_q,
                                TimingArcSet *setup_check,
+                               const Sequential *d_seq,
                                Debug *debug);
   bool isLatchDataArc(const TimingArcSet *arc_set);
-  Sequential *latchDataSequential(const TimingArcSet *d_to_q);
+  std::vector<Sequential*> latchDataSequentials(const TimingArcSet *d_to_q);
   TimingArcSet *findLatchSetup(const LibertyPort *d,
                                const LibertyPort *en,
                                const RiseFall *en_rf,
