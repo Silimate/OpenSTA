@@ -483,4 +483,808 @@ library (statetable_latch) {
       }
     }
   }
+  /* The data arcs are per state of the enables and selects, unlike the enable arcs
+     and the unconditional checks: each goes with the word that state has read. */
+  cell (LATCH_ARRAY_WHEN) {
+    area : 4;
+    statetable ("CP E", "IQ") {
+      table : "H L : - : L, H H : - : H, L - : - : N";
+    }
+    pin (CP0) {
+      direction : input;
+      clock : true;
+      capacitance : 0.002;
+    }
+    pin (CP1) {
+      direction : input;
+      clock : true;
+      capacitance : 0.002;
+    }
+    pin (D) {
+      direction : input;
+      capacitance : 0.001;
+      timing () {
+        related_pin : "CP0";
+        timing_type : setup_falling;
+        rise_constraint (scalar) { values ("20"); }
+        fall_constraint (scalar) { values ("20"); }
+      }
+      timing () {
+        related_pin : "CP0";
+        timing_type : hold_falling;
+        rise_constraint (scalar) { values ("10"); }
+        fall_constraint (scalar) { values ("10"); }
+      }
+      timing () {
+        related_pin : "CP1";
+        timing_type : setup_falling;
+        rise_constraint (scalar) { values ("20"); }
+        fall_constraint (scalar) { values ("20"); }
+      }
+      timing () {
+        related_pin : "CP1";
+        timing_type : hold_falling;
+        rise_constraint (scalar) { values ("10"); }
+        fall_constraint (scalar) { values ("10"); }
+      }
+    }
+    pin (S0) {
+      direction : input;
+      capacitance : 0.001;
+    }
+    pin (S1) {
+      direction : input;
+      capacitance : 0.001;
+    }
+    pin (IQ_0) {
+      direction : internal;
+      internal_node : IQ;
+      input_map : "CP0 D";
+    }
+    pin (IQ_1) {
+      direction : internal;
+      internal_node : IQ;
+      input_map : "CP1 D";
+    }
+    pin (Q) {
+      direction : output;
+      capacitance : 0.002;
+      state_function : "!((IQ_1 S1)|(IQ_0 S0))";
+      timing () {
+        related_pin : "D";
+        when : "CP0&!CP1&S0&!S1";
+        timing_sense : negative_unate;
+        cell_rise (scalar) { values ("100"); }
+        rise_transition (scalar) { values ("20"); }
+        cell_fall (scalar) { values ("100"); }
+        fall_transition (scalar) { values ("20"); }
+      }
+      timing () {
+        related_pin : "D";
+        when : "CP0&!CP1&S0&S1";
+        timing_sense : negative_unate;
+        cell_rise (scalar) { values ("100"); }
+        rise_transition (scalar) { values ("20"); }
+        cell_fall (scalar) { values ("100"); }
+        fall_transition (scalar) { values ("20"); }
+      }
+      timing () {
+        related_pin : "D";
+        when : "CP0&CP1&S0&!S1";
+        timing_sense : negative_unate;
+        cell_rise (scalar) { values ("100"); }
+        rise_transition (scalar) { values ("20"); }
+        cell_fall (scalar) { values ("100"); }
+        fall_transition (scalar) { values ("20"); }
+      }
+      timing () {
+        related_pin : "D";
+        when : "CP0&CP1&S0&S1";
+        timing_sense : negative_unate;
+        cell_rise (scalar) { values ("100"); }
+        rise_transition (scalar) { values ("20"); }
+        cell_fall (scalar) { values ("100"); }
+        fall_transition (scalar) { values ("20"); }
+      }
+      timing () {
+        related_pin : "D";
+        when : "CP0&CP1&!S0&S1";
+        timing_sense : negative_unate;
+        cell_rise (scalar) { values ("100"); }
+        rise_transition (scalar) { values ("20"); }
+        cell_fall (scalar) { values ("100"); }
+        fall_transition (scalar) { values ("20"); }
+      }
+      timing () {
+        related_pin : "D";
+        when : "!CP0&CP1&!S0&S1";
+        timing_sense : negative_unate;
+        cell_rise (scalar) { values ("100"); }
+        rise_transition (scalar) { values ("20"); }
+        cell_fall (scalar) { values ("100"); }
+        fall_transition (scalar) { values ("20"); }
+      }
+      timing () {
+        related_pin : "D";
+        when : "!CP0&CP1&S0&S1";
+        timing_sense : negative_unate;
+        cell_rise (scalar) { values ("100"); }
+        rise_transition (scalar) { values ("20"); }
+        cell_fall (scalar) { values ("100"); }
+        fall_transition (scalar) { values ("20"); }
+      }
+      timing () {
+        related_pin : "CP0";
+        when : "D";
+        timing_sense : non_unate; timing_type : rising_edge;
+        cell_rise (scalar) { values ("60"); }
+        rise_transition (scalar) { values ("20"); }
+        cell_fall (scalar) { values ("60"); }
+        fall_transition (scalar) { values ("20"); }
+      }
+      timing () {
+        related_pin : "CP0";
+        when : "!D";
+        timing_sense : non_unate; timing_type : rising_edge;
+        cell_rise (scalar) { values ("60"); }
+        rise_transition (scalar) { values ("20"); }
+        cell_fall (scalar) { values ("60"); }
+        fall_transition (scalar) { values ("20"); }
+      }
+      timing () {
+        related_pin : "S0";
+        timing_sense : negative_unate;
+        cell_rise (scalar) { values ("40"); }
+        rise_transition (scalar) { values ("20"); }
+        cell_fall (scalar) { values ("40"); }
+        fall_transition (scalar) { values ("20"); }
+      }
+      timing () {
+        related_pin : "CP1";
+        when : "D";
+        timing_sense : non_unate; timing_type : rising_edge;
+        cell_rise (scalar) { values ("60"); }
+        rise_transition (scalar) { values ("20"); }
+        cell_fall (scalar) { values ("60"); }
+        fall_transition (scalar) { values ("20"); }
+      }
+      timing () {
+        related_pin : "CP1";
+        when : "!D";
+        timing_sense : non_unate; timing_type : rising_edge;
+        cell_rise (scalar) { values ("60"); }
+        rise_transition (scalar) { values ("20"); }
+        cell_fall (scalar) { values ("60"); }
+        fall_transition (scalar) { values ("20"); }
+      }
+      timing () {
+        related_pin : "S1";
+        timing_sense : negative_unate;
+        cell_rise (scalar) { values ("40"); }
+        rise_transition (scalar) { values ("20"); }
+        cell_fall (scalar) { values ("40"); }
+        fall_transition (scalar) { values ("20"); }
+      }
+    }
+  }
+  /* The data and enable arcs of a word share its select as their when. */
+  cell (LATCH_ARRAY_SEL) {
+    area : 4;
+    statetable ("CP E", "IQ") {
+      table : "H L : - : L, H H : - : H, L - : - : N";
+    }
+    pin (CP0) {
+      direction : input;
+      clock : true;
+      capacitance : 0.002;
+    }
+    pin (CP1) {
+      direction : input;
+      clock : true;
+      capacitance : 0.002;
+    }
+    pin (D) {
+      direction : input;
+      capacitance : 0.001;
+      timing () {
+        related_pin : "CP0";
+        timing_type : setup_falling;
+        rise_constraint (scalar) { values ("20"); }
+        fall_constraint (scalar) { values ("20"); }
+      }
+      timing () {
+        related_pin : "CP0";
+        timing_type : hold_falling;
+        rise_constraint (scalar) { values ("10"); }
+        fall_constraint (scalar) { values ("10"); }
+      }
+      timing () {
+        related_pin : "CP1";
+        timing_type : setup_falling;
+        rise_constraint (scalar) { values ("20"); }
+        fall_constraint (scalar) { values ("20"); }
+      }
+      timing () {
+        related_pin : "CP1";
+        timing_type : hold_falling;
+        rise_constraint (scalar) { values ("10"); }
+        fall_constraint (scalar) { values ("10"); }
+      }
+    }
+    pin (S0) {
+      direction : input;
+      capacitance : 0.001;
+    }
+    pin (S1) {
+      direction : input;
+      capacitance : 0.001;
+    }
+    pin (IQ_0) {
+      direction : internal;
+      internal_node : IQ;
+      input_map : "CP0 D";
+    }
+    pin (IQ_1) {
+      direction : internal;
+      internal_node : IQ;
+      input_map : "CP1 D";
+    }
+    pin (Q) {
+      direction : output;
+      capacitance : 0.002;
+      state_function : "!((IQ_1 S1)|(IQ_0 S0))";
+      timing () {
+        related_pin : "D";
+        when : "S0";
+        timing_sense : negative_unate;
+        cell_rise (scalar) { values ("100"); }
+        rise_transition (scalar) { values ("20"); }
+        cell_fall (scalar) { values ("100"); }
+        fall_transition (scalar) { values ("20"); }
+      }
+      timing () {
+        related_pin : "D";
+        when : "S1";
+        timing_sense : negative_unate;
+        cell_rise (scalar) { values ("100"); }
+        rise_transition (scalar) { values ("20"); }
+        cell_fall (scalar) { values ("100"); }
+        fall_transition (scalar) { values ("20"); }
+      }
+      timing () {
+        related_pin : "CP0";
+        when : "S0";
+        timing_sense : non_unate; timing_type : rising_edge;
+        cell_rise (scalar) { values ("60"); }
+        rise_transition (scalar) { values ("20"); }
+        cell_fall (scalar) { values ("60"); }
+        fall_transition (scalar) { values ("20"); }
+      }
+      timing () {
+        related_pin : "S0";
+        timing_sense : negative_unate;
+        cell_rise (scalar) { values ("40"); }
+        rise_transition (scalar) { values ("20"); }
+        cell_fall (scalar) { values ("40"); }
+        fall_transition (scalar) { values ("20"); }
+      }
+      timing () {
+        related_pin : "CP1";
+        when : "S1";
+        timing_sense : non_unate; timing_type : rising_edge;
+        cell_rise (scalar) { values ("60"); }
+        rise_transition (scalar) { values ("20"); }
+        cell_fall (scalar) { values ("60"); }
+        fall_transition (scalar) { values ("20"); }
+      }
+      timing () {
+        related_pin : "S1";
+        timing_sense : negative_unate;
+        cell_rise (scalar) { values ("40"); }
+        rise_transition (scalar) { values ("20"); }
+        cell_fall (scalar) { values ("40"); }
+        fall_transition (scalar) { values ("20"); }
+      }
+    }
+  }
+  /* A latch group whose output is gated by a read select: D -> Q is still the
+     latch's data arc, and S -> Q is combinational. */
+  cell (GATED_LATCH) {
+    area : 2;
+    latch (IQ, IQN) { enable : "CP"; data_in : "D"; }
+    pin (CP) {
+      direction : input;
+      clock : true;
+      capacitance : 0.002;
+    }
+    pin (D) {
+      direction : input;
+      capacitance : 0.001;
+      timing () {
+        related_pin : "CP";
+        timing_type : setup_falling;
+        rise_constraint (scalar) { values ("20"); }
+        fall_constraint (scalar) { values ("20"); }
+      }
+      timing () {
+        related_pin : "CP";
+        timing_type : hold_falling;
+        rise_constraint (scalar) { values ("10"); }
+        fall_constraint (scalar) { values ("10"); }
+      }
+    }
+    pin (S) {
+      direction : input;
+      capacitance : 0.001;
+    }
+    pin (Q) {
+      direction : output;
+      capacitance : 0.002;
+      function : "!(IQ S)";
+      timing () {
+        related_pin : "D";
+        timing_sense : negative_unate;
+        cell_rise (scalar) { values ("100"); }
+        rise_transition (scalar) { values ("20"); }
+        cell_fall (scalar) { values ("100"); }
+        fall_transition (scalar) { values ("20"); }
+      }
+      timing () {
+        related_pin : "CP";
+        timing_sense : non_unate; timing_type : rising_edge;
+        cell_rise (scalar) { values ("60"); }
+        rise_transition (scalar) { values ("20"); }
+        cell_fall (scalar) { values ("60"); }
+        fall_transition (scalar) { values ("20"); }
+      }
+      timing () {
+        related_pin : "S";
+        timing_sense : negative_unate;
+        cell_rise (scalar) { values ("40"); }
+        rise_transition (scalar) { values ("20"); }
+        cell_fall (scalar) { values ("40"); }
+        fall_transition (scalar) { values ("20"); }
+      }
+    }
+  }
+  /* Two latch groups share the data pin and are read through selects. A data arc's
+     when has only one of them read, the last one written with NOTs, or holds CP1
+     closed, or holds only CP0 open. QU has one data arc for both words, which
+     nothing places: it stays combinational. */
+  cell (GATED_LATCH_ARRAY) {
+    area : 4;
+    latch (IQ0, IQ0N) { enable : "CP0"; data_in : "D"; }
+    latch (IQ1, IQ1N) { enable : "CP1"; data_in : "D"; }
+    pin (CP0) {
+      direction : input;
+      clock : true;
+      capacitance : 0.002;
+    }
+    pin (CP1) {
+      direction : input;
+      clock : true;
+      capacitance : 0.002;
+    }
+    pin (D) {
+      direction : input;
+      capacitance : 0.001;
+      timing () {
+        related_pin : "CP0";
+        timing_type : setup_falling;
+        rise_constraint (scalar) { values ("20"); }
+        fall_constraint (scalar) { values ("20"); }
+      }
+      timing () {
+        related_pin : "CP0";
+        timing_type : hold_falling;
+        rise_constraint (scalar) { values ("10"); }
+        fall_constraint (scalar) { values ("10"); }
+      }
+      timing () {
+        related_pin : "CP1";
+        timing_type : setup_falling;
+        rise_constraint (scalar) { values ("20"); }
+        fall_constraint (scalar) { values ("20"); }
+      }
+      timing () {
+        related_pin : "CP1";
+        timing_type : hold_falling;
+        rise_constraint (scalar) { values ("10"); }
+        fall_constraint (scalar) { values ("10"); }
+      }
+    }
+    pin (S0) {
+      direction : input;
+      capacitance : 0.001;
+    }
+    pin (S1) {
+      direction : input;
+      capacitance : 0.001;
+    }
+    pin (Q) {
+      direction : output;
+      capacitance : 0.002;
+      function : "!((IQ1 S1)|(IQ0 S0))";
+      timing () {
+        related_pin : "D";
+        when : "!CP1&S0";
+        timing_sense : negative_unate;
+        cell_rise (scalar) { values ("100"); }
+        rise_transition (scalar) { values ("20"); }
+        cell_fall (scalar) { values ("100"); }
+        fall_transition (scalar) { values ("20"); }
+      }
+      timing () {
+        related_pin : "D";
+        when : "!CP0&S1";
+        timing_sense : negative_unate;
+        cell_rise (scalar) { values ("100"); }
+        rise_transition (scalar) { values ("20"); }
+        cell_fall (scalar) { values ("100"); }
+        fall_transition (scalar) { values ("20"); }
+      }
+      timing () {
+        related_pin : "D";
+        when : "!CP1";
+        timing_sense : negative_unate;
+        cell_rise (scalar) { values ("100"); }
+        rise_transition (scalar) { values ("20"); }
+        cell_fall (scalar) { values ("100"); }
+        fall_transition (scalar) { values ("20"); }
+      }
+      timing () {
+        related_pin : "D";
+        when : "CP0&(CP1|S0)";
+        timing_sense : negative_unate;
+        cell_rise (scalar) { values ("100"); }
+        rise_transition (scalar) { values ("20"); }
+        cell_fall (scalar) { values ("100"); }
+        fall_transition (scalar) { values ("20"); }
+      }
+      timing () {
+        related_pin : "D";
+        when : "!(!CP0|!S0)";
+        timing_sense : negative_unate;
+        cell_rise (scalar) { values ("100"); }
+        rise_transition (scalar) { values ("20"); }
+        cell_fall (scalar) { values ("100"); }
+        fall_transition (scalar) { values ("20"); }
+      }
+      timing () {
+        related_pin : "CP0";
+        timing_sense : non_unate; timing_type : rising_edge;
+        cell_rise (scalar) { values ("60"); }
+        rise_transition (scalar) { values ("20"); }
+        cell_fall (scalar) { values ("60"); }
+        fall_transition (scalar) { values ("20"); }
+      }
+      timing () {
+        related_pin : "S0";
+        timing_sense : negative_unate;
+        cell_rise (scalar) { values ("40"); }
+        rise_transition (scalar) { values ("20"); }
+        cell_fall (scalar) { values ("40"); }
+        fall_transition (scalar) { values ("20"); }
+      }
+      timing () {
+        related_pin : "CP1";
+        timing_sense : non_unate; timing_type : rising_edge;
+        cell_rise (scalar) { values ("60"); }
+        rise_transition (scalar) { values ("20"); }
+        cell_fall (scalar) { values ("60"); }
+        fall_transition (scalar) { values ("20"); }
+      }
+      timing () {
+        related_pin : "S1";
+        timing_sense : negative_unate;
+        cell_rise (scalar) { values ("40"); }
+        rise_transition (scalar) { values ("20"); }
+        cell_fall (scalar) { values ("40"); }
+        fall_transition (scalar) { values ("20"); }
+      }
+    }
+    pin (QU) {
+      direction : output;
+      capacitance : 0.002;
+      function : "!((IQ1 S1)|(IQ0 S0))";
+      timing () {
+        related_pin : "D";
+        timing_sense : negative_unate;
+        cell_rise (scalar) { values ("100"); }
+        rise_transition (scalar) { values ("20"); }
+        cell_fall (scalar) { values ("100"); }
+        fall_transition (scalar) { values ("20"); }
+      }
+      timing () {
+        related_pin : "CP0";
+        timing_sense : non_unate; timing_type : rising_edge;
+        cell_rise (scalar) { values ("60"); }
+        rise_transition (scalar) { values ("20"); }
+        cell_fall (scalar) { values ("60"); }
+        fall_transition (scalar) { values ("20"); }
+      }
+      timing () {
+        related_pin : "CP1";
+        timing_sense : non_unate; timing_type : rising_edge;
+        cell_rise (scalar) { values ("60"); }
+        rise_transition (scalar) { values ("20"); }
+        cell_fall (scalar) { values ("60"); }
+        fall_transition (scalar) { values ("20"); }
+      }
+    }
+  }
+  /* A word that is open while its enable is low and stores the inverse of its
+     data. */
+  cell (LATCH_LOW) {
+    area : 2;
+    statetable ("CP E", "IQ") {
+      table : "L L : - : H, L H : - : L, H - : - : N";
+    }
+    pin (EN) {
+      direction : input;
+      clock : true;
+      capacitance : 0.002;
+    }
+    pin (D) {
+      direction : input;
+      capacitance : 0.001;
+      timing () {
+        related_pin : "EN";
+        timing_type : setup_rising;
+        rise_constraint (scalar) { values ("20"); }
+        fall_constraint (scalar) { values ("20"); }
+      }
+      timing () {
+        related_pin : "EN";
+        timing_type : hold_rising;
+        rise_constraint (scalar) { values ("10"); }
+        fall_constraint (scalar) { values ("10"); }
+      }
+    }
+    pin (IQ_0) {
+      direction : internal;
+      internal_node : IQ;
+      input_map : "EN D";
+    }
+    pin (Q) {
+      direction : output;
+      capacitance : 0.002;
+      state_function : "IQ_0";
+      timing () {
+        related_pin : "D";
+        timing_sense : negative_unate;
+        cell_rise (scalar) { values ("100"); }
+        rise_transition (scalar) { values ("20"); }
+        cell_fall (scalar) { values ("100"); }
+        fall_transition (scalar) { values ("20"); }
+      }
+      timing () {
+        related_pin : "EN";
+        timing_sense : non_unate; timing_type : falling_edge;
+        cell_rise (scalar) { values ("60"); }
+        rise_transition (scalar) { values ("20"); }
+        cell_fall (scalar) { values ("60"); }
+        fall_transition (scalar) { values ("20"); }
+      }
+    }
+  }
+  /* The latch's enable has no enable arc to the gated output, so the data arc
+     has no enable to wait for and stays combinational. */
+  cell (GATED_NO_ENABLE) {
+    area : 2;
+    latch (IQ, IQN) { enable : "CP"; data_in : "D"; }
+    pin (CP) {
+      direction : input;
+      clock : true;
+      capacitance : 0.002;
+    }
+    pin (D) {
+      direction : input;
+      capacitance : 0.001;
+      timing () {
+        related_pin : "CP";
+        timing_type : setup_falling;
+        rise_constraint (scalar) { values ("20"); }
+        fall_constraint (scalar) { values ("20"); }
+      }
+    }
+    pin (S) {
+      direction : input;
+      capacitance : 0.001;
+    }
+    pin (Q) {
+      direction : output;
+      capacitance : 0.002;
+      function : "!(IQ S)";
+      timing () {
+        related_pin : "D";
+        timing_sense : negative_unate;
+        cell_rise (scalar) { values ("100"); }
+        rise_transition (scalar) { values ("20"); }
+        cell_fall (scalar) { values ("100"); }
+        fall_transition (scalar) { values ("20"); }
+      }
+      timing () {
+        related_pin : "S";
+        timing_sense : negative_unate;
+        cell_rise (scalar) { values ("40"); }
+        rise_transition (scalar) { values ("20"); }
+        cell_fall (scalar) { values ("40"); }
+        fall_transition (scalar) { values ("20"); }
+      }
+    }
+  }
+  /* One data arc for both words and no setup check: nothing says which word the
+     arc goes through, so it stays combinational. */
+  cell (LATCH_ARRAY_UNCHECKED) {
+    area : 4;
+    statetable ("CP E", "IQ") {
+      table : "H L : - : L, H H : - : H, L - : - : N";
+    }
+    pin (CP0) {
+      direction : input;
+      clock : true;
+      capacitance : 0.002;
+    }
+    pin (CP1) {
+      direction : input;
+      clock : true;
+      capacitance : 0.002;
+    }
+    pin (D) {
+      direction : input;
+      capacitance : 0.001;
+    }
+    pin (S0) {
+      direction : input;
+      capacitance : 0.001;
+    }
+    pin (S1) {
+      direction : input;
+      capacitance : 0.001;
+    }
+    pin (IQ_0) {
+      direction : internal;
+      internal_node : IQ;
+      input_map : "CP0 D";
+    }
+    pin (IQ_1) {
+      direction : internal;
+      internal_node : IQ;
+      input_map : "CP1 D";
+    }
+    pin (Q) {
+      direction : output;
+      capacitance : 0.002;
+      state_function : "!((IQ_1 S1)|(IQ_0 S0))";
+      timing () {
+        related_pin : "D";
+        timing_sense : negative_unate;
+        cell_rise (scalar) { values ("100"); }
+        rise_transition (scalar) { values ("20"); }
+        cell_fall (scalar) { values ("100"); }
+        fall_transition (scalar) { values ("20"); }
+      }
+      timing () {
+        related_pin : "CP0";
+        timing_sense : non_unate; timing_type : rising_edge;
+        cell_rise (scalar) { values ("60"); }
+        rise_transition (scalar) { values ("20"); }
+        cell_fall (scalar) { values ("60"); }
+        fall_transition (scalar) { values ("20"); }
+      }
+      timing () {
+        related_pin : "CP1";
+        timing_sense : non_unate; timing_type : rising_edge;
+        cell_rise (scalar) { values ("60"); }
+        rise_transition (scalar) { values ("20"); }
+        cell_fall (scalar) { values ("60"); }
+        fall_transition (scalar) { values ("20"); }
+      }
+    }
+  }
+  /* A clock gate keeps its own handling: its mapped statetable is not read as a
+     latch. */
+  cell (GATE_MAP) {
+    area : 2;
+    clock_gating_integrated_cell : "latch_posedge";
+    statetable ("CP E", "IQ") {
+      table : "L L : - : L, L H : - : H, H - : - : N";
+    }
+    pin (CK) {
+      direction : input;
+      clock : true;
+      clock_gate_clock_pin : true;
+      capacitance : 0.002;
+    }
+    pin (EN) {
+      direction : input;
+      clock_gate_enable_pin : true;
+      capacitance : 0.001;
+      timing () {
+        related_pin : "CK";
+        timing_type : setup_rising;
+        rise_constraint (scalar) { values ("20"); }
+        fall_constraint (scalar) { values ("20"); }
+      }
+    }
+    pin (IQ_0) {
+      direction : internal;
+      internal_node : IQ;
+      input_map : "CK EN";
+    }
+    pin (GCK) {
+      direction : output;
+      clock_gate_out_pin : true;
+      capacitance : 0.002;
+      state_function : "CK IQ_0";
+      timing () {
+        related_pin : "CK";
+        timing_sense : positive_unate;
+        cell_rise (scalar) { values ("30"); }
+        rise_transition (scalar) { values ("20"); }
+        cell_fall (scalar) { values ("30"); }
+        fall_transition (scalar) { values ("20"); }
+      }
+    }
+  }
+  /* A table with a clear is not read through input_map: its latch is inferred
+     from the timing arcs as before. */
+  cell (LATCH_CLEAR) {
+    area : 2;
+    statetable ("CP E CLR", "IQ") {
+      table : "- - L : - : L, H L H : - : L, H H H : - : H, L - H : - : N";
+    }
+    pin (EN) {
+      direction : input;
+      clock : true;
+      capacitance : 0.002;
+    }
+    pin (D) {
+      direction : input;
+      capacitance : 0.001;
+      timing () {
+        related_pin : "EN";
+        timing_type : setup_falling;
+        rise_constraint (scalar) { values ("20"); }
+        fall_constraint (scalar) { values ("20"); }
+      }
+      timing () {
+        related_pin : "EN";
+        timing_type : hold_falling;
+        rise_constraint (scalar) { values ("10"); }
+        fall_constraint (scalar) { values ("10"); }
+      }
+    }
+    pin (RN) {
+      direction : input;
+      capacitance : 0.001;
+    }
+    pin (IQ_0) {
+      direction : internal;
+      internal_node : IQ;
+      input_map : "EN D RN";
+    }
+    pin (Q) {
+      direction : output;
+      capacitance : 0.002;
+      state_function : "IQ_0";
+      timing () {
+        related_pin : "D";
+        timing_sense : positive_unate;
+        cell_rise (scalar) { values ("100"); }
+        rise_transition (scalar) { values ("20"); }
+        cell_fall (scalar) { values ("100"); }
+        fall_transition (scalar) { values ("20"); }
+      }
+      timing () {
+        related_pin : "EN";
+        timing_sense : non_unate; timing_type : rising_edge;
+        cell_rise (scalar) { values ("60"); }
+        rise_transition (scalar) { values ("20"); }
+        cell_fall (scalar) { values ("60"); }
+        fall_transition (scalar) { values ("20"); }
+      }
+    }
+  }
 }

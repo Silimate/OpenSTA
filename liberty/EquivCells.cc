@@ -231,7 +231,9 @@ hashSequential(const Sequential *seq)
   hash += hashFuncExpr(seq->clock()) * 5;
   hash += hashFuncExpr(seq->data()) * 7;
   hash += hashPort(seq->output()) * 9;
-  hash += hashPort(seq->outputInv()) * 11;
+  // A sequential may have no inverted output.
+  if (seq->outputInv())
+    hash += hashPort(seq->outputInv()) * 11;
   hash += hashFuncExpr(seq->clear()) * 13;
   hash += hashFuncExpr(seq->preset()) * 17;
   hash += static_cast<unsigned>(seq->clearPresetOutput()) * 19;
