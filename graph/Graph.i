@@ -298,19 +298,15 @@ std::string
 latch_d_to_q_en()
 {
   if (self->role() == TimingRole::latchDtoQ()) {
-    Sta *sta = Sta::sta();
-    const Network *network = sta->network();
-    const Graph *graph = sta->ensureGraph();
-    Pin *from_pin = self->from(graph)->pin();
-    Instance *inst = network->instance(from_pin);
-    LibertyCell *lib_cell = network->libertyCell(inst);
-    TimingArcSet *d_q_set = self->timingArcSet();
-    const LibertyPort *enable_port;
-    const FuncExpr *enable_func;
-    const RiseFall *enable_rf;
-    lib_cell->latchEnable(d_q_set, enable_port, enable_func, enable_rf);
-    if (enable_port)
-      return sta::format("{} {}", enable_port->name(), enable_rf->shortName());
+    TimingArcSet *set = self->timingArcSet();
+    std::set<std::string> names;
+    for (const auto &word : set->libertyCell()->latchEnables(set))
+      if (word.enable())
+        names.insert(sta::format("{} {}", word.enable()->name(), word.enableEdge()->shortName()));
+    std::string result;
+    for (const auto &name : names)
+      result += (result.empty() ? "" : ", ") + name;
+    return result;
   }
   return "";
 }

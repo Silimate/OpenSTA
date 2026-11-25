@@ -67,7 +67,9 @@ public:
   FuncExpr *invert();
 
   // Deep copy.
-  FuncExpr *copy();
+  FuncExpr *copy(const LibertyPort *bit = nullptr, const LibertyPort *inverse = nullptr,
+                 bool value = false) const;
+  FuncExpr *booleanDifference(const LibertyPort *bit, const LibertyPort *inverse = nullptr) const;
   // op == port
   LibertyPort *port() const;
   Op op() const { return op_; }

@@ -1888,7 +1888,9 @@ ReportPath::reportStartpoint(const PathEnd *end,
       bool clk_inverted = clk_path
         && clk_rf != clk_path->transition(this);
       std::string clk_name = clkName(clk, clk_inverted);
-      std::string_view reg_desc = edgeRegLatchDesc(prev_edge, prev_arc);
+      std::string_view reg_desc = clk_path && prev_arc->role() == TimingRole::latchDtoQ()
+                                      ? latchDesc(clk_path->transition(this))
+                                      : edgeRegLatchDesc(prev_edge, prev_arc);
       std::string reason = sta::format("{} clocked by {}", reg_desc, clk_name);
       reportStartpoint(inst_name, reason);
     }
@@ -3656,16 +3658,13 @@ ReportPath::edgeRegLatchDesc(const Edge *first_edge,
 {
   const TimingRole *role = first_arc->role();
   if (role == TimingRole::latchDtoQ()) {
-    Instance *inst = network_->instance(first_edge->to(graph_)->pin());
-    LibertyCell *cell = network_->libertyCell(inst);
-    if (cell) {
-      const LibertyPort *enable_port;
-      const FuncExpr *enable_func;
-      const RiseFall *enable_rf;
-      cell->latchEnable(first_edge->timingArcSet(),
-                        enable_port, enable_func, enable_rf);
-      return latchDesc(enable_rf);
-    }
+    auto *set = first_edge->timingArcSet();
+    const auto &words = set->libertyCell()->latchEnables(set);
+    const RiseFall *rf = words.empty() ? nullptr : words.front().enableEdge();
+    for (const auto &word : words)
+      if (word.enableEdge() != rf)
+        return "level-sensitive latch";
+    return rf ? latchDesc(rf) : "level-sensitive latch";
   }
   else if (role == TimingRole::regClkToQ())
     return regDesc(first_arc->fromEdge()->asRiseFall());

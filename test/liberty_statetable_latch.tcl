@@ -16,9 +16,9 @@ report_lib_cell statetable_latch/LSSD_REGISTER
 # reaches the output.
 report_lib_cell statetable_latch/GATED_LATCH
 report_lib_cell statetable_latch/GATED_NO_ENABLE
-# A word mapped with input_map is read as a latch, here open low with inverted
-# data. An arc that nothing places in one word stays combinational without a
-# setup check. A clock gate and a table with a clear are handled as before.
+# A mapped open-low word has inverted data. A shared data arc can pass through
+# either declared word without a setup check. Clock gates and tables with a
+# clear keep their original timing roles.
 report_lib_cell statetable_latch/LATCH_LOW
 report_lib_cell statetable_latch/LATCH_ARRAY_UNCHECKED
 report_lib_cell statetable_latch/GATE_MAP
@@ -47,6 +47,7 @@ report_edges -from u3/D -to u3/Q
 report_edges -from u4/D -to u4/Q
 report_edges -from u6/D -to u6/Q
 report_edges -from u6/D -to u6/QU
+report_edges -from u5/D -to u5/QX
 report_checks -through [get_pins u5/D] -to [get_ports q_gated]
 report_checks -from [get_ports s0] -to [get_ports q_gated] -format end
 set_case_analysis 1 [get_ports s0]

@@ -82,15 +82,11 @@ private:
                         Path *after_div,
                         Edge *div_edge,
                         TimingArc *div_arc,
+                        Tag *to_tag, Arrival to_arrival,
                         // Returned values.
                         Path *&div_path,
                         Path *&after_div_copy);
-  void updatePathHeadDelays(PathSeq &path,
-                            Path *after_div);
-  Arrival divSlack(Path *before_div,
-                   Path *after_div,
-                   const Edge *div_edge,
-                   const TimingArc *div_arc);
+  void updatePathHeadDelays(PathSeq &path, Path *after_div, Tag *to_tag, Arrival to_arrival);
   void reportDiversionPath(Diversion *div);
   void pruneDiversionQueue();
   void findNext();

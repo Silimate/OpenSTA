@@ -1,0 +1,3 @@
+Both latch declarations and both clock group orders give the expected write paths.
+A single read select keeps the selected word's write path.
+Read select reaches Q while both words are closed.

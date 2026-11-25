@@ -24,7 +24,9 @@
 
 #include "Latches.hh"
 
+#include <cmath>
 #include "ClkInfo.hh"
+#include "Clock.hh"
 #include "Crpr.hh"
 #include "Debug.hh"
 #include "ExceptionPath.hh"
@@ -294,29 +296,74 @@ Latches::latchEnableOtherPath(const Path *path) const
 Path *
 Latches::latchEnablePath(const Path *q_path,
                          const Edge *d_q_edge) const
-
 {
   const ClockEdge *en_clk_edge = q_path->clkEdge(this);
   const Scene *scene = q_path->scene(this);
   const Mode *mode = scene->mode();
   const MinMax *tgt_min_max = q_path->tgtClkMinMax(this);
   const Instance *latch = network_->instance(q_path->pin(this));
-  Vertex *en_vertex;
-  const RiseFall *en_rf;
-  LatchEnableState state;
-  latchDtoQEnable(d_q_edge, latch, mode, en_vertex, en_rf, state);
-  if (state == LatchEnableState::enabled) {
-    VertexPathIterator path_iter(en_vertex, scene, tgt_min_max, en_rf, this);
-    while (path_iter.hasNext()) {
-      Path *path = path_iter.next();
-      const ClockEdge *clk_edge = path->clkEdge(this);
-      if (path->isClock(this)
-          && clk_edge == en_clk_edge) {
-        return path;
+  const TimingArcSet *set = d_q_edge->timingArcSet();
+  for (const LatchEnable &word : set->libertyCell()->latchEnables(set)) {
+    Vertex *en_vertex;
+    if (latchEnableState(word, latch, mode, en_vertex) == LatchEnableState::enabled) {
+      VertexPathIterator paths(en_vertex, scene, tgt_min_max, word.enableEdge(), this);
+      while (paths.hasNext()) {
+        Path *path = paths.next();
+        if (path->isClock(this) && path->clkEdge(this) == en_clk_edge)
+          return path;
       }
     }
   }
   return nullptr;
+}
+
+// An unknown clock phase leaves both Boolean values possible.
+LogicValue
+Latches::pinValueAt(const Pin *pin, const Path *data) const
+{
+  const Mode *mode = data->mode(this);
+  LogicValue value = mode->sim()->simValue(pin);
+  const LibertyPort *port = network_->libertyPort(pin);
+  if (value != LogicValue::unknown || !port || !(port->isRegClk() || port->isClock()))
+    return value;
+  Vertex *vertex = graph_->pinLoadVertex(pin);
+  if (!vertex || !data->clock(this))
+    return LogicValue::unknown;
+  VertexPathIterator paths(vertex, data->scene(this), data->tgtClkMinMax(this),
+                           RiseFall::rise(), this);
+  LogicValue level = LogicValue::unknown;
+  while (paths.hasNext()) {
+    Path *rise = paths.next();
+    if (!rise->isClock(this))
+      continue;
+    const Clock *clk = rise->clock(this);
+    Path *fall = latchEnableOtherPath(rise);
+    if (!fall || !clk || clk->waveform().size() != 2
+        || rise->clkInfo(this)->isPulseClk() || clk->period() <= 0
+        || clk->period() != data->clock(this)->period()
+        || !mode->sdc()->sameClockGroup(clk, data->clock(this)))
+      return LogicValue::unknown;
+    // Compare time since each edge. Inside its uncertainty either level is possible.
+    const double period = clk->period();
+    auto since = [&](const Path *edge) {
+      double elapsed = static_cast<double>(delayAsFloat(data->arrival()))
+                       - delayAsFloat(search_->clkPathArrival(edge));
+      double dist = std::remainder(elapsed, period);
+      float uncertainty = PathEnd::checkClkUncertainty(data->clkEdge(this), edge->clkEdge(this),
+                                                       edge, TimingRole::latchSetup(), mode->sdc());
+      if (std::abs(dist) <= std::abs(uncertainty))
+        return -1.0;
+      return dist < 0 ? dist + period : dist;
+    };
+    double high = since(rise), low = since(fall);
+    if (high < 0 || low < 0 || high == low)
+      return LogicValue::unknown;
+    LogicValue next = high < low ? LogicValue::one : LogicValue::zero;
+    if (level != LogicValue::unknown && level != next)
+      return LogicValue::unknown;
+    level = next;
+  }
+  return level;
 }
 
 // The arrival time for a latch D->Q edge is clipped to the window of
@@ -327,6 +374,7 @@ void
 Latches::latchOutArrival(const Path *data_path,
                          const TimingArc *d_q_arc,
                          const Edge *d_q_edge,
+                         const LatchEnable &word,
                          // Return values.
                          Tag *&q_tag,
                          ArcDelay &arc_delay,
@@ -344,11 +392,13 @@ Latches::latchOutArrival(const Path *data_path,
   const MinMax *min_max = data_path->minMax(this);
   DcalcAPIndex dcalc_ap = data_path->dcalcAnalysisPtIndex(this);
   Vertex *enable_vertex;
-  const RiseFall *enable_rf;
-  LatchEnableState state;
-  latchDtoQEnable(d_q_edge, inst, mode, enable_vertex, enable_rf, state);
-  // Latch enable may be missing if library is malformed.
-  switch (state) {
+  const RiseFall *enable_rf = word.enableEdge();
+  if (const FuncExpr *guard = word.writeGuard()) {
+    auto level = [&](const Pin *pin) { return pinValueAt(pin, data_path); };
+    if (mode->sim()->evalExpr(guard, inst, level) == LogicValue::zero)
+      return;
+  }
+  switch (latchEnableState(word, inst, mode, enable_vertex)) {
   case LatchEnableState::closed:
     // Latch is always closed because enable is constant.
     break;
@@ -520,68 +570,40 @@ Latches::latchTimeGivenToStartpoint(const Path *d_path,
   }
 }
 
-void
-Latches::latchDtoQEnable(const Edge *d_q_edge,
-                         const Instance *inst,
-                         const Mode *mode,
-                         // Return values.
-                         Vertex *&enable_vertex,
-                         const RiseFall *&enable_rf,
-                         LatchEnableState &state) const
+LatchEnableState
+Latches::latchEnableState(const LatchEnable &word, const Instance *inst,
+                          const Mode *mode, Vertex *&enable_vertex) const
 {
-  enable_vertex = nullptr;
-  state = LatchEnableState::open;
-  LibertyCell *cell = network_->libertyCell(inst);
-  if (cell) {
-    const TimingArcSet *d_q_set = d_q_edge->timingArcSet();
-    const LibertyPort *enable_port;
-    const FuncExpr *enable_func;
-    cell->latchEnable(d_q_set, enable_port, enable_func, enable_rf);
-    if (enable_port) {
-      const Sdc *sdc = mode->sdc();
-      Sim *sim = mode->sim();
-      Pin *enable_pin = network_->findPin(inst, enable_port);
-      if (enable_pin) {
-        enable_vertex = graph_->pinLoadVertex(enable_pin);
-        if (sdc->isDisabledConstraint(enable_pin))
-          state = LatchEnableState::open;
-        else {
-          // See if constant values in the latch enable expression force
-          // it to be continuously open or closed.
-          LogicValue enable_value = enable_func
-            ? sim->evalExpr(enable_func, inst)
-            : sim->simValue(enable_pin);
-          switch (enable_value) {
-          case LogicValue::zero:
-          case LogicValue::fall:
-            state = LatchEnableState::closed;
-            break;
-          case LogicValue::one:
-          case LogicValue::rise:
-            state = LatchEnableState::open;
-            break;
-          case LogicValue::unknown:
-            state = LatchEnableState::enabled;
-            break;
-          }
-        }
-      }
-    }
-  }
+  const Pin *pin = word.enable() ? network_->findPin(inst, word.enable()) : nullptr;
+  enable_vertex = pin ? graph_->pinLoadVertex(pin) : nullptr;
+  if (!pin || mode->sdc()->isDisabledConstraint(pin))
+    return LatchEnableState::open;
+  Sim *sim = mode->sim();
+  LogicValue value = word.enableFunc() ? sim->evalExpr(word.enableFunc(), inst) : sim->simValue(pin);
+  if (value == LogicValue::unknown)
+    return LatchEnableState::enabled;
+  if (value == LogicValue::zero || value == LogicValue::fall)
+    return LatchEnableState::closed;
+  return LatchEnableState::open;
 }
 
 LatchEnableState
 Latches::latchDtoQState(const Edge *edge,
                         const Mode *mode) const
 {
-  const Vertex *from_vertex = edge->from(graph_);
-  const Pin *from_pin = from_vertex->pin();
-  const Instance *inst = network_->instance(from_pin);
-  Vertex *enable_vertex;
-  const RiseFall *enable_rf;
-  LatchEnableState state;
-  latchDtoQEnable(edge, inst, mode, enable_vertex, enable_rf, state);
-  return state;
+  if (edge->role() != TimingRole::latchDtoQ())
+    return LatchEnableState::open;
+  auto *set = edge->timingArcSet();
+  const Instance *inst = network_->instance(edge->from(graph_)->pin());
+  bool open = false;
+  for (const LatchEnable &word : set->libertyCell()->latchEnables(set)) {
+    Vertex *vertex;
+    auto state = latchEnableState(word, inst, mode, vertex);
+    if (state == LatchEnableState::enabled)
+      return state;
+    open |= state == LatchEnableState::open;
+  }
+  return open ? LatchEnableState::open : LatchEnableState::closed;
 }
 
 // Latch D->Q arc looks combinational when the enable pin is disabled

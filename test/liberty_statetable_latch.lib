@@ -788,7 +788,8 @@ library (statetable_latch) {
     }
   }
   /* A latch group whose output is gated by a read select: D -> Q is still the
-     latch's data arc, and S -> Q is combinational. */
+     latch's data arc, and S -> Q is combinational. QX reads both of the latch's
+     outputs, which are still one latch. */
   cell (GATED_LATCH) {
     area : 2;
     latch (IQ, IQN) { enable : "CP"; data_in : "D"; }
@@ -846,11 +847,32 @@ library (statetable_latch) {
         fall_transition (scalar) { values ("20"); }
       }
     }
+    pin (QX) {
+      direction : output;
+      capacitance : 0.002;
+      function : "(IQ S)|(IQN !S)";
+      timing () {
+        related_pin : "D";
+        timing_sense : non_unate;
+        cell_rise (scalar) { values ("100"); }
+        rise_transition (scalar) { values ("20"); }
+        cell_fall (scalar) { values ("100"); }
+        fall_transition (scalar) { values ("20"); }
+      }
+      timing () {
+        related_pin : "CP";
+        timing_sense : non_unate; timing_type : rising_edge;
+        cell_rise (scalar) { values ("60"); }
+        rise_transition (scalar) { values ("20"); }
+        cell_fall (scalar) { values ("60"); }
+        fall_transition (scalar) { values ("20"); }
+      }
+    }
   }
-  /* Two latch groups share the data pin and are read through selects. A data arc's
-     when has only one of them read, the last one written with NOTs, or holds CP1
-     closed, or holds only CP0 open. QU has one data arc for both words, which
-     nothing places: it stays combinational. */
+  /* The two latch groups share D and have separate write enables.
+     The Q arcs exercise read selects, complemented conditions, and clock levels.
+     Several conditions allow both words when both selects are high.
+     The unconditional D -> QU arc can pass through either word. */
   cell (GATED_LATCH_ARRAY) {
     area : 4;
     latch (IQ0, IQ0N) { enable : "CP0"; data_in : "D"; }
@@ -1114,8 +1136,8 @@ library (statetable_latch) {
       }
     }
   }
-  /* One data arc for both words and no setup check: nothing says which word the
-     arc goes through, so it stays combinational. */
+  /* Both words share a data arc and have characterized enable arcs.
+     Their declarations identify the two write enables without setup checks. */
   cell (LATCH_ARRAY_UNCHECKED) {
     area : 4;
     statetable ("CP E", "IQ") {

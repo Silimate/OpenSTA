@@ -1180,7 +1180,6 @@ Power::seedRegOutputActivities(const Instance *inst,
 {
   for (const Sequential &seq : seqs) {
     seedRegOutputActivities(inst, test_cell, seq, seq.output(), false);
-    // A sequential may have no inverted output.
     if (seq.outputInv())
       seedRegOutputActivities(inst, test_cell, seq, seq.outputInv(), true);
     // Enqueue register output pins with functions that reference

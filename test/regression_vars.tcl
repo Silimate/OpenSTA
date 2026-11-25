@@ -194,6 +194,7 @@ record_public_tests {
   liberty_float_as_str
   liberty_latch3
   liberty_statetable_latch
+  liberty_latch_write_condition
   latch_checks
   liberty_retain
   liberty_write_escaped_names

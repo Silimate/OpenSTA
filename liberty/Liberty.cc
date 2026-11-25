@@ -24,6 +24,7 @@
 
 #include "Liberty.hh"
 
+#include <algorithm>
 #include <cstddef>
 #include <functional>
 #include <memory>
@@ -31,6 +32,8 @@
 #include <string_view>
 #include <utility>
 
+#include "Bdd.hh"
+#include "cudd.h"
 #include "ConcreteLibrary.hh"
 #include "ContainerHelpers.hh"
 #include "Debug.hh"
@@ -1702,258 +1705,103 @@ LatchEnable::LatchEnable(LibertyPort *data,
 {
 }
 
-// Latch enable port/function for a latch D->Q timing arc set.
-// This augments cell timing data by linking enables to D->Q arcs.
-// Use timing arcs rather than sequentials (because they are optional).
+static bool
+latchEnableMatches(const FuncExpr *enable, const LibertyPort *port, const RiseFall *edge)
+{
+  const TimingSense sense = enable->portTimingSense(port);
+  return (sense == TimingSense::positive_unate && edge == RiseFall::rise())
+      || (sense == TimingSense::negative_unate && edge == RiseFall::fall());
+}
+
+// A write can reach the output only if it changes the stored word and the output observes it.
+static std::shared_ptr<FuncExpr>
+latchWriteCondition(const Sequential &word, TimingArcSet *arc, Bdd &bdd)
+{
+  auto *read = arc->to()->function()->booleanDifference(word.output(), word.outputInv());
+  auto *write = word.data()->booleanDifference(arc->from());
+  auto *condition = FuncExpr::makeAnd(word.clock()->copy(), FuncExpr::makeAnd(write, read));
+  if (arc->cond())
+    condition = FuncExpr::makeAnd(arc->cond()->copy(), condition);
+  std::shared_ptr<FuncExpr> guard(condition);
+  DdNode *node = bdd.funcBdd(condition);
+  bool possible = node != Cudd_ReadLogicZero(bdd.cuddMgr());
+  Cudd_RecursiveDeref(bdd.cuddMgr(), node);
+  return possible ? guard : nullptr;
+}
+
 void
 LibertyCell::makeLatchEnables(Report *report,
                               Debug *debug)
 {
   if (isSequential()
       || hasInferedRegTimingArcs()) {
+    std::unique_ptr<Bdd> bdd;
     for (TimingArcSet *d_to_q : timing_arc_sets_) {
-      // A data arc to an output that reads a latch through other pins becomes a
-      // latch arc below, once it has an enable.
-      bool reads_latch = isLatchDataArc(d_to_q);
-      if (d_to_q->role() == TimingRole::latchDtoQ() || reads_latch) {
-        LibertyPort *d = d_to_q->from();
-        LibertyPort *q = d_to_q->to();
-        // One en_to_q per enable port; d shared by latches with separate enables has several.
+      LibertyPort *d = d_to_q->from();
+      LibertyPort *q = d_to_q->to();
+      auto bind = [&](FuncExpr *enable, const std::shared_ptr<FuncExpr> &guard) {
         TimingArcSetSeq en_to_qs;
         for (TimingArcSet *arc_to_q : timingArcSetsTo(q)) {
           if (arc_to_q->role() == TimingRole::latchEnToQ()) {
-            TimingArcSet **same_en = nullptr;
-            for (TimingArcSet *&en_to_q : en_to_qs) {
-              if (en_to_q->from() == arc_to_q->from())
-                same_en = &en_to_q;
-            }
+            LibertyPort *en = arc_to_q->from();
+            if (enable && !latchEnableMatches(enable, en, arc_to_q->isRisingFallingEdge()))
+              continue;
+            auto same_en = std::ranges::find(en_to_qs, en, &TimingArcSet::from);
             // Prefer en_to_q with matching when.
-            if (same_en == nullptr)
+            if (same_en == en_to_qs.end())
               en_to_qs.push_back(arc_to_q);
             else if (condMatch(arc_to_q, d_to_q) || !condMatch(*same_en, d_to_q))
               *same_en = arc_to_q;
           }
         }
-        // Latches that share d each have an enable: d_to_q has those of its latches.
-        std::vector<Sequential*> seqs = latchDataSequentials(d_to_q);
-        // Only a statetable's latches are also found from its arcs, as below.
-        if (reads_latch && seqs.empty() && statetable_ == nullptr)
-          continue;
         for (TimingArcSet *en_to_q : en_to_qs) {
           LibertyPort *en = en_to_q->from();
           const RiseFall *en_rf = en_to_q->isRisingFallingEdge();
-          // The latch of d_to_q that en opens, when it is just one.
-          Sequential *en_seq = nullptr;
-          size_t en_seq_count = 0;
-          for (Sequential *seq : seqs) {
-            if (seq->clock()->hasPort(en)) {
-              en_seq = seq;
-              en_seq_count++;
-            }
-          }
-          if (en_rf
-              && (seqs.empty() || en_seq_count > 0)) {
+          if (en_rf) {
             TimingArcSet *setup_check = findLatchSetup(d, en, en_rf, q, d_to_q, report);
-            // Of several enables with no such latch, d belongs only to those it is
-            // checked against.
-            if (setup_check == nullptr && seqs.empty() && en_to_qs.size() > 1)
+            if (!enable && !setup_check && en_to_qs.size() > 1)
               continue;
-            // Set here, not when the arc is made, so a reloaded library has it too.
-            d_to_q->setRole(TimingRole::latchDtoQ());
-            LatchEnable *latch_enable = makeLatchEnable(d, en, en_rf, q, d_to_q,
-                                                        en_to_q, setup_check,
-                                                        en_seq_count == 1
-                                                        ? en_seq
-                                                        : nullptr,
-                                                        debug);
-            FuncExpr *en_func = latch_enable->enableFunc();
-            if (en_func) {
-              TimingSense en_sense = en_func->portTimingSense(en);
-              if (en_sense == TimingSense::positive_unate
-                  && en_rf != RiseFall::rise())
-                report->warn(1114, "cell {}/{} {} -> {} latch enable {}_edge is inconsistent with latch group enable function positive sense.",
-                             library_->name(),
-                             name(),
-                             en->name(),
-                             q->name(),
-                             en_rf == RiseFall::rise()?"rising":"falling");
-              else if (en_sense == TimingSense::negative_unate
-                       && en_rf != RiseFall::fall())
-                report->warn(1115, "cell {}/{} {} -> {} latch enable {}_edge is inconsistent with latch group enable function negative sense.",
-                             library_->name(),
-                             name(),
-                             en->name(),
-                             q->name(),
-                             en_rf == RiseFall::rise()?"rising":"falling");
-            }
+            makeLatchEnable(d, en, en_rf, q, d_to_q, en_to_q, setup_check, debug, enable)
+                ->setWriteGuard(guard);
           }
         }
-        if (en_to_qs.empty() && !reads_latch)
-          report->warn(1121, "cell {}/{} no latch enable found for {} -> {}.",
-                       library_->name(),
-                       name(),
-                       d->name(),
-                       q->name());
-      }
-    }
-  }
-}
-
-// True for a combinational arc from the data of a latch whose stored bit reaches
-// the output, e.g. gated by other pins as !(IQ*S0).
-bool
-LibertyCell::isLatchDataArc(const TimingArcSet *arc_set)
-{
-  const LibertyPort *from = arc_set->from();
-  FuncExpr *func = arc_set->to() ? arc_set->to()->function() : nullptr;
-  if (arc_set->role() == TimingRole::combinational()
-      && from && func
-      // Not when from also reaches the output directly.
-      && !func->hasPort(from)) {
-    for (LibertyPort *func_port : func->ports()) {
-      Sequential *seq = outputPortSequential(func_port);
-      if (seq && seq->isLatch() && seq->data() && seq->data()->hasPort(from))
-        return true;
-    }
-  }
-  return false;
-}
-
-// Value of func with the ports in levels at those levels. When that is unknown,
-// the ports func then depends on are appended to ports.
-static LogicValue
-funcValueGiven(const FuncExpr *func,
-               const std::map<const LibertyPort*, bool> &levels,
-               // Return value.
-               LibertyPortSeq &ports)
-{
-  size_t port_count = ports.size();
-  LogicValue value = LogicValue::unknown;
-  switch (func->op()) {
-  case FuncExpr::Op::port: {
-    auto level = levels.find(func->port());
-    if (level == levels.end())
-      ports.push_back(func->port());
-    else
-      value = level->second ? LogicValue::one : LogicValue::zero;
-    break;
-  }
-  case FuncExpr::Op::not_: {
-    LogicValue left = funcValueGiven(func->left(), levels, ports);
-    if (left != LogicValue::unknown)
-      value = left == LogicValue::zero ? LogicValue::one : LogicValue::zero;
-    break;
-  }
-  case FuncExpr::Op::and_:
-  case FuncExpr::Op::or_: {
-    // The operand value that decides an and, or an or, by itself.
-    LogicValue decides = func->op() == FuncExpr::Op::and_
-      ? LogicValue::zero
-      : LogicValue::one;
-    LogicValue left = funcValueGiven(func->left(), levels, ports);
-    LogicValue right = funcValueGiven(func->right(), levels, ports);
-    if (left == decides || right == decides)
-      value = decides;
-    else
-      value = left == LogicValue::unknown ? left : right;
-    break;
-  }
-  case FuncExpr::Op::one:
-    value = LogicValue::one;
-    break;
-  case FuncExpr::Op::zero:
-    value = LogicValue::zero;
-    break;
-  default:
-    // An xor keeps the ports of both operands.
-    funcValueGiven(func->left(), levels, ports);
-    funcValueGiven(func->right(), levels, ports);
-    break;
-  }
-  // A known value depends on no port.
-  if (value != LogicValue::unknown)
-    ports.resize(port_count);
-  return value;
-}
-
-// The level each of cond's ports has to be at for cond to hold.
-static std::map<const LibertyPort*, bool>
-condPortLevels(const FuncExpr *cond)
-{
-  std::map<const LibertyPort*, bool> levels;
-  if (cond) {
-    for (LibertyPort *port : cond->ports()) {
-      for (bool level : {false, true}) {
-        LibertyPortSeq ports;
-        // cond cannot hold with port at level.
-        if (funcValueGiven(cond, {{port, level}}, ports) == LogicValue::zero)
-          levels[port] = !level;
-      }
-    }
-  }
-  return levels;
-}
-
-// The latches d_to_q goes through, if the latch groups and its when condition
-// place it: the one latch left, or several that the condition holds open.
-std::vector<Sequential*>
-LibertyCell::latchDataSequentials(const TimingArcSet *d_to_q)
-{
-  const LibertyPort *d = d_to_q->from();
-  const FuncExpr *func = d_to_q->to()->function();
-  std::vector<Sequential*> seqs, always_seqs;
-  if (func) {
-    std::map<const LibertyPort*, bool> levels = condPortLevels(d_to_q->cond());
-    // The ports the output reads while the when condition holds.
-    LibertyPortSeq port_seq;
-    funcValueGiven(func, levels, port_seq);
-    LibertyPortSet ports(port_seq.begin(), port_seq.end());
-    // Those it reads whatever level another is at, such as another latch's select.
-    LibertyPortSet always_ports = ports;
-    for (LibertyPort *port : ports) {
-      if (outputPortSequential(port) == nullptr) {
-        for (bool level : {false, true}) {
-          levels[port] = level;
-          port_seq.clear();
-          funcValueGiven(func, levels, port_seq);
-          LibertyPortSet level_ports(port_seq.begin(), port_seq.end());
-          std::erase_if(always_ports, [&level_ports](LibertyPort *always_port) {
-            return !level_ports.contains(always_port);
-          });
+        if (en_to_qs.empty()) {
+          if (enable)
+            latch_d_to_q_map_[d_to_q].emplace_back(d, nullptr, nullptr, nullptr, q, d_to_q,
+                                                   nullptr, nullptr).setWriteGuard(guard);
+          else
+            report->warn(1121, "cell {}/{} no latch enable found for {} -> {}.",
+                         library_->name(), name(), d->name(), q->name());
         }
-        levels.erase(port);
+      };
+
+      auto *output = q ? q->function() : nullptr;
+      if (d && output && !output->hasPort(d)
+          && (d_to_q->role() == TimingRole::combinational()
+              || (d_to_q->role() == TimingRole::latchDtoQ() && !output->port()))
+          && std::ranges::any_of(timingArcSetsTo(q), [](auto *set) {
+               return set->role() == TimingRole::latchEnToQ();
+             })) {
+        for (const Sequential &word : sequentials_) {
+          if (!word.isLatch() || !word.clock() || !word.data() || !word.data()->hasPort(d)
+              || !(output->hasPort(word.output()) || output->hasPort(word.outputInv())))
+            continue;
+          d_to_q->setRole(TimingRole::latchDtoQ());
+          if (!bdd) {
+            StaState state;
+            state.setReport(report);
+            bdd = std::make_unique<Bdd>(&state);
+          }
+          if (auto guard = latchWriteCondition(word, d_to_q, *bdd))
+            bind(word.clock(), guard);
+          else
+            latch_d_to_q_map_.try_emplace(d_to_q); // This word cannot pass the write condition.
+        }
       }
+      if (d_to_q->role() == TimingRole::latchDtoQ() && !latch_d_to_q_map_.contains(d_to_q))
+        bind(nullptr, {});
     }
-    for (LibertyPort *port : ports) {
-      Sequential *seq = outputPortSequential(port);
-      port_seq.clear();
-      if (seq && seq->isLatch()
-          && seq->data() && seq->data()->hasPort(d)
-          && seq->clock()
-          // Not a latch that the when condition holds closed.
-          && funcValueGiven(seq->clock(), levels, port_seq) != LogicValue::zero) {
-        seqs.push_back(seq);
-        if (always_ports.contains(port))
-          always_seqs.push_back(seq);
-      }
-    }
-    // A latch the output always reads comes before one it reads only for some pins.
-    if (!always_seqs.empty())
-      seqs = always_seqs;
-    // Then one whose enable the when condition holds open.
-    std::vector<Sequential*> open_seqs;
-    for (Sequential *seq : seqs) {
-      port_seq.clear();
-      if (funcValueGiven(seq->clock(), levels, port_seq) == LogicValue::one)
-        open_seqs.push_back(seq);
-    }
-    if (!open_seqs.empty())
-      seqs = open_seqs;
-    // Several latches do not place the arc unless they are all held open.
-    else if (seqs.size() > 1)
-      seqs.clear();
   }
-  return seqs;
 }
 
 bool
@@ -2012,32 +1860,14 @@ LibertyCell::findLatchSetup(const LibertyPort *d,
 FuncExpr *
 LibertyCell::findLatchEnableFunc(const LibertyPort *d,
                                  const LibertyPort *en,
-                                 const RiseFall *en_rf,
-                                 const Sequential *d_seq) const
+                                 const RiseFall *en_rf) const
 {
-  FuncExpr *d_en_func = nullptr;
   for (const auto &seq : sequentials_) {
-    // The latch d goes through, when that is known.
-    if ((d_seq == nullptr || &seq == d_seq)
-        && seq.isLatch()
-        && seq.data()
-        && seq.data()->hasPort(d)
-        && seq.clock()
-        && seq.clock()->hasPort(en)) {
-      FuncExpr *en_func = seq.clock();
-      TimingSense en_sense = en_func->portTimingSense(en);
-      if ((en_sense == TimingSense::positive_unate
-           && en_rf == RiseFall::rise())
-          || (en_sense == TimingSense::negative_unate
-              && en_rf == RiseFall::fall())) {
-        // Of several latches that en opens differently, none is d's alone.
-        if (d_en_func && !FuncExpr::equiv(d_en_func, en_func))
-          return nullptr;
-        d_en_func = en_func;
-      }
-    }
+    if (seq.isLatch() && seq.data() && seq.data()->hasPort(d) && seq.clock()
+        && latchEnableMatches(seq.clock(), en, en_rf))
+      return seq.clock();
   }
-  return d_en_func;
+  return nullptr;
 }
 
 LatchEnable *
@@ -2048,14 +1878,14 @@ LibertyCell::makeLatchEnable(LibertyPort *d,
                              TimingArcSet *d_to_q,
                              TimingArcSet *en_to_q,
                              TimingArcSet *setup_check,
-                             const Sequential *d_seq,
-                             Debug *debug)
+                             Debug *debug, FuncExpr *word_enable)
 {
-  FuncExpr *en_func = findLatchEnableFunc(d, en, en_rf, d_seq);
-  latch_enables_.emplace_back(d, en, en_rf, en_func, q, d_to_q, en_to_q, setup_check);
-  size_t idx = latch_enables_.size() - 1;
-  latch_d_to_q_map_[d_to_q] = idx;
-  latch_check_map_[setup_check] = idx;
+  FuncExpr *en_func = word_enable ? word_enable : findLatchEnableFunc(d, en, en_rf);
+  auto &words = latch_d_to_q_map_[d_to_q];
+  if (!word_enable)
+    words.clear(); // The inferred binding exposes the last matching enable.
+  auto &word = words.emplace_back(d, en, en_rf, en_func, q, d_to_q, en_to_q, setup_check);
+  latch_check_map_[setup_check] = en_rf;
   d->setIsLatchData(true);
   q->setIsLatchOutput(true);
   debugPrint(debug, "liberty_latch", 1,
@@ -2066,9 +1896,9 @@ LibertyCell::makeLatchEnable(LibertyPort *d,
              en_rf->shortName(),
              q->name(),
              en->name(),
-             setup_check->arcs()[0]->fromEdge()->asRiseFall()->shortName(),
+             setup_check ? setup_check->arcs()[0]->fromEdge()->asRiseFall()->shortName() : "-",
              q->name());
-  return &latch_enables_.back();
+  return &word;
 }
 
 void
@@ -2099,8 +1929,7 @@ LibertyCell::inferLatchRoles(Report *report,
                                                          report);
               // No setup check against the enable: d is not latch data (e.g. a read select).
               if (setup_check) {
-                makeLatchEnable(d, en, en_rf, q, d_to_q, en_to_q, setup_check, nullptr,
-                                debug);
+                makeLatchEnable(d, en, en_rf, q, d_to_q, en_to_q, setup_check, debug);
                 d_to_q->setRole(TimingRole::latchDtoQ());
                 en_to_q->setRole(TimingRole::latchEnToQ());
               }
@@ -2112,6 +1941,15 @@ LibertyCell::inferLatchRoles(Report *report,
   }
 }
 
+const LatchEnableSeq &
+LibertyCell::latchEnables(const TimingArcSet *set) const
+{
+  // An uncharacterized latch arc defaults to continuously open.
+  static const LatchEnableSeq unbound{{nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr}};
+  auto it = latch_d_to_q_map_.find(set);
+  return it == latch_d_to_q_map_.end() ? unbound : it->second;
+}
+
 void
 LibertyCell::latchEnable(const TimingArcSet *d_to_q_set,
                          // Return values.
@@ -2119,9 +1957,9 @@ LibertyCell::latchEnable(const TimingArcSet *d_to_q_set,
                          const FuncExpr *&enable_func,
                          const RiseFall *&enable_rf) const
 {
-  auto it = latch_d_to_q_map_.find(d_to_q_set);
-  if (it != latch_d_to_q_map_.end()) {
-    const LatchEnable &latch_enable = latch_enables_[it->second];
+  const auto &words = latchEnables(d_to_q_set);
+  if (!words.empty()) {
+    const LatchEnable &latch_enable = words.back();
     enable_port = latch_enable.enable();
     enable_func = latch_enable.enableFunc();
     enable_rf = latch_enable.enableEdge();
@@ -2136,11 +1974,7 @@ LibertyCell::latchEnable(const TimingArcSet *d_to_q_set,
 const RiseFall *
 LibertyCell::latchCheckEnableEdge(TimingArcSet *check_set)
 {
-  auto it = latch_check_map_.find(check_set);
-  if (it != latch_check_map_.end())
-    return latch_enables_[it->second].enableEdge();
-  else
-    return nullptr;
+  return findKeyValue(latch_check_map_, check_set);
 }
 
 void
