@@ -127,6 +127,38 @@ proc get_flat_cells {arg} {
   return [get_cells -hier -filter "is_hierarchical==false && full_name=~$arg"]
 }
 
+sta::define_cmd_args "all_connected" {[-leaf] object} \
+  -help {The `all_connected` command returns the objects connected to `object`. For a net it returns the pins and ports on the net. For a pin or port it returns the net connected to it.} \
+  -arg_help {
+    -leaf {For a net, return the leaf pins connected to it through the hierarchy, as `get_pins -leaf -of_objects` does.}
+    object {A net, pin or port, as a name or as returned by `get_nets`, `get_pins` or `get_ports`.}
+  }
+
+proc all_connected { args } {
+  sta::parse_key_args "all_connected" args keys {} flags {-leaf}
+  sta::check_argc_eq1 "all_connected" $args
+  set object [lindex $args 0]
+  sta::parse_port_pin_net_arg $object pins nets
+  if { [sizeof_collection $nets] == 0 } {
+    if { [sizeof_collection $pins] == 0 } {
+      return {}
+    }
+    return [get_nets -of_objects $object]
+  }
+  # Pins and ports are different collection types, so return a list.
+  set leaf [array names flags]
+  set connected {}
+  foreach_in_collection net $nets {
+    foreach_in_collection pin [get_pins {*}$leaf -of_objects $net] {
+      lappend connected $pin
+    }
+    foreach_in_collection port [get_ports -of_objects $net] {
+      lappend connected $port
+    }
+  }
+  return $connected
+}
+
 # Set dont_touch attribute (ignore/to be implemented)
 interp alias {} set_dont_touch {} return -level 0
 interp alias {} unset_dont_touch {} return -level 0
@@ -245,6 +277,10 @@ proc get_lib_timing_arcs { args } {
 # Suppress message (ignore/to be implemented)
 proc suppress_message { args } {
   puts "Warning: suppress_message not supported, command ignored"
+}
+
+proc unsuppress_message { args } {
+  puts "Warning: unsuppress_message not supported, command ignored"
 }
 
 ################################################################
