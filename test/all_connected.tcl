@@ -29,3 +29,9 @@ report_object_full_names [all_connected [all_connected [get_pins u_blk2/blk_u2/A
 
 puts {[all_connected u_blk1]}
 report_object_full_names [all_connected u_blk1]
+
+puts {[all_connected -leaf [get_nets u_blk1/clk1]]}
+report_object_full_names [all_connected -leaf [get_nets u_blk1/clk1]]
+
+puts {llength [all_connected -leaf [get_nets {w_mid1 u_blk1/mid1 u_blk2/mid1}]]}
+puts [llength [all_connected -leaf [get_nets {w_mid1 u_blk1/mid1 u_blk2/mid1}]]]

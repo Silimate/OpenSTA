@@ -148,12 +148,25 @@ proc all_connected { args } {
   # Pins and ports are different collection types, so return a list.
   set leaf [array names flags]
   set connected {}
-  foreach_in_collection net $nets {
-    foreach_in_collection pin [get_pins {*}$leaf -of_objects $net] {
-      lappend connected $pin
-    }
-    foreach_in_collection port [get_ports -of_objects $net] {
+  foreach_in_collection pin [get_pins {*}$leaf -of_objects $nets] {
+    lappend connected $pin
+  }
+  if { $leaf == {} } {
+    foreach_in_collection port [get_ports -of_objects $nets] {
       lappend connected $port
+    }
+  } else {
+    # get_ports sees only the given net, so find the ports on every segment.
+    foreach_in_collection net $nets {
+      set pin_iter [$net connected_pin_iterator]
+      while { [$pin_iter has_next] } {
+        set pin [$pin_iter next]
+        if { [$pin is_top_level_port] && ![info exists seen($pin)] } {
+          set seen($pin) 1
+          lappend connected [$pin port]
+        }
+      }
+      $pin_iter finish
     }
   }
   return $connected
