@@ -176,6 +176,7 @@ record_public_tests {
   get_noargs
   get_objrefs
   get_of_objects_ports
+  get_pins_leaf
   get_property_empty
   get_property_flags
   get_property_arrival_first

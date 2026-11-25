@@ -1044,7 +1044,7 @@ proc get_nets { args } {
 
 define_cmd_args "get_pins" \
   {[-hierarchical] [-hsc separator] [-quiet|-q] [-filter expr]\
-     [-regexp] [-nocase] [-of_objects objects] [patterns]} \
+     [-regexp] [-nocase] [-leaf] [-of_objects objects] [patterns]} \
   -help {The `get_pins` command returns a list of all instance pins that match patterns.
 
 A useful idiom to find the driver pin for a net is the following.
@@ -1064,6 +1064,7 @@ get_pins -of_objects [get_ports port_name] -filter "direction==output"
     -filter {A filter expression of the form
   "property==value"
 where property is a property supported by the `get_property` command.  See the section "Filter Expressions" for additional forms.}
+    -leaf {Return only pins of leaf instances. With nets in `-of_objects`, each net is followed through the hierarchy to every leaf pin connected to it.}
     -of_objects {The name of a net, port or instance, a list of nets returned by `get_nets`, a list of ports returned by `get_ports`, or a list of instances returned by `get_cells`. A port matches the pins on the net connected to it. The `-hierarchical` option cannot be used with `-of_objects`.}
     patterns {A list of pin name patterns.}
   }
@@ -1074,13 +1075,14 @@ proc get_pins { args } {
   global hierarchy_separator
   
   parse_key_args "get_pins" args keys {-hsc -of_objects -filter} \
-    flags {-hierarchical -regexp -nocase -quiet}
+    flags {-hierarchical -leaf -regexp -nocase -quiet}
   check_nocase_flag flags
-  
+
   set regexp [info exists flags(-regexp)]
   set nocase [info exists flags(-nocase)]
   set hierarchical [info exists flags(-hierarchical)]
   set quiet [info exists flags(-quiet)]
+  set leaf [info exists flags(-leaf)]
   set pins {}
   if [info exists keys(-of_objects)] {
     if { $args != {} } {
@@ -1099,7 +1101,11 @@ proc get_pins { args } {
       $pin_iter finish
     }
     foreach_in_collection net $nets {
-      set pin_iter [$net pin_iterator]
+      if { $leaf } {
+        set pin_iter [$net connected_pin_iterator]
+      } else {
+        set pin_iter [$net pin_iterator]
+      }
       while { [$pin_iter has_next] } {
         set pin [$pin_iter next]
         # Filter pg ports.
@@ -1108,6 +1114,17 @@ proc get_pins { args } {
         }
       }
       $pin_iter finish
+    }
+    if { $leaf } {
+      # Segments of one net share their connected pins, so drop repeats.
+      set leaf_pins {}
+      foreach pin $pins {
+        if { [$pin is_leaf] && ![info exists seen($pin)] } {
+          set seen($pin) 1
+          lappend leaf_pins $pin
+        }
+      }
+      set pins $leaf_pins
     }
     if [info exists keys(-filter)] {
       set pins [filter_objs $keys(-filter) $pins filter_pins "pin"]
@@ -1148,6 +1165,13 @@ proc get_pins { args } {
     set filter_expression_arg ""
     if [info exists keys(-filter)] {
       lappend filter_expression_arg $keys(-filter)
+    }
+    if { $leaf } {
+      set leaf_filter "is_hierarchical==false"
+      if { $filter_expression_arg != "" } {
+        append leaf_filter " && ([lindex $filter_expression_arg 0])"
+      }
+      set filter_expression_arg [list $leaf_filter]
     }
     return [find_pins_complete $directly_referenced_objects $patterns_to_match $regexp $nocase $hierarchical $quiet {*}$filter_expression_arg]
   }
