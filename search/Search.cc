@@ -2257,6 +2257,11 @@ PathVisitor::visitFromPath(const Pin *from_pin,
   ArcDelay arc_delay = 0.0;
   DcalcAPIndex dcalc_ap = from_path->dcalcAnalysisPtIndex(this);
   Arrival to_arrival;
+  auto visit = [&] {
+    return !to_tag || visitFromToPath(from_pin, from_vertex, from_rf, from_tag, from_path,
+                                      from_arrival, edge, arc, arc_delay, to_vertex, to_rf,
+                                      to_tag, to_arrival, min_max);
+  };
   if (from_clk_info->isGenClkSrcPath()) {
     if (!sdc->clkStopPropagation(clk, from_pin, from_rf, to_pin, to_rf)
         && (variables_->clkThruTristateEnabled()
@@ -2337,12 +2342,15 @@ PathVisitor::visitFromPath(const Pin *from_pin,
   }
   else if (edge->role() == TimingRole::latchDtoQ()) {
     if (min_max == MinMax::max() && clk) {
-      arc_delay = search_->deratedDelay(from_vertex, arc, edge, false, min_max,
-                                        dcalc_ap, sdc);
-      latches_->latchOutArrival(from_path, arc, edge, to_tag, arc_delay,
-                                to_arrival);
-      if (to_tag)
-        to_tag = search_->thruTag(to_tag, edge, to_rf, tag_cache_);
+      const TimingArcSet *set = edge->timingArcSet();
+      for (const LatchEnable &word : set->libertyCell()->latchEnables(set)) {
+        latches_->latchOutArrival(from_path, arc, edge, word, to_tag, arc_delay, to_arrival);
+        if (to_tag)
+          to_tag = search_->thruTag(to_tag, edge, to_rf, tag_cache_);
+        if (!visit())
+          return false;
+      }
+      return true;
     }
   }
   else if (from_tag->isClock()) {
@@ -2387,12 +2395,7 @@ PathVisitor::visitFromPath(const Pin *from_pin,
       }
     }
   }
-  if (to_tag)
-    return visitFromToPath(from_pin, from_vertex, from_rf, from_tag, from_path,
-                           from_arrival, edge, arc, arc_delay, to_vertex, to_rf,
-                           to_tag, to_arrival, min_max);
-  else
-    return true;
+  return visit();
 }
 
 Arrival

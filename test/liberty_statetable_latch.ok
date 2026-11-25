@@ -2,6 +2,19 @@ Warning 1298: liberty_statetable_latch.lib line 18, statetable input port CP not
 Warning 1298: liberty_statetable_latch.lib line 18, statetable input port E not found.
 Warning 1298: liberty_statetable_latch.lib line 127, statetable input port CP not found.
 Warning 1298: liberty_statetable_latch.lib line 127, statetable input port E not found.
+Warning 1298: liberty_statetable_latch.lib line 490, statetable input port CP not found.
+Warning 1298: liberty_statetable_latch.lib line 490, statetable input port E not found.
+Warning 1298: liberty_statetable_latch.lib line 673, statetable input port CP not found.
+Warning 1298: liberty_statetable_latch.lib line 673, statetable input port E not found.
+Warning 1298: liberty_statetable_latch.lib line 1042, statetable input port CP not found.
+Warning 1298: liberty_statetable_latch.lib line 1042, statetable input port E not found.
+Warning 1298: liberty_statetable_latch.lib line 1143, statetable input port CP not found.
+Warning 1298: liberty_statetable_latch.lib line 1143, statetable input port E not found.
+Warning 1298: liberty_statetable_latch.lib line 1213, statetable input port CP not found.
+Warning 1298: liberty_statetable_latch.lib line 1213, statetable input port E not found.
+Warning 1298: liberty_statetable_latch.lib line 1257, statetable input port CP not found.
+Warning 1298: liberty_statetable_latch.lib line 1257, statetable input port E not found.
+Warning 1298: liberty_statetable_latch.lib line 1257, statetable input port CLR not found.
 Cell LATCH_ARRAY
 Library statetable_latch
 File liberty_statetable_latch.lib
@@ -12,7 +25,7 @@ File liberty_statetable_latch.lib
  S1 input 0.00
  IQ_0 internal
  IQ_1 internal
- Q output 0.00
+ Q output function=!((IQ_1*S1)+(IQ_0*S0)) 0.00
  IQ unknown
 
 Timing arcs
@@ -165,6 +178,168 @@ Timing arcs
   combinational
   ^ -> ^
   v -> v
+Cell GATED_LATCH
+Library statetable_latch
+File liberty_statetable_latch.lib
+ CP input 0.00
+ D input 0.00
+ S input 0.00
+ Q output function=!(IQ*S) 0.00
+ QX output function=(IQ*S)+(IQN*!S) 0.00
+ IQ internal
+ IQN internal
+
+Timing arcs
+ CP -> D
+  setup
+  v -> ^
+  v -> v
+ CP -> D
+  hold
+  v -> ^
+  v -> v
+ D -> Q
+  Latch D to Q
+  ^ -> v
+  v -> ^
+ CP -> Q
+  Latch En to Q
+  ^ -> ^
+  ^ -> v
+ S -> Q
+  combinational
+  ^ -> v
+  v -> ^
+ D -> QX
+  Latch D to Q
+  v -> v
+  ^ -> v
+  ^ -> ^
+  v -> ^
+ CP -> QX
+  Latch En to Q
+  ^ -> ^
+  ^ -> v
+Cell GATED_NO_ENABLE
+Library statetable_latch
+File liberty_statetable_latch.lib
+ CP input 0.00
+ D input 0.00
+ S input 0.00
+ Q output function=!(IQ*S) 0.00
+ IQ internal
+ IQN internal
+
+Timing arcs
+ CP -> D
+  setup
+  v -> ^
+  v -> v
+ D -> Q
+  combinational
+  ^ -> v
+  v -> ^
+ S -> Q
+  combinational
+  ^ -> v
+  v -> ^
+Cell LATCH_LOW
+Library statetable_latch
+File liberty_statetable_latch.lib
+ EN input 0.00
+ D input 0.00
+ IQ_0 internal
+ Q output function=IQ_0 0.00
+ IQ unknown
+
+Timing arcs
+ EN -> D
+  setup
+  ^ -> ^
+  ^ -> v
+ EN -> D
+  hold
+  ^ -> ^
+  ^ -> v
+ D -> Q
+  Latch D to Q
+  v -> ^
+  ^ -> v
+ EN -> Q
+  Latch En to Q
+  v -> ^
+  v -> v
+Cell LATCH_ARRAY_UNCHECKED
+Library statetable_latch
+File liberty_statetable_latch.lib
+ CP0 input 0.00
+ CP1 input 0.00
+ D input 0.00
+ S0 input 0.00
+ S1 input 0.00
+ IQ_0 internal
+ IQ_1 internal
+ Q output function=!((IQ_1*S1)+(IQ_0*S0)) 0.00
+ IQ unknown
+
+Timing arcs
+ D -> Q
+  Latch D to Q
+  ^ -> v
+  v -> ^
+ CP0 -> Q
+  Latch En to Q
+  ^ -> ^
+  ^ -> v
+ CP1 -> Q
+  Latch En to Q
+  ^ -> ^
+  ^ -> v
+Cell GATE_MAP
+Library statetable_latch
+File liberty_statetable_latch.lib
+ CK input 0.00
+ EN input 0.00
+ IQ_0 internal
+ GCK output 0.00
+ IQ unknown
+
+Timing arcs
+ CK -> EN
+  setup
+  ^ -> ^
+  ^ -> v
+ CK -> GCK
+  combinational
+  ^ -> ^
+  v -> v
+Cell LATCH_CLEAR
+Library statetable_latch
+File liberty_statetable_latch.lib
+ EN input 0.00
+ D input 0.00
+ RN input 0.00
+ IQ_0 internal
+ Q output 0.00
+ IQ unknown
+
+Timing arcs
+ EN -> D
+  setup
+  v -> ^
+  v -> v
+ EN -> D
+  hold
+  v -> ^
+  v -> v
+ D -> Q
+  Latch D to Q
+  ^ -> ^
+  v -> v
+ EN -> Q
+  Latch En to Q
+  ^ -> ^
+  ^ -> v
 max_delay/setup group clk0
 
                                      Required  Actual
@@ -212,4 +387,153 @@ Endpoint                               Delay   Delay   Slack
 ------------------------------------------------------------
 q (output)                           1000.00  340.00  660.00 (MET)
 
+D -> Q Latch D to Q enable CP1 ^
+  Condition: ((!CP0*CP1)*S0)*S1
+  ^ -> v 100.00:100.00
+  v -> ^ 100.00:100.00
+D -> Q Latch D to Q enable CP1 ^
+  Condition: ((!CP0*CP1)*!S0)*S1
+  ^ -> v 100.00:100.00
+  v -> ^ 100.00:100.00
+D -> Q Latch D to Q enable CP1 ^
+  Condition: ((CP0*CP1)*!S0)*S1
+  ^ -> v 100.00:100.00
+  v -> ^ 100.00:100.00
+D -> Q Latch D to Q enable CP0 ^, CP1 ^
+  Condition: ((CP0*CP1)*S0)*S1
+  ^ -> v 100.00:100.00
+  v -> ^ 100.00:100.00
+D -> Q Latch D to Q enable CP0 ^
+  Condition: ((CP0*CP1)*S0)*!S1
+  ^ -> v 100.00:100.00
+  v -> ^ 100.00:100.00
+D -> Q Latch D to Q enable CP0 ^
+  Condition: ((CP0*!CP1)*S0)*S1
+  ^ -> v 100.00:100.00
+  v -> ^ 100.00:100.00
+D -> Q Latch D to Q enable CP0 ^
+  Condition: ((CP0*!CP1)*S0)*!S1
+  ^ -> v 100.00:100.00
+  v -> ^ 100.00:100.00
+D -> Q Latch D to Q enable CP0 ^, CP1 ^
+  Condition: S1
+  ^ -> v 100.00:100.00
+  v -> ^ 100.00:100.00
+D -> Q Latch D to Q enable CP0 ^, CP1 ^
+  Condition: S0
+  ^ -> v 100.00:100.00
+  v -> ^ 100.00:100.00
+D -> Q Latch D to Q enable CP0 ^, CP1 ^
+  Condition: !(!CP0+!S0)
+  ^ -> v 100.00:100.00
+  v -> ^ 100.00:100.00
+D -> Q Latch D to Q enable CP0 ^, CP1 ^
+  Condition: CP0*(CP1+S0)
+  ^ -> v 100.00:100.00
+  v -> ^ 100.00:100.00
+D -> Q Latch D to Q enable CP0 ^
+  Condition: !CP1
+  ^ -> v 100.00:100.00
+  v -> ^ 100.00:100.00
+D -> Q Latch D to Q enable CP1 ^
+  Condition: !CP0*S1
+  ^ -> v 100.00:100.00
+  v -> ^ 100.00:100.00
+D -> Q Latch D to Q enable CP0 ^
+  Condition: !CP1*S0
+  ^ -> v 100.00:100.00
+  v -> ^ 100.00:100.00
+D -> QU Latch D to Q enable CP0 ^, CP1 ^
+  ^ -> v 100.00:100.00
+  v -> ^ 100.00:100.00
+D -> QX Latch D to Q enable CP ^
+  v -> v 100.00:100.00
+  ^ -> v 100.00:100.00
+  ^ -> ^ 100.00:100.00
+  v -> ^ 100.00:100.00
+No paths found.
+max_delay/setup group vclk
+
+                                     Required  Actual
+Endpoint                               Delay   Delay   Slack
+------------------------------------------------------------
+q_gated (output)                     1000.00  340.00  660.00 (MET)
+
+No paths found.
+Startpoint: u3 (positive level-sensitive latch clocked by clk0)
+Endpoint: q_when (output port clocked by vclk)
+Path Group: vclk
+Path Type: max
+
+  Delay    Time   Description
+---------------------------------------------------------
+   0.00    0.00   clock clk0 (rise edge)
+   0.00    0.00   clock network delay (ideal)
+ 300.00  300.00   time given to startpoint
+   0.00  300.00 v u3/D (LATCH_ARRAY_WHEN)
+ 100.00  400.00 ^ u3/Q (LATCH_ARRAY_WHEN)
+   0.00  400.00 ^ q_when (out)
+         400.00   data arrival time
+
+1000.00 1000.00   clock vclk (rise edge)
+   0.00 1000.00   clock network delay (ideal)
+   0.00 1000.00   clock reconvergence pessimism
+   0.00 1000.00   output external delay
+        1000.00   data required time
+---------------------------------------------------------
+        1000.00   data required time
+        -400.00   data arrival time
+---------------------------------------------------------
+         600.00   slack (MET)
+
+
+max_delay/setup group vclk
+
+                                     Required  Actual
+Endpoint                               Delay   Delay   Slack
+------------------------------------------------------------
+q_gated2 (output)                    1000.00  400.00  600.00 (MET)
+max_delay/setup group vclk
+
+                                     Required  Actual
+Endpoint                               Delay   Delay   Slack
+------------------------------------------------------------
+q_sel (output)                       1000.00  400.00  600.00 (MET)
+
+max_delay/setup group vclk
+
+                                     Required  Actual
+Endpoint                               Delay   Delay   Slack
+------------------------------------------------------------
+q_gated2 (output)                    1000.00  400.00  600.00 (MET)
+max_delay/setup group vclk
+
+                                     Required  Actual
+Endpoint                               Delay   Delay   Slack
+------------------------------------------------------------
+q_sel (output)                       1000.00  400.00  600.00 (MET)
+max_delay/setup group vclk
+
+                                     Required  Actual
+Endpoint                               Delay   Delay   Slack
+------------------------------------------------------------
+q_when (output)                      1000.00  400.00  600.00 (MET)
+
+D -> Q Latch D to Q enable EN v
+  v -> ^ 100.00:100.00
+  ^ -> v 100.00:100.00
+max_delay/setup group vclk
+
+                                     Required  Actual
+Endpoint                               Delay   Delay   Slack
+------------------------------------------------------------
+q_low (output)                       1000.00  400.00  600.00 (MET)
+
+No paths found.
+
+   Internal  Switching    Leakage      Total
+      Power      Power      Power      Power (Watts)
+--------------------------------------------
+   0.00e+00   0.00e+00   0.00e+00   0.00e+00 u7
+find_equiv_cells LATCH_LOW: 0
 liberty_statetable_latch lib_db matches: 1

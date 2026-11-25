@@ -101,6 +101,8 @@ public:
   LibertyPort *output() const { return output_; }
   LibertyPort *enable() const { return enable_; }
   FuncExpr *enableFunc() const { return enable_func_; }
+  const FuncExpr *writeGuard() const { return write_guard_.get(); }
+  void setWriteGuard(const std::shared_ptr<FuncExpr> &guard) { write_guard_ = guard; }
   const RiseFall *enableEdge() const { return enable_edge_; }
   TimingArcSet *dToQ() const { return d_to_q_; }
   TimingArcSet *enToQ() const { return en_to_q_; }
@@ -111,6 +113,7 @@ private:
   LibertyPort *enable_;
   const RiseFall *enable_edge_;
   FuncExpr *enable_func_;
+  std::shared_ptr<FuncExpr> write_guard_;
   LibertyPort *output_;
   TimingArcSet *d_to_q_;
   TimingArcSet *en_to_q_;
@@ -139,7 +142,6 @@ using ScaledCellMap = std::map<const OperatingConditions*, LibertyCell*>;
 using ScaledPortMap = std::map<const OperatingConditions*, LibertyPort*>;
 using ModeDefMap = std::map<std::string, ModeDef, std::less<>>;
 using ModeValueMap = std::map<std::string, ModeValueDef, std::less<>>;
-using LatchEnableIndexMap = std::map<const TimingArcSet*, size_t>;
 using LatchEnableSeq = std::vector<LatchEnable>;
 using OcvDerateMap = std::map<std::string, OcvDerate, std::less<>>;
 using SupplyVoltageMap = std::map<std::string, float, std::less<>>;
@@ -569,6 +571,7 @@ public:
   bool hasInferedRegTimingArcs() const { return has_infered_reg_timing_arcs_; }
   TestCell *testCell() const { return test_cell_; }
   const ScaledCellMap &scaledCells() const { return scaled_cells_; }
+  const LatchEnableSeq &latchEnables(const TimingArcSet *set) const;
   void latchEnable(const TimingArcSet *d_to_q_set,
                    // Return values.
                    const LibertyPort *&enable_port,
@@ -666,7 +669,7 @@ protected:
                                TimingArcSet *d_to_q,
                                TimingArcSet *en_to_q,
                                TimingArcSet *setup_check,
-                               Debug *debug);
+                               Debug *debug, FuncExpr *word_enable = nullptr);
   TimingArcSet *findLatchSetup(const LibertyPort *d,
                                const LibertyPort *en,
                                const RiseFall *en_rf,
@@ -719,11 +722,10 @@ protected:
   ScaleFactors *scale_factors_{nullptr};
   ScaledCellMap scaled_cells_;
   TestCell *test_cell_{nullptr};
-  // Latch D->Q to LatchEnable index.
-  LatchEnableIndexMap latch_d_to_q_map_;
-  // Latch EN->D setup to LatchEnable index.
-  LatchEnableIndexMap latch_check_map_;
-  LatchEnableSeq latch_enables_;
+  // A data arc can write several latch words.
+  std::map<const TimingArcSet*, LatchEnableSeq> latch_d_to_q_map_;
+  // Opening edge for a latch setup check.
+  std::map<const TimingArcSet*, const RiseFall*> latch_check_map_;
   // Ports that have latch D->Q timing arc sets from them.
   LibertyPortSet latch_data_ports_;
   float ocv_arc_depth_{0.0F};

@@ -1180,7 +1180,8 @@ Power::seedRegOutputActivities(const Instance *inst,
 {
   for (const Sequential &seq : seqs) {
     seedRegOutputActivities(inst, test_cell, seq, seq.output(), false);
-    seedRegOutputActivities(inst, test_cell, seq, seq.outputInv(), true);
+    if (seq.outputInv())
+      seedRegOutputActivities(inst, test_cell, seq, seq.outputInv(), true);
     // Enqueue register output pins with functions that reference
     // the sequential internal pins (IQ, IQN).
     InstancePinIterator *pin_iter = network_->pinIterator(inst);
@@ -1192,7 +1193,7 @@ Power::seedRegOutputActivities(const Instance *inst,
       if (port) {
         FuncExpr *func = port->function();
         Vertex *vertex = graph_->pinDrvrVertex(pin);
-        if (vertex && func
+        if (vertex && func && func->port()
             && (func->port() == seq.output() || func->port() == seq.outputInv())) {
           debugPrint(debug_, "power_reg", 1, "enqueue reg output {}",
                      vertex->to_string(this));

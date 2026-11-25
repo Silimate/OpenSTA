@@ -1,0 +1,42 @@
+library (@cell@) {
+  delay_model : table_lookup;
+  time_unit : "1ps";
+  voltage_unit : "1V";
+  current_unit : "1mA";
+  capacitive_load_unit (1, ff);
+  pulling_resistance_unit : "1kohm";
+
+  cell (@cell@) {
+    area : 1;
+    @storage@
+    pin (CP0) { direction : input; clock : true; }
+    pin (CP1) { direction : input; clock : true; }
+    pin (S0) { direction : input; }
+    pin (S1) { direction : input; }
+    pin (D) {
+      direction : input;
+      timing () {
+        related_pin : "CP0";
+        timing_type : setup_falling;
+        rise_constraint (scalar) { values ("20"); }
+        fall_constraint (scalar) { values ("20"); }
+      }
+      timing () {
+        related_pin : "CP1";
+        timing_type : setup_falling;
+        rise_constraint (scalar) { values ("20"); }
+        fall_constraint (scalar) { values ("20"); }
+      }
+    }
+    bundle (OUT) {
+      members ("Q");
+      direction : output;
+      @bundle_function@
+      pin (Q) {
+        direction : output;
+        @pin_function@
+        @timing@
+      }
+    }
+  }
+}

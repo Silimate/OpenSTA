@@ -24,6 +24,7 @@
 
 #pragma once
 
+#include <functional>
 #include <mutex>
 #include <queue>
 #include <unordered_map>
@@ -40,6 +41,7 @@
 namespace sta {
 
 class SimObserver;
+using PinLogicValue = std::function<LogicValue(const Pin*)>;
 
 using SimValueMap = std::unordered_map<const Pin*, LogicValue>;
 using EdgeDisabledCondSet = std::unordered_set<const Edge*>;
@@ -73,8 +75,8 @@ public:
   // Edge is disabled by constants in condition (when) function.
   bool isDisabledCond(const Edge *edge) const;
 
-  LogicValue evalExpr(const FuncExpr *expr,
-                      const Instance *inst);
+  LogicValue evalExpr(const FuncExpr *expr, const Instance *inst,
+                      const PinLogicValue &pin_value = {});
   // Timing sense for the function between from_pin and to_pin
   // after simplifying the function based constants on the pins.
   TimingSense functionSense(const Instance *inst,
@@ -163,8 +165,8 @@ protected:
   void propagateToInvalidLoads();
   void propagateDrvrToLoad(const Pin *drvr_pin,
                            const Pin *load_pin);
-  DdNode *funcBddSim(const FuncExpr *expr,
-                     const Instance *inst);
+  DdNode *funcBddSim(const FuncExpr *expr, const Instance *inst,
+                     const PinLogicValue &pin_value = {});
 
   Mode *mode_{nullptr};
   SimObserver *observer_{nullptr};

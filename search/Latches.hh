@@ -24,6 +24,7 @@
 
 #pragma once
 
+
 #include "Delay.hh"
 #include "GraphClass.hh"
 #include "LibertyClass.hh"
@@ -35,6 +36,8 @@
 #include "Transition.hh"
 
 namespace sta {
+
+class LatchEnable;
 
 enum class LatchEnableState { enabled, open, closed };
 
@@ -77,27 +80,18 @@ public:
                        bool &borrow_limit_exists) const;
   bool isLatchDtoQ(const Edge *edge,
                    const Mode *mode) const;
-  // Find the latch EN->Q edge for a D->Q edge.
-  void latchDtoQEnable(const Edge *d_q_edge,
-                       const Instance *inst,
-                       const Mode *mode,
-                       // Return values.
-                       Vertex *&enable_vertex,
-                       const RiseFall *&enable_rf,
-                       LatchEnableState &state) const;
   LatchEnableState latchDtoQState(const Edge *d_q_edge,
                                   const Mode *mode) const;
   Path *latchEnableOtherPath(const Path *path) const;
   Path *latchEnablePath(const Path *q_path,
                        const Edge *d_q_edge) const;
-  void latchOutArrival(const Path *data_path,
-                       const TimingArc *d_q_arc,
-                       const Edge *d_q_edge,
-                       Tag *&q_tag,
-                       ArcDelay &arc_delay,
-                       Arrival &q_arrival);
+  void latchOutArrival(const Path *data_path, const TimingArc *arc, const Edge *edge,
+                       const LatchEnable &word, Tag *&tag, ArcDelay &delay, Arrival &arrival);
 
 protected:
+  LatchEnableState latchEnableState(const LatchEnable &word, const Instance *inst,
+                                    const Mode *mode, Vertex *&enable_vertex) const;
+  LogicValue pinValueAt(const Pin *pin, const Path *data) const;
   void latchRequired(const Path *data_path,
                      const Path *enable_path,
                      const Path *disable_path,

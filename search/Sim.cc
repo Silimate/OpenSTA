@@ -115,11 +115,10 @@ Sim::functionSense(const FuncExpr *expr,
 }
 
 LogicValue
-Sim::evalExpr(const FuncExpr *expr,
-              const Instance *inst)
+Sim::evalExpr(const FuncExpr *expr, const Instance *inst, const PinLogicValue &pin_value)
 {
   LockGuard lock(bdd_lock_);
-  DdNode *bdd = funcBddSim(expr, inst);
+  DdNode *bdd = funcBddSim(expr, inst, pin_value);
   LogicValue value = LogicValue::unknown;
   DdManager *cudd_mgr = bdd_.cuddMgr();
   if (bdd == Cudd_ReadLogicZero(cudd_mgr))
@@ -136,35 +135,23 @@ Sim::evalExpr(const FuncExpr *expr,
 
 // BDD with instance pin values substituted.
 DdNode *
-Sim::funcBddSim(const FuncExpr *expr,
-                const Instance *inst)
+Sim::funcBddSim(const FuncExpr *expr, const Instance *inst, const PinLogicValue &pin_value)
 {
   DdNode *bdd = bdd_.funcBdd(expr);
   DdManager *cudd_mgr = bdd_.cuddMgr();
-  InstancePinIterator *pin_iter = network_->pinIterator(inst);
-  while (pin_iter->hasNext()) {
-    const Pin *pin = pin_iter->next();
-    const LibertyPort *port = network_->libertyPort(pin);
-    DdNode *port_node = bdd_.findNode(port);
-    if (port_node) {
-      LogicValue value = simValue(pin);
-      int var_index = Cudd_NodeReadIndex(port_node);
-      switch (value) {
-        case LogicValue::zero:
-          bdd = Cudd_bddCompose(cudd_mgr, bdd, Cudd_ReadLogicZero(cudd_mgr),
-                                var_index);
-          Cudd_Ref(bdd);
-          break;
-        case LogicValue::one:
-          bdd = Cudd_bddCompose(cudd_mgr, bdd, Cudd_ReadOne(cudd_mgr), var_index);
-          Cudd_Ref(bdd);
-          break;
-        default:
-          break;
-      }
+  for (const auto &[port, var] : bdd_.portVarMap()) {
+    const Pin *pin = network_->findPin(inst, port);
+    if (!pin)
+      continue;
+    LogicValue value = pin_value ? pin_value(pin) : simValue(pin);
+    if (value == LogicValue::zero || value == LogicValue::one) {
+      DdNode *level = value == LogicValue::one ? Cudd_ReadOne(cudd_mgr) : Cudd_ReadLogicZero(cudd_mgr);
+      DdNode *restricted = Cudd_bddCompose(cudd_mgr, bdd, level, Cudd_NodeReadIndex(var));
+      Cudd_Ref(restricted);
+      Cudd_RecursiveDeref(cudd_mgr, bdd);
+      bdd = restricted;
     }
   }
-  delete pin_iter;
   return bdd;
 }
 

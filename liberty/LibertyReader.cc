@@ -24,6 +24,7 @@
 
 #include "LibertyReader.hh"
 
+#include <algorithm>
 #include <cctype>
 #include <cstdlib>
 #include <functional>
@@ -987,6 +988,8 @@ LibertyReader::readCell(LibertyCell *cell,
   // Set port directions before making timing arcs etc.
   for (auto const &[port_group, ports] : port_group_map)
     readPortDir(ports, port_group);
+  if (cell_group->findAttrString("clock_gating_integrated_cell").empty())
+    makeStatetableLatches(cell, port_group_map);
 
   for (auto const &[port_group, ports] : port_group_map) {
     readPortAttributes(cell, ports, port_group);
@@ -1710,6 +1713,98 @@ LibertyReader::makeSequentials(LibertyCell *cell,
     cell->makeSequential(size, is_register, clk_expr, data_expr, clr_expr,
                          preset_expr, clr_preset_var1, clr_preset_var2,
                          out_port, out_port_inv);
+  }
+}
+
+struct MappedLatch {
+  LibertyPort *output = nullptr;
+  LibertyPort *enable = nullptr;
+  LibertyPort *data = nullptr;
+  bool enable_inv = false;
+  bool data_inv = false;
+};
+
+// A hold row fixes the closed level. The two load rows differ only on data.
+static bool
+mapLatchInputs(const Statetable &table, size_t node, const StringSeq &pins,
+               LibertyCell *cell, MappedLatch &word)
+{
+  using In = StateInputValue;
+  using Out = StateInternalValue;
+  const StateInputValues *hold = nullptr, *low = nullptr, *high = nullptr;
+  for (const StatetableRow &row : table.table()) {
+    auto next = row.nextValues()[node];
+    if ((next != Out::hold && next != Out::low && next != Out::high)
+        || std::ranges::any_of(row.currentValues(), [](Out v) { return v != Out::unspecified; }))
+      return false;
+    auto &inputs = next == Out::hold ? hold : (next == Out::low ? low : high);
+    if (inputs && *inputs != row.inputValues())
+      return false;
+    inputs = &row.inputValues();
+  }
+  if (!hold || !low || !high)
+    return false;
+  auto opposite = [](In a, In b) {
+    return (a == In::high && b == In::low) || (a == In::low && b == In::high);
+  };
+  for (size_t i = 0; i < hold->size(); ++i) {
+    In closed = (*hold)[i], zero = (*low)[i], one = (*high)[i];
+    if (closed == In::dont_care && zero == In::dont_care && one == In::dont_care)
+      continue;
+    LibertyPort *port = i < pins.size() ? cell->findLibertyPort(pins[i]) : nullptr;
+    if (!port || port->direction()->isInternal())
+      return false;
+    if (!word.enable && zero == one && opposite(closed, zero)) {
+      word.enable = port;
+      word.enable_inv = closed == In::high;
+    }
+    else if (!word.data && closed == In::dont_care && opposite(zero, one)) {
+      word.data = port;
+      word.data_inv = zero == In::high;
+    }
+    else
+      return false;
+  }
+  return word.enable && word.data;
+}
+
+void
+LibertyReader::makeStatetableLatches(LibertyCell *cell, const LibertyPortGroupMap &groups)
+{
+  const Statetable *table = cell->statetable();
+  if (!table)
+    return;
+  std::vector<MappedLatch> words;
+  const auto &nodes = table->internalPorts();
+  for (const auto &[group, ports] : groups) {
+    const auto &name = group->findAttrString("internal_node");
+    if (name.empty())
+      continue;
+    auto node = std::ranges::find(nodes, cell->findLibertyPort(name));
+    MappedLatch word;
+    if (node == nodes.end() || group->findSimpleAttr("inverted_output")
+        || !mapLatchInputs(*table, node - nodes.begin(), parseTokens(group->findAttrString("input_map")),
+                           cell, word))
+      return;
+    for (auto *output : ports) {
+      word.output = output;
+      words.push_back(word);
+    }
+  }
+  for (const auto &word : words) {
+    auto *en = FuncExpr::makePort(word.enable);
+    auto *d = FuncExpr::makePort(word.data);
+    cell->makeSequential(word.output->size(), false, word.enable_inv ? en->invert() : en,
+                         word.data_inv ? d->invert() : d, nullptr, nullptr,
+                         LogicValue::unknown, LogicValue::unknown, word.output, nullptr);
+  }
+  if (!words.empty()) {
+    for (const auto &[group, ports] : groups) {
+      const auto &func = group->findAttrString("state_function");
+      if (!func.empty() && !group->findSimpleAttr("function"))
+        for (auto *port : ports)
+          port->setFunction(parseFunc(func, "state_function", cell, group->line()));
+    }
   }
 }
 

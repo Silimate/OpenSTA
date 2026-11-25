@@ -34,7 +34,6 @@
 #include "Error.hh"
 #include "Graph.hh"
 #include "GraphClass.hh"
-#include "Latches.hh"
 #include "Mode.hh"
 #include "Network.hh"
 #include "Path.hh"
@@ -302,13 +301,12 @@ private:
   void makeDivertedPathEnd(Path *after_div,
                            Edge *div_edge,
                            TimingArc *div_arc,
+                           Tag *to_tag, Arrival to_arrival,
                            // Return values.
                            PathEnd *&div_end,
                            Path *&after_div_copy);
   void insertUniqueEdgeDiv(Diversion *div);
-  void reportDiversion(const Edge *edge,
-                       const TimingArc *div_arc,
-                       Path *after_div);
+  void reportDiversion(Path *after_div, Arrival to_arrival);
 
   PathEnd *path_end_;
   Path *before_div_;
@@ -447,7 +445,7 @@ PathEnumFaninVisitor::visitFromToPath(const Pin *,
                                       Vertex *to_vertex,
                                       const RiseFall *to_rf,
                                       Tag *to_tag,
-                                      Arrival & /* to_arrival */,
+                                      Arrival &to_arrival,
                                       const MinMax *)
 {
     debugPrint(debug_, "path_enum", 3, "visit fanin {} -> {} {} {}",
@@ -477,8 +475,8 @@ PathEnumFaninVisitor::visitFromToPath(const Pin *,
     PathEnd *div_end;
     Path *after_div_copy;
     // Make the diverted path end to check slack with from_path crpr.
-    makeDivertedPathEnd(from_path, edge, arc, div_end, after_div_copy);
-    reportDiversion(edge, arc, from_path);
+    makeDivertedPathEnd(from_path, edge, arc, to_tag, to_arrival, div_end, after_div_copy);
+    reportDiversion(from_path, to_arrival);
     Diversion *div = new Diversion(div_end, after_div_copy);
     if (unique_edges_)
       insertUniqueEdgeDiv(div);
@@ -529,32 +527,28 @@ void
 PathEnumFaninVisitor::makeDivertedPathEnd(Path *after_div,
                                           Edge *div_edge,
                                           TimingArc *div_arc,
+                                          Tag *to_tag, Arrival to_arrival,
                                           // Return values.
                                           PathEnd *&div_end,
                                           Path *&after_div_copy)
 {
   Path *div_path;
   path_enum_->makeDivertedPath(path_end_->path(), before_div_, after_div, div_edge,
-                               div_arc, div_path, after_div_copy);
+                               div_arc, to_tag, to_arrival, div_path, after_div_copy);
   div_end = path_end_->copy();
   div_end->setPath(div_path);
 }
 
 void
-PathEnumFaninVisitor::reportDiversion(const Edge *div_edge,
-                                      const TimingArc *div_arc,
-                                      Path *after_div)
+PathEnumFaninVisitor::reportDiversion(Path *after_div, Arrival to_arrival)
 {
   if (debug_->check("path_enum", 3)) {
     Path *path = path_end_->path();
     Arrival path_delay = path_enum_->cmp_slack_
       ? path_end_->slack(this)
       : path_end_->dataArrivalTime(this);
-    Arrival div_delay = delayDiff(path_delay,
-                                  path_enum_->divSlack(before_div_,
-                                                       after_div, div_edge,
-                                                       div_arc),
-                                  this);
+    Arrival delta = delayDiff(to_arrival, before_div_->arrival(), this);
+    Arrival div_delay = delayDiff(path_delay, delta, this);
     Path *div_prev = before_div_->prevPath();
     report_->report("path_enum: diversion {} {} {} -> {}", path->to_string(this),
                     path_enum_->cmp_slack_ ? "slack" : "delay",
@@ -603,39 +597,6 @@ PathEnum::pruneDiversionQueue()
     div_queue_.push(div);
 }
 
-Arrival
-PathEnum::divSlack(Path *before_div,
-                   Path *after_div,
-                   const Edge *div_edge,
-                   const TimingArc *div_arc)
-{
-  Arrival before_div_arrival = before_div->arrival();
-  if (div_edge) {
-    if (div_edge->role()->isLatchDtoQ()) {
-      Arrival div_arrival;
-      ArcDelay div_delay;
-      Tag *q_tag;
-      latches_->latchOutArrival(after_div, div_arc, div_edge,
-                                q_tag, div_delay, div_arrival);
-      return delayDiff(div_arrival, before_div_arrival, this);
-    }
-    else {
-      DcalcAPIndex dcalc_ap = before_div->dcalcAnalysisPtIndex(this);
-      ArcDelay div_delay = search_->deratedDelay(div_edge->from(graph_),
-                                                 div_arc, div_edge,
-                                                 false, before_div->minMax(this),
-                                                 dcalc_ap,
-                                                 before_div->sdc(this));
-      Arrival div_arrival = delaySum(search_->clkPathArrival(after_div), div_delay, this);
-      return delayDiff(div_arrival, before_div_arrival, this);
-    }
-  }
-  else {
-    report_->error(1370, "path diversion missing edge.");
-    return 0.0;
-  }
-}
-
 // Make diversions for all arcs that merge into path for paths
 // starting at "before" to the beginning of the path.
 void
@@ -669,6 +630,7 @@ PathEnum::makeDivertedPath(Path *path,
                            Path *after_div,
                            Edge *div_edge,
                            TimingArc *div_arc,
+                           Tag *to_tag, Arrival to_arrival,
                            // Returned values.
                            Path *&div_path,
                            Path *&after_div_copy)
@@ -703,7 +665,7 @@ PathEnum::makeDivertedPath(Path *path,
       copy->setPrevPath(after_div);
       copy->setPrevEdgeArc(div_edge, div_arc, this);
       // Update the delays forward from before_div to the end of the path.
-      updatePathHeadDelays(copies, after_div);
+      updatePathHeadDelays(copies, after_div, to_tag, to_arrival);
       p = after_div;
       found_div = true;
     }
@@ -718,8 +680,8 @@ PathEnum::makeDivertedPath(Path *path,
 }
 
 void
-PathEnum::updatePathHeadDelays(PathSeq &paths,
-                               Path *after_div)
+PathEnum::updatePathHeadDelays(PathSeq &paths, Path *after_div,
+                               Tag *to_tag, Arrival to_arrival)
 {
   Tag *prev_tag = after_div->tag(this);
   const ClkInfo *prev_clk_info = prev_tag->clkInfo();
@@ -735,12 +697,10 @@ PathEnum::updatePathHeadDelays(PathSeq &paths,
       const MinMax *min_max = path->minMax(this);
       if (i == path_idx_max && edge->role()->isLatchDtoQ()
           && min_max == MinMax::max()) {
-        ArcDelay arc_delay;
-        Tag *q_tag;
-        latches_->latchOutArrival(after_div, arc, edge, q_tag, arc_delay, arrival);
+        arrival = to_arrival;
         path->setArrival(arrival);
-        path->setTag(q_tag);
-        prev_clk_info = q_tag->clkInfo();
+        path->setTag(to_tag);
+        prev_clk_info = to_tag->clkInfo();
       }
       else {
         ArcDelay arc_delay = search_->deratedDelay(edge->from(graph_),

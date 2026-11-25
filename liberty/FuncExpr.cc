@@ -104,10 +104,18 @@ FuncExpr::shallowDelete()
 }
 
 FuncExpr *
-FuncExpr::copy()
+FuncExpr::booleanDifference(const LibertyPort *bit, const LibertyPort *inverse) const
 {
-  FuncExpr *left = left_ ? left_->copy() : nullptr;
-  FuncExpr *right = right_ ? right_->copy() : nullptr;
+  return makeXor(copy(bit, inverse, false), copy(bit, inverse, true));
+}
+
+FuncExpr *
+FuncExpr::copy(const LibertyPort *bit, const LibertyPort *inverse, bool value) const
+{
+  if (op_ == Op::port && port_ && (port_ == bit || port_ == inverse))
+    return (port_ == bit) == value ? makeOne() : makeZero();
+  FuncExpr *left = left_ ? left_->copy(bit, inverse, value) : nullptr;
+  FuncExpr *right = right_ ? right_->copy(bit, inverse, value) : nullptr;
   return new FuncExpr(op_, left, right, port_);
 }
 

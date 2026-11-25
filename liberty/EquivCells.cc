@@ -207,6 +207,8 @@ hashCellPorts(const LibertyCell *cell)
 static unsigned
 hashPort(const LibertyPort *port)
 {
+  if (!port)
+    return 0;
   return hashString(port->name()) * 3U
     + port->direction()->index() * 5U;
 }
