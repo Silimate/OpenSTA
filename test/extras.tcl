@@ -67,3 +67,7 @@ set_false_path -from $test_port -th [get_pins _289_/Y]
 
 # Nothing should show up since we set these false paths
 report_checks -from $test_port -path_delay max -format full -endpoint_path_count 1 -unconstrained
+
+# Message suppression is accepted and ignored
+suppress_message TEST-1
+unsuppress_message TEST-1

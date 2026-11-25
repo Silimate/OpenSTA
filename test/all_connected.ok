@@ -1,0 +1,27 @@
+[all_connected [get_nets w_mid1]]
+u_blk1/mid1
+u_blk2/mid1
+[all_connected -leaf [get_nets w_mid1]]
+u_blk1/blk_r1/Q
+u_blk2/blk_u2/A1
+[all_connected [get_nets clk1]]
+clk1
+u_blk1/clk1
+[all_connected -leaf [get_nets clk1]]
+clk1
+u_blk1/blk_r1/CK
+[all_connected [get_pins u_blk1/blk_r1/Q]]
+u_blk1/r1q
+[all_connected u_blk1/blk_r1/Q]
+u_blk1/r1q
+[all_connected [get_ports clk1]]
+clk1
+[all_connected [all_connected [get_pins u_blk2/blk_u2/A1]]]
+u_blk2/blk_u2/A1
+[all_connected u_blk1]
+Warning 101: all_connected.tcl line 31, object 'u_blk1' not found.
+[all_connected -leaf [get_nets u_blk1/clk1]]
+clk1
+u_blk1/blk_r1/CK
+llength [all_connected -leaf [get_nets {w_mid1 u_blk1/mid1 u_blk2/mid1}]]
+2
