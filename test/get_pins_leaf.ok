@@ -1,0 +1,33 @@
+[get_pins -of_objects [get_nets w_mid1]]
+u_blk1/mid1
+u_blk2/mid1
+[get_pins -leaf -of_objects [get_nets w_mid1]]
+u_blk1/blk_r1/Q
+u_blk2/blk_u2/A1
+[get_pins -leaf -of_objects [get_nets {w_mid1 u_blk1/mid1 u_blk2/mid1}]]
+u_blk1/blk_r1/Q
+u_blk2/blk_u2/A1
+[get_pins -leaf -of_objects [get_nets clk1]]
+u_blk1/blk_r1/CK
+[get_pins -leaf -of_objects [get_ports clk1]]
+u_blk1/blk_r1/CK
+[get_pins -leaf -of_objects [get_cells {u_blk1 u_blk1/blk_r1}]]
+u_blk1/blk_r1/CK
+u_blk1/blk_r1/D
+u_blk1/blk_r1/IQ
+u_blk1/blk_r1/IQN
+u_blk1/blk_r1/Q
+u_blk1/blk_r1/QN
+[get_pins -leaf -of_objects [get_nets w_mid1] -filter "direction==output"]
+u_blk1/blk_r1/Q
+[get_pins -hier -filter "direction==input" *1]
+u_blk1/clk1
+u_blk1/in1
+u_blk2/blk_u2/A1
+u_blk2/mid1
+[get_pins -leaf -hier -filter "direction==input" *1]
+u_blk2/blk_u2/A1
+Clock                   Period          Waveform
+----------------------------------------------------
+clk1                     10.00        0.00      5.00
+div2                     20.00        0.00     10.00 (generated)
